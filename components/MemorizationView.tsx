@@ -31,13 +31,19 @@ type MemoryState = {
 export function MemorizationView({
   item,
   onBack,
+  initialIndex = 0,
 }: {
   item: Item | null;
   onBack?: () => void;
+  initialIndex?: number;
 }) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [states, setStates] = useState<Record<string, MemoryState>>({});
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(initialIndex);
+  const [counterPos, setCounterPos] = useState<{x:number;y:number}|null>(null);
+  const counterDragging = useRef(false);
+  const counterStart = useRef({x:0,y:0});
+  const counterOrigin = useRef({x:0,y:0});
   const [message, setMessage] = useState("");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetLongPress = useRef(false);
@@ -60,7 +66,7 @@ export function MemorizationView({
     }
 
     setNodes(data ?? []);
-    setActive(0);
+    setActive(Math.min(initialIndex, Math.max(0, (data ?? []).length - 1)));
 
     const ids = (data ?? []).map(node => node.id);
     if (!ids.length) {
@@ -86,6 +92,8 @@ export function MemorizationView({
   }, [item]);
 
   useEffect(() => {
+    const saved = localStorage.getItem("lumen-counter-pos");
+    if (saved) { try { setCounterPos(JSON.parse(saved)); } catch {} }
     load();
   }, [load]);
 
@@ -123,16 +131,45 @@ export function MemorizationView({
     if (error) setMessage(error.message);
   }
 
-  function counterDown() {
+  function clampCounter(next: {x:number;y:number}) {
+    const size = 78;
+    return {
+      x: Math.min(Math.max(8, next.x), window.innerWidth - size - 8),
+      y: Math.min(Math.max(8, next.y), window.innerHeight - size - 8),
+    };
+  }
+
+  function counterDown(e: React.PointerEvent<HTMLButtonElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    counterDragging.current = false;
     resetLongPress.current = false;
+    counterStart.current = {x:e.clientX,y:e.clientY};
+    const rect = e.currentTarget.getBoundingClientRect();
+    counterOrigin.current = {x:rect.left,y:rect.top};
     resetTimer.current = setTimeout(() => {
-      resetLongPress.current = true;
-      resetCounter();
+      if (!counterDragging.current) {
+        resetLongPress.current = true;
+        resetCounter();
+      }
     }, 650);
   }
 
-  function counterUp() {
+  function counterMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const dx = e.clientX - counterStart.current.x;
+    const dy = e.clientY - counterStart.current.y;
+    if (Math.hypot(dx,dy) < 6) return;
+    counterDragging.current = true;
     if (resetTimer.current) clearTimeout(resetTimer.current);
+    setCounterPos(clampCounter({x:counterOrigin.current.x+dx,y:counterOrigin.current.y+dy}));
+  }
+
+  function counterUp(e: React.PointerEvent<HTMLButtonElement>) {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    if (counterDragging.current) {
+      if (counterPos) localStorage.setItem("lumen-counter-pos", JSON.stringify(counterPos));
+      return;
+    }
     if (!resetLongPress.current) increment();
   }
 
@@ -232,7 +269,7 @@ export function MemorizationView({
       </nav>
 
       {node && (
-        <button className="legacyCounter" onPointerDown={counterDown} onPointerUp={counterUp} onPointerLeave={() => resetTimer.current && clearTimeout(resetTimer.current)} title="Dokun: say • Basılı tut: sıfırla">
+        <button className="legacyCounter" style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined} onPointerDown={counterDown} onPointerMove={counterMove} onPointerUp={counterUp} title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı">
           <span>{memory?.repeat_count ?? 0}</span>
           <small>
             {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
