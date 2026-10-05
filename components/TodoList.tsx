@@ -60,7 +60,7 @@ function stateFor(todo: Todo, key: string) {
   return { meta, target, count, done: count >= target };
 }
 
-export function TodoList() {
+export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | Promise<void> }) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [message, setMessage] = useState("Yükleniyor...");
@@ -95,30 +95,6 @@ export function TodoList() {
     [visible, selectedDate]
   );
 
-  async function toggle(todo: Todo) {
-    const { meta, target, done } = stateFor(todo, selectedDate);
-    const history = { ...(meta.schedule?.history || {}) };
-    history[selectedDate] = done
-      ? { count: 0, completedAt: null }
-      : { count: target, completedAt: new Date().toISOString() };
-
-    const nextMeta = {
-      ...meta,
-      schedule: { ...meta.schedule, history },
-    };
-
-    const { error } = await supabase
-      .from("todos")
-      .update({
-        notes: JSON.stringify(nextMeta),
-        is_completed: meta.schedule?.mode === "single" ? !done : false,
-      })
-      .eq("id", todo.id);
-
-    if (error) setMessage(error.message);
-    else await loadTodos();
-  }
-
   async function remove(id: string) {
     if (!window.confirm("Bu Todo silinsin mi?")) return;
     const { error } = await supabase.from("todos").delete().eq("id", id);
@@ -136,13 +112,12 @@ export function TodoList() {
     const { meta, target, count, done } = stateFor(todo, selectedDate);
     return (
       <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
-        <button className="todoOpen" onClick={() => toggle(todo)}>
-          <div className="todoCheck">{done ? "✓" : ""}</div>
+        <button className="todoOpen todoNavigate" onClick={() => onOpenTodo?.(todo)}>
           <div className="todoMain">
             <strong>{todo.title}</strong>
             {meta.description && <p>{meta.description}</p>}
-            <div className="todoProgress"><span>{target}/{count}</span></div>
           </div>
+          <div className={"todoTargetPill " + (done ? "done" : "")}>{target}/{count}</div>
         </button>
         <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
       </article>
