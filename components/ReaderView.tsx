@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FloatingCounterButton } from "@/components/FloatingCounterButton";
@@ -72,10 +72,13 @@ function occurs(meta: TodoMeta, key: string) {
   return true;
 }
 
+const transientCounts = new Map<string, Record<string, number>>();
+
 export function ReaderView({
   item,
   onBack,
   onMemorize,
+  initialFocusIndex = 0,
   onPreviousItem,
   onNextItem,
   hasPreviousItem,
@@ -84,6 +87,7 @@ export function ReaderView({
   item: Item;
   onBack?: () => void;
   onMemorize?: (index?: number) => void;
+  initialFocusIndex?: number;
   onPreviousItem?: () => void;
   onNextItem?: () => void;
   hasPreviousItem?: boolean;
@@ -96,7 +100,9 @@ export function ReaderView({
   const [message, setMessage] = useState("");
   const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string;defaultTarget:number}|null>(null);
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
-  const [tesbihatDoneToday, setTesbihatDoneToday] = useState(false);
+  const [documentTodoOpen, setDocumentTodoOpen] = useState(false);
+  const [activeDocumentTodoId, setActiveDocumentTodoId] = useState<string | null>(null);
+  const scrollRestored = useRef(false);
 
   const today = localDateKey();
   const itemTarget = Number(item.metadata?.target || 0);
@@ -133,50 +139,21 @@ export function ReaderView({
 
     const loaded = data ?? [];
     setNodes(loaded);
-    setLocalCounts({});
+    setLocalCounts(transientCounts.get(item.id) ?? {});
 
     const firstTargeted = loaded.find(node => {
       const own = Number(node.metadata?.target || 0);
       return own > 0 || (loaded.length === 1 && itemTarget > 0);
     });
 
-    setActiveNodeId(firstTargeted?.id ?? loaded[0]?.id ?? null);
+    const focused = loaded[Math.min(initialFocusIndex, Math.max(0, loaded.length - 1))];
+    setActiveNodeId(focused?.id ?? firstTargeted?.id ?? loaded[0]?.id ?? null);
     setActiveTodoId(null);
+    scrollRestored.current = false;
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    if (!item.title.includes("Namazı Tesbihatı")) {
-      setTesbihatDoneToday(false);
-      return;
-    }
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const prefs = (data?.preferences ?? {}) as Record<string, any>;
-      const history = (prefs.tesbihatHistory ?? {}) as Record<string, Record<string, boolean>>;
-      setTesbihatDoneToday(!!history[today]?.[item.id]);
-    });
-  }, [item.id, item.title, today]);
-
-  async function markTesbihatDone() {
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-    if (!userId) return;
-
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old = (data?.preferences ?? {}) as Record<string, any>;
-    const history = { ...(old.tesbihatHistory ?? {}) };
-    history[today] = { ...(history[today] ?? {}), [item.id]: true };
-
-    const { error } = await supabase.from("user_preferences").upsert({
-      owner_id: userId,
-      preferences: { ...old, tesbihatHistory: history },
-    });
-
-    if (error) setMessage(error.message);
-    else setTesbihatDoneToday(true);
-  }
 
   function todosForNode(node: Node) {
     return todos
@@ -270,7 +247,9 @@ export function ReaderView({
       const next = activeIntrinsicTarget > 0
         ? Math.min(activeIntrinsicTarget, currentCount + 1)
         : currentCount + 1;
-      return { ...current, [activeNode.id]: next };
+      const value = { ...current, [activeNode.id]: next };
+      transientCounts.set(item.id, value);
+      return value;
     });
   }
 
@@ -282,10 +261,14 @@ export function ReaderView({
       return;
     }
 
-    setLocalCounts(current => ({
-      ...current,
-      [activeNode.id]: Math.max(0, (current[activeNode.id] ?? 0) - 1),
-    }));
+    setLocalCounts(current => {
+      const value = {
+        ...current,
+        [activeNode.id]: Math.max(0, (current[activeNode.id] ?? 0) - 1),
+      };
+      transientCounts.set(item.id, value);
+      return value;
+    });
   }
 
   async function resetActive() {
@@ -296,28 +279,59 @@ export function ReaderView({
       return;
     }
 
-    setLocalCounts(current => ({ ...current, [activeNode.id]: 0 }));
+    setLocalCounts(current => {
+      const value = { ...current, [activeNode.id]: 0 };
+      transientCounts.set(item.id, value);
+      return value;
+    });
+  }
+
+  useEffect(() => {
+    if (!nodes.length || scrollRestored.current) return;
+    scrollRestored.current = true;
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-reader-index="${initialFocusIndex}"]`)?.scrollIntoView({ block: "center" });
+    });
+  }, [nodes, initialFocusIndex]);
+
+  const documentTodos = todos
+    .filter(todo => !todo.related_content_node_id)
+    .map(todo => {
+      const meta = parseMeta(todo.notes);
+      if (!occurs(meta, today)) return null;
+      const target = Math.max(1, Number(meta.schedule?.target || 1));
+      const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
+      return { todo, meta, target, count, done: count >= target };
+    })
+    .filter((value): value is TodoInfo => value !== null);
+
+  function leaveDocument(action?: () => void) {
+    transientCounts.delete(item.id);
+    action?.();
   }
 
   return (
     <div className="legacyReadPage">
       <div className="legacyReadToolbar">
-        <button className="legacyBack" onClick={onBack}>‹ Liste</button>
+        <button className="legacyBack" onClick={() => leaveDocument(onBack)}>‹ Liste</button>
         <div className="toolbar">
-          <button className="primary" onClick={() => onMemorize?.(0)}>Ezber yap</button>
+          <button className="secondary" onClick={() => setDocumentTodoOpen(true)}>+ Todo</button>
+          <button className="primary" onClick={() => onMemorize?.(initialFocusIndex)}>Ezber yap</button>
         </div>
       </div>
 
       <div className="legacyReadTitle">{item.title}</div>
-      {item.title.includes("Namazı Tesbihatı") && (
-        <div className="tesbihatCompletionWrap">
-          <button
-            className={"secondary tesbihatCompletionButton " + (tesbihatDoneToday ? "done" : "")}
-            disabled={tesbihatDoneToday}
-            onClick={markTesbihatDone}
-          >
-            {tesbihatDoneToday ? "✓ Bugün tamamlandı" : "Bugün tamamladım"}
-          </button>
+      {!!documentTodos.length && (
+        <div className="documentTodoTargets">
+          {documentTodos.filter(x => !x.done).map(info => (
+            <button
+              key={info.todo.id}
+              className={"segmentTargetButton documentTodoTarget " + (activeDocumentTodoId === info.todo.id ? " active" : "")}
+              onClick={() => setActiveDocumentTodoId(info.todo.id)}
+            >
+              {info.target}/{info.count}
+            </button>
+          ))}
         </div>
       )}
       {item.subtitle && (
@@ -340,6 +354,7 @@ export function ReaderView({
             <article
               className={"legacyReadItem clickableReadItem " + (active ? "counterActiveItem" : "")}
               key={node.id}
+              data-reader-index={index}
               onClick={() => onMemorize?.(index)}
             >
               <button
@@ -357,19 +372,28 @@ export function ReaderView({
               </button>
 
               <div className="segmentTargetGroup">
-                {activeTodoInfos.map(info => (
-                  <button
-                    key={info.todo.id}
-                    className={"segmentTargetButton todoTarget " + (active && activeTodoId === info.todo.id ? " active" : "")}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setActiveNodeId(node.id);
-                      setActiveTodoId(info.todo.id);
-                    }}
-                  >
-                    {info.target}/{info.count}
-                  </button>
-                ))}
+                {Object.values(activeTodoInfos.reduce((groups, info) => {
+                  const key = info.target + "/" + info.count;
+                  (groups[key] ||= []).push(info);
+                  return groups;
+                }, {} as Record<string, typeof activeTodoInfos>)).map(group => {
+                  const info = group[0];
+                  const selected = active && group.some(x => x.todo.id === activeTodoId);
+                  return (
+                    <button
+                      key={info.todo.id}
+                      className={"segmentTargetButton todoTarget " + (selected ? " active" : "")}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setActiveNodeId(node.id);
+                        setActiveTodoId(info.todo.id);
+                      }}
+                    >
+                      {info.target}/{info.count}
+                      {group.length > 1 && <span className="targetMultiplicity">{group.length}</span>}
+                    </button>
+                  );
+                })}
 
                 {!activeTodoInfos.length && intrinsicTarget > 0 && (
                   <button
@@ -397,8 +421,8 @@ export function ReaderView({
       </div>
 
       <nav className="contentPager">
-        <button className="secondary" disabled={!hasPreviousItem} onClick={onPreviousItem}>‹ Önceki</button>
-        <button className="secondary" disabled={!hasNextItem} onClick={onNextItem}>Sonraki ›</button>
+        <button className="secondary" disabled={!hasPreviousItem} onClick={() => leaveDocument(onPreviousItem)}>‹ Önceki</button>
+        <button className="secondary" disabled={!hasNextItem} onClick={() => leaveDocument(onNextItem)}>Sonraki ›</button>
       </nav>
 
       <FloatingPlaybackButton />
@@ -411,6 +435,16 @@ export function ReaderView({
         onIncrement={incrementActive}
         onDecrement={decrementActive}
         onReset={resetActive}
+      />
+
+      <TodoDialog
+        open={documentTodoOpen}
+        onClose={() => setDocumentTodoOpen(false)}
+        onSaved={loadTodos}
+        title={item.title}
+        defaultTarget={1}
+        libraryItemId={item.id}
+        contentNodeId={null}
       />
 
       <TodoDialog
