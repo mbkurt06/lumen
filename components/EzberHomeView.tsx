@@ -30,9 +30,11 @@ type MenuEntry =
 export function EzberHomeView({
   onOpenItem,
   user,
+  initialRoot = null,
 }: {
-  onOpenItem: (item: EzberItem, siblings: EzberItem[]) => void;
+  onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
   user: User;
+  initialRoot?: EzberItem | null;
 }) {
   const [roots, setRoots] = useState<EzberItem[]>([]);
   const [currentRoot, setCurrentRoot] = useState<EzberItem | null>(null);
@@ -70,6 +72,21 @@ export function EzberHomeView({
   }, []);
 
   useEffect(() => { loadRoots(); }, [loadRoots]);
+
+  useEffect(() => {
+    if (!initialRoot) return;
+    setCurrentRoot(initialRoot);
+    supabase
+      .from("library_items")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+      .eq("parent_id", initialRoot.id)
+      .order("sort_order")
+      .order("title")
+      .then(({ data, error }) => {
+        if (error) setMessage(error.message);
+        else setChildren(data ?? []);
+      });
+  }, [initialRoot]);
 
   const menuEntries = useMemo<MenuEntry[]>(() => {
     const dbEntries: MenuEntry[] = roots
@@ -142,7 +159,7 @@ export function EzberHomeView({
 
   async function openChild(item: EzberItem) {
     if (item.kind === "document") {
-      onOpenItem(item, children.filter(x => x.kind === "document"));
+      onOpenItem(item, children.filter(x => x.kind === "document"), currentRoot);
       return;
     }
 
