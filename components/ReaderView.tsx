@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { TodoDialog } from "@/components/TodoDialog";
+import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 
 type Item = {
   id: string;
@@ -72,7 +73,6 @@ function occurs(meta: TodoMeta, key: string) {
   return true;
 }
 
-const transientCounts = new Map<string, Record<string, number>>();
 
 export function ReaderView({
   item,
@@ -102,6 +102,9 @@ export function ReaderView({
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
   const [documentTodoOpen, setDocumentTodoOpen] = useState(false);
   const [activeDocumentTodoId, setActiveDocumentTodoId] = useState<string | null>(null);
+  const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
+  const [editMenu, setEditMenu] = useState<{ todo: TodoInfo; x: number; y: number } | null>(null);
+  const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
 
   const today = localDateKey();
@@ -139,7 +142,7 @@ export function ReaderView({
 
     const loaded = data ?? [];
     setNodes(loaded);
-    setLocalCounts(transientCounts.get(item.id) ?? {});
+    setLocalCounts(getTransientCounts(item.id));
 
     const firstTargeted = loaded.find(node => {
       const own = Number(node.metadata?.target || 0);
@@ -270,7 +273,7 @@ export function ReaderView({
         ? Math.min(activeIntrinsicTarget, currentCount + 1)
         : currentCount + 1;
       const value = { ...current, [activeNode.id]: next };
-      transientCounts.set(item.id, value);
+      setTransientCounts(item.id, value);
       return value;
     });
   }
@@ -292,7 +295,7 @@ export function ReaderView({
         ...current,
         [activeNode.id]: Math.max(0, (current[activeNode.id] ?? 0) - 1),
       };
-      transientCounts.set(item.id, value);
+      setTransientCounts(item.id, value);
       return value;
     });
   }
@@ -311,7 +314,7 @@ export function ReaderView({
 
     setLocalCounts(current => {
       const value = { ...current, [activeNode.id]: 0 };
-      transientCounts.set(item.id, value);
+      setTransientCounts(item.id, value);
       return value;
     });
   }
@@ -327,12 +330,33 @@ export function ReaderView({
   const documentTodos = documentTodoInfos();
 
   function leaveDocument(action?: () => void) {
-    transientCounts.delete(item.id);
+    clearTransientCounts(item.id);
     action?.();
   }
 
+  function startTodoEditPress(info: TodoInfo, e: React.PointerEvent<HTMLButtonElement>) {
+    if (editPressTimer.current) clearTimeout(editPressTimer.current);
+    editPressTimer.current = setTimeout(() => {
+      setEditMenu({ todo: info, x: e.clientX, y: e.clientY });
+    }, 650);
+  }
+
+  function endTodoEditPress() {
+    if (editPressTimer.current) clearTimeout(editPressTimer.current);
+    editPressTimer.current = null;
+  }
+
   return (
-    <div className="legacyReadPage">
+    <div
+      className="legacyReadPage"
+      onPointerDown={e => {
+        if (e.target === e.currentTarget) {
+          setActiveTodoId(null);
+          setActiveDocumentTodoId(null);
+          setEditMenu(null);
+        }
+      }}
+    >
       <div className="legacyReadToolbar">
         <button className="legacyBack" onClick={() => leaveDocument(onBack)}>‹ Liste</button>
         <div className="toolbar">
@@ -348,6 +372,10 @@ export function ReaderView({
             <button
               key={info.todo.id}
               className={"segmentTargetButton documentTodoTarget " + (activeDocumentTodoId === info.todo.id ? " active" : "")}
+              onPointerDown={e => startTodoEditPress(info, e)}
+              onPointerUp={endTodoEditPress}
+              onPointerCancel={endTodoEditPress}
+              onContextMenu={e => e.preventDefault()}
               onClick={() => { setActiveTodoId(null); setActiveDocumentTodoId(info.todo.id); }}
             >
               {info.target}/{info.count}
@@ -404,6 +432,10 @@ export function ReaderView({
                     <button
                       key={info.todo.id}
                       className={"segmentTargetButton todoTarget " + (selected ? " active" : "")}
+                      onPointerDown={e => startTodoEditPress(info, e)}
+                      onPointerUp={endTodoEditPress}
+                      onPointerCancel={endTodoEditPress}
+                      onContextMenu={e => e.preventDefault()}
                       onClick={e => {
                         e.stopPropagation();
                         setActiveNodeId(node.id);
@@ -479,6 +511,32 @@ export function ReaderView({
         libraryItemId={item.id}
         contentNodeId={todoTarget?.nodeId || null}
       />
+
+      {editMenu && (
+        <button
+          className="counterResetPopover todoEditPopover"
+          style={{ left: Math.max(8, editMenu.x - 42), top: Math.max(8, editMenu.y - 58), right: "auto", bottom: "auto" }}
+          onClick={() => {
+            setEditTodo(editMenu.todo);
+            setEditMenu(null);
+          }}
+        >
+          Düzenle
+        </button>
+      )}
+
+      {editTodo && (
+        <TodoDialog
+          open={true}
+          onClose={() => setEditTodo(null)}
+          onSaved={async () => { await loadTodos(); setEditTodo(null); }}
+          title={item.title}
+          defaultTarget={editTodo.target}
+          libraryItemId={item.id}
+          contentNodeId={editTodo.todo.related_content_node_id}
+          editTodo={{ id: editTodo.todo.id, notes: editTodo.todo.notes }}
+        />
+      )}
 
       {message && <div className="legacyMessage">{message}</div>}
     </div>
