@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 
-export function FloatingCounterButton() {
+export function FloatingCounterButton({
+  title = "Tesbih",
+  target = 0,
+}: {
+  title?: string;
+  target?: number;
+}) {
   const [count, setCount] = useState(0);
   const [pos, setPos] = useState<{x:number;y:number}|null>(null);
   const [resetMenu, setResetMenu] = useState(false);
@@ -27,6 +34,22 @@ export function FloatingCounterButton() {
       x: Math.min(Math.max(8,next.x),window.innerWidth-size-8),
       y: Math.min(Math.max(8,next.y),window.innerHeight-size-8),
     };
+  }
+
+  function increment() {
+    setCount(current => {
+      const next = target > 0 ? Math.min(target, current + 1) : current + 1;
+      localStorage.setItem("lumen-read-counter",String(next));
+      return next;
+    });
+  }
+
+  function decrement() {
+    setCount(current => {
+      const next = Math.max(0,current-1);
+      localStorage.setItem("lumen-read-counter",String(next));
+      return next;
+    });
   }
 
   function down(e:React.PointerEvent<HTMLButtonElement>) {
@@ -67,11 +90,7 @@ export function FloatingCounterButton() {
       return;
     }
 
-    if (!longPressed.current) {
-      const next=count+1;
-      setCount(next);
-      localStorage.setItem("lumen-read-counter",String(next));
-    }
+    if (!longPressed.current) increment();
   }
 
   function reset() {
@@ -86,6 +105,14 @@ export function FloatingCounterButton() {
 
   return (
     <>
+      <FullscreenTasbih
+        title={title}
+        count={count}
+        target={target}
+        onIncrement={increment}
+        onDecrement={decrement}
+      />
+
       {resetMenu && (
         <button className="counterResetPopover" style={popoverStyle} onClick={reset}>
           Sıfırla
@@ -101,6 +128,7 @@ export function FloatingCounterButton() {
         title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı"
       >
         <span>{count}</span>
+        {target > 0 && <small>/ {target}</small>}
       </button>
     </>
   );
