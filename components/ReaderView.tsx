@@ -168,6 +168,19 @@ export function ReaderView({
       .filter((value): value is TodoInfo => value !== null);
   }
 
+  function documentTodoInfos() {
+    return todos
+      .filter(todo => !todo.related_content_node_id)
+      .map(todo => {
+        const meta = parseMeta(todo.notes);
+        if (!occurs(meta, today)) return null;
+        const target = Math.max(1, Number(meta.schedule?.target || 1));
+        const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
+        return { todo, meta, target, count, done: count >= target };
+      })
+      .filter((value): value is TodoInfo => value !== null);
+  }
+
   const activeNode = useMemo(
     () => nodes.find(node => node.id === activeNodeId) ?? null,
     [nodes, activeNodeId]
@@ -192,11 +205,16 @@ export function ReaderView({
   const selectedTodo = activeTodoId
     ? activeTodos.find(info => info.todo.id === activeTodoId) ?? null
     : null;
+  const selectedDocumentTodo = activeDocumentTodoId
+    ? documentTodoInfos().find(info => info.todo.id === activeDocumentTodoId && !info.done) ?? null
+    : null;
   const activeIntrinsicTarget = activeNode ? targetForIntrinsic(activeNode) : 0;
-  const activeTarget = selectedTodo ? selectedTodo.target : activeIntrinsicTarget;
-  const activeCount = selectedTodo
-    ? selectedTodo.count
-    : (activeNode ? (localCounts[activeNode.id] ?? 0) : 0);
+  const activeTarget = selectedDocumentTodo ? selectedDocumentTodo.target : (selectedTodo ? selectedTodo.target : activeIntrinsicTarget);
+  const activeCount = selectedDocumentTodo
+    ? selectedDocumentTodo.count
+    : selectedTodo
+      ? selectedTodo.count
+      : (activeNode ? (localCounts[activeNode.id] ?? 0) : 0);
 
   const activeTitle = activeNode
     ? (item.subtitle || activeNode.text_content || activeNode.title || item.title)
@@ -235,6 +253,10 @@ export function ReaderView({
   }
 
   async function incrementActive() {
+    if (selectedDocumentTodo) {
+      await updateTodoCount(selectedDocumentTodo, selectedDocumentTodo.count + 1);
+      return;
+    }
     if (!activeNode) return;
 
     if (selectedTodo) {
@@ -254,6 +276,10 @@ export function ReaderView({
   }
 
   async function decrementActive() {
+    if (selectedDocumentTodo) {
+      await updateTodoCount(selectedDocumentTodo, selectedDocumentTodo.count - 1);
+      return;
+    }
     if (!activeNode) return;
 
     if (selectedTodo) {
@@ -272,6 +298,10 @@ export function ReaderView({
   }
 
   async function resetActive() {
+    if (selectedDocumentTodo) {
+      await updateTodoCount(selectedDocumentTodo, 0);
+      return;
+    }
     if (!activeNode) return;
 
     if (selectedTodo) {
@@ -294,16 +324,7 @@ export function ReaderView({
     });
   }, [nodes, initialFocusIndex]);
 
-  const documentTodos = todos
-    .filter(todo => !todo.related_content_node_id)
-    .map(todo => {
-      const meta = parseMeta(todo.notes);
-      if (!occurs(meta, today)) return null;
-      const target = Math.max(1, Number(meta.schedule?.target || 1));
-      const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
-      return { todo, meta, target, count, done: count >= target };
-    })
-    .filter((value): value is TodoInfo => value !== null);
+  const documentTodos = documentTodoInfos();
 
   function leaveDocument(action?: () => void) {
     transientCounts.delete(item.id);
@@ -327,7 +348,7 @@ export function ReaderView({
             <button
               key={info.todo.id}
               className={"segmentTargetButton documentTodoTarget " + (activeDocumentTodoId === info.todo.id ? " active" : "")}
-              onClick={() => setActiveDocumentTodoId(info.todo.id)}
+              onClick={() => { setActiveTodoId(null); setActiveDocumentTodoId(info.todo.id); }}
             >
               {info.target}/{info.count}
             </button>
@@ -386,6 +407,7 @@ export function ReaderView({
                       onClick={e => {
                         e.stopPropagation();
                         setActiveNodeId(node.id);
+                        setActiveDocumentTodoId(null);
                         setActiveTodoId(info.todo.id);
                       }}
                     >
@@ -401,6 +423,7 @@ export function ReaderView({
                     onClick={e => {
                       e.stopPropagation();
                       setActiveNodeId(node.id);
+                      setActiveDocumentTodoId(null);
                       setActiveTodoId(null);
                     }}
                   >
