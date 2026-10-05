@@ -82,7 +82,7 @@ export function ReaderView({
                 setTodoTarget({title:node.text_content || node.title || item.title,nodeId:node.id});
               }}
             >
-              + Bu bölümü Todo&apos;ya ekle
+              + Todo
             </button>
           </article>
         ))}
