@@ -245,9 +245,13 @@ export function EzberHomeView({
             >
               <span>
                 <strong>{item.title}</strong>
-                {item.subtitle && <small>{item.subtitle}</small>}
-                {currentRoot?.title === "Esmâü’l-Hüsnâ" && Number(item.metadata?.target || 0) > 0 && (
-                  <small className="targetCountLabel">Tekrar: {Number(item.metadata?.target)}</small>
+                {(item.subtitle || (currentRoot?.title === "Esmâü’l-Hüsnâ" && Number(item.metadata?.target || 0) > 0)) && (
+                  <small className="itemMetaInline">
+                    {item.subtitle && <span>{item.subtitle}</span>}
+                    {currentRoot?.title === "Esmâü’l-Hüsnâ" && Number(item.metadata?.target || 0) > 0 && (
+                      <b>{Number(item.metadata?.target)}</b>
+                    )}
+                  </small>
                 )}
               </span>
               <b>›</b>
