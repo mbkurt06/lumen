@@ -571,3 +571,24 @@ body.dark .repeatBadge{background:var(--panel)}
     padding:62px 12px 90px;
   }
 }
+
+.counterResetPopover{
+  position:fixed;
+  z-index:95;
+  right:26px;
+  bottom:112px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 12px;
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:0 8px 24px #0003;
+  font-weight:700;
+}
+.memorizeTodoButton{
+  margin-top:18px;
+}
+.segmentTodoButton{
+  padding:7px 11px;
+  font-size:14px;
+}
