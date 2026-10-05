@@ -32,15 +32,12 @@ const menu: { key: MenuKey; label: string; icon?: string }[] = [
 
 export function EzberHomeView({
   onOpenItem,
-  onOpenTodo,
 }: {
   onOpenItem: (item: EzberItem) => void;
-  onOpenTodo: () => void;
 }) {
   const [roots, setRoots] = useState<EzberItem[]>([]);
   const [currentRoot, setCurrentRoot] = useState<EzberItem | null>(null);
   const [children, setChildren] = useState<EzberItem[]>([]);
-  const [todoCount, setTodoCount] = useState(0);
   const [message, setMessage] = useState("");
 
   const loadRoots = useCallback(async () => {
@@ -55,13 +52,6 @@ export function EzberHomeView({
       return;
     }
     setRoots(data ?? []);
-
-    const { count } = await supabase
-      .from("todos")
-      .select("id", { count: "exact", head: true })
-      .eq("is_completed", false);
-
-    setTodoCount(count ?? 0);
   }, []);
 
   useEffect(() => {
@@ -74,12 +64,7 @@ export function EzberHomeView({
       return;
     }
 
-    const candidates =
-      key === "İslam İlmihali"
-        ? roots.filter(x => x.title === "İslam İlmihali" || x.title === "İslam İlmihali")
-        : roots.filter(x => x.title === key);
-
-    const root = candidates[0];
+    const root = roots.find(x => x.title === key);
     if (!root) {
       setMessage(key + " koleksiyonu bulunamadı.");
       return;
@@ -168,11 +153,6 @@ export function EzberHomeView({
       </div>
 
       <div className="legacyHomeMenu">
-        <button className="legacyTodoCard" onClick={onOpenTodo}>
-          <strong>✓ Günlük Todo</strong>
-          <span>{todoCount}</span>
-        </button>
-
         {menu.map(item => (
           <button
             key={item.key}
