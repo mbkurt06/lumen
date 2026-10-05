@@ -3,49 +3,61 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
-import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
+import { type EzberItem } from "@/components/EzberHomeView";
+import { LibraryHubView } from "@/components/LibraryHubView";
+import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 import { supabase } from "@/lib/supabase/client";
 
-type Tab = "todos" | "memorize" | "settings";
-type EzberMode = "home" | "read" | "memorize";
+type Tab = "todos" | "library" | "settings";
+type LibraryMode = "hub" | "read" | "memorize";
 
-export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => void }) {
-  const [tab, setTab] = useState<Tab>("memorize");
-  const [ezberMode, setEzberMode] = useState<EzberMode>("home");
+export function AppShell({
+  user,
+  onSignOut,
+}: {
+  user: User;
+  onSignOut: () => void;
+}) {
+  const [tab, setTab] = useState<Tab>("library");
+  const [libraryMode, setLibraryMode] = useState<LibraryMode>("hub");
   const [selectedItem, setSelectedItem] = useState<EzberItem | null>(null);
   const [siblings, setSiblings] = useState<EzberItem[]>([]);
   const [initialSegmentIndex, setInitialSegmentIndex] = useState(0);
+  const [librarySettingsOpen, setLibrarySettingsOpen] = useState(false);
 
   useEffect(() => {
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
-      const theme = typeof prefs.theme === "string" ? prefs.theme : "system";
-      const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
-      const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      document.body.classList.toggle("dark", dark);
-      document.body.classList.toggle("hideArabic", prefs.showArabic === false);
-      document.body.classList.toggle("hideLatin", prefs.showLatin === false);
-      document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
-      document.documentElement.style.setProperty("--font-scale", String(fontScale));
-    });
+    supabase
+      .from("user_preferences")
+      .select("preferences")
+      .maybeSingle()
+      .then(({ data }) => {
+        const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
+        const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
+        const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
+        document.body.classList.toggle("dark", theme === "dark");
+        document.body.classList.toggle("hideArabic", prefs.showArabic === false);
+        document.body.classList.toggle("hideLatin", prefs.showLatin === false);
+        document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
+        document.documentElement.style.setProperty("--font-scale", String(fontScale));
+      });
   }, []);
 
   function openRead(item: EzberItem, list: EzberItem[]) {
     setSelectedItem(item);
     setSiblings(list.filter(x => x.kind === "document"));
     setInitialSegmentIndex(0);
-    setEzberMode("read");
-    setTab("memorize");
+    setLibraryMode("read");
+    setTab("library");
   }
 
-  function openEzberHome() {
+  function openLibraryHome() {
     setSelectedItem(null);
     setSiblings([]);
     setInitialSegmentIndex(0);
-    setEzberMode("home");
-    setTab("memorize");
+    setLibraryMode("hub");
+    setTab("library");
   }
 
   const selectedIndex = useMemo(
@@ -59,42 +71,74 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
     if (!next) return;
     setSelectedItem(next);
     setInitialSegmentIndex(0);
-    setEzberMode("read");
+    setLibraryMode("read");
   }
 
   return (
     <div className="appShell">
       <aside className="sidebar">
         <div className="brand">Lumen</div>
+
         <nav className="nav">
-          <button className={"navButton " + (tab === "todos" ? "active" : "")} onClick={() => setTab("todos")}>TODO</button>
-          <button className={"navButton " + (tab === "memorize" ? "active" : "")} onClick={openEzberHome}>Ezber</button>
-          <button className={"navButton " + (tab === "settings" ? "active" : "")} onClick={() => setTab("settings")}>Ayarlar</button>
+          <button
+            className={"navButton " + (tab === "todos" ? "active" : "")}
+            onClick={() => setTab("todos")}
+          >
+            TODO
+          </button>
+
+          <button
+            className={"navButton " + (tab === "library" ? "active" : "")}
+            onClick={openLibraryHome}
+          >
+            Kütüphane
+          </button>
+
+          <button
+            className={"navButton " + (tab === "settings" ? "active" : "")}
+            onClick={() => setTab("settings")}
+          >
+            Ayarlar
+          </button>
         </nav>
       </aside>
 
       <main className="mainPane">
-        {tab !== "memorize" && (
+        {tab !== "library" && (
           <header className="topbar">
             <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>
             <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
           </header>
         )}
 
-        <div className={tab === "memorize" ? "" : "pageWrap"}>
+        {tab === "library" && (
+          <button
+            className="persistentLibrarySettings"
+            onClick={() => setLibrarySettingsOpen(true)}
+            aria-label="Kütüphane ayarları"
+            title="Kütüphane ayarları"
+          >
+            ⚙
+          </button>
+        )}
+
+        <div className={tab === "library" ? "" : "pageWrap"}>
           {tab === "todos" && <TodoList />}
 
-          {tab === "memorize" && ezberMode === "home" && (
-            <EzberHomeView onOpenItem={openRead} />
+          {tab === "library" && libraryMode === "hub" && (
+            <LibraryHubView
+              user={user}
+              onOpenItem={openRead}
+            />
           )}
 
-          {tab === "memorize" && ezberMode === "read" && selectedItem && (
+          {tab === "library" && libraryMode === "read" && selectedItem && (
             <ReaderView
               item={selectedItem}
-              onBack={() => setEzberMode("home")}
+              onBack={() => setLibraryMode("hub")}
               onMemorize={(index = 0) => {
                 setInitialSegmentIndex(index);
-                setEzberMode("memorize");
+                setLibraryMode("memorize");
               }}
               onPreviousItem={() => moveDocument(-1)}
               onNextItem={() => moveDocument(1)}
@@ -103,17 +147,25 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
             />
           )}
 
-          {tab === "memorize" && ezberMode === "memorize" && selectedItem && (
+          {tab === "library" && libraryMode === "memorize" && selectedItem && (
             <MemorizationView
               item={selectedItem}
               initialIndex={initialSegmentIndex}
-              onBack={() => setEzberMode("read")}
+              onBack={() => setLibraryMode("read")}
             />
           )}
 
-          {tab === "settings" && <SettingsView user={user} onSignOut={onSignOut} />}
+          {tab === "settings" && (
+            <SettingsView user={user} onSignOut={onSignOut} />
+          )}
         </div>
       </main>
+
+      <LibrarySettingsModal
+        user={user}
+        open={librarySettingsOpen}
+        onClose={() => setLibrarySettingsOpen(false)}
+      />
     </div>
   );
 }
