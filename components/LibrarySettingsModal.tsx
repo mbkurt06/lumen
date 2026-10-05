@@ -20,7 +20,9 @@ const defaults: Prefs = {
 };
 
 function applyPrefs(p: Prefs) {
+  document.documentElement.classList.toggle("pre-dark", p.theme === "dark");
   document.body.classList.toggle("dark", p.theme === "dark");
+  localStorage.setItem("lumen-theme", p.theme);
   document.body.classList.toggle("hideArabic", !p.showArabic);
   document.body.classList.toggle("hideLatin", !p.showLatin);
   document.body.classList.toggle("hideTurkish", !p.showTurkish);
