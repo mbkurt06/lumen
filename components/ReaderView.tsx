@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
+import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { TodoDialog } from "@/components/TodoDialog";
 
 type Item = { id: string; kind: string; title: string; subtitle?: string | null };
@@ -94,6 +95,7 @@ export function ReaderView({
       </nav>
 
       <FloatingPlaybackButton />
+      <FloatingCounterButton />
       <TodoDialog
         open={!!todoTarget}
         onClose={() => setTodoTarget(null)}
