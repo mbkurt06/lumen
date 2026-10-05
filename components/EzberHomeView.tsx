@@ -10,6 +10,7 @@ export type EzberItem = {
   title: string;
   subtitle: string | null;
   sort_order: number;
+  metadata?: Record<string, unknown> | null;
 };
 
 const knownTitles = [
@@ -46,7 +47,7 @@ export function EzberHomeView({
   const loadRoots = useCallback(async () => {
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
       .is("parent_id", null)
       .order("sort_order")
       .order("title");
@@ -125,7 +126,7 @@ export function EzberHomeView({
 
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
       .eq("parent_id", entry.item.id)
       .order("sort_order")
       .order("title");
@@ -147,7 +148,7 @@ export function EzberHomeView({
 
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
       .eq("parent_id", item.id)
       .order("sort_order")
       .order("title");
@@ -228,6 +229,9 @@ export function EzberHomeView({
               <span>
                 <strong>{item.title}</strong>
                 {item.subtitle && <small>{item.subtitle}</small>}
+                {currentRoot?.title === "Esmâü’l-Hüsnâ" && Number(item.metadata?.target || 0) > 0 && (
+                  <small className="targetCountLabel">Tekrar: {Number(item.metadata?.target)}</small>
+                )}
               </span>
               <b>›</b>
             </button>
