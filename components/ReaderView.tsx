@@ -68,7 +68,6 @@ export function ReaderView({
             className="legacyReadItem clickableReadItem"
             key={node.id}
             onClick={() => onMemorize?.(index)}
-            title="Bu bölüme gir"
           >
             <div className="legacyReadItemNumber">{index + 1}</div>
             {node.title && <h3>{node.title}</h3>}
