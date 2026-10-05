@@ -20,7 +20,7 @@ export function AppShell({
   const [memorizeItem, setMemorizeItem] = useState<EzberItem | null>(null);
 
   const labels: Record<Tab, string> = {
-    todos: "Yapılacaklar",
+    todos: "TODO",
     library: "Kütüphane",
     memorize: "Ezber",
     settings: "Ayarlar",
@@ -46,7 +46,7 @@ export function AppShell({
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => setTab("todos")}
           >
-            Yapılacaklar
+            TODO
           </button>
 
           <button
