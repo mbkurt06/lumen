@@ -26,6 +26,7 @@ export function AppShell({
   const [siblings, setSiblings] = useState<EzberItem[]>([]);
   const [initialSegmentIndex, setInitialSegmentIndex] = useState(0);
   const [librarySettingsOpen, setLibrarySettingsOpen] = useState(false);
+  const [returnEzberRoot, setReturnEzberRoot] = useState<EzberItem | null>(null);
 
   useEffect(() => {
     supabase
@@ -44,8 +45,9 @@ export function AppShell({
       });
   }, []);
 
-  function openRead(item: EzberItem, list: EzberItem[]) {
+  function openRead(item: EzberItem, list: EzberItem[], parent: EzberItem | null) {
     setSelectedItem(item);
+    setReturnEzberRoot(parent);
     setSiblings(list.filter(x => x.kind === "document"));
     setInitialSegmentIndex(0);
     setLibraryMode("read");
@@ -56,6 +58,7 @@ export function AppShell({
     setSelectedItem(null);
     setSiblings([]);
     setInitialSegmentIndex(0);
+    setReturnEzberRoot(null);
     setLibraryMode("hub");
     setTab("library");
   }
@@ -129,6 +132,8 @@ export function AppShell({
             <LibraryHubView
               user={user}
               onOpenItem={openRead}
+              initialSection={returnEzberRoot ? "ezber" : null}
+              initialEzberRoot={returnEzberRoot}
             />
           )}
 
