@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 type Props = {
@@ -8,6 +8,7 @@ type Props = {
   title: string;
   libraryItemId?: string | null;
   contentNodeId?: string | null;
+  defaultTarget?: number;
   onSaved?: () => void | Promise<void>;
 };
 
@@ -17,17 +18,34 @@ export function TodoDialog({
   title,
   libraryItemId = null,
   contentNodeId = null,
+  defaultTarget = 1,
   onSaved,
 }: Props) {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
   const [description, setDescription] = useState("");
-  const [target, setTarget] = useState(1);
+  const [target, setTarget] = useState(Math.max(1, defaultTarget || 1));
   const [mode, setMode] = useState<"single" | "range" | "days" | "forever">("days");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [durationDays, setDurationDays] = useState(10);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTarget(Math.max(1, defaultTarget || 1));
+    setDescription("");
+    setStartDate(today);
+    setEndDate(today);
+    setMessage("");
+  }, [open, defaultTarget, today, title, contentNodeId]);
 
   if (!open) return null;
 
@@ -92,6 +110,8 @@ export function TodoDialog({
             type="number"
             min={1}
             value={target}
+            onFocus={e => e.currentTarget.select()}
+            onClick={e => e.currentTarget.select()}
             onChange={e => setTarget(Math.max(1, Number(e.target.value) || 1))}
           />
         </div>
