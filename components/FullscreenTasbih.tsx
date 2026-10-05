@@ -46,11 +46,7 @@ export function FullscreenTasbih({
             <div className="tasbihFullscreenTitle">{title}</div>
             <div className="tasbihFullscreenCount">
               {target && target > 0 ? target + "/" + count : String(count)}
-            </div>
-            <div className="tasbihFullscreenHint">
-              Saymak için ekranın herhangi bir yerine dokun
-            </div>
-          </div>
+            </div>          </div>
 
           {onDecrement && (
             <button
