@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 export function FloatingCounterButton() {
   const [count, setCount] = useState(0);
   const [pos, setPos] = useState<{x:number;y:number}|null>(null);
+  const [resetMenu, setResetMenu] = useState(false);
   const pressed = useRef(false);
   const dragging = useRef(false);
   const longPressed = useRef(false);
@@ -40,8 +41,7 @@ export function FloatingCounterButton() {
     timer.current = setTimeout(() => {
       if (!dragging.current) {
         longPressed.current = true;
-        setCount(0);
-        localStorage.setItem("lumen-read-counter","0");
+        setResetMenu(true);
       }
     },650);
   }
@@ -52,6 +52,7 @@ export function FloatingCounterButton() {
     const dy=e.clientY-start.current.y;
     if (Math.hypot(dx,dy)<6) return;
     dragging.current=true;
+    setResetMenu(false);
     if (timer.current) clearTimeout(timer.current);
     setPos(clamp({x:origin.current.x+dx,y:origin.current.y+dy}));
   }
@@ -73,16 +74,34 @@ export function FloatingCounterButton() {
     }
   }
 
+  function reset() {
+    setCount(0);
+    localStorage.setItem("lumen-read-counter","0");
+    setResetMenu(false);
+  }
+
+  const popoverStyle = pos
+    ? {left:Math.max(8,pos.x),top:Math.max(8,pos.y-48),right:"auto",bottom:"auto"}
+    : undefined;
+
   return (
-    <button
-      className="legacyCounter readCounter"
-      style={pos ? {left:pos.x,top:pos.y,right:"auto",bottom:"auto"} : undefined}
-      onPointerDown={down}
-      onPointerMove={move}
-      onPointerUp={up}
-      title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı"
-    >
-      <span>{count}</span>
-    </button>
+    <>
+      {resetMenu && (
+        <button className="counterResetPopover" style={popoverStyle} onClick={reset}>
+          Sıfırla
+        </button>
+      )}
+
+      <button
+        className="legacyCounter readCounter"
+        style={pos ? {left:pos.x,top:pos.y,right:"auto",bottom:"auto"} : undefined}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı"
+      >
+        <span>{count}</span>
+      </button>
+    </>
   );
 }
