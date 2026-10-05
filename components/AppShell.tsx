@@ -1,38 +1,41 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { LibraryView } from "@/components/LibraryView";
+import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
 import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
+import { supabase } from "@/lib/supabase/client";
 
-type Tab = "todos" | "library" | "memorize" | "settings";
+type Tab = "todos" | "memorize" | "settings";
+type EzberMode = "home" | "read" | "memorize";
 
-export function AppShell({
-  user,
-  onSignOut,
-}: {
-  user: User;
-  onSignOut: () => void;
-}) {
+export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>("memorize");
-  const [memorizeItem, setMemorizeItem] = useState<EzberItem | null>(null);
+  const [ezberMode, setEzberMode] = useState<EzberMode>("home");
+  const [selectedItem, setSelectedItem] = useState<EzberItem | null>(null);
 
-  const labels: Record<Tab, string> = {
-    todos: "TODO",
-    library: "Kütüphane",
-    memorize: "Ezber",
-    settings: "Ayarlar",
-  };
+  useEffect(() => {
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+      const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
+      const theme = typeof prefs.theme === "string" ? prefs.theme : "system";
+      const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
+      const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.body.classList.toggle("dark", dark);
+      document.documentElement.style.setProperty("--font-scale", String(fontScale));
+    });
+  }, []);
 
-  function startMemorize(item: EzberItem) {
-    setMemorizeItem(item);
+  function openRead(item: EzberItem) {
+    setSelectedItem(item);
+    setEzberMode("read");
     setTab("memorize");
   }
 
   function openEzberHome() {
-    setMemorizeItem(null);
+    setSelectedItem(null);
+    setEzberMode("home");
     setTab("memorize");
   }
 
@@ -40,72 +43,44 @@ export function AppShell({
     <div className="appShell">
       <aside className="sidebar">
         <div className="brand">Lumen</div>
-
         <nav className="nav">
-          <button
-            className={"navButton " + (tab === "todos" ? "active" : "")}
-            onClick={() => setTab("todos")}
-          >
-            TODO
-          </button>
-
-          <button
-            className={"navButton " + (tab === "library" ? "active" : "")}
-            onClick={() => setTab("library")}
-          >
-            Kütüphane
-          </button>
-
-          <button
-            className={"navButton " + (tab === "memorize" ? "active" : "")}
-            onClick={openEzberHome}
-          >
-            Ezber
-          </button>
-
-          <button
-            className={"navButton " + (tab === "settings" ? "active" : "")}
-            onClick={() => setTab("settings")}
-          >
-            Ayarlar
-          </button>
+          <button className={"navButton " + (tab === "todos" ? "active" : "")} onClick={() => setTab("todos")}>TODO</button>
+          <button className={"navButton " + (tab === "memorize" ? "active" : "")} onClick={openEzberHome}>Ezber</button>
+          <button className={"navButton " + (tab === "settings" ? "active" : "")} onClick={() => setTab("settings")}>Ayarlar</button>
         </nav>
       </aside>
 
       <main className="mainPane">
         {tab !== "memorize" && (
           <header className="topbar">
-            <h1 className="pageTitle">{labels[tab]}</h1>
-            <span className="muted" style={{ fontSize: 13 }}>
-              {user.email}
-            </span>
+            <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>
+            <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
           </header>
         )}
 
         <div className={tab === "memorize" ? "" : "pageWrap"}>
           {tab === "todos" && <TodoList />}
 
-          {tab === "library" && (
-            <LibraryView onMemorize={startMemorize} />
+          {tab === "memorize" && ezberMode === "home" && (
+            <EzberHomeView onOpenItem={openRead} />
           )}
 
-          {tab === "memorize" && !memorizeItem && (
-            <EzberHomeView
-              onOpenItem={startMemorize}
-              onOpenTodo={() => setTab("todos")}
+          {tab === "memorize" && ezberMode === "read" && selectedItem && (
+            <ReaderView
+              item={selectedItem}
+              onBack={() => setEzberMode("home")}
+              onMemorize={() => setEzberMode("memorize")}
             />
           )}
 
-          {tab === "memorize" && memorizeItem && (
+          {tab === "memorize" && ezberMode === "memorize" && selectedItem && (
             <MemorizationView
-              item={memorizeItem}
-              onBack={() => setMemorizeItem(null)}
+              item={selectedItem}
+              onBack={() => setEzberMode("read")}
             />
           )}
 
-          {tab === "settings" && (
-            <SettingsView user={user} onSignOut={onSignOut} />
-          )}
+          {tab === "settings" && <SettingsView user={user} onSignOut={onSignOut} />}
         </div>
       </main>
     </div>
