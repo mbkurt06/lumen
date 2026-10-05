@@ -31,6 +31,8 @@ type Todo = {
   related_library_item_id: string | null;
 };
 
+type TodoInfo = { todo: Todo; meta: TodoMeta; target: number; count: number; done: boolean };
+
 type TodoMeta = {
   schedule?: {
     mode?: "single" | "range" | "days" | "forever";
@@ -154,13 +156,28 @@ export function ReaderView({
         const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
         return { todo, meta, target, count, done: count >= target };
       })
-      .filter((value): value is NonNullable<typeof value> => !!value);
+      .filter((value): value is TodoInfo => value !== null);
   }
 
   const activeNode = useMemo(
     () => nodes.find(node => node.id === activeNodeId) ?? null,
     [nodes, activeNodeId]
   );
+
+  useEffect(() => {
+    if (!activeNode) {
+      setActiveTodoId(null);
+      return;
+    }
+    const active = todosForNode(activeNode).filter(info => !info.done);
+    if (!active.length) {
+      setActiveTodoId(null);
+      return;
+    }
+    if (!activeTodoId || !active.some(info => info.todo.id === activeTodoId)) {
+      setActiveTodoId(active[0].todo.id);
+    }
+  }, [activeNodeId, todos]);
 
   const activeTodos = activeNode ? todosForNode(activeNode).filter(todo => !todo.done) : [];
   const selectedTodo = activeTodoId
