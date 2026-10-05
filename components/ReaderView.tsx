@@ -102,6 +102,7 @@ export function ReaderView({
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
   const [documentTodoOpen, setDocumentTodoOpen] = useState(false);
   const [activeDocumentTodoId, setActiveDocumentTodoId] = useState<string | null>(null);
+  const [counterArmed, setCounterArmed] = useState(true);
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{ todo: TodoInfo; x: number; y: number } | null>(null);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,16 +193,19 @@ export function ReaderView({
   useEffect(() => {
     if (!activeNode) {
       setActiveTodoId(null);
+      setCounterArmed(false);
       return;
     }
     const active = todosForNode(activeNode).filter(info => !info.done);
-    if (!active.length) {
-      setActiveTodoId(null);
+    if (active.length) {
+      if (!activeTodoId || !active.some(info => info.todo.id === activeTodoId)) {
+        setActiveTodoId(active[0].todo.id);
+      }
+      setCounterArmed(true);
       return;
     }
-    if (!activeTodoId || !active.some(info => info.todo.id === activeTodoId)) {
-      setActiveTodoId(active[0].todo.id);
-    }
+    setActiveTodoId(null);
+    setCounterArmed(targetForIntrinsic(activeNode) > 0);
   }, [activeNodeId, todos]);
 
   const activeTodos = activeNode ? todosForNode(activeNode).filter(todo => !todo.done) : [];
@@ -256,6 +260,7 @@ export function ReaderView({
   }
 
   async function incrementActive() {
+    if (activeTarget > 0 && !counterArmed) return;
     if (selectedDocumentTodo) {
       await updateTodoCount(selectedDocumentTodo, selectedDocumentTodo.count + 1);
       return;
@@ -353,6 +358,7 @@ export function ReaderView({
         if (e.target === e.currentTarget) {
           setActiveTodoId(null);
           setActiveDocumentTodoId(null);
+          setCounterArmed(false);
           setEditMenu(null);
         }
       }}
@@ -376,7 +382,7 @@ export function ReaderView({
               onPointerUp={endTodoEditPress}
               onPointerCancel={endTodoEditPress}
               onContextMenu={e => e.preventDefault()}
-              onClick={() => { setActiveTodoId(null); setActiveDocumentTodoId(info.todo.id); }}
+              onClick={() => { setActiveTodoId(null); setActiveDocumentTodoId(info.todo.id); setCounterArmed(true); }}
             >
               {info.target}/{info.count}
             </button>
@@ -441,6 +447,7 @@ export function ReaderView({
                         setActiveNodeId(node.id);
                         setActiveDocumentTodoId(null);
                         setActiveTodoId(info.todo.id);
+                        setCounterArmed(true);
                       }}
                     >
                       {info.target}/{info.count}
@@ -457,6 +464,7 @@ export function ReaderView({
                       setActiveNodeId(node.id);
                       setActiveDocumentTodoId(null);
                       setActiveTodoId(null);
+                      setCounterArmed(true);
                     }}
                   >
                     {intrinsicTarget}/{intrinsicCount}
