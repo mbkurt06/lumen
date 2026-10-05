@@ -18,11 +18,15 @@ const labels: Record<SectionKey, string> = {
 export function LibraryHubView({
   user,
   onOpenItem,
+  initialSection = null,
+  initialEzberRoot = null,
 }: {
   user: User;
-  onOpenItem: (item: EzberItem, siblings: EzberItem[]) => void;
+  onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
+  initialSection?: SectionKey | null;
+  initialEzberRoot?: EzberItem | null;
 }) {
-  const [section, setSection] = useState<SectionKey | null>(null);
+  const [section, setSection] = useState<SectionKey | null>(initialSection);
   const [order, setOrder] = useState<SectionKey[]>(defaultOrder);
   const [dragKey, setDragKey] = useState<SectionKey | null>(null);
 
@@ -110,7 +114,7 @@ export function LibraryHubView({
       )}
 
       {section === "ezber" && (
-        <EzberHomeView onOpenItem={onOpenItem} user={user} />
+        <EzberHomeView onOpenItem={onOpenItem} user={user} initialRoot={initialEzberRoot} />
       )}
 
       {section && section !== "ezber" && (
