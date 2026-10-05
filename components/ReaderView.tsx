@@ -92,7 +92,8 @@ export function ReaderView({
   const [localCounts, setLocalCounts] = useState<Record<string, number>>({});
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string}|null>(null);
+  const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string;defaultTarget:number}|null>(null);
+  const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
 
   const today = localDateKey();
   const itemTarget = Number(item.metadata?.target || 0);
@@ -137,21 +138,23 @@ export function ReaderView({
     });
 
     setActiveNodeId(firstTargeted?.id ?? loaded[0]?.id ?? null);
+    setActiveTodoId(null);
     await loadTodos();
   }, [item.id, itemTarget, loadTodos]);
 
   useEffect(() => { load(); }, [load]);
 
-  function todoForNode(node: Node) {
-    const matches = todos.filter(todo => todo.related_content_node_id === node.id);
-    for (const todo of matches) {
-      const meta = parseMeta(todo.notes);
-      if (!occurs(meta, today)) continue;
-      const target = Math.max(1, Number(meta.schedule?.target || 1));
-      const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
-      return { todo, meta, target, count, done: count >= target };
-    }
-    return null;
+  function todosForNode(node: Node) {
+    return todos
+      .filter(todo => todo.related_content_node_id === node.id)
+      .map(todo => {
+        const meta = parseMeta(todo.notes);
+        if (!occurs(meta, today)) return null;
+        const target = Math.max(1, Number(meta.schedule?.target || 1));
+        const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
+        return { todo, meta, target, count, done: count >= target };
+      })
+      .filter((value): value is NonNullable<typeof value> => !!value);
   }
 
   const activeNode = useMemo(
@@ -159,18 +162,21 @@ export function ReaderView({
     [nodes, activeNodeId]
   );
 
-  const activeTodo = activeNode ? todoForNode(activeNode) : null;
+  const activeTodos = activeNode ? todosForNode(activeNode).filter(todo => !todo.done) : [];
+  const selectedTodo = activeTodoId
+    ? activeTodos.find(info => info.todo.id === activeTodoId) ?? null
+    : null;
   const activeIntrinsicTarget = activeNode ? targetForIntrinsic(activeNode) : 0;
-  const activeTarget = activeTodo && !activeTodo.done ? activeTodo.target : activeIntrinsicTarget;
-  const activeCount = activeTodo && !activeTodo.done
-    ? activeTodo.count
+  const activeTarget = selectedTodo ? selectedTodo.target : activeIntrinsicTarget;
+  const activeCount = selectedTodo
+    ? selectedTodo.count
     : (activeNode ? (localCounts[activeNode.id] ?? 0) : 0);
 
   const activeTitle = activeNode
     ? (item.subtitle || activeNode.text_content || activeNode.title || item.title)
     : (item.subtitle || item.title);
 
-  async function updateTodoCount(todoInfo: NonNullable<ReturnType<typeof todoForNode>>, nextCount: number) {
+  async function updateTodoCount(todoInfo: ReturnType<typeof todosForNode>[number], nextCount: number) {
     const history = { ...(todoInfo.meta.schedule?.history || {}) };
     const count = Math.min(todoInfo.target, Math.max(0, nextCount));
     history[today] = {
@@ -205,8 +211,8 @@ export function ReaderView({
   async function incrementActive() {
     if (!activeNode) return;
 
-    if (activeTodo && !activeTodo.done) {
-      await updateTodoCount(activeTodo, activeTodo.count + 1);
+    if (selectedTodo) {
+      await updateTodoCount(selectedTodo, selectedTodo.count + 1);
       return;
     }
 
@@ -222,8 +228,8 @@ export function ReaderView({
   async function decrementActive() {
     if (!activeNode) return;
 
-    if (activeTodo && !activeTodo.done) {
-      await updateTodoCount(activeTodo, activeTodo.count - 1);
+    if (selectedTodo) {
+      await updateTodoCount(selectedTodo, selectedTodo.count - 1);
       return;
     }
 
@@ -236,8 +242,8 @@ export function ReaderView({
   async function resetActive() {
     if (!activeNode) return;
 
-    if (activeTodo && !activeTodo.done) {
-      await updateTodoCount(activeTodo, 0);
+    if (selectedTodo) {
+      await updateTodoCount(selectedTodo, 0);
       return;
     }
 
@@ -263,14 +269,12 @@ export function ReaderView({
 
       <div className="legacyReadContent">
         {nodes.map((node, index) => {
-          const todoInfo = todoForNode(node);
+          const todoInfos = todosForNode(node);
+          const activeTodoInfos = todoInfos.filter(info => !info.done);
           const intrinsicTarget = targetForIntrinsic(node);
-          const hasActiveTodo = !!todoInfo && !todoInfo.done;
-          const target = hasActiveTodo ? todoInfo!.target : intrinsicTarget;
-          const count = hasActiveTodo ? todoInfo!.count : (localCounts[node.id] ?? 0);
-          const done = target > 0 && count >= target;
+          const intrinsicCount = localCounts[node.id] ?? 0;
+          const intrinsicDone = intrinsicTarget > 0 && intrinsicCount >= intrinsicTarget;
           const active = activeNodeId === node.id;
-          const hideCompletedTodoCounter = !!todoInfo?.done;
 
           return (
             <article
@@ -285,23 +289,41 @@ export function ReaderView({
                   setTodoTarget({
                     title: node.text_content || node.title || item.title,
                     nodeId: node.id,
+                    defaultTarget: targetForIntrinsic(node) || 1,
                   });
                 }}
               >
                 + Todo
               </button>
 
-              {target > 0 && !hideCompletedTodoCounter && (
-                <button
-                  className={"segmentTargetButton " + (done ? "done" : "") + (active ? " active" : "")}
-                  onClick={e => {
-                    e.stopPropagation();
-                    setActiveNodeId(node.id);
-                  }}
-                >
-                  {target}/{count}
-                </button>
-              )}
+              <div className="segmentTargetGroup">
+                {activeTodoInfos.map(info => (
+                  <button
+                    key={info.todo.id}
+                    className={"segmentTargetButton todoTarget " + (active && activeTodoId === info.todo.id ? " active" : "")}
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActiveNodeId(node.id);
+                      setActiveTodoId(info.todo.id);
+                    }}
+                  >
+                    {info.target}/{info.count}
+                  </button>
+                ))}
+
+                {!activeTodoInfos.length && intrinsicTarget > 0 && (
+                  <button
+                    className={"segmentTargetButton " + (intrinsicDone ? "done" : "") + (active && !activeTodoId ? " active" : "")}
+                    onClick={e => {
+                      e.stopPropagation();
+                      setActiveNodeId(node.id);
+                      setActiveTodoId(null);
+                    }}
+                  >
+                    {intrinsicTarget}/{intrinsicCount}
+                  </button>
+                )}
+              </div>
 
               <div className="legacyReadItemNumber">{index + 1}</div>
               {node.title && <h3>{node.title}</h3>}
@@ -336,6 +358,7 @@ export function ReaderView({
         onClose={() => setTodoTarget(null)}
         onSaved={loadTodos}
         title={todoTarget?.title || ""}
+        defaultTarget={todoTarget?.defaultTarget || 1}
         libraryItemId={item.id}
         contentNodeId={todoTarget?.nodeId || null}
       />
