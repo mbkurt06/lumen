@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
@@ -39,6 +39,9 @@ export function EzberHomeView({
   const [message, setMessage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [rootOrder, setRootOrder] = useState<string[]>([]);
+  const pressId = useRef<string | null>(null);
+  const pressY = useRef(0);
+  const moved = useRef(false);
 
   const loadRoots = useCallback(async () => {
     const { data, error } = await supabase
@@ -65,9 +68,7 @@ export function EzberHomeView({
     if (Array.isArray(saved)) setRootOrder(saved.filter(x => typeof x === "string") as string[]);
   }, []);
 
-  useEffect(() => {
-    loadRoots();
-  }, [loadRoots]);
+  useEffect(() => { loadRoots(); }, [loadRoots]);
 
   const menuEntries = useMemo<MenuEntry[]>(() => {
     const dbEntries: MenuEntry[] = roots
@@ -75,7 +76,6 @@ export function EzberHomeView({
       .map(item => ({ type: "db", item }));
 
     const all: MenuEntry[] = [...dbEntries, { type: "virtual", id: "dinleme", title: "Dinleme" }];
-
     const idOf = (entry: MenuEntry) => entry.type === "db" ? entry.item.id : entry.id;
 
     if (!rootOrder.length) return all;
@@ -94,33 +94,24 @@ export function EzberHomeView({
     const ids = entries.map(entry => entry.type === "db" ? entry.item.id : entry.id);
     setRootOrder(ids);
 
-    const { data } = await supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle();
-
+    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
     const old = (data?.preferences ?? {}) as Record<string, unknown>;
 
     await supabase.from("user_preferences").upsert({
       owner_id: user.id,
-      preferences: {
-        ...old,
-        ezberMenuOrder: ids,
-      },
+      preferences: { ...old, ezberMenuOrder: ids },
     });
   }
 
   function reorderEntries(overId: string) {
     if (!dragId || dragId === overId) return;
-
     const current = [...menuEntries];
     const idOf = (entry: MenuEntry) => entry.type === "db" ? entry.item.id : entry.id;
     const from = current.findIndex(entry => idOf(entry) === dragId);
     const to = current.findIndex(entry => idOf(entry) === overId);
     if (from < 0 || to < 0) return;
-
-    const [moved] = current.splice(from, 1);
-    current.splice(to, 0, moved);
+    const [item] = current.splice(from, 1);
+    current.splice(to, 0, item);
     setRootOrder(current.map(idOf));
   }
 
@@ -175,20 +166,41 @@ export function EzberHomeView({
     const from = children.findIndex(item => item.id === dragId);
     const to = children.findIndex(item => item.id === overId);
     if (from < 0 || to < 0) return;
-
     const next = [...children];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
     setChildren(next);
   }
 
   async function persistChildren() {
-    const updates = children.map((item, index) =>
-      supabase.from("library_items").update({ sort_order: index }).eq("id", item.id)
+    const results = await Promise.all(
+      children.map((item, index) =>
+        supabase.from("library_items").update({ sort_order: index }).eq("id", item.id)
+      )
     );
-    const results = await Promise.all(updates);
     const failed = results.find(result => result.error);
     if (failed?.error) setMessage(failed.error.message);
+  }
+
+  function down(id: string, y: number) {
+    pressId.current = id;
+    pressY.current = y;
+    moved.current = false;
+  }
+
+  function movePointer(id: string, y: number, reorder: (id: string) => void) {
+    if (!pressId.current) return;
+    if (Math.abs(y - pressY.current) < 7 && !moved.current) return;
+    moved.current = true;
+    if (!dragId) setDragId(pressId.current);
+    reorder(id);
+  }
+
+  async function finish(persist: () => Promise<void>) {
+    if (moved.current) await persist();
+    setDragId(null);
+    pressId.current = null;
+    moved.current = false;
   }
 
   if (currentRoot) {
@@ -204,19 +216,14 @@ export function EzberHomeView({
           {children.map(item => (
             <button
               key={item.id}
-              draggable
               className={"legacyCategoryRow draggableWholeRow " + (dragId === item.id ? "dragging" : "")}
-              onDragStart={() => setDragId(item.id)}
-              onDragEnter={e => {
-                e.preventDefault();
-                reorderChildren(item.id);
+              onPointerDown={e => down(item.id, e.clientY)}
+              onPointerMove={e => movePointer(item.id, e.clientY, reorderChildren)}
+              onPointerUp={async () => {
+                const wasMoved = moved.current;
+                await finish(persistChildren);
+                if (!wasMoved) openChild(item);
               }}
-              onDragOver={e => e.preventDefault()}
-              onDragEnd={async () => {
-                setDragId(null);
-                await persistChildren();
-              }}
-              onClick={() => openChild(item)}
             >
               <span>
                 <strong>{item.title}</strong>
@@ -251,19 +258,14 @@ export function EzberHomeView({
           return (
             <button
               key={id}
-              draggable
               className={"legacyHomeRow draggableWholeRow " + (dragId === id ? "dragging" : "")}
-              onDragStart={() => setDragId(id)}
-              onDragEnter={e => {
-                e.preventDefault();
-                reorderEntries(id);
+              onPointerDown={e => down(id, e.clientY)}
+              onPointerMove={e => movePointer(id, e.clientY, reorderEntries)}
+              onPointerUp={async () => {
+                const wasMoved = moved.current;
+                await finish(async () => saveRootOrder(menuEntries));
+                if (!wasMoved) openRoot(entry);
               }}
-              onDragOver={e => e.preventDefault()}
-              onDragEnd={async () => {
-                setDragId(null);
-                await saveRootOrder(menuEntries);
-              }}
-              onClick={() => openRoot(entry)}
             >
               <strong>{title}</strong>
               <span>›</span>
