@@ -1,90 +1,97 @@
 "use client";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
-export function SettingsView({
-  user,
-  onSignOut,
-}: {
-  user: User;
-  onSignOut: () => void;
-}) {
-  const [fontScale, setFontScale] = useState(1);
-  const [theme, setTheme] = useState("system");
+type Prefs = {
+  theme: "light" | "dark";
+  fontScale: number;
+  showArabic: boolean;
+  showLatin: boolean;
+  showTurkish: boolean;
+};
+
+const defaults: Prefs = {
+  theme: "light",
+  fontScale: 1,
+  showArabic: true,
+  showLatin: true,
+  showTurkish: false,
+};
+
+function applyPrefs(p: Prefs) {
+  document.body.classList.toggle("dark", p.theme === "dark");
+  document.body.classList.toggle("hideArabic", !p.showArabic);
+  document.body.classList.toggle("hideLatin", !p.showLatin);
+  document.body.classList.toggle("hideTurkish", !p.showTurkish);
+  document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
+}
+
+export function SettingsView({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+  const [prefs, setPrefs] = useState<Prefs>(defaults);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle()
-      .then(({ data }) => {
-        const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
-        if (typeof prefs.fontScale === "number") setFontScale(prefs.fontScale);
-        if (typeof prefs.theme === "string") setTheme(prefs.theme);
-      });
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+      const raw = (data?.preferences ?? {}) as Partial<Prefs>;
+      const next = { ...defaults, ...raw };
+      setPrefs(next);
+      applyPrefs(next);
+    });
   }, []);
 
-  async function save(event: FormEvent) {
-    event.preventDefault();
-
+  async function update(next: Prefs) {
+    setPrefs(next);
+    applyPrefs(next);
     const { error } = await supabase.from("user_preferences").upsert({
       owner_id: user.id,
-      preferences: { fontScale, theme },
+      preferences: next,
     });
-
     setMessage(error ? error.message : "Ayarlar kaydedildi.");
   }
 
   return (
-    <div className="card" style={{ padding: 22, maxWidth: 680 }}>
-      <h2 style={{ marginTop: 0 }}>Ayarlar</h2>
-      <p className="muted">{user.email}</p>
+    <div className="settingsCard">
+      <div className="dialogHead"><strong>Görünüm</strong></div>
 
-      <form
-        onSubmit={save}
-        style={{ display: "grid", gap: 14, marginTop: 20 }}
-      >
-        <label>
-          Yazı ölçeği
-          <input
-            type="range"
-            min="0.8"
-            max="1.8"
-            step="0.1"
-            value={fontScale}
-            onChange={e => setFontScale(Number(e.target.value))}
-            style={{ width: "100%" }}
-          />
-          <div>{fontScale.toFixed(1)}×</div>
-        </label>
+      <div className="settingRow">
+        <span>Gece modu</span>
+        <button className="settingButton" onClick={() => update({...prefs,theme:prefs.theme==="dark"?"light":"dark"})}>
+          {prefs.theme === "dark" ? "Açık" : "Kapalı"}
+        </button>
+      </div>
 
-        <label>
-          Tema
-          <select
-            className="input"
-            value={theme}
-            onChange={e => setTheme(e.target.value)}
-          >
-            <option value="system">Sistem</option>
-            <option value="light">Açık</option>
-            <option value="dark">Koyu</option>
-          </select>
-        </label>
-
-        <div className="toolbar">
-          <button className="primary">Kaydet</button>
-          <button
-            type="button"
-            className="secondary danger"
-            onClick={onSignOut}
-          >
-            Çıkış yap
-          </button>
+      <div className="settingRow">
+        <span>Yazı boyutu</span>
+        <div className="fontControls">
+          <button onClick={() => update({...prefs,fontScale:Math.max(.8,+(prefs.fontScale-.1).toFixed(1))})}>A−</button>
+          <button onClick={() => update({...prefs,fontScale:1})}>A</button>
+          <button onClick={() => update({...prefs,fontScale:Math.min(1.8,+(prefs.fontScale+.1).toFixed(1))})}>A+</button>
         </div>
-      </form>
+      </div>
 
+      <div className="settingRow">
+        <span>Arapça</span>
+        <button className="settingButton" onClick={() => update({...prefs,showArabic:!prefs.showArabic})}>
+          {prefs.showArabic ? "Açık" : "Gizli"}
+        </button>
+      </div>
+
+      <div className="settingRow">
+        <span>Latin harfleri</span>
+        <button className="settingButton" onClick={() => update({...prefs,showLatin:!prefs.showLatin})}>
+          {prefs.showLatin ? "Açık" : "Gizli"}
+        </button>
+      </div>
+
+      <div className="settingRow">
+        <span>Türkçe anlam</span>
+        <button className="settingButton" onClick={() => update({...prefs,showTurkish:!prefs.showTurkish})}>
+          {prefs.showTurkish ? "Açık" : "Gizli"}
+        </button>
+      </div>
+
+      <button className="secondary danger" style={{marginTop:18}} onClick={onSignOut}>Çıkış yap</button>
       {message && <p className="muted">{message}</p>}
     </div>
   );
