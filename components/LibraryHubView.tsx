@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
-import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 
 type SectionKey = "ezber" | "risale" | "quran" | "he";
 
@@ -26,7 +25,6 @@ export function LibraryHubView({
   const [section, setSection] = useState<SectionKey | null>(null);
   const [order, setOrder] = useState<SectionKey[]>(defaultOrder);
   const [dragKey, setDragKey] = useState<SectionKey | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     supabase
@@ -83,10 +81,6 @@ export function LibraryHubView({
           )}
           <h1>{title}</h1>
         </div>
-
-        <button className="librarySettingsButton" onClick={() => setSettingsOpen(true)}>
-          ⚙
-        </button>
       </div>
 
       {!section && (
@@ -125,12 +119,6 @@ export function LibraryHubView({
           <p>Bu bölümün içeriklerini birlikte toplu olarak ekleyeceğiz.</p>
         </div>
       )}
-
-      <LibrarySettingsModal
-        user={user}
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
     </div>
   );
 }
