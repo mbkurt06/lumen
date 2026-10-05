@@ -24,13 +24,51 @@ type Node = {
   sort_order: number;
 };
 
-type MemoryState = {
-  content_node_id: string;
-  repeat_count: number;
-  repeat_target: number;
-  playback_rate: number;
-  is_memorized: boolean;
+type Todo = {
+  id: string;
+  notes: string | null;
+  related_content_node_id: string | null;
+  related_library_item_id: string | null;
 };
+
+type TodoMeta = {
+  schedule?: {
+    mode?: "single" | "range" | "days" | "forever";
+    startDate?: string;
+    endDate?: string | null;
+    durationDays?: number | null;
+    target?: number;
+    history?: Record<string, { count?: number; completedAt?: string | null }>;
+  };
+};
+
+function parseMeta(notes: string | null): TodoMeta {
+  if (!notes) return {};
+  try { return JSON.parse(notes) as TodoMeta; } catch { return {}; }
+}
+
+function localDateKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function occurs(meta: TodoMeta, key: string) {
+  const s = meta.schedule;
+  if (!s?.startDate) return true;
+  if (key < s.startDate) return false;
+  if (s.mode === "single") return key === s.startDate;
+  if (s.mode === "range") return !s.endDate || key <= s.endDate;
+  if (s.mode === "days") {
+    const start = new Date(s.startDate + "T00:00:00");
+    const current = new Date(key + "T00:00:00");
+    const diff = Math.floor((current.getTime() - start.getTime()) / 86400000);
+    return diff >= 0 && diff < Math.max(1, s.durationDays || 1);
+  }
+  return true;
+}
 
 export function ReaderView({
   item,
@@ -50,17 +88,32 @@ export function ReaderView({
   hasNextItem?: boolean;
 }) {
   const [nodes, setNodes] = useState<Node[]>([]);
-  const [states, setStates] = useState<Record<string, MemoryState>>({});
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [localCounts, setLocalCounts] = useState<Record<string, number>>({});
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string}|null>(null);
 
+  const today = localDateKey();
   const itemTarget = Number(item.metadata?.target || 0);
 
-  const targetFor = useCallback((node: Node) => {
+  const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
     return own > 0 ? own : (nodes.length === 1 && itemTarget > 0 ? itemTarget : 0);
   }, [itemTarget, nodes.length]);
+
+  const loadTodos = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("todos")
+      .select("id,notes,related_content_node_id,related_library_item_id")
+      .eq("related_library_item_id", item.id);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setTodos(data ?? []);
+  }, [item.id]);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -76,98 +129,119 @@ export function ReaderView({
 
     const loaded = data ?? [];
     setNodes(loaded);
-
-    const ids = loaded.map(node => node.id);
-    if (!ids.length) {
-      setStates({});
-      setActiveNodeId(null);
-      return;
-    }
-
-    const { data: memoryData, error: memoryError } = await supabase
-      .from("memorization_state")
-      .select("content_node_id,repeat_count,repeat_target,playback_rate,is_memorized")
-      .in("content_node_id", ids);
-
-    if (memoryError) {
-      setMessage(memoryError.message);
-      return;
-    }
-
-    const map: Record<string, MemoryState> = {};
-    (memoryData ?? []).forEach(row => {
-      map[row.content_node_id] = row;
-    });
-    setStates(map);
+    setLocalCounts({});
 
     const firstTargeted = loaded.find(node => {
       const own = Number(node.metadata?.target || 0);
       return own > 0 || (loaded.length === 1 && itemTarget > 0);
     });
-    setActiveNodeId(firstTargeted?.id ?? null);
-  }, [item.id, itemTarget]);
+
+    setActiveNodeId(firstTargeted?.id ?? loaded[0]?.id ?? null);
+    await loadTodos();
+  }, [item.id, itemTarget, loadTodos]);
 
   useEffect(() => { load(); }, [load]);
+
+  function todoForNode(node: Node) {
+    const matches = todos.filter(todo => todo.related_content_node_id === node.id);
+    for (const todo of matches) {
+      const meta = parseMeta(todo.notes);
+      if (!occurs(meta, today)) continue;
+      const target = Math.max(1, Number(meta.schedule?.target || 1));
+      const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
+      return { todo, meta, target, count, done: count >= target };
+    }
+    return null;
+  }
 
   const activeNode = useMemo(
     () => nodes.find(node => node.id === activeNodeId) ?? null,
     [nodes, activeNodeId]
   );
 
-  const activeTarget = activeNode ? targetFor(activeNode) : 0;
-  const activeCount = activeNode
-    ? (states[activeNode.id]?.repeat_count ?? 0)
-    : 0;
+  const activeTodo = activeNode ? todoForNode(activeNode) : null;
+  const activeIntrinsicTarget = activeNode ? targetForIntrinsic(activeNode) : 0;
+  const activeTarget = activeTodo && !activeTodo.done ? activeTodo.target : activeIntrinsicTarget;
+  const activeCount = activeTodo && !activeTodo.done
+    ? activeTodo.count
+    : (activeNode ? (localCounts[activeNode.id] ?? 0) : 0);
 
   const activeTitle = activeNode
     ? (item.subtitle || activeNode.text_content || activeNode.title || item.title)
     : (item.subtitle || item.title);
 
-  async function setNodeCount(node: Node, count: number) {
-    const target = targetFor(node);
-    const nextCount = target > 0 ? Math.min(target, Math.max(0, count)) : Math.max(0, count);
-    const previous = states[node.id] ?? {
-      content_node_id: node.id,
-      repeat_count: 0,
-      repeat_target: target || 1,
-      playback_rate: 1,
-      is_memorized: false,
+  async function updateTodoCount(todoInfo: NonNullable<ReturnType<typeof todoForNode>>, nextCount: number) {
+    const history = { ...(todoInfo.meta.schedule?.history || {}) };
+    const count = Math.min(todoInfo.target, Math.max(0, nextCount));
+    history[today] = {
+      count,
+      completedAt: count >= todoInfo.target ? new Date().toISOString() : null,
     };
 
-    const next: MemoryState = {
-      ...previous,
-      repeat_count: nextCount,
-      repeat_target: target || previous.repeat_target || 1,
-      is_memorized: target > 0 && nextCount >= target,
+    const nextMeta = {
+      ...todoInfo.meta,
+      schedule: {
+        ...todoInfo.meta.schedule,
+        history,
+      },
     };
 
-    setStates(current => ({ ...current, [node.id]: next }));
+    setTodos(current =>
+      current.map(todo =>
+        todo.id === todoInfo.todo.id
+          ? { ...todo, notes: JSON.stringify(nextMeta) }
+          : todo
+      )
+    );
 
-    const { error } = await supabase.from("memorization_state").upsert({
-      content_node_id: node.id,
-      repeat_count: next.repeat_count,
-      repeat_target: next.repeat_target,
-      playback_rate: next.playback_rate,
-      is_memorized: next.is_memorized,
-      last_practiced_at: new Date().toISOString(),
-    }, { onConflict: "owner_id,content_node_id" });
+    const { error } = await supabase
+      .from("todos")
+      .update({ notes: JSON.stringify(nextMeta) })
+      .eq("id", todoInfo.todo.id);
 
     if (error) setMessage(error.message);
   }
 
   async function incrementActive() {
     if (!activeNode) return;
-    await setNodeCount(activeNode, activeCount + 1);
+
+    if (activeTodo && !activeTodo.done) {
+      await updateTodoCount(activeTodo, activeTodo.count + 1);
+      return;
+    }
+
+    setLocalCounts(current => {
+      const currentCount = current[activeNode.id] ?? 0;
+      const next = activeIntrinsicTarget > 0
+        ? Math.min(activeIntrinsicTarget, currentCount + 1)
+        : currentCount + 1;
+      return { ...current, [activeNode.id]: next };
+    });
   }
 
   async function decrementActive() {
     if (!activeNode) return;
-    await setNodeCount(activeNode, activeCount - 1);
+
+    if (activeTodo && !activeTodo.done) {
+      await updateTodoCount(activeTodo, activeTodo.count - 1);
+      return;
+    }
+
+    setLocalCounts(current => ({
+      ...current,
+      [activeNode.id]: Math.max(0, (current[activeNode.id] ?? 0) - 1),
+    }));
   }
 
   async function resetActive() {
     if (!activeNode) return;
-    await setNodeCount(activeNode, 0);
+
+    if (activeTodo && !activeTodo.done) {
+      await updateTodoCount(activeTodo, 0);
+      return;
+    }
+
+    setLocalCounts(current => ({ ...current, [activeNode.id]: 0 }));
   }
 
   return (
@@ -180,17 +254,23 @@ export function ReaderView({
       </div>
 
       <div className="legacyReadTitle">{item.title}</div>
-      {item.subtitle && <div className="legacyInvocation">{item.subtitle}</div>}
-      {itemTarget > 0 && (
-        <div className="legacyTargetCount">Tekrar: {itemTarget}</div>
+      {item.subtitle && (
+        <div className="legacyInvocation inlineInvocationTarget">
+          <span>{item.subtitle}</span>
+          {itemTarget > 0 && <b>{itemTarget}</b>}
+        </div>
       )}
 
       <div className="legacyReadContent">
         {nodes.map((node, index) => {
-          const target = targetFor(node);
-          const count = states[node.id]?.repeat_count ?? 0;
+          const todoInfo = todoForNode(node);
+          const intrinsicTarget = targetForIntrinsic(node);
+          const hasActiveTodo = !!todoInfo && !todoInfo.done;
+          const target = hasActiveTodo ? todoInfo!.target : intrinsicTarget;
+          const count = hasActiveTodo ? todoInfo!.count : (localCounts[node.id] ?? 0);
           const done = target > 0 && count >= target;
           const active = activeNodeId === node.id;
+          const hideCompletedTodoCounter = !!todoInfo?.done;
 
           return (
             <article
@@ -211,7 +291,7 @@ export function ReaderView({
                 + Todo
               </button>
 
-              {target > 0 && (
+              {target > 0 && !hideCompletedTodoCounter && (
                 <button
                   className={"segmentTargetButton " + (done ? "done" : "") + (active ? " active" : "")}
                   onClick={e => {
@@ -242,6 +322,7 @@ export function ReaderView({
       <FloatingPlaybackButton />
 
       <FloatingCounterButton
+        key={item.id}
         title={activeTitle}
         target={activeTarget}
         count={activeCount}
@@ -253,6 +334,7 @@ export function ReaderView({
       <TodoDialog
         open={!!todoTarget}
         onClose={() => setTodoTarget(null)}
+        onSaved={loadTodos}
         title={todoTarget?.title || ""}
         libraryItemId={item.id}
         contentNodeId={todoTarget?.nodeId || null}
