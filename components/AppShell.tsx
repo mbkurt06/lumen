@@ -274,6 +274,7 @@ export function AppShell({
           {tab === "library" && libraryMode === "read" && selectedItem && (
             <ReaderView
               item={selectedItem}
+              initialFocusIndex={initialSegmentIndex}
               onBack={() => setLibraryMode("hub")}
               onMemorize={(index = 0) => {
                 setInitialSegmentIndex(index);
