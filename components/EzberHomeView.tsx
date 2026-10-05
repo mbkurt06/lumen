@@ -27,6 +27,35 @@ type MenuEntry =
   | { type: "db"; item: EzberItem }
   | { type: "virtual"; id: "dinleme"; title: "Dinleme" };
 
+type TodoSummary = { id: string; itemId: string; target: number; count: number; done: boolean };
+
+function localDateKey() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseTodo(notes: string | null) {
+  try { return JSON.parse(notes || "{}"); } catch { return {}; }
+}
+
+function todoOccurs(meta: any, key: string) {
+  const s = meta?.schedule;
+  if (!s?.startDate) return true;
+  if (key < s.startDate) return false;
+  if (s.mode === "single") return key === s.startDate;
+  if (s.mode === "range") return !s.endDate || key <= s.endDate;
+  if (s.mode === "days") {
+    const start = new Date(s.startDate + "T00:00:00");
+    const current = new Date(key + "T00:00:00");
+    const diff = Math.floor((current.getTime() - start.getTime()) / 86400000);
+    return diff >= 0 && diff < Math.max(1, s.durationDays || 1);
+  }
+  return true;
+}
+
 export function EzberHomeView({
   onOpenItem,
   user,
@@ -42,6 +71,7 @@ export function EzberHomeView({
   const [message, setMessage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [rootOrder, setRootOrder] = useState<string[]>([]);
+  const [todoSummaries, setTodoSummaries] = useState<TodoSummary[]>([]);
   const pressId = useRef<string | null>(null);
   const pressY = useRef(0);
   const moved = useRef(false);
@@ -87,6 +117,32 @@ export function EzberHomeView({
         else setChildren(data ?? []);
       });
   }, [initialRoot]);
+
+  useEffect(() => {
+    if (!children.length) {
+      setTodoSummaries([]);
+      return;
+    }
+    const ids = children.map(item => item.id);
+    supabase
+      .from("todos")
+      .select("id,notes,related_library_item_id")
+      .in("related_library_item_id", ids)
+      .then(({ data }) => {
+        const today = localDateKey();
+        const rows: TodoSummary[] = [];
+        for (const todo of data ?? []) {
+          if (!todo.related_library_item_id) continue;
+          const meta = parseTodo(todo.notes);
+          if (!todoOccurs(meta, today)) continue;
+          const target = Math.max(1, Number(meta?.schedule?.target || 1));
+          const count = Math.min(target, Number(meta?.schedule?.history?.[today]?.count || 0));
+          rows.push({ id: todo.id, itemId: todo.related_library_item_id, target, count, done: count >= target });
+        }
+        setTodoSummaries(rows);
+      });
+  }, [children]);
+
 
   const menuEntries = useMemo<MenuEntry[]>(() => {
     const dbEntries: MenuEntry[] = roots
@@ -254,7 +310,23 @@ export function EzberHomeView({
                   </small>
                 )}
               </span>
-              <b>›</b>
+              <span className="categoryRowRight">
+                {(() => {
+                  const active = todoSummaries.filter(t => t.itemId === item.id && !t.done);
+                  const groups = Object.values(active.reduce((acc, t) => {
+                    const key = t.target + "/" + t.count;
+                    (acc[key] ||= []).push(t);
+                    return acc;
+                  }, {} as Record<string, TodoSummary[]>));
+                  return groups.map(group => (
+                    <span className="listTodoBadge" key={group[0].id}>
+                      {group[0].target}/{group[0].count}
+                      {group.length > 1 && <i>{group.length}</i>}
+                    </span>
+                  ));
+                })()}
+                <b>›</b>
+              </span>
             </button>
           ))}
 
