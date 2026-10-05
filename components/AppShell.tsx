@@ -23,6 +23,9 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
       const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
       const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       document.body.classList.toggle("dark", dark);
+      document.body.classList.toggle("hideArabic", prefs.showArabic === false);
+      document.body.classList.toggle("hideLatin", prefs.showLatin === false);
+      document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
       document.documentElement.style.setProperty("--font-scale", String(fontScale));
     });
   }, []);
