@@ -5,7 +5,7 @@ import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { TodoDialog } from "@/components/TodoDialog";
 
-type Item = { id: string; kind: string; title: string; subtitle?: string | null };
+type Item = { id: string; kind: string; title: string; subtitle?: string | null; metadata?: Record<string, unknown> | null };
 type Node = {
   id: string;
   kind: string;
@@ -62,6 +62,9 @@ export function ReaderView({
 
       <div className="legacyReadTitle">{item.title}</div>
       {item.subtitle && <div className="legacyInvocation">{item.subtitle}</div>}
+      {Number(item.metadata?.target || 0) > 0 && (
+        <div className="legacyTargetCount">Tekrar: {Number(item.metadata?.target)}</div>
+      )}
 
       <div className="legacyReadContent">
         {nodes.map((node, index) => (
@@ -95,7 +98,10 @@ export function ReaderView({
       </nav>
 
       <FloatingPlaybackButton />
-      <FloatingCounterButton />
+      <FloatingCounterButton
+        title={item.subtitle || item.title}
+        target={Number(item.metadata?.target || 0)}
+      />
       <TodoDialog
         open={!!todoTarget}
         onClose={() => setTodoTarget(null)}
