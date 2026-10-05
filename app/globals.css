@@ -817,3 +817,75 @@ body.dark .repeatBadge{background:var(--panel)}
 
 /* fullscreen hint is intentionally hidden */
 .tasbihFullscreenHint{display:none!important}
+
+html.pre-dark,
+html.pre-dark body{
+  --bg:#151714;
+  --panel:#20231f;
+  --text:#f1eee5;
+  --muted:#aaa79d;
+  --border:#3c4039;
+  --accent:#527c6b;
+  background:#151714!important;
+  color:#f1eee5;
+}
+.appRestoreBlank{min-height:100vh;background:var(--bg)}
+
+.segmentTargetGroup{
+  position:absolute;
+  right:8px;
+  top:18px;
+  z-index:3;
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+  max-width:44%;
+}
+.segmentTargetGroup .segmentTargetButton{
+  position:static;
+  right:auto;
+  top:auto;
+}
+.segmentTargetButton.active{
+  background:var(--accent)!important;
+  color:#fff!important;
+  border-color:#9cc9b5!important;
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 55%,transparent),0 0 18px color-mix(in srgb,var(--accent) 45%,transparent)!important;
+  transform:scale(1.06);
+}
+.todoTargetPill{
+  min-width:78px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:8px 12px;
+  text-align:center;
+  font-weight:800;
+  background:var(--panel);
+  color:var(--text);
+}
+.todoTargetPill.done{
+  background:#2e6d4d;
+  border-color:#2e6d4d;
+  color:#fff;
+}
+.todoNavigate{
+  grid-template-columns:1fr auto!important;
+  width:100%;
+}
+.todoCard{
+  align-items:center;
+}
+.todoCard.done{
+  opacity:1!important;
+}
+.todoCard.done .todoMain{
+  opacity:.68;
+}
+@media(max-width:700px){
+  .segmentTargetGroup{
+    right:4px;
+    top:14px;
+    max-width:52%;
+  }
+}
