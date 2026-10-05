@@ -11,15 +11,18 @@ export function AuthPanel() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("Supabase bağlantısı kontrol ediliyor...");
   const [busy, setBusy] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data, error }) => {
       if (error) {
         setMessage("Supabase bağlantısı var, aktif oturum bulunamadı.");
+        setAuthReady(true);
         return;
       }
       setUser(data.user ?? null);
       setMessage(data.user ? "Oturum açık." : "Supabase bağlantısı hazır.");
+      setAuthReady(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -58,6 +61,8 @@ export function AuthPanel() {
     setMessage(error ? error.message : "Oturum kapatıldı.");
     setBusy(false);
   }
+
+  if (!authReady) return <div className="authBootBlank" />;
 
   if (user) {
     return <AppShell user={user} onSignOut={signOut} />;
