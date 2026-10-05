@@ -57,6 +57,9 @@ const keep = new Set([
   "İkindi Namazı Tesbihatı",
   "Akşam Namazı Tesbihatı",
   "Yatsı Namazı Tesbihatı",
+  "Salât-ı Münciye (Salâten Tüncînâ)",
+  "İstiâze Duası (Uzun)",
+  "Namaz Sonrası Salavatlar",
 ]);
 
 const ayetelTitles = new Set(["Âyetel Kürsî", "Ayetel Kürsî"]);
@@ -144,6 +147,9 @@ const tesOrder = [
   "İkindi Namazı Tesbihatı",
   "Akşam Namazı Tesbihatı",
   "Yatsı Namazı Tesbihatı",
+  "Salât-ı Münciye (Salâten Tüncînâ)",
+  "İstiâze Duası (Uzun)",
+  "Namaz Sonrası Salavatlar",
 ];
 
 for (const item of keptTesbihat ?? []) {
