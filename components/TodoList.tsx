@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { TodoDialog } from "@/components/TodoDialog";
 
 type Todo = {
   id: string;
@@ -64,6 +65,9 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [message, setMessage] = useState("Yükleniyor...");
+  const [editMenu, setEditMenu] = useState<{todo:Todo;x:number;y:number}|null>(null);
+  const [editTodo, setEditTodo] = useState<Todo | null>(null);
+  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadTodos = useCallback(async () => {
     const { data, error } = await supabase
@@ -108,6 +112,20 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
     setSelectedDate(dateKey(d));
   }
 
+  function startEdit(todo: Todo, e: React.PointerEvent<HTMLDivElement>) {
+    e.stopPropagation();
+    if (editTimer.current) clearTimeout(editTimer.current);
+    editTimer.current = setTimeout(() => {
+      setEditMenu({ todo, x: e.clientX, y: e.clientY });
+    }, 650);
+  }
+
+  function stopEdit(e?: React.PointerEvent<HTMLDivElement>) {
+    e?.stopPropagation();
+    if (editTimer.current) clearTimeout(editTimer.current);
+    editTimer.current = null;
+  }
+
   function renderTodo(todo: Todo) {
     const { meta, target, count, done } = stateFor(todo, selectedDate);
     return (
@@ -118,7 +136,15 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
             <strong>{todo.title}</strong>
             {meta.description && <p>{meta.description}</p>}
           </div>
-          <div className={"todoTargetPill " + (done ? "done" : "")}>{target}/{count}</div>
+          <div
+            className={"todoTargetPill " + (done ? "done" : "")}
+            onPointerDown={e => startEdit(todo, e)}
+            onPointerUp={stopEdit}
+            onPointerCancel={stopEdit}
+            onContextMenu={e => e.preventDefault()}
+          >
+            {target}/{count}
+          </div>
         </button>
         <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
       </article>
@@ -126,7 +152,7 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
   }
 
   return (
-    <section className="todoPage card">
+    <section className="todoPage card" onPointerDown={e => { if (e.target === e.currentTarget) setEditMenu(null); }}>
       <div className="todoPageHead">
         <h2>Günlük Todo</h2>
         <span>{completed.length} / {visible.length}</span>
@@ -154,6 +180,29 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
           {!completed.length && <div className="todoEmpty">Henüz tamamlanan görev yok.</div>}
         </div>
       </div>
+
+      {editMenu && (
+        <button
+          className="counterResetPopover todoEditPopover"
+          style={{left:Math.max(8,editMenu.x-42),top:Math.max(8,editMenu.y-58),right:"auto",bottom:"auto"}}
+          onClick={() => { setEditTodo(editMenu.todo); setEditMenu(null); }}
+        >
+          Düzenle
+        </button>
+      )}
+
+      {editTodo && (
+        <TodoDialog
+          open={true}
+          onClose={() => setEditTodo(null)}
+          onSaved={async () => { await loadTodos(); setEditTodo(null); }}
+          title={editTodo.title}
+          defaultTarget={stateFor(editTodo, selectedDate).target}
+          libraryItemId={editTodo.related_library_item_id}
+          contentNodeId={editTodo.related_content_node_id}
+          editTodo={{id:editTodo.id,notes:editTodo.notes}}
+        />
+      )}
 
       {message && <p className="muted">{message}</p>}
     </section>
