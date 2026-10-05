@@ -96,6 +96,7 @@ export function ReaderView({
   const [message, setMessage] = useState("");
   const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string;defaultTarget:number}|null>(null);
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
+  const [tesbihatDoneToday, setTesbihatDoneToday] = useState(false);
 
   const today = localDateKey();
   const itemTarget = Number(item.metadata?.target || 0);
@@ -145,6 +146,37 @@ export function ReaderView({
   }, [item.id, itemTarget, loadTodos]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!item.title.includes("Namazı Tesbihatı")) {
+      setTesbihatDoneToday(false);
+      return;
+    }
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+      const prefs = (data?.preferences ?? {}) as Record<string, any>;
+      const history = (prefs.tesbihatHistory ?? {}) as Record<string, Record<string, boolean>>;
+      setTesbihatDoneToday(!!history[today]?.[item.id]);
+    });
+  }, [item.id, item.title, today]);
+
+  async function markTesbihatDone() {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) return;
+
+    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+    const old = (data?.preferences ?? {}) as Record<string, any>;
+    const history = { ...(old.tesbihatHistory ?? {}) };
+    history[today] = { ...(history[today] ?? {}), [item.id]: true };
+
+    const { error } = await supabase.from("user_preferences").upsert({
+      owner_id: userId,
+      preferences: { ...old, tesbihatHistory: history },
+    });
+
+    if (error) setMessage(error.message);
+    else setTesbihatDoneToday(true);
+  }
 
   function todosForNode(node: Node) {
     return todos
@@ -277,6 +309,17 @@ export function ReaderView({
       </div>
 
       <div className="legacyReadTitle">{item.title}</div>
+      {item.title.includes("Namazı Tesbihatı") && (
+        <div className="tesbihatCompletionWrap">
+          <button
+            className={"secondary tesbihatCompletionButton " + (tesbihatDoneToday ? "done" : "")}
+            disabled={tesbihatDoneToday}
+            onClick={markTesbihatDone}
+          >
+            {tesbihatDoneToday ? "✓ Bugün tamamlandı" : "Bugün tamamladım"}
+          </button>
+        </div>
+      )}
       {item.subtitle && (
         <div className="legacyInvocation inlineInvocationTarget">
           <span>{item.subtitle}</span>
