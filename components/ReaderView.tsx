@@ -467,7 +467,7 @@ export function ReaderView({
               <div className="legacyReadItemNumber">{index + 1}</div>
               {node.title && <h3>{node.title}</h3>}
               {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
-              {node.text_content && <div className="legacySegment">{node.text_content}</div>}
+              {node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
               {node.translation && <div className="legacyTurkish">{node.translation}</div>}
             </article>
           );
