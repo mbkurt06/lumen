@@ -266,7 +266,7 @@ export function EzberHomeView({
     <section className="legacyNestedPage">
       <div className="legacyHomeHead compact">
         <h1>Ezber</h1>
-        <p>Bir bölüm seç</p>
+        
       </div>
 
       <div className="legacyHomeMenu">
