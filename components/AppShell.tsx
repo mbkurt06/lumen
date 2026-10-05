@@ -27,8 +27,23 @@ export function AppShell({
   const [initialSegmentIndex, setInitialSegmentIndex] = useState(0);
   const [librarySettingsOpen, setLibrarySettingsOpen] = useState(false);
   const [returnEzberRoot, setReturnEzberRoot] = useState<EzberItem | null>(null);
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("lumen-app-state");
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.tab) setTab(state.tab);
+        if (state.libraryMode) setLibraryMode(state.libraryMode);
+        if (state.selectedItem) setSelectedItem(state.selectedItem);
+        if (Array.isArray(state.siblings)) setSiblings(state.siblings);
+        if (typeof state.initialSegmentIndex === "number") setInitialSegmentIndex(state.initialSegmentIndex);
+        if (state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
+      }
+    } catch {}
+    setRestored(true);
+
     supabase
       .from("user_preferences")
       .select("preferences")
@@ -37,13 +52,80 @@ export function AppShell({
         const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
+        document.documentElement.classList.toggle("pre-dark", theme === "dark");
         document.body.classList.toggle("dark", theme === "dark");
+        localStorage.setItem("lumen-theme", theme);
         document.body.classList.toggle("hideArabic", prefs.showArabic === false);
         document.body.classList.toggle("hideLatin", prefs.showLatin === false);
         document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
       });
   }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    localStorage.setItem("lumen-app-state", JSON.stringify({
+      tab,
+      libraryMode,
+      selectedItem,
+      siblings,
+      initialSegmentIndex,
+      returnEzberRoot,
+    }));
+  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot]);
+
+  async function openTodoSource(todo: {
+    related_library_item_id: string | null;
+    related_content_node_id: string | null;
+  }) {
+    if (!todo.related_library_item_id) return;
+
+    const { data: item } = await supabase
+      .from("library_items")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+      .eq("id", todo.related_library_item_id)
+      .single();
+
+    if (!item) return;
+
+    let parent: EzberItem | null = null;
+    let list: EzberItem[] = [];
+
+    if (item.parent_id) {
+      const [{ data: parentData }, { data: siblingsData }] = await Promise.all([
+        supabase
+          .from("library_items")
+          .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+          .eq("id", item.parent_id)
+          .maybeSingle(),
+        supabase
+          .from("library_items")
+          .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+          .eq("parent_id", item.parent_id)
+          .order("sort_order"),
+      ]);
+      parent = parentData ?? null;
+      list = siblingsData ?? [];
+    }
+
+    let segmentIndex = 0;
+    if (todo.related_content_node_id) {
+      const { data: nodes } = await supabase
+        .from("content_nodes")
+        .select("id")
+        .eq("document_id", item.id)
+        .order("sort_order");
+      const idx = (nodes ?? []).findIndex(node => node.id === todo.related_content_node_id);
+      if (idx >= 0) segmentIndex = idx;
+    }
+
+    setSelectedItem(item);
+    setReturnEzberRoot(parent);
+    setSiblings(list.filter(x => x.kind === "document"));
+    setInitialSegmentIndex(segmentIndex);
+    setLibraryMode("read");
+    setTab("library");
+  }
 
   function openRead(item: EzberItem, list: EzberItem[], parent: EzberItem | null) {
     setSelectedItem(item);
@@ -76,6 +158,8 @@ export function AppShell({
     setInitialSegmentIndex(0);
     setLibraryMode("read");
   }
+
+  if (!restored) return <div className="appRestoreBlank" />;
 
   return (
     <div className="appShell">
@@ -126,7 +210,7 @@ export function AppShell({
         )}
 
         <div className={tab === "library" ? "" : "pageWrap"}>
-          {tab === "todos" && <TodoList />}
+          {tab === "todos" && <TodoList onOpenTodo={openTodoSource} />}
 
           {tab === "library" && libraryMode === "hub" && (
             <LibraryHubView
