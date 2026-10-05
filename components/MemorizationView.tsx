@@ -2,12 +2,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
+import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 
 type Item = {
   id: string;
   title: string;
   subtitle?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 type Node = {
@@ -105,10 +107,10 @@ export function MemorizationView({
 
   const configuredTarget = useMemo(() => {
     if (!node) return 0;
-    const raw = node.metadata?.target;
+    const raw = node.metadata?.target ?? item?.metadata?.target;
     const number = Number(raw ?? 0);
     return Number.isFinite(number) && number > 0 ? number : 0;
-  }, [node]);
+  }, [node, item]);
 
   const memory = node
     ? states[node.id] ?? {
@@ -180,6 +182,22 @@ export function MemorizationView({
     if (!resetLongPress.current) increment();
   }
 
+  async function decrement() {
+    if (!node || !memory) return;
+    const nextCount = Math.max(0, memory.repeat_count - 1);
+    const next: MemoryState = { ...memory, repeat_count: nextCount };
+    setStates(current => ({ ...current, [node.id]: next }));
+    const { error } = await supabase.from("memorization_state").upsert({
+      content_node_id: node.id,
+      repeat_count: nextCount,
+      repeat_target: configuredTarget || memory.repeat_target || 1,
+      playback_rate: memory.playback_rate,
+      is_memorized: false,
+      last_practiced_at: new Date().toISOString(),
+    }, { onConflict: "owner_id,content_node_id" });
+    if (error) setMessage(error.message);
+  }
+
   async function increment() {
     if (!node || !memory) return;
 
@@ -232,6 +250,7 @@ export function MemorizationView({
       <main className="legacyMemorize">
         <div className="legacyTitle">{item.title}</div>
         {item.subtitle && <div className="legacyInvocation">{item.subtitle}</div>}
+        {configuredTarget > 0 && <div className="legacyTargetCount">Tekrar: {configuredTarget}</div>}
 
         {node ? (
           <>
@@ -298,6 +317,16 @@ export function MemorizationView({
             {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
           </small>
         </button>
+      )}
+
+      {node && (
+        <FullscreenTasbih
+          title={item.subtitle || node.text_content || node.title || item.title}
+          count={memory?.repeat_count ?? 0}
+          target={configuredTarget}
+          onIncrement={increment}
+          onDecrement={decrement}
+        />
       )}
 
       <FloatingPlaybackButton />
