@@ -19,10 +19,18 @@ export function ReaderView({
   item,
   onBack,
   onMemorize,
+  onPreviousItem,
+  onNextItem,
+  hasPreviousItem,
+  hasNextItem,
 }: {
   item: Item;
   onBack?: () => void;
-  onMemorize?: () => void;
+  onMemorize?: (index?: number) => void;
+  onPreviousItem?: () => void;
+  onNextItem?: () => void;
+  hasPreviousItem?: boolean;
+  hasNextItem?: boolean;
 }) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [message, setMessage] = useState("");
@@ -47,7 +55,7 @@ export function ReaderView({
         <button className="legacyBack" onClick={onBack}>‹ Liste</button>
         <div className="toolbar">
           <button className="secondary" onClick={() => setTodoTarget({title:item.title})}>+ Todo</button>
-          <button className="primary" onClick={onMemorize}>Ezber yap</button>
+          <button className="primary" onClick={() => onMemorize?.(0)}>Ezber yap</button>
         </div>
       </div>
 
@@ -56,7 +64,12 @@ export function ReaderView({
 
       <div className="legacyReadContent">
         {nodes.map((node, index) => (
-          <article className="legacyReadItem" key={node.id}>
+          <article
+            className="legacyReadItem clickableReadItem"
+            key={node.id}
+            onClick={() => onMemorize?.(index)}
+            title="Bu bölüme gir"
+          >
             <div className="legacyReadItemNumber">{index + 1}</div>
             {node.title && <h3>{node.title}</h3>}
             {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
@@ -64,7 +77,10 @@ export function ReaderView({
             {node.translation && <div className="legacyTurkish">{node.translation}</div>}
             <button
               className="segmentTodoButton"
-              onClick={() => setTodoTarget({title:node.text_content || node.title || item.title,nodeId:node.id})}
+              onClick={e => {
+                e.stopPropagation();
+                setTodoTarget({title:node.text_content || node.title || item.title,nodeId:node.id});
+              }}
             >
               + Bu bölümü Todo&apos;ya ekle
             </button>
@@ -72,6 +88,11 @@ export function ReaderView({
         ))}
         {!nodes.length && <p className="muted">Henüz içerik yok.</p>}
       </div>
+
+      <nav className="contentPager">
+        <button className="secondary" disabled={!hasPreviousItem} onClick={onPreviousItem}>‹ Önceki</button>
+        <button className="secondary" disabled={!hasNextItem} onClick={onNextItem}>Sonraki ›</button>
+      </nav>
 
       <FloatingPlaybackButton />
       <TodoDialog
