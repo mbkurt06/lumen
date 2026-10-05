@@ -33,12 +33,13 @@ const menu: { key: MenuKey; label: string; icon?: string }[] = [
 export function EzberHomeView({
   onOpenItem,
 }: {
-  onOpenItem: (item: EzberItem) => void;
+  onOpenItem: (item: EzberItem, siblings: EzberItem[]) => void;
 }) {
   const [roots, setRoots] = useState<EzberItem[]>([]);
   const [currentRoot, setCurrentRoot] = useState<EzberItem | null>(null);
   const [children, setChildren] = useState<EzberItem[]>([]);
   const [message, setMessage] = useState("");
+  const [dragId, setDragId] = useState<string | null>(null);
 
   const loadRoots = useCallback(async () => {
     const { data, error } = await supabase
@@ -90,7 +91,7 @@ export function EzberHomeView({
 
   async function openChild(item: EzberItem) {
     if (item.kind === "document") {
-      onOpenItem(item);
+      onOpenItem(item, children);
       return;
     }
 
@@ -110,6 +111,34 @@ export function EzberHomeView({
     setChildren(data ?? []);
   }
 
+
+  async function persistOrder(list: EzberItem[]) {
+    setChildren(list);
+    const updates = list.map((item, index) =>
+      supabase.from("library_items").update({ sort_order: index }).eq("id", item.id)
+    );
+    const results = await Promise.all(updates);
+    const failed = results.find(result => result.error);
+    if (failed?.error) setMessage(failed.error.message);
+  }
+
+  function moveDragged(overId: string) {
+    if (!dragId || dragId === overId) return;
+    const from = children.findIndex(item => item.id === dragId);
+    const to = children.findIndex(item => item.id === overId);
+    if (from < 0 || to < 0) return;
+    const next = [...children];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setChildren(next);
+  }
+
+  async function finishDrag() {
+    if (!dragId) return;
+    setDragId(null);
+    await persistOrder(children);
+  }
+
   if (currentRoot) {
     return (
       <section className="legacyHomePage">
@@ -123,17 +152,34 @@ export function EzberHomeView({
 
         <div className="legacyCategoryList">
           {children.map(item => (
-            <button
-              className="legacyCategoryRow"
+            <div
+              className={"sortableCategoryRow " + (dragId === item.id ? "dragging" : "")}
               key={item.id}
-              onClick={() => openChild(item)}
+              onPointerEnter={() => moveDragged(item.id)}
             >
-              <span>
-                <strong>{item.title}</strong>
-                {item.subtitle && <small>{item.subtitle}</small>}
-              </span>
-              <b>›</b>
-            </button>
+              <button
+                className="sortHandle"
+                aria-label="Sırala"
+                onPointerDown={e => {
+                  e.preventDefault();
+                  setDragId(item.id);
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                }}
+                onPointerUp={finishDrag}
+              >
+                ⋮⋮
+              </button>
+              <button
+                className="legacyCategoryRow"
+                onClick={() => openChild(item)}
+              >
+                <span>
+                  <strong>{item.title}</strong>
+                  {item.subtitle && <small>{item.subtitle}</small>}
+                </span>
+                <b>›</b>
+              </button>
+            </div>
           ))}
           {!children.length && (
             <div className="legacyEmptyLine">Bu bölümde içerik bulunamadı.</div>
