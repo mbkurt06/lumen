@@ -1,14 +1,23 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
+
+type Item = {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+};
 
 type Node = {
   id: string;
   kind: string;
-  text_content: string | null;
   title: string | null;
-  document_id: string;
+  text_content: string | null;
+  secondary_text: string | null;
+  translation: string | null;
+  metadata: Record<string, unknown> | null;
+  sort_order: number;
 };
 
 type MemoryState = {
@@ -19,18 +28,29 @@ type MemoryState = {
   is_memorized: boolean;
 };
 
-export function MemorizationView() {
+export function MemorizationView({
+  item,
+  onBack,
+}: {
+  item: Item | null;
+  onBack?: () => void;
+}) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [states, setStates] = useState<Record<string, MemoryState>>({});
   const [active, setActive] = useState(0);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
+    if (!item) {
+      setNodes([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("content_nodes")
-      .select("id,kind,text_content,title,document_id")
-      .in("kind", ["sentence", "phrase", "verse"])
-      .order("created_at");
+      .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+      .eq("document_id", item.id)
+      .order("sort_order");
 
     if (error) {
       setMessage(error.message);
@@ -38,12 +58,18 @@ export function MemorizationView() {
     }
 
     setNodes(data ?? []);
+    setActive(0);
+
+    const ids = (data ?? []).map(node => node.id);
+    if (!ids.length) {
+      setStates({});
+      return;
+    }
 
     const { data: memoryData, error: memoryError } = await supabase
       .from("memorization_state")
-      .select(
-        "content_node_id,repeat_count,repeat_target,playback_rate,is_memorized"
-      );
+      .select("content_node_id,repeat_count,repeat_target,playback_rate,is_memorized")
+      .in("content_node_id", ids);
 
     if (memoryError) {
       setMessage(memoryError.message);
@@ -51,37 +77,57 @@ export function MemorizationView() {
     }
 
     const map: Record<string, MemoryState> = {};
-    (memoryData ?? []).forEach(item => {
-      map[item.content_node_id] = item;
+    (memoryData ?? []).forEach(row => {
+      map[row.content_node_id] = row;
     });
     setStates(map);
-  }, []);
+  }, [item]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function increment(node: Node) {
-    const current =
-      states[node.id] ??
-      ({
+  const node = nodes[active];
+
+  const configuredTarget = useMemo(() => {
+    if (!node) return 0;
+    const raw = node.metadata?.target;
+    const number = Number(raw ?? 0);
+    return Number.isFinite(number) && number > 0 ? number : 0;
+  }, [node]);
+
+  const memory = node
+    ? states[node.id] ?? {
         content_node_id: node.id,
         repeat_count: 0,
-        repeat_target: 10,
+        repeat_target: configuredTarget,
         playback_rate: 1,
         is_memorized: false,
-      } as MemoryState);
+      }
+    : null;
 
-    const next = { ...current, repeat_count: current.repeat_count + 1 };
-    setStates(value => ({ ...value, [node.id]: next }));
+  async function increment() {
+    if (!node || !memory) return;
+
+    let nextCount = memory.repeat_count + 1;
+    if (configuredTarget > 0) nextCount = Math.min(nextCount, configuredTarget);
+
+    const next: MemoryState = {
+      ...memory,
+      repeat_count: nextCount,
+      repeat_target: configuredTarget,
+    };
+
+    setStates(current => ({ ...current, [node.id]: next }));
 
     const { error } = await supabase.from("memorization_state").upsert(
       {
         content_node_id: node.id,
         repeat_count: next.repeat_count,
-        repeat_target: next.repeat_target,
+        repeat_target: next.repeat_target || 1,
         playback_rate: next.playback_rate,
-        is_memorized: next.is_memorized,
+        is_memorized:
+          configuredTarget > 0 && next.repeat_count >= configuredTarget,
         last_practiced_at: new Date().toISOString(),
       },
       { onConflict: "owner_id,content_node_id" }
@@ -90,98 +136,83 @@ export function MemorizationView() {
     if (error) setMessage(error.message);
   }
 
-  const node = nodes[active];
-  const state = node
-    ? states[node.id] ?? {
-        content_node_id: node.id,
-        repeat_count: 0,
-        repeat_target: 10,
-        playback_rate: 1,
-        is_memorized: false,
-      }
-    : null;
+  if (!item) {
+    return (
+      <section className="legacyEmpty">
+        <h2>Ezber</h2>
+        <p>Önce Kütüphane’den bir eser açıp “Ezber yap” seç.</p>
+      </section>
+    );
+  }
 
   return (
-    <div>
-      <div className="card" style={{ padding: 22 }}>
-        <div
-          className="toolbar"
-          style={{ justifyContent: "space-between" }}
-        >
-          <div>
-            <h2 style={{ margin: "0 0 4px" }}>Ezber</h2>
-            <div className="muted">
-              Cümle / parça / ayet bazında çalışma
-            </div>
-          </div>
-
-          <div className="muted">
-            {nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}
-          </div>
+    <div className="legacyApp">
+      <header className="legacyHeader">
+        <button className="legacyTextButton" onClick={onBack}>‹ Geri</button>
+        <div className="legacyProgress">
+          {nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}
         </div>
+        <div />
+      </header>
 
-        {!node ? (
-          <p className="muted" style={{ marginTop: 24 }}>
-            Ezberlenebilir içerik bulunamadı. Kütüphanede sentence, phrase
-            veya verse türünde içerik ekle.
-          </p>
+      <main className="legacyMemorize">
+        <div className="legacyTitle">{item.title}</div>
+        {item.subtitle && <div className="legacyInvocation">{item.subtitle}</div>}
+
+        {node ? (
+          <>
+            {typeof node.metadata?.note === "string" && node.metadata.note && (
+              <div className="legacyNote">{node.metadata.note}</div>
+            )}
+
+            {node.secondary_text && (
+              <div className="legacyArabic" dir="rtl">
+                {node.secondary_text}
+              </div>
+            )}
+
+            {node.text_content && (
+              <div className="legacySegment">{node.text_content}</div>
+            )}
+
+            {node.translation && (
+              <div className="legacyTurkish">{node.translation}</div>
+            )}
+          </>
         ) : (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "40px 10px 20px",
-            }}
-          >
-            {node.title && <div className="muted">{node.title}</div>}
-
-            <div
-              className="readerText"
-              style={{ fontSize: 28, margin: "18px auto", maxWidth: 760 }}
-            >
-              {node.text_content}
-            </div>
-
-            <button
-              className="counterButton"
-              onClick={() => increment(node)}
-              title="Tesbih / tekrar sayacı"
-            >
-              {state?.repeat_count ?? 0}
-            </button>
-
-            <div className="muted" style={{ marginTop: 10 }}>
-              Hedef: {state?.repeat_target ?? 10}
-            </div>
-
-            <div
-              className="toolbar"
-              style={{ justifyContent: "center", marginTop: 24 }}
-            >
-              <button
-                className="secondary"
-                disabled={active === 0}
-                onClick={() => setActive(value => Math.max(0, value - 1))}
-              >
-                ← Önceki
-              </button>
-
-              <button
-                className="secondary"
-                disabled={active >= nodes.length - 1}
-                onClick={() =>
-                  setActive(value => Math.min(nodes.length - 1, value + 1))
-                }
-              >
-                Sonraki →
-              </button>
-            </div>
-          </div>
+          <p className="muted">Bu eserde henüz bölüm yok.</p>
         )}
+      </main>
 
-        {message && <p className="muted">{message}</p>}
-      </div>
+      <nav className="legacyNavigation">
+        <button
+          disabled={active === 0}
+          onClick={() => setActive(value => Math.max(0, value - 1))}
+        >
+          ‹ Önceki
+        </button>
+        <button
+          disabled={!nodes.length || active >= nodes.length - 1}
+          onClick={() =>
+            setActive(value => Math.min(nodes.length - 1, value + 1))
+          }
+        >
+          Sonraki ›
+        </button>
+      </nav>
+
+      {node && (
+        <button className="legacyCounter" onClick={increment}>
+          <span>{memory?.repeat_count ?? 0}</span>
+          <small>
+            {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
+          </small>
+        </button>
+      )}
 
       <FloatingPlaybackButton />
+
+      {message && <div className="legacyMessage">{message}</div>}
     </div>
   );
 }
