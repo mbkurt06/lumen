@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { TodoList } from "@/components/TodoList";
 
 export function AuthPanel() {
   const [user, setUser] = useState<User | null>(null);
@@ -60,14 +61,18 @@ export function AuthPanel() {
 
   if (user) {
     return (
-      <section style={styles.card}>
-        <h2 style={styles.heading}>Supabase bağlı</h2>
-        <p style={styles.text}>Giriş yapan kullanıcı: {user.email}</p>
-        <button style={styles.button} onClick={signOut} disabled={busy}>
-          Çıkış yap
-        </button>
-        <p style={styles.status}>{message}</p>
-      </section>
+      <div style={{ display: "grid", gap: 18 }}>
+        <section style={styles.card}>
+          <h2 style={styles.heading}>Supabase bağlı</h2>
+          <p style={styles.text}>Giriş yapan kullanıcı: {user.email}</p>
+          <button style={styles.button} onClick={signOut} disabled={busy}>
+            Çıkış yap
+          </button>
+          <p style={styles.status}>{message}</p>
+        </section>
+
+        <TodoList />
+      </div>
     );
   }
 
