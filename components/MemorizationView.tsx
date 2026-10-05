@@ -91,6 +91,7 @@ export function MemorizationView({
   const [todos, setTodos] = useState<Todo[]>([]);
   const [active, setActive] = useState(initialIndex);
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
+  const [counterArmed, setCounterArmed] = useState(true);
   const [counterPos, setCounterPos] = useState<{x:number;y:number}|null>(null);
   const [resetMenu, setResetMenu] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
@@ -164,6 +165,7 @@ export function MemorizationView({
 
   useEffect(() => {
     setSelectedTodoId(null);
+    setCounterArmed(true);
     setResetMenu(false);
     setEditMenu(null);
   }, [active]);
@@ -213,6 +215,19 @@ export function MemorizationView({
       .filter((x): x is TodoInfo => x !== null);
   }, [todos, node, today]);
 
+  useEffect(() => {
+    const activeTodos = todoInfos.filter(info => !info.done);
+    if (activeTodos.length) {
+      if (!selectedTodoId || !activeTodos.some(info => info.todo.id === selectedTodoId)) {
+        setSelectedTodoId(activeTodos[0].todo.id);
+      }
+      setCounterArmed(true);
+      return;
+    }
+    setSelectedTodoId(null);
+    setCounterArmed(configuredTarget > 0);
+  }, [active, todos, configuredTarget]);
+
   const selectedTodo = selectedTodoId
     ? todoInfos.find(info => info.todo.id === selectedTodoId && !info.done) ?? null
     : null;
@@ -261,6 +276,7 @@ export function MemorizationView({
   }
 
   async function increment() {
+    if (effectiveTarget > 0 && !counterArmed) return;
     if (selectedTodo) return updateTodoCount(selectedTodo, selectedTodo.count + 1);
     const next = effectiveTarget > 0 ? Math.min(effectiveTarget, effectiveCount + 1) : effectiveCount + 1;
     await updateMemory(next);
@@ -340,6 +356,7 @@ export function MemorizationView({
       onPointerDown={e => {
         if (e.target === e.currentTarget) {
           setSelectedTodoId(null);
+          setCounterArmed(false);
           setEditMenu(null);
         }
       }}
@@ -382,14 +399,22 @@ export function MemorizationView({
                   onContextMenu={e => e.preventDefault()}
                   onClick={e => {
                     e.stopPropagation();
-                    setSelectedTodoId(current => current === info.todo.id ? null : info.todo.id);
+                    setSelectedTodoId(info.todo.id);
+                    setCounterArmed(true);
                   }}
                 >
                   {info.target}/{info.count}
                 </button>
               ))}
               {!todoInfos.filter(x => !x.done).length && configuredTarget > 0 && (
-                <button className={"segmentTargetButton memorizeTodoTarget " + (effectiveCount >= configuredTarget ? "done" : "")}>
+                <button
+                  className={"segmentTargetButton memorizeTodoTarget " + (effectiveCount >= configuredTarget ? "done " : "") + (counterArmed ? "active" : "")}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setSelectedTodoId(null);
+                    setCounterArmed(true);
+                  }}
+                >
                   {configuredTarget}/{effectiveCount}
                 </button>
               )}
