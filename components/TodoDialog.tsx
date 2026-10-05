@@ -10,6 +10,7 @@ type Props = {
   contentNodeId?: string | null;
   defaultTarget?: number;
   onSaved?: () => void | Promise<void>;
+  editTodo?: { id: string; notes: string | null } | null;
 };
 
 export function TodoDialog({
@@ -20,6 +21,7 @@ export function TodoDialog({
   contentNodeId = null,
   defaultTarget = 1,
   onSaved,
+  editTodo = null,
 }: Props) {
   const today = useMemo(() => {
     const d = new Date();
@@ -40,12 +42,26 @@ export function TodoDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTarget(Math.max(1, defaultTarget || 1));
-    setDescription("");
-    setStartDate(today);
-    setEndDate(today);
+    if (editTodo) {
+      let meta: any = {};
+      try { meta = JSON.parse(editTodo.notes || "{}"); } catch {}
+      const schedule = meta.schedule || {};
+      setDescription(meta.description || "");
+      setTarget(Math.max(1, Number(schedule.target || defaultTarget || 1)));
+      setMode(schedule.mode || "days");
+      setStartDate(schedule.startDate || today);
+      setEndDate(schedule.endDate || today);
+      setDurationDays(Math.max(1, Number(schedule.durationDays || 10)));
+    } else {
+      setTarget(Math.max(1, defaultTarget || 1));
+      setDescription("");
+      setMode("days");
+      setStartDate(today);
+      setEndDate(today);
+      setDurationDays(10);
+    }
     setMessage("");
-  }, [open, defaultTarget, today, title, contentNodeId]);
+  }, [open, defaultTarget, today, title, contentNodeId, editTodo]);
 
   if (!open) return null;
 
@@ -53,18 +69,23 @@ export function TodoDialog({
     setBusy(true);
     setMessage("");
 
+    let oldMeta: any = {};
+    if (editTodo) {
+      try { oldMeta = JSON.parse(editTodo.notes || "{}"); } catch {}
+    }
     const schedule = {
       mode,
       startDate,
       endDate: mode === "range" ? endDate : null,
       durationDays: mode === "days" ? durationDays : null,
       target,
-      history: {},
+      history: oldMeta.schedule?.history || {},
     };
 
-    const { error } = await supabase.from("todos").insert({
+    const payload = {
       title,
       notes: JSON.stringify({
+        ...oldMeta,
         description,
         schedule,
         source: contentNodeId ? "segment" : "document",
@@ -72,7 +93,11 @@ export function TodoDialog({
       due_at: startDate + "T00:00:00",
       related_library_item_id: libraryItemId,
       related_content_node_id: contentNodeId,
-    });
+    };
+
+    const { error } = editTodo
+      ? await supabase.from("todos").update(payload).eq("id", editTodo.id)
+      : await supabase.from("todos").insert(payload);
 
     setBusy(false);
     if (error) {
@@ -88,7 +113,7 @@ export function TodoDialog({
     <div className="modalBackdrop" onMouseDown={onClose}>
       <div className="modalCard" onMouseDown={e => e.stopPropagation()}>
         <div className="modalHead">
-          <strong>Todo&apos;ya ekle</strong>
+          <strong>{editTodo ? "Todo'yu düzenle" : "Todo'ya ekle"}</strong>
           <button className="modalClose" onClick={onClose}>×</button>
         </div>
 
@@ -156,7 +181,7 @@ export function TodoDialog({
         {message && <p className="formError">{message}</p>}
 
         <button className="primary todoSaveButton" disabled={busy} onClick={save}>
-          Todo&apos;ya ekle
+          {editTodo ? "Değişiklikleri kaydet" : "Todo'ya ekle"}
         </button>
       </div>
     </div>
