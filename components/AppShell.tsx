@@ -64,6 +64,56 @@ export function AppShell({
 
   useEffect(() => {
     if (!restored) return;
+    if (localStorage.getItem("lumen-repair-todo-target-v1") === "done") return;
+
+    (async () => {
+      const { data: todoRows } = await supabase
+        .from("todos")
+        .select("id,notes,related_library_item_id,related_content_node_id");
+
+      for (const todo of todoRows ?? []) {
+        let meta: any;
+        try { meta = JSON.parse(todo.notes || "{}"); } catch { continue; }
+        if (Number(meta?.schedule?.target || 1) !== 1) continue;
+
+        let target = 0;
+
+        if (todo.related_content_node_id) {
+          const { data: node } = await supabase
+            .from("content_nodes")
+            .select("metadata")
+            .eq("id", todo.related_content_node_id)
+            .maybeSingle();
+          target = Number((node?.metadata as any)?.target || 0);
+        }
+
+        if (target <= 1 && todo.related_library_item_id) {
+          const { data: item } = await supabase
+            .from("library_items")
+            .select("metadata")
+            .eq("id", todo.related_library_item_id)
+            .maybeSingle();
+          target = Number((item?.metadata as any)?.target || 0);
+        }
+
+        if (target > 1) {
+          const next = {
+            ...meta,
+            schedule: {
+              ...meta.schedule,
+              target,
+            },
+          };
+          await supabase.from("todos").update({ notes: JSON.stringify(next) }).eq("id", todo.id);
+        }
+      }
+
+      localStorage.setItem("lumen-repair-todo-target-v1", "done");
+    })();
+  }, [restored]);
+
+  useEffect(() => {
+    if (!restored) return;
     localStorage.setItem("lumen-app-state", JSON.stringify({
       tab,
       libraryMode,
