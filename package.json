@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "import:legacy": "node scripts/import-legacy.mjs",
-    "cleanup:tesbihat": "node scripts/cleanup-tesbihat.mjs"
+    "cleanup:tesbihat": "node scripts/cleanup-tesbihat.mjs",
+    "sync:tesbihat-pdf": "node scripts/sync-tesbihat-pdf.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
