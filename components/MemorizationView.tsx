@@ -53,6 +53,8 @@ export function MemorizationView({
   const [todoOpen, setTodoOpen] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetLongPress = useRef(false);
+  const resetRef = useRef<HTMLButtonElement | null>(null);
+  const counterRef = useRef<HTMLButtonElement | null>(null);
 
   const load = useCallback(async () => {
     if (!item) {
@@ -102,6 +104,18 @@ export function MemorizationView({
     if (saved) { try { setCounterPos(JSON.parse(saved)); } catch {} }
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!resetMenu) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (resetRef.current?.contains(target)) return;
+      if (counterRef.current?.contains(target)) return;
+      setResetMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [resetMenu]);
 
   const node = nodes[active];
 
@@ -300,6 +314,7 @@ export function MemorizationView({
 
       {node && resetMenu && (
         <button
+          ref={resetRef}
           className="counterResetPopover"
           onClick={() => {
             resetCounter();
@@ -311,7 +326,7 @@ export function MemorizationView({
       )}
 
       {node && (
-        <button className="legacyCounter" style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined} onPointerDown={counterDown} onPointerMove={counterMove} onPointerUp={counterUp} title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı">
+        <button ref={counterRef} className="legacyCounter" style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined} onPointerDown={counterDown} onPointerMove={counterMove} onPointerUp={counterUp} title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı">
           <span>{memory?.repeat_count ?? 0}</span>
           <small>
             {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
