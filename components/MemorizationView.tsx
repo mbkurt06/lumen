@@ -44,6 +44,7 @@ export function MemorizationView({
   const counterDragging = useRef(false);
   const counterStart = useRef({x:0,y:0});
   const counterOrigin = useRef({x:0,y:0});
+  const counterPressed = useRef(false);
   const [message, setMessage] = useState("");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetLongPress = useRef(false);
@@ -140,6 +141,7 @@ export function MemorizationView({
   }
 
   function counterDown(e: React.PointerEvent<HTMLButtonElement>) {
+    counterPressed.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     counterDragging.current = false;
     resetLongPress.current = false;
@@ -155,6 +157,7 @@ export function MemorizationView({
   }
 
   function counterMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!counterPressed.current) return;
     const dx = e.clientX - counterStart.current.x;
     const dy = e.clientY - counterStart.current.y;
     if (Math.hypot(dx,dy) < 6) return;
@@ -164,6 +167,7 @@ export function MemorizationView({
   }
 
   function counterUp(e: React.PointerEvent<HTMLButtonElement>) {
+    counterPressed.current = false;
     if (resetTimer.current) clearTimeout(resetTimer.current);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     if (counterDragging.current) {
