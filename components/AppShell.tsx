@@ -7,6 +7,14 @@ import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 
 type Tab = "library" | "memorize" | "todos" | "settings";
+type Item = {
+  id: string;
+  parent_id: string | null;
+  kind: string;
+  title: string;
+  subtitle: string | null;
+  sort_order: number;
+};
 
 export function AppShell({
   user,
@@ -16,6 +24,7 @@ export function AppShell({
   onSignOut: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("library");
+  const [memorizeItem, setMemorizeItem] = useState<Item | null>(null);
 
   const labels: Record<Tab, string> = {
     library: "Kütüphane",
@@ -23,6 +32,11 @@ export function AppShell({
     todos: "Yapılacaklar",
     settings: "Ayarlar",
   };
+
+  function startMemorize(item: Item) {
+    setMemorizeItem(item);
+    setTab("memorize");
+  }
 
   return (
     <div className="appShell">
@@ -34,9 +48,7 @@ export function AppShell({
             item => (
               <button
                 key={item}
-                className={
-                  "navButton " + (tab === item ? "active" : "")
-                }
+                className={"navButton " + (tab === item ? "active" : "")}
                 onClick={() => setTab(item)}
               >
                 {labels[item]}
@@ -47,17 +59,29 @@ export function AppShell({
       </aside>
 
       <main className="mainPane">
-        <header className="topbar">
-          <h1 className="pageTitle">{labels[tab]}</h1>
-          <span className="muted" style={{ fontSize: 13 }}>
-            {user.email}
-          </span>
-        </header>
+        {tab !== "memorize" && (
+          <header className="topbar">
+            <h1 className="pageTitle">{labels[tab]}</h1>
+            <span className="muted" style={{ fontSize: 13 }}>
+              {user.email}
+            </span>
+          </header>
+        )}
 
-        <div className="pageWrap">
-          {tab === "library" && <LibraryView />}
-          {tab === "memorize" && <MemorizationView />}
+        <div className={tab === "memorize" ? "" : "pageWrap"}>
+          {tab === "library" && (
+            <LibraryView onMemorize={startMemorize} />
+          )}
+
+          {tab === "memorize" && (
+            <MemorizationView
+              item={memorizeItem}
+              onBack={() => setTab("library")}
+            />
+          )}
+
           {tab === "todos" && <TodoList />}
+
           {tab === "settings" && (
             <SettingsView user={user} onSignOut={onSignOut} />
           )}
