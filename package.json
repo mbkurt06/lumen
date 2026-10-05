@@ -6,7 +6,8 @@
     "dev": "next dev -p 3100",
     "build": "next build",
     "start": "next start",
-    "import:legacy": "node scripts/import-legacy.mjs"
+    "import:legacy": "node scripts/import-legacy.mjs",
+    "cleanup:tesbihat": "node scripts/cleanup-tesbihat.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
