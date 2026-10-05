@@ -351,7 +351,7 @@ async function replaceRows(documentId, rows) {
   const payload = rows.map((row, index) => ({
     document_id: documentId,
     parent_id: null,
-    kind: row.instruction ? "instruction" : "phrase",
+    kind: row.instruction ? "note" : "phrase",
     sort_order: index,
     title: null,
     text_content: row.text,
