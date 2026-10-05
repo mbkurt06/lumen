@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
@@ -15,6 +15,8 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
   const [tab, setTab] = useState<Tab>("memorize");
   const [ezberMode, setEzberMode] = useState<EzberMode>("home");
   const [selectedItem, setSelectedItem] = useState<EzberItem | null>(null);
+  const [siblings, setSiblings] = useState<EzberItem[]>([]);
+  const [initialSegmentIndex, setInitialSegmentIndex] = useState(0);
 
   useEffect(() => {
     supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
@@ -30,16 +32,34 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
     });
   }, []);
 
-  function openRead(item: EzberItem) {
+  function openRead(item: EzberItem, list: EzberItem[]) {
     setSelectedItem(item);
+    setSiblings(list.filter(x => x.kind === "document"));
+    setInitialSegmentIndex(0);
     setEzberMode("read");
     setTab("memorize");
   }
 
   function openEzberHome() {
     setSelectedItem(null);
+    setSiblings([]);
+    setInitialSegmentIndex(0);
     setEzberMode("home");
     setTab("memorize");
+  }
+
+  const selectedIndex = useMemo(
+    () => selectedItem ? siblings.findIndex(x => x.id === selectedItem.id) : -1,
+    [selectedItem, siblings]
+  );
+
+  function moveDocument(delta: number) {
+    if (selectedIndex < 0) return;
+    const next = siblings[selectedIndex + delta];
+    if (!next) return;
+    setSelectedItem(next);
+    setInitialSegmentIndex(0);
+    setEzberMode("read");
   }
 
   return (
@@ -72,13 +92,21 @@ export function AppShell({ user, onSignOut }: { user: User; onSignOut: () => voi
             <ReaderView
               item={selectedItem}
               onBack={() => setEzberMode("home")}
-              onMemorize={() => setEzberMode("memorize")}
+              onMemorize={(index = 0) => {
+                setInitialSegmentIndex(index);
+                setEzberMode("memorize");
+              }}
+              onPreviousItem={() => moveDocument(-1)}
+              onNextItem={() => moveDocument(1)}
+              hasPreviousItem={selectedIndex > 0}
+              hasNextItem={selectedIndex >= 0 && selectedIndex < siblings.length - 1}
             />
           )}
 
           {tab === "memorize" && ezberMode === "memorize" && selectedItem && (
             <MemorizationView
               item={selectedItem}
+              initialIndex={initialSegmentIndex}
               onBack={() => setEzberMode("read")}
             />
           )}
