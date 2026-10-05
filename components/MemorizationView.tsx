@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
+import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 
 type Item = {
   id: string;
@@ -31,6 +32,51 @@ type MemoryState = {
   is_memorized: boolean;
 };
 
+type Todo = {
+  id: string;
+  notes: string | null;
+  related_content_node_id: string | null;
+  related_library_item_id: string | null;
+};
+
+type TodoMeta = {
+  description?: string;
+  schedule?: {
+    mode?: "single" | "range" | "days" | "forever";
+    startDate?: string;
+    endDate?: string | null;
+    durationDays?: number | null;
+    target?: number;
+    history?: Record<string, { count?: number; completedAt?: string | null }>;
+  };
+};
+
+type TodoInfo = { todo: Todo; meta: TodoMeta; target: number; count: number; done: boolean };
+
+function parseMeta(notes: string | null): TodoMeta {
+  try { return JSON.parse(notes || "{}") as TodoMeta; } catch { return {}; }
+}
+
+function localDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function occurs(meta: TodoMeta, key: string) {
+  const s = meta.schedule;
+  if (!s?.startDate) return true;
+  if (key < s.startDate) return false;
+  if (s.mode === "single") return key === s.startDate;
+  if (s.mode === "range") return !s.endDate || key <= s.endDate;
+  if (s.mode === "days") {
+    const start = new Date(s.startDate + "T00:00:00");
+    const current = new Date(key + "T00:00:00");
+    const diff = Math.floor((current.getTime() - start.getTime()) / 86400000);
+    return diff >= 0 && diff < Math.max(1, s.durationDays || 1);
+  }
+  return true;
+}
+
 export function MemorizationView({
   item,
   onBack,
@@ -42,19 +88,37 @@ export function MemorizationView({
 }) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [states, setStates] = useState<Record<string, MemoryState>>({});
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [active, setActive] = useState(initialIndex);
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
   const [counterPos, setCounterPos] = useState<{x:number;y:number}|null>(null);
+  const [resetMenu, setResetMenu] = useState(false);
+  const [todoOpen, setTodoOpen] = useState(false);
+  const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
+  const [editMenu, setEditMenu] = useState<{todo: TodoInfo; x:number; y:number}|null>(null);
+  const [message, setMessage] = useState("");
+
   const counterDragging = useRef(false);
   const counterStart = useRef({x:0,y:0});
   const counterOrigin = useRef({x:0,y:0});
   const counterPressed = useRef(false);
-  const [message, setMessage] = useState("");
-  const [resetMenu, setResetMenu] = useState(false);
-  const [todoOpen, setTodoOpen] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetLongPress = useRef(false);
   const resetRef = useRef<HTMLButtonElement | null>(null);
   const counterRef = useRef<HTMLButtonElement | null>(null);
+  const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const today = localDateKey();
+
+  const loadTodos = useCallback(async () => {
+    if (!item) return;
+    const { data, error } = await supabase
+      .from("todos")
+      .select("id,notes,related_content_node_id,related_library_item_id")
+      .eq("related_library_item_id", item.id);
+    if (error) setMessage(error.message);
+    else setTodos(data ?? []);
+  }, [item]);
 
   const load = useCallback(async () => {
     if (!item) {
@@ -73,37 +137,36 @@ export function MemorizationView({
       return;
     }
 
-    setNodes(data ?? []);
-    setActive(Math.min(initialIndex, Math.max(0, (data ?? []).length - 1)));
+    const loaded = data ?? [];
+    setNodes(loaded);
+    setActive(Math.min(initialIndex, Math.max(0, loaded.length - 1)));
 
-    const ids = (data ?? []).map(node => node.id);
-    if (!ids.length) {
+    const ids = loaded.map(node => node.id);
+    if (ids.length) {
+      const { data: memoryData } = await supabase
+        .from("memorization_state")
+        .select("content_node_id,repeat_count,repeat_target,playback_rate,is_memorized")
+        .in("content_node_id", ids);
+      const map: Record<string, MemoryState> = {};
+      (memoryData ?? []).forEach(row => { map[row.content_node_id] = row; });
+      setStates(map);
+    } else {
       setStates({});
-      return;
     }
-
-    const { data: memoryData, error: memoryError } = await supabase
-      .from("memorization_state")
-      .select("content_node_id,repeat_count,repeat_target,playback_rate,is_memorized")
-      .in("content_node_id", ids);
-
-    if (memoryError) {
-      setMessage(memoryError.message);
-      return;
-    }
-
-    const map: Record<string, MemoryState> = {};
-    (memoryData ?? []).forEach(row => {
-      map[row.content_node_id] = row;
-    });
-    setStates(map);
-  }, [item]);
+    await loadTodos();
+  }, [item, initialIndex, loadTodos]);
 
   useEffect(() => {
     const saved = localStorage.getItem("lumen-counter-pos");
     if (saved) { try { setCounterPos(JSON.parse(saved)); } catch {} }
     load();
   }, [load]);
+
+  useEffect(() => {
+    setSelectedTodoId(null);
+    setResetMenu(false);
+    setEditMenu(null);
+  }, [active]);
 
   useEffect(() => {
     if (!resetMenu) return;
@@ -136,19 +199,82 @@ export function MemorizationView({
       }
     : null;
 
-  async function resetCounter() {
+  const todoInfos = useMemo<TodoInfo[]>(() => {
+    if (!node) return [];
+    return todos
+      .filter(todo => todo.related_content_node_id === node.id)
+      .map(todo => {
+        const meta = parseMeta(todo.notes);
+        if (!occurs(meta, today)) return null;
+        const target = Math.max(1, Number(meta.schedule?.target || 1));
+        const count = Math.min(target, Number(meta.schedule?.history?.[today]?.count || 0));
+        return { todo, meta, target, count, done: count >= target };
+      })
+      .filter((x): x is TodoInfo => x !== null);
+  }, [todos, node, today]);
+
+  const selectedTodo = selectedTodoId
+    ? todoInfos.find(info => info.todo.id === selectedTodoId && !info.done) ?? null
+    : null;
+
+  const transient = item && node ? (getTransientCounts(item.id)[node.id] ?? 0) : 0;
+  const effectiveTarget = selectedTodo ? selectedTodo.target : configuredTarget;
+  const effectiveCount = selectedTodo
+    ? selectedTodo.count
+    : configuredTarget > 0
+      ? transient
+      : (memory?.repeat_count ?? 0);
+
+  async function updateTodoCount(info: TodoInfo, nextCount: number) {
+    const history = { ...(info.meta.schedule?.history || {}) };
+    const count = Math.min(info.target, Math.max(0, nextCount));
+    history[today] = { count, completedAt: count >= info.target ? new Date().toISOString() : null };
+    const nextMeta = { ...info.meta, schedule: { ...info.meta.schedule, history } };
+    setTodos(current => current.map(todo => todo.id === info.todo.id ? { ...todo, notes: JSON.stringify(nextMeta) } : todo));
+    const { error } = await supabase.from("todos").update({ notes: JSON.stringify(nextMeta) }).eq("id", info.todo.id);
+    if (error) setMessage(error.message);
+  }
+
+  async function updateMemory(nextCount: number) {
     if (!node || !memory) return;
-    const next = { ...memory, repeat_count: 0 };
+    const next: MemoryState = {
+      ...memory,
+      repeat_count: nextCount,
+      repeat_target: configuredTarget || memory.repeat_target || 1,
+      is_memorized: configuredTarget > 0 && nextCount >= configuredTarget,
+    };
     setStates(current => ({ ...current, [node.id]: next }));
+    if (configuredTarget > 0 && item) {
+      const all = { ...getTransientCounts(item.id), [node.id]: nextCount };
+      setTransientCounts(item.id, all);
+      return;
+    }
     const { error } = await supabase.from("memorization_state").upsert({
       content_node_id: node.id,
-      repeat_count: 0,
-      repeat_target: memory.repeat_target || 1,
-      playback_rate: memory.playback_rate,
-      is_memorized: false,
+      repeat_count: next.repeat_count,
+      repeat_target: next.repeat_target,
+      playback_rate: next.playback_rate,
+      is_memorized: next.is_memorized,
       last_practiced_at: new Date().toISOString(),
     }, { onConflict: "owner_id,content_node_id" });
     if (error) setMessage(error.message);
+  }
+
+  async function increment() {
+    if (selectedTodo) return updateTodoCount(selectedTodo, selectedTodo.count + 1);
+    const next = effectiveTarget > 0 ? Math.min(effectiveTarget, effectiveCount + 1) : effectiveCount + 1;
+    await updateMemory(next);
+  }
+
+  async function decrement() {
+    if (selectedTodo) return updateTodoCount(selectedTodo, selectedTodo.count - 1);
+    await updateMemory(Math.max(0, effectiveCount - 1));
+  }
+
+  async function resetCounter() {
+    if (selectedTodo) await updateTodoCount(selectedTodo, 0);
+    else await updateMemory(0);
+    setResetMenu(false);
   }
 
   function clampCounter(next: {x:number;y:number}) {
@@ -193,154 +319,116 @@ export function MemorizationView({
       if (counterPos) localStorage.setItem("lumen-counter-pos", JSON.stringify(counterPos));
       return;
     }
-    if (!resetLongPress.current) increment();
+    if (!resetLongPress.current) void increment();
   }
 
-  async function decrement() {
-    if (!node || !memory) return;
-    const nextCount = Math.max(0, memory.repeat_count - 1);
-    const next: MemoryState = { ...memory, repeat_count: nextCount };
-    setStates(current => ({ ...current, [node.id]: next }));
-    const { error } = await supabase.from("memorization_state").upsert({
-      content_node_id: node.id,
-      repeat_count: nextCount,
-      repeat_target: configuredTarget || memory.repeat_target || 1,
-      playback_rate: memory.playback_rate,
-      is_memorized: false,
-      last_practiced_at: new Date().toISOString(),
-    }, { onConflict: "owner_id,content_node_id" });
-    if (error) setMessage(error.message);
+  function startEdit(info: TodoInfo, e: React.PointerEvent<HTMLButtonElement>) {
+    if (editTimer.current) clearTimeout(editTimer.current);
+    editTimer.current = setTimeout(() => setEditMenu({ todo: info, x: e.clientX, y: e.clientY }), 650);
   }
 
-  async function increment() {
-    if (!node || !memory) return;
-
-    let nextCount = memory.repeat_count + 1;
-    if (configuredTarget > 0) nextCount = Math.min(nextCount, configuredTarget);
-
-    const next: MemoryState = {
-      ...memory,
-      repeat_count: nextCount,
-      repeat_target: configuredTarget,
-    };
-
-    setStates(current => ({ ...current, [node.id]: next }));
-
-    const { error } = await supabase.from("memorization_state").upsert(
-      {
-        content_node_id: node.id,
-        repeat_count: next.repeat_count,
-        repeat_target: next.repeat_target || 1,
-        playback_rate: next.playback_rate,
-        is_memorized:
-          configuredTarget > 0 && next.repeat_count >= configuredTarget,
-        last_practiced_at: new Date().toISOString(),
-      },
-      { onConflict: "owner_id,content_node_id" }
-    );
-
-    if (error) setMessage(error.message);
+  function stopEdit() {
+    if (editTimer.current) clearTimeout(editTimer.current);
+    editTimer.current = null;
   }
 
-  if (!item) {
-    return (
-      <section className="legacyEmpty">
-        <h2>Ezber</h2>
-        <p>Önce Kütüphane’den bir eser açıp “Ezber yap” seç.</p>
-      </section>
-    );
-  }
+  if (!item) return <section className="legacyEmpty"><h2>Ezber</h2></section>;
 
   return (
-    <div className="legacyApp">
-      <header className="legacyHeader">
+    <div
+      className="legacyApp"
+      onPointerDown={e => {
+        if (e.target === e.currentTarget) {
+          setSelectedTodoId(null);
+          setEditMenu(null);
+        }
+      }}
+    >
+      <header className="legacyHeader stickyMemorizeHeader">
         <button className="legacyTextButton" onClick={onBack}>‹ Geri</button>
-        <div className="legacyProgress">
-          {nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}
-        </div>
+        <div className="legacyProgress">{nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}</div>
         <div />
       </header>
 
-      <main className="legacyMemorize">
+      <main
+        className="legacyMemorize"
+        onPointerDown={e => {
+          if (e.target === e.currentTarget) {
+            setSelectedTodoId(null);
+            setEditMenu(null);
+          }
+        }}
+      >
         <div className="legacyTitle">{item.title}</div>
         {item.subtitle && <div className="legacyInvocation">{item.subtitle}</div>}
-        {configuredTarget > 0 && <div className="legacyTargetCount">Tekrar: {configuredTarget}</div>}
 
         {node ? (
           <>
-            {typeof node.metadata?.note === "string" && node.metadata.note && (
-              <div className="legacyNote">{node.metadata.note}</div>
-            )}
+            {typeof node.metadata?.note === "string" && node.metadata.note && <div className="legacyNote">{node.metadata.note}</div>}
+            {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
+            {node.text_content && <div className="legacySegment">{node.text_content}</div>}
+            {node.translation && <div className="legacyTurkish">{node.translation}</div>}
 
-            {node.secondary_text && (
-              <div className="legacyArabic" dir="rtl">
-                {node.secondary_text}
-              </div>
-            )}
+            <button className="segmentTodoButton memorizeTodoButton" onClick={() => setTodoOpen(true)}>+ Todo</button>
 
-            {node.text_content && (
-              <div className="legacySegment">{node.text_content}</div>
-            )}
-
-            {node.translation && (
-              <div className="legacyTurkish">{node.translation}</div>
-            )}
-
-            <button className="segmentTodoButton memorizeTodoButton" onClick={() => setTodoOpen(true)}>
-              + Todo
-            </button>
+            <div className="memorizeTodoTargets">
+              {todoInfos.filter(x => !x.done).map(info => (
+                <button
+                  key={info.todo.id}
+                  className={"segmentTargetButton memorizeTodoTarget " + (selectedTodoId === info.todo.id ? " active" : "")}
+                  onPointerDown={e => startEdit(info, e)}
+                  onPointerUp={stopEdit}
+                  onPointerCancel={stopEdit}
+                  onContextMenu={e => e.preventDefault()}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setSelectedTodoId(current => current === info.todo.id ? null : info.todo.id);
+                  }}
+                >
+                  {info.target}/{info.count}
+                </button>
+              ))}
+              {!todoInfos.filter(x => !x.done).length && configuredTarget > 0 && (
+                <button className={"segmentTargetButton memorizeTodoTarget " + (effectiveCount >= configuredTarget ? "done" : "")}>
+                  {configuredTarget}/{effectiveCount}
+                </button>
+              )}
+            </div>
           </>
-        ) : (
-          <p className="muted">Bu eserde henüz bölüm yok.</p>
-        )}
+        ) : <p className="muted">Bu eserde henüz bölüm yok.</p>}
       </main>
 
       <nav className="legacyNavigation">
-        <button
-          disabled={active === 0}
-          onClick={() => setActive(value => Math.max(0, value - 1))}
-        >
-          ‹ Önceki
-        </button>
-        <button
-          disabled={!nodes.length || active >= nodes.length - 1}
-          onClick={() =>
-            setActive(value => Math.min(nodes.length - 1, value + 1))
-          }
-        >
-          Sonraki ›
-        </button>
+        <button disabled={active === 0} onClick={() => setActive(value => Math.max(0, value - 1))}>‹ Önceki</button>
+        <button disabled={!nodes.length || active >= nodes.length - 1} onClick={() => setActive(value => Math.min(nodes.length - 1, value + 1))}>Sonraki ›</button>
       </nav>
 
       {node && resetMenu && (
-        <button
-          ref={resetRef}
-          className="counterResetPopover"
-          onClick={() => {
-            resetCounter();
-            setResetMenu(false);
-          }}
-        >
-          Sıfırla
-        </button>
+        <button ref={resetRef} className="counterResetPopover" onClick={() => void resetCounter()}>Sıfırla</button>
       )}
 
       {node && (
-        <button ref={counterRef} className="legacyCounter" style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined} onPointerDown={counterDown} onPointerMove={counterMove} onPointerUp={counterUp} title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı">
-          <span>{memory?.repeat_count ?? 0}</span>
-          <small>
-            {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
-          </small>
+        <button
+          ref={counterRef}
+          className="legacyCounter"
+          style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined}
+          onPointerDown={counterDown}
+          onPointerMove={counterMove}
+          onPointerUp={counterUp}
+          title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı"
+        >
+          <span>{effectiveCount}</span>
+          <small>{effectiveTarget > 0 ? "/ " + effectiveTarget : "tekrar"}</small>
         </button>
       )}
 
       {node && (
         <FullscreenTasbih
           title={item.subtitle || node.text_content || node.title || item.title}
-          count={memory?.repeat_count ?? 0}
-          target={configuredTarget}
-          onIncrement={increment}
-          onDecrement={decrement}
+          count={effectiveCount}
+          target={effectiveTarget}
+          onIncrement={() => void increment()}
+          onDecrement={() => void decrement()}
         />
       )}
 
@@ -350,10 +438,34 @@ export function MemorizationView({
         <TodoDialog
           open={todoOpen}
           onClose={() => setTodoOpen(false)}
+          onSaved={loadTodos}
           title={node.text_content || node.title || item.title}
           defaultTarget={configuredTarget || 1}
           libraryItemId={item.id}
           contentNodeId={node.id}
+        />
+      )}
+
+      {editMenu && (
+        <button
+          className="counterResetPopover todoEditPopover"
+          style={{left:Math.max(8,editMenu.x-42),top:Math.max(8,editMenu.y-58),right:"auto",bottom:"auto"}}
+          onClick={() => { setEditTodo(editMenu.todo); setEditMenu(null); }}
+        >
+          Düzenle
+        </button>
+      )}
+
+      {editTodo && node && (
+        <TodoDialog
+          open={true}
+          onClose={() => setEditTodo(null)}
+          onSaved={async () => { await loadTodos(); setEditTodo(null); }}
+          title={node.text_content || node.title || item.title}
+          defaultTarget={editTodo.target}
+          libraryItemId={item.id}
+          contentNodeId={node.id}
+          editTodo={{id:editTodo.todo.id,notes:editTodo.todo.notes}}
         />
       )}
 
