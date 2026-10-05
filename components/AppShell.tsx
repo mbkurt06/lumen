@@ -3,18 +3,11 @@ import { useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { LibraryView } from "@/components/LibraryView";
 import { MemorizationView } from "@/components/MemorizationView";
+import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 
-type Tab = "library" | "memorize" | "todos" | "settings";
-type Item = {
-  id: string;
-  parent_id: string | null;
-  kind: string;
-  title: string;
-  subtitle: string | null;
-  sort_order: number;
-};
+type Tab = "todos" | "library" | "memorize" | "settings";
 
 export function AppShell({
   user,
@@ -23,18 +16,23 @@ export function AppShell({
   user: User;
   onSignOut: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("library");
-  const [memorizeItem, setMemorizeItem] = useState<Item | null>(null);
+  const [tab, setTab] = useState<Tab>("memorize");
+  const [memorizeItem, setMemorizeItem] = useState<EzberItem | null>(null);
 
   const labels: Record<Tab, string> = {
+    todos: "Yapılacaklar",
     library: "Kütüphane",
     memorize: "Ezber",
-    todos: "Yapılacaklar",
     settings: "Ayarlar",
   };
 
-  function startMemorize(item: Item) {
+  function startMemorize(item: EzberItem) {
     setMemorizeItem(item);
+    setTab("memorize");
+  }
+
+  function openEzberHome() {
+    setMemorizeItem(null);
     setTab("memorize");
   }
 
@@ -44,17 +42,33 @@ export function AppShell({
         <div className="brand">Lumen</div>
 
         <nav className="nav">
-          {(["library", "memorize", "todos", "settings"] as Tab[]).map(
-            item => (
-              <button
-                key={item}
-                className={"navButton " + (tab === item ? "active" : "")}
-                onClick={() => setTab(item)}
-              >
-                {labels[item]}
-              </button>
-            )
-          )}
+          <button
+            className={"navButton " + (tab === "todos" ? "active" : "")}
+            onClick={() => setTab("todos")}
+          >
+            Yapılacaklar
+          </button>
+
+          <button
+            className={"navButton " + (tab === "library" ? "active" : "")}
+            onClick={() => setTab("library")}
+          >
+            Kütüphane
+          </button>
+
+          <button
+            className={"navButton " + (tab === "memorize" ? "active" : "")}
+            onClick={openEzberHome}
+          >
+            Ezber
+          </button>
+
+          <button
+            className={"navButton " + (tab === "settings" ? "active" : "")}
+            onClick={() => setTab("settings")}
+          >
+            Ayarlar
+          </button>
         </nav>
       </aside>
 
@@ -69,18 +83,25 @@ export function AppShell({
         )}
 
         <div className={tab === "memorize" ? "" : "pageWrap"}>
+          {tab === "todos" && <TodoList />}
+
           {tab === "library" && (
             <LibraryView onMemorize={startMemorize} />
           )}
 
-          {tab === "memorize" && (
-            <MemorizationView
-              item={memorizeItem}
-              onBack={() => setTab("library")}
+          {tab === "memorize" && !memorizeItem && (
+            <EzberHomeView
+              onOpenItem={startMemorize}
+              onOpenTodo={() => setTab("todos")}
             />
           )}
 
-          {tab === "todos" && <TodoList />}
+          {tab === "memorize" && memorizeItem && (
+            <MemorizationView
+              item={memorizeItem}
+              onBack={() => setMemorizeItem(null)}
+            />
+          )}
 
           {tab === "settings" && (
             <SettingsView user={user} onSignOut={onSignOut} />
