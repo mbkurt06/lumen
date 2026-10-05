@@ -351,6 +351,7 @@ export function MemorizationView({
           open={todoOpen}
           onClose={() => setTodoOpen(false)}
           title={node.text_content || node.title || item.title}
+          defaultTarget={configuredTarget || 1}
           libraryItemId={item.id}
           contentNodeId={node.id}
         />
