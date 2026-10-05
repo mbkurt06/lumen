@@ -1,0 +1,843 @@
+{
+  "title": "İslam İlmihali",
+  "source": "Diyanet İşleri Başkanlığı ilmihal ve Din İşleri Yüksek Kurulu kaynakları esas alınarak hazırlanmıştır.",
+  "sections": [
+    {
+      "title": "32 Farz",
+      "topics": [
+        {
+          "title": "32 Farz Nedir?",
+          "body": [
+            "Geleneksel öğretimde 32 farz; imanın 6 şartı, İslâm'ın 5 şartı, namazın 12 farzı, abdestin 4 farzı, guslün 3 farzı ve teyemmümün 2 farzı olarak ezberlenir.",
+            "6 + 5 + 12 + 4 + 3 + 2 = 32."
+          ]
+        },
+        {
+          "title": "İmanın 6 Şartı",
+          "list": [
+            "Allah'a iman",
+            "Meleklere iman",
+            "Kitaplara iman",
+            "Peygamberlere iman",
+            "Âhiret gününe iman",
+            "Kadere iman"
+          ]
+        },
+        {
+          "title": "İslâm'ın 5 Şartı",
+          "list": [
+            "Kelime-i şehâdet",
+            "Namaz",
+            "Oruç",
+            "Zekât",
+            "Hac"
+          ]
+        },
+        {
+          "title": "Namazın 12 Farzı",
+          "list": [
+            "Hadesten taharet",
+            "Necasetten taharet",
+            "Setr-i avret",
+            "İstikbâl-i kıble",
+            "Vakit",
+            "Niyet",
+            "İftitah tekbiri",
+            "Kıyam",
+            "Kıraat",
+            "Rükû",
+            "Secde",
+            "Ka'de-i âhire"
+          ]
+        },
+        {
+          "title": "Abdestin 4 Farzı",
+          "list": [
+            "Yüzü yıkamak",
+            "Kolları dirseklerle yıkamak",
+            "Başı mesh etmek",
+            "Ayakları topuklarla yıkamak"
+          ]
+        },
+        {
+          "title": "Guslün 3 Farzı",
+          "list": [
+            "Ağza su vermek",
+            "Burna su vermek",
+            "Bütün bedeni yıkamak"
+          ]
+        },
+        {
+          "title": "Teyemmümün 2 Farzı",
+          "list": [
+            "Niyet",
+            "Yüzü ve kolları mesh etmek"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "52 Farz",
+      "topics": [
+        {
+          "title": "52 Farz Hakkında",
+          "body": [
+            "52 farz, bazı geleneksel temel din bilgisi kitaplarında kullanılan öğretici bir tasniftir; tek ve standart bir liste değildir. Bu sebeple bağımsız ve değişmez 52 ayrı farz gibi sunulmuyor."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "İman ve İtikad",
+      "topics": [
+        {
+          "title": "İman",
+          "body": [
+            "İman; Allah'a ve peygamberinin bildirdiği kesin esaslara gönülden inanıp tasdik etmektir."
+          ]
+        },
+        {
+          "title": "Allah'a İman",
+          "body": [
+            "Allah birdir, eşi ve ortağı yoktur; ibadet yalnız O'na yapılır."
+          ]
+        },
+        {
+          "title": "Melekler",
+          "body": [
+            "Melekler Allah'ın emirlerine itaat eden görünmeyen varlıklardır."
+          ]
+        },
+        {
+          "title": "Kitaplar ve Peygamberler",
+          "body": [
+            "Kur'an son ilâhî kitaptır; Hz. Muhammed (s.a.s.) son peygamberdir."
+          ]
+        },
+        {
+          "title": "Âhiret",
+          "body": [
+            "Ölümden sonra diriliş, hesap, cennet ve cehennem âhiret inancındandır."
+          ]
+        },
+        {
+          "title": "Kader",
+          "body": [
+            "Allah her şeyi bilir ve takdir eder; insan iradesiyle yaptığı tercihlerden sorumludur."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Temizlik ve Taharet",
+      "topics": [
+        {
+          "title": "Temizlik",
+          "body": [
+            "Beden, elbise ve namaz yerinin temizliği ile hükmî temizlik ibadet hayatının temelidir."
+          ]
+        },
+        {
+          "title": "Necaset",
+          "body": [
+            "Namaza engel maddî pisliklerin beden, elbise ve namaz yerinden temizlenmesi gerekir."
+          ]
+        },
+        {
+          "title": "Sular",
+          "body": [
+            "Abdest ve gusülde temiz ve temizleyici su kullanılır."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Abdest",
+      "topics": [
+        {
+          "title": "Abdest Nedir?",
+          "body": [
+            "Abdest belirli organların yıkanması ve başın mesh edilmesiyle yapılan hükmî temizliktir."
+          ]
+        },
+        {
+          "title": "Abdestin Farzları",
+          "list": [
+            "Yüzü yıkamak",
+            "Kolları dirseklerle yıkamak",
+            "Başın en az dörtte birini mesh etmek (Hanefî)",
+            "Ayakları topuklarla yıkamak"
+          ]
+        },
+        {
+          "title": "Abdest Nasıl Alınır?",
+          "steps": [
+            "Niyet ve besmele",
+            "Elleri yıkama",
+            "Ağza su verme",
+            "Burna su verme",
+            "Yüzü yıkama",
+            "Kolları yıkama",
+            "Başı ve kulakları mesh etme",
+            "Ayakları yıkama"
+          ]
+        },
+        {
+          "title": "Abdestin Sünnetleri",
+          "list": [
+            "Niyet (Hanefîde sünnet)",
+            "Besmele",
+            "Üçer defa yıkamak",
+            "Ağız ve burun",
+            "Sağdan başlamak",
+            "Sırayı gözetmek"
+          ]
+        },
+        {
+          "title": "Abdesti Bozanlar",
+          "list": [
+            "Ön veya arka yoldan çıkan şeyler",
+            "Çıkıp dağılan kan/irin (Hanefî)",
+            "Ağız dolusu kusma (Hanefî)",
+            "Bayılma",
+            "Derin uyku",
+            "Namazda kahkaha (Hanefî)"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Gusül",
+      "topics": [
+        {
+          "title": "Guslün Farzları",
+          "list": [
+            "Ağız",
+            "Burun",
+            "Bütün beden"
+          ]
+        },
+        {
+          "title": "Gusül Nasıl Alınır?",
+          "steps": [
+            "Niyet ve besmele",
+            "Maddî pisliği temizleme",
+            "Abdest alma",
+            "Ağız ve burnu iyice yıkama",
+            "Bütün bedeni yıkama"
+          ]
+        },
+        {
+          "title": "Guslü Gerektiren Hâller",
+          "list": [
+            "Cünüplük",
+            "Hayızın bitmesi",
+            "Nifasın bitmesi"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Teyemmüm",
+      "topics": [
+        {
+          "title": "Teyemmüm",
+          "body": [
+            "Su yoksa veya kullanmaya dinî engel varsa temiz toprak veya toprak cinsinden maddeyle hükmî temizlik yapılır."
+          ]
+        },
+        {
+          "title": "Yapılışı",
+          "steps": [
+            "Niyet",
+            "Ellerle yüzü mesh",
+            "İkinci vuruşla kolları dirseklerle mesh"
+          ]
+        },
+        {
+          "title": "Bozanlar",
+          "body": [
+            "Abdesti bozanlar ve suya ulaşmak/mazeretin kalkması teyemmümü sona erdirir."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Namaz",
+      "topics": [
+        {
+          "title": "Dışındaki 6 Farz",
+          "list": [
+            "Hadesten taharet",
+            "Necasetten taharet",
+            "Setr-i avret",
+            "Kıble",
+            "Vakit",
+            "Niyet"
+          ]
+        },
+        {
+          "title": "İçindeki 6 Farz",
+          "list": [
+            "İftitah tekbiri",
+            "Kıyam",
+            "Kıraat",
+            "Rükû",
+            "Secde",
+            "Son oturuş"
+          ]
+        },
+        {
+          "title": "Vacipler (Hanefî)",
+          "list": [
+            "Fâtiha",
+            "Gerekli yerde zamm-ı sûre",
+            "Ta'dîl-i erkân",
+            "İlk oturuş",
+            "Tahiyyât",
+            "Vitirde kunut",
+            "Bayram tekbirleri"
+          ]
+        },
+        {
+          "title": "Namazı Bozanlar",
+          "list": [
+            "Konuşmak",
+            "Yemek/içmek",
+            "Kıbleden dönmek",
+            "Çok hareket",
+            "Abdestin bozulması",
+            "Kahkaha"
+          ]
+        },
+        {
+          "title": "Sehiv Secdesi",
+          "body": [
+            "Vacibin unutularak terk veya gecikmesinde sehiv secdesi gerekir."
+          ]
+        },
+        {
+          "title": "Nafile Namazlardan Örnekler",
+          "list": [
+            "Teheccüd namazı",
+            "Kuşluk (duhâ) namazı",
+            "Evvâbîn namazı",
+            "Tahiyyetü'l-mescid",
+            "İstihâre namazı",
+            "Hâcet namazı",
+            "Tesbih namazı",
+            "Küsûf (güneş tutulması) namazı"
+          ]
+        },
+        {
+          "title": "Sabah Namazı – Ayrıntılı",
+          "body": [
+            "Toplam 4 rekâttır: 2 rekât sünnet, 2 rekât farz."
+          ],
+          "steps": [
+            "Sünnet niyeti: “Niyet ettim Allah rızası için sabah namazının sünnetini kılmaya.”",
+            "1. rekât: Tekbir, Sübhâneke, Eûzü-Besmele, Fâtiha, zamm-ı sûre, rükû ve iki secde.",
+            "2. rekât: Besmele, Fâtiha, zamm-ı sûre, rükû ve secdeler; son oturuşta Ettehiyyâtü, Salli-Bârik ve Rabbena duaları, sonra selâm.",
+            "Farz niyeti: “Niyet ettim Allah rızası için sabah namazının farzını kılmaya.” Cemaatte imama uymaya da niyet edilir.",
+            "İki rekât farz aynı temel sıra ile kılınır. Cemaatte imam kıraati açıktan okur."
+          ]
+        },
+        {
+          "title": "Öğle Namazı – Ayrıntılı",
+          "body": [
+            "Toplam 10 rekâttır: 4 ilk sünnet, 4 farz, 2 son sünnet."
+          ],
+          "steps": [
+            "İlk sünnet niyeti: “Niyet ettim Allah rızası için öğle namazının ilk sünnetini kılmaya.”",
+            "İlk sünnetin dört rekâtında Fâtiha ile zamm-ı sûre okunur. İkinci oturuşta Ettehiyyâtü; son oturuşta Ettehiyyâtü, Salli-Bârik ve Rabbena duaları okunur.",
+            "Farz niyeti: “Niyet ettim Allah rızası için öğle namazının farzını kılmaya.”",
+            "Farzın ilk iki rekâtında Fâtiha ve zamm-ı sûre; üçüncü ve dördüncü rekâtlarında yalnız Fâtiha okunur.",
+            "Son sünnet niyeti: “Niyet ettim Allah rızası için öğle namazının son sünnetini kılmaya.” İki rekât kılınır."
+          ]
+        },
+        {
+          "title": "İkindi Namazı – Ayrıntılı",
+          "body": [
+            "Toplam 8 rekâttır: 4 rekât gayr-i müekked sünnet ve 4 rekât farz."
+          ],
+          "steps": [
+            "Sünnet niyeti: “Niyet ettim Allah rızası için ikindi namazının sünnetini kılmaya.”",
+            "İkinci rekât oturuşunda Ettehiyyâtü ile Salli-Bârik okunur. Üçüncü rekâta kalkınca yeniden Sübhâneke ve Eûzü-Besmele ile başlanır; dört rekâtta da Fâtiha ve zamm-ı sûre okunur.",
+            "Farz niyeti: “Niyet ettim Allah rızası için ikindi namazının farzını kılmaya.”",
+            "Dört rekât farzda ilk iki rekâtta Fâtiha + zamm-ı sûre, son iki rekâtta yalnız Fâtiha okunur."
+          ]
+        },
+        {
+          "title": "Akşam Namazı – Ayrıntılı",
+          "body": [
+            "Toplam 5 rekâttır: 3 rekât farz ve 2 rekât sünnet."
+          ],
+          "steps": [
+            "Farz niyeti: “Niyet ettim Allah rızası için akşam namazının farzını kılmaya.”",
+            "İlk iki rekâtta Fâtiha ve zamm-ı sûre okunur. İkinci oturuşta yalnız Ettehiyyâtü okunur.",
+            "Üçüncü rekâtta yalnız Fâtiha okunur; son oturuşta Ettehiyyâtü, Salli-Bârik ve Rabbena duaları okunup selâm verilir.",
+            "Sünnet niyeti: “Niyet ettim Allah rızası için akşam namazının sünnetini kılmaya.” İki rekât kılınır."
+          ]
+        },
+        {
+          "title": "Yatsı Namazı – Ayrıntılı",
+          "body": [
+            "Yatsıda 4 ilk sünnet, 4 farz ve 2 son sünnet kılınır; ardından 3 rekât vitir vacibi vardır."
+          ],
+          "steps": [
+            "İlk sünnet niyeti: “Niyet ettim Allah rızası için yatsı namazının ilk sünnetini kılmaya.” Dört rekât, ikindinin sünneti gibi kılınır.",
+            "Farz niyeti: “Niyet ettim Allah rızası için yatsı namazının farzını kılmaya.” Dört rekât farzda ilk iki rekâtta Fâtiha + zamm-ı sûre, son ikisinde yalnız Fâtiha okunur.",
+            "Son sünnet niyeti: “Niyet ettim Allah rızası için yatsı namazının son sünnetini kılmaya.” İki rekât kılınır."
+          ]
+        },
+        {
+          "title": "Vitir Namazı – Ayrıntılı",
+          "body": [
+            "Hanefî mezhebinde üç rekât vaciptir."
+          ],
+          "steps": [
+            "Niyet: “Niyet ettim Allah rızası için vitir vacip namazını kılmaya.”",
+            "İlk iki rekât Fâtiha ve zamm-ı sûre ile kılınır; ikinci rekât sonunda Ettehiyyâtü okunup üçüncü rekâta kalkılır.",
+            "Üçüncü rekâtta Fâtiha ve zamm-ı sûre okunur; sonra tekbir alınarak eller yeniden bağlanır.",
+            "Kunut duaları okunur; rükû, secdeler ve son oturuştan sonra selâm verilir."
+          ]
+        },
+        {
+          "title": "Cuma Namazı – Hükmü ve Şartları",
+          "body": [
+            "Cuma namazının farzı iki rekâttır ve hutbeden sonra cemaatle kılınır.",
+            "Hanefî uygulamasında farzdan önce dört rekât, farzdan sonra dört rekât sünnet kılınır. Ebû Yusuf ve İmam Muhammed’e göre sonrasında iki rekât daha kılınması görüşü de vardır."
+          ],
+          "list": [
+            "Vakti cuma günü öğle vaktidir.",
+            "Hutbe farzdan önce okunur.",
+            "Cuma namazının farzı cemaatle kılınır.",
+            "Farzda imam Fâtiha ve zamm-ı sûreyi açıktan okur."
+          ]
+        },
+        {
+          "title": "Cuma Namazı – Adım Adım",
+          "steps": [
+            "İlk sünnet niyeti: “Niyet ettim Allah rızası için cuma namazının ilk sünnetini kılmaya.” Dört rekât öğlenin ilk sünneti gibi kılınır.",
+            "Hutbe dinlenir.",
+            "Farz niyeti: “Niyet ettim Allah rızası için cuma namazının iki rekât farzını kılmaya, uydum imama.”",
+            "İmamla iki rekât farz kılınır; imam kıraati açıktan yapar.",
+            "Son sünnet niyeti: “Niyet ettim Allah rızası için cuma namazının son sünnetini kılmaya.” Dört rekât kılınır.",
+            "Ebû Yusuf ve İmam Muhammed’in görüşüyle bundan sonra iki rekât daha nafile/sünnet kılınabilir."
+          ]
+        },
+        {
+          "title": "Cuma Sonrası Zuhr-i Âhir ve Vaktin Sünneti",
+          "body": [
+            "Diyanet İşleri Yüksek Kuruluna göre geçerli bir cuma namazını kılan kişinin ayrıca öğle namazı kılması gerekmez.",
+            "Zuhr-i âhir, cuma namazının geçerli olmaması ihtimaline karşı bazı âlimlerin ihtiyaten kılmayı uygun gördüğü dört rekâtlık namazdır; cumanın zorunlu bir parçası değildir."
+          ],
+          "steps": [
+            "Zuhr-i âhir niyeti: “Niyet ettim Allah rızası için vaktine yetişip de üzerimden düşmeyen son öğle namazının farzını kılmaya.”",
+            "Dört rekât kılınır: ilk iki rekâtta Fâtiha ve zamm-ı sûre, son iki rekâtta Fâtiha okunur; ikinci oturuşta Ettehiyyâtü, son oturuşta Ettehiyyâtü, Salli-Bârik ve Rabbena duaları okunur.",
+            "Ardından iki rekât kılmak isteyen kişi: “Niyet ettim Allah rızası için vaktin sünnetini kılmaya.” diye niyet eder.",
+            "Vaktin sünneti iki rekât olarak kılınır.",
+            "Geçerli cuma namazından sonra bunları kılmamak, Diyanet’in açıklamasına göre kişinin üzerinde ayrıca bir öğle farzı bırakmaz."
+          ]
+        },
+        {
+          "title": "Bayram Namazları – Ayrıntılı",
+          "body": [
+            "Ramazan ve Kurban Bayramı namazları Hanefî mezhebinde iki rekât vaciptir; ezan ve kamet okunmaz."
+          ],
+          "steps": [
+            "Niyet: “Niyet ettim Allah rızası için Ramazan/Kurban Bayramı namazını kılmaya, uydum imama.”",
+            "1. rekâtta iftitah tekbirinden sonra Sübhâneke okunur; ardından üç ilâve tekbir alınır. İlk ikisinde eller yana bırakılır, üçüncüsünde bağlanır.",
+            "İmam Fâtiha ve zamm-ı sûreyi okur; rükû ve secdeler yapılır.",
+            "2. rekâtta imam Fâtiha ve zamm-ı sûreyi okur; ardından üç ilâve tekbir alınır, eller her defasında yana bırakılır.",
+            "Dördüncü tekbirle rükûa gidilir; namaz tamamlanır. Hutbe namazdan sonra okunur."
+          ]
+        },
+        {
+          "title": "Cenaze Namazı – Ayrıntılı",
+          "body": [
+            "Farz-ı kifâyedir; rükû ve secdesi yoktur, ayakta dört tekbirle kılınır."
+          ],
+          "steps": [
+            "Niyet: “Niyet ettim Allah rızası için cenaze namazını kılmaya, meyyit için duaya, uydum imama.”",
+            "1. tekbirde eller kaldırılıp bağlanır; Sübhâneke, “ve celle senâük” ilavesiyle okunur.",
+            "2. tekbir eller kaldırılmadan alınır; Salli ve Bârik duaları okunur.",
+            "3. tekbirden sonra cenaze duası okunur.",
+            "4. tekbirden sonra sağa ve sola selâm verilerek namaz tamamlanır."
+          ]
+        },
+        {
+          "title": "Seferîlikte Namaz",
+          "body": [
+            "Hanefî mezhebinde dinen seferî olan kişi dört rekâtlı farzları iki rekât kılar. Sabahın iki ve akşamın üç rekât farzı değişmez."
+          ],
+          "list": [
+            "Öğle farzı: 2 rekât",
+            "İkindi farzı: 2 rekât",
+            "Yatsı farzı: 2 rekât",
+            "Sabah farzı: 2 rekât",
+            "Akşam farzı: 3 rekât"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Oruç",
+      "topics": [
+        {
+          "title": "Oruç",
+          "body": [
+            "İmsaktan güneş batana kadar niyetle orucu bozan şeylerden uzak durmaktır. Ramazan orucu farzdır."
+          ]
+        },
+        {
+          "title": "Farzları",
+          "list": [
+            "Niyet",
+            "Orucu bozanlardan uzak durmak"
+          ]
+        },
+        {
+          "title": "Bozanlar",
+          "body": [
+            "Bilerek yiyip içmek ve cinsel ilişki orucu bozar; ayrıntıya göre kaza veya kefâret hükümleri doğabilir. Unutarak yiyip içmek bozmaz."
+          ]
+        },
+        {
+          "title": "Mazeretler",
+          "list": [
+            "Hastalık",
+            "Yolculuk",
+            "Ciddi zarar endişesi olan gebelik/emzirme",
+            "Sürekli güç yetirememe"
+          ]
+        },
+        {
+          "title": "Kaza, Kefâret, Fidye",
+          "body": [
+            "Duruma göre kaza, kefâret veya sürekli mazerette fidye hükümleri uygulanır."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Zekât ve Fitre",
+      "topics": [
+        {
+          "title": "Zekât",
+          "body": [
+            "Nisap ve diğer şartları taşıyan maldan hak sahiplerine verilen farz malî ibadettir."
+          ]
+        },
+        {
+          "title": "Nisap",
+          "body": [
+            "Altında klasik nisap 20 miskal; Diyanet hesaplarında 80,18 gramdır."
+          ]
+        },
+        {
+          "title": "Kimlere Verilir?",
+          "body": [
+            "Sarf yerleri Tevbe 9/60'ta belirtilir. Anne-baba/atalar ile çocuk/torunlara zekât verilmez."
+          ]
+        },
+        {
+          "title": "Fitre",
+          "body": [
+            "Ramazan bayramıyla ilgili malî ibadettir; güncel miktar ekonomik şartlara göre belirlenir."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Hac ve Umre",
+      "topics": [
+        {
+          "title": "Hac Kimlere Farz?",
+          "body": [
+            "Müslüman, akıllı, ergen ve gerekli malî imkâna sahip kişiye ömürde bir kez farzdır; eda için sağlık ve güvenlik de değerlendirilir."
+          ]
+        },
+        {
+          "title": "Temel Unsurlar",
+          "list": [
+            "İhram",
+            "Arafat vakfesi",
+            "Ziyaret tavafı"
+          ]
+        },
+        {
+          "title": "Hac Özeti",
+          "steps": [
+            "İhram",
+            "Tavaf/sa'y",
+            "Arafat",
+            "Müzdelife",
+            "Mina",
+            "Tıraş ve ihramdan çıkış",
+            "Ziyaret tavafı"
+          ]
+        },
+        {
+          "title": "Umre",
+          "body": [
+            "İhram, tavaf, sa'y ve tıraşla tamamlanır; Arafat vakfesi yoktur."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Kurban",
+      "topics": [
+        {
+          "title": "Kurban Çeşitleri – Genel",
+          "body": [
+            "Kurban tek bir türden ibaret değildir. Kesilme sebebi ve niyetine göre udhiyye (bayram kurbanı), adak, akîka, nâfile/şükür ve hacla ilgili hedy kurbanları gibi çeşitler bulunur.",
+            "Büyükbaş hayvanda ortakların her biri ibadet niyeti taşıdığı sürece hisseler udhiyye, adak, akîka veya nâfile gibi farklı kurban niyetleriyle olabilir."
+          ]
+        },
+        {
+          "title": "Udhiyye – Vacip Bayram Kurbanı",
+          "body": [
+            "Kurban Bayramı günlerinde Allah'a yaklaşma niyetiyle kesilen kurbana udhiyye denir. Hanefî mezhebinde gerekli şartları taşıyan mukim ve dinen zengin Müslüman için vaciptir; Şâfiî mezhebinde güçlü sünnettir.",
+            "Hanefîlere göre kesim vakti bayram namazı kılınan yerlerde bayram namazından sonra başlar ve bayramın üçüncü günü güneş batıncaya kadar sürer."
+          ]
+        },
+        {
+          "title": "Akîka Kurbanı",
+          "body": [
+            "Yeni doğan çocuk için Allah'a şükür amacıyla kesilen kurbana akîka denir. Akîka kesmek sünnettir.",
+            "Doğumdan bulûğ çağına kadar kesilebilir; yedinci gün kesilmesi daha faziletli kabul edilmiştir."
+          ]
+        },
+        {
+          "title": "Adak (Nezir) Kurbanı",
+          "body": [
+            "Kişinin, dinen zaten yükümlü olmadığı bir kurbanı Allah için kesmeyi kendisine gerekli kılmasıyla adak kurbanı meydana gelir. Geçerli bir adak şartları gerçekleştiğinde yerine getirilmelidir.",
+            "Adak kurbanının eti konusunda udhiyyeden farklı hükümler vardır; adak sahibi ve bakmakla yükümlü olduğu yakınları bu etten yararlanmamalı, ihtiyaç sahiplerine verilmelidir."
+          ]
+        },
+        {
+          "title": "Nafile Kurban",
+          "body": [
+            "Bir zorunluluk veya adak bulunmadan sırf Allah'a yaklaşmak ve sevap kazanmak amacıyla gönüllü kesilen kurbandır.",
+            "Hanefîlere göre bayram günlerinde kesilmesi daha faziletli olmakla birlikte başka zamanlarda da nâfile kurban kesilebilir."
+          ]
+        },
+        {
+          "title": "Şükür Kurbanı",
+          "body": [
+            "Bir nimete kavuşma veya sevindirici bir olay sebebiyle Allah'a şükür amacıyla kesilen kurban genel olarak nâfile kurban niteliğindedir.",
+            "Kişi önceden 'şu işim olursa kurban keseceğim' şeklinde adakta bulunmuşsa artık bu nâfile şükür kurbanı değil, şart gerçekleştiğinde yerine getirilmesi gereken adak kurbanı hükmündedir."
+          ]
+        },
+        {
+          "title": "Hedy – Hac ve Umre Kurbanları",
+          "body": [
+            "Hac ve umreyle bağlantılı olarak Harem bölgesinde kesilen kurbanlara genel olarak hedy denir. Temettu‘ ve kırân haccında şükür/ibadet niteliğinde hedy gerekir.",
+            "Hac veya umrede bazı vaciplerin terk edilmesi ya da ihram yasaklarının ihlali sebebiyle ceza kurbanı (dem) gerekebilen durumlar da vardır."
+          ]
+        },
+        {
+          "title": "Kurbanlık Hayvanlar",
+          "body": [
+            "Koyun, keçi, sığır, manda ve deve kurban edilebilir. Hayvanların dinen belirlenen yaş ve sağlık şartlarını taşıması gerekir.",
+            "Koyun ve keçi bir kişi adına; sığır, manda ve deve ise yedi kişiye kadar ortaklaşa kurban edilebilir."
+          ]
+        },
+        {
+          "title": "Kurban Etinin Paylaşılması",
+          "body": [
+            "Udhiyye ve nâfile kurban etinden kurban sahibi ve ailesi yiyebilir; akraba, komşu ve ihtiyaç sahipleriyle paylaşabilir.",
+            "Adak kurbanının etinde farklı hükümler bulunduğu için adak bölümündeki kurallara dikkat edilmelidir."
+          ]
+        },
+        {
+          "title": "Kurbanla İlgili Yanlış İnanışlar",
+          "list": [
+            "Evli olmayan kişinin kurban kesemeyeceği düşüncesi doğru değildir.",
+            "Kadınların kurban kesemeyeceği düşüncesi doğru değildir; kesme ehliyeti olan kadın veya erkek kesebilir.",
+            "Büyükbaş kurbanda ortak sayısının mutlaka 3, 5 veya 7 olması gerekmez; yediyi aşmamak kaydıyla ortak olunabilir.",
+            "Dinimizde 'kabir kurbanı' veya 'ölü kurbanı' adıyla özel bir kurban türü yoktur.",
+            "Kurban kanını insanın alnına, araca veya eşyaya sürmenin dinî bir dayanağı yoktur."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Dua, Tövbe ve Zikir",
+      "topics": [
+        {
+          "title": "Dua",
+          "body": [
+            "Kulun Allah'a yönelip istemesi ve yalvarmasıdır."
+          ]
+        },
+        {
+          "title": "Tövbe",
+          "body": [
+            "Pişmanlık, günahı terk ve dönmemeye azim gerekir; kul hakkı varsa giderilir."
+          ]
+        },
+        {
+          "title": "Zikir",
+          "body": [
+            "Kur'an, tesbih, tahmid, tekbir, tehlil, salavat ve dua Allah'ı anma kapsamındadır."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Helaller ve Haramlar",
+      "topics": [
+        {
+          "title": "Helâl-Haram",
+          "body": [
+            "Helâl izin verilen, haram kesin yasaklanandır."
+          ]
+        },
+        {
+          "title": "Yeme İçme",
+          "body": [
+            "Domuz eti, kan, leş, Allah'tan başkası adına kesilen ve sarhoş ediciler haramdır."
+          ]
+        },
+        {
+          "title": "Faiz",
+          "body": [
+            "Ribâ Kur'an ve sünnette yasaktır."
+          ]
+        },
+        {
+          "title": "Kul Hakkı",
+          "body": [
+            "Haksız zarar kul hakkıdır; tövbeyle birlikte hakkı gidermek gerekir."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Aile Hayatı",
+      "topics": [
+        {
+          "title": "Nikâh",
+          "body": [
+            "Aile kuran akittir; rıza esastır, mehir kadının hakkıdır."
+          ]
+        },
+        {
+          "title": "Eşlerin Hakları",
+          "body": [
+            "Sevgi, merhamet, sadakat, iyi geçim ve karşılıklı haklar esastır."
+          ]
+        },
+        {
+          "title": "Anne-Baba ve Çocuk",
+          "body": [
+            "Anne-babaya iyilik; çocukların bakım, eğitim ve ahlâkı temel sorumluluklardandır."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Adak, Yemin ve Kefâret",
+      "topics": [
+        {
+          "title": "Adak",
+          "body": [
+            "İbadet cinsinden yükümlü olunmayan bir işi Allah için kendine gerekli kılmaktır."
+          ]
+        },
+        {
+          "title": "Yemin",
+          "body": [
+            "Allah'ın adı veya sıfatıyla yapılan geçerli yemin sorumluluk doğurur."
+          ]
+        },
+        {
+          "title": "Yemin Kefâreti",
+          "body": [
+            "On fakiri doyurmak veya giydirmek; buna güç yetmezse üç gün oruçtur."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Ahlâk ve Âdâb",
+      "topics": [
+        {
+          "title": "Güzel Ahlâk",
+          "list": [
+            "Doğruluk",
+            "Adalet",
+            "Merhamet",
+            "Sabır",
+            "Şükür",
+            "Tevazu",
+            "İffet",
+            "Emanet"
+          ]
+        },
+        {
+          "title": "Kaçınılacaklar",
+          "list": [
+            "Yalan",
+            "Gıybet",
+            "İftira",
+            "Haset",
+            "Kibir",
+            "Zulüm",
+            "İsraf",
+            "Kul hakkı"
+          ]
+        },
+        {
+          "title": "Günlük Âdâb",
+          "body": [
+            "Selâm, temizlik, ölçülülük, komşuluk, ziyaret, saygı ve merhamet günlük İslâm ahlâkındandır."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Kur'an-ı Kerîm",
+      "topics": [
+        {
+          "title": "Kur'an",
+          "body": [
+            "İslâm'ın temel kaynağı ve son ilâhî kitaptır; okunur, anlaşılır ve yaşanmaya çalışılır."
+          ]
+        },
+        {
+          "title": "Tilâvet Âdâbı",
+          "body": [
+            "Kur'an saygıyla okunur ve dinlenir; ilgili fıkhî hükümler gözetilir."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Cenaze ve Ölüm",
+      "topics": [
+        {
+          "title": "Ölüm ve Âhiret",
+          "body": [
+            "Ölüm âhirete geçiştir; Müslüman salih amel ve tövbeyle hazırlanır."
+          ]
+        },
+        {
+          "title": "Cenaze Hizmetleri",
+          "body": [
+            "Yıkama, kefenleme, cenaze namazı ve defin farz-ı kifâye görevlerdendir."
+          ]
+        },
+        {
+          "title": "Taziye ve Kabir",
+          "body": [
+            "Taziye destek ve sabır dileğidir; kabir ziyareti ölümü hatırlatır, dua Allah'a yapılır."
+          ]
+        }
+      ]
+    }
+  ]
+}
