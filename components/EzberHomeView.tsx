@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
 export type EzberItem = {
@@ -11,72 +12,130 @@ export type EzberItem = {
   sort_order: number;
 };
 
-type MenuKey =
-  | "Sûreler"
-  | "Namaz Duaları"
-  | "Günlük Dualar"
-  | "Tesbihat"
-  | "Esmâü’l-Hüsnâ"
-  | "Dinleme"
-  | "İslam İlmihali";
+const knownTitles = [
+  "Sûreler",
+  "Namaz Duaları",
+  "Günlük Dualar",
+  "Tesbihat",
+  "Esmâü’l-Hüsnâ",
+  "İslam İlmihali",
+] as const;
 
-const menu: { key: MenuKey; label: string; icon?: string }[] = [
-  { key: "Sûreler", label: "Sûreler" },
-  { key: "Namaz Duaları", label: "Namaz Duaları" },
-  { key: "Günlük Dualar", label: "Günlük Dualar" },
-  { key: "Tesbihat", label: "Tesbihatlar" },
-  { key: "Esmâü’l-Hüsnâ", label: "Esmâü’l-Hüsnâ" },
-  { key: "Dinleme", label: "Dinleme", icon: "🎧" },
-  { key: "İslam İlmihali", label: "İslam İlmihali" },
-];
+type KnownTitle = typeof knownTitles[number];
+type MenuEntry =
+  | { type: "db"; item: EzberItem }
+  | { type: "virtual"; id: "dinleme"; title: "Dinleme" };
 
 export function EzberHomeView({
   onOpenItem,
+  user,
 }: {
   onOpenItem: (item: EzberItem, siblings: EzberItem[]) => void;
+  user: User;
 }) {
   const [roots, setRoots] = useState<EzberItem[]>([]);
   const [currentRoot, setCurrentRoot] = useState<EzberItem | null>(null);
   const [children, setChildren] = useState<EzberItem[]>([]);
   const [message, setMessage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
+  const [rootOrder, setRootOrder] = useState<string[]>([]);
 
   const loadRoots = useCallback(async () => {
     const { data, error } = await supabase
       .from("library_items")
       .select("id,parent_id,kind,title,subtitle,sort_order")
       .is("parent_id", null)
-      .order("sort_order");
+      .order("sort_order")
+      .order("title");
 
     if (error) {
       setMessage(error.message);
       return;
     }
+
     setRoots(data ?? []);
+
+    const { data: prefData } = await supabase
+      .from("user_preferences")
+      .select("preferences")
+      .maybeSingle();
+
+    const prefs = (prefData?.preferences ?? {}) as Record<string, unknown>;
+    const saved = prefs.ezberMenuOrder;
+    if (Array.isArray(saved)) setRootOrder(saved.filter(x => typeof x === "string") as string[]);
   }, []);
 
   useEffect(() => {
     loadRoots();
   }, [loadRoots]);
 
-  async function openMenu(key: MenuKey) {
-    if (key === "Dinleme") {
+  const menuEntries = useMemo<MenuEntry[]>(() => {
+    const dbEntries: MenuEntry[] = roots
+      .filter(item => knownTitles.includes(item.title as KnownTitle))
+      .map(item => ({ type: "db", item }));
+
+    const all: MenuEntry[] = [...dbEntries, { type: "virtual", id: "dinleme", title: "Dinleme" }];
+
+    const idOf = (entry: MenuEntry) => entry.type === "db" ? entry.item.id : entry.id;
+
+    if (!rootOrder.length) return all;
+
+    return [...all].sort((a, b) => {
+      const ai = rootOrder.indexOf(idOf(a));
+      const bi = rootOrder.indexOf(idOf(b));
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [roots, rootOrder]);
+
+  async function saveRootOrder(entries: MenuEntry[]) {
+    const ids = entries.map(entry => entry.type === "db" ? entry.item.id : entry.id);
+    setRootOrder(ids);
+
+    const { data } = await supabase
+      .from("user_preferences")
+      .select("preferences")
+      .maybeSingle();
+
+    const old = (data?.preferences ?? {}) as Record<string, unknown>;
+
+    await supabase.from("user_preferences").upsert({
+      owner_id: user.id,
+      preferences: {
+        ...old,
+        ezberMenuOrder: ids,
+      },
+    });
+  }
+
+  function reorderEntries(overId: string) {
+    if (!dragId || dragId === overId) return;
+
+    const current = [...menuEntries];
+    const idOf = (entry: MenuEntry) => entry.type === "db" ? entry.item.id : entry.id;
+    const from = current.findIndex(entry => idOf(entry) === dragId);
+    const to = current.findIndex(entry => idOf(entry) === overId);
+    if (from < 0 || to < 0) return;
+
+    const [moved] = current.splice(from, 1);
+    current.splice(to, 0, moved);
+    setRootOrder(current.map(idOf));
+  }
+
+  async function openRoot(entry: MenuEntry) {
+    if (entry.type === "virtual") {
       setMessage("Dinleme ekranını eski uygulamadaki haliyle ayrıca taşıyacağız.");
       return;
     }
 
-    const root = roots.find(x => x.title === key);
-    if (!root) {
-      setMessage(key + " koleksiyonu bulunamadı.");
-      return;
-    }
-
-    setCurrentRoot(root);
+    setCurrentRoot(entry.item);
 
     const { data, error } = await supabase
       .from("library_items")
       .select("id,parent_id,kind,title,subtitle,sort_order")
-      .eq("parent_id", root.id)
+      .eq("parent_id", entry.item.id)
       .order("sort_order")
       .order("title");
 
@@ -91,7 +150,7 @@ export function EzberHomeView({
 
   async function openChild(item: EzberItem) {
     if (item.kind === "document") {
-      onOpenItem(item, children);
+      onOpenItem(item, children.filter(x => x.kind === "document"));
       return;
     }
 
@@ -111,10 +170,20 @@ export function EzberHomeView({
     setChildren(data ?? []);
   }
 
+  function reorderChildren(overId: string) {
+    if (!dragId || dragId === overId) return;
+    const from = children.findIndex(item => item.id === dragId);
+    const to = children.findIndex(item => item.id === overId);
+    if (from < 0 || to < 0) return;
 
-  async function persistOrder(list: EzberItem[]) {
-    setChildren(list);
-    const updates = list.map((item, index) =>
+    const next = [...children];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setChildren(next);
+  }
+
+  async function persistChildren() {
+    const updates = children.map((item, index) =>
       supabase.from("library_items").update({ sort_order: index }).eq("id", item.id)
     );
     const results = await Promise.all(updates);
@@ -122,68 +191,42 @@ export function EzberHomeView({
     if (failed?.error) setMessage(failed.error.message);
   }
 
-  function moveDragged(overId: string) {
-    if (!dragId || dragId === overId) return;
-    const from = children.findIndex(item => item.id === dragId);
-    const to = children.findIndex(item => item.id === overId);
-    if (from < 0 || to < 0) return;
-    const next = [...children];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    setChildren(next);
-  }
-
-  async function finishDrag() {
-    if (!dragId) return;
-    setDragId(null);
-    await persistOrder(children);
-  }
-
   if (currentRoot) {
     return (
-      <section className="legacyHomePage">
+      <section className="legacyNestedPage">
         <div className="legacyListHead">
-          <button className="legacyBack" onClick={() => setCurrentRoot(null)}>
-            ‹ Geri
-          </button>
+          <button className="legacyBack" onClick={() => setCurrentRoot(null)}>‹ Geri</button>
           <h2>{currentRoot.title}</h2>
           <span />
         </div>
 
         <div className="legacyCategoryList">
           {children.map(item => (
-            <div
-              className={"sortableCategoryRow " + (dragId === item.id ? "dragging" : "")}
+            <button
               key={item.id}
-              onPointerEnter={() => moveDragged(item.id)}
+              draggable
+              className={"legacyCategoryRow draggableWholeRow " + (dragId === item.id ? "dragging" : "")}
+              onDragStart={() => setDragId(item.id)}
+              onDragEnter={e => {
+                e.preventDefault();
+                reorderChildren(item.id);
+              }}
+              onDragOver={e => e.preventDefault()}
+              onDragEnd={async () => {
+                setDragId(null);
+                await persistChildren();
+              }}
+              onClick={() => openChild(item)}
             >
-              <button
-                className="sortHandle"
-                aria-label="Sırala"
-                onPointerDown={e => {
-                  e.preventDefault();
-                  setDragId(item.id);
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                }}
-                onPointerUp={finishDrag}
-              >
-                ⋮⋮
-              </button>
-              <button
-                className="legacyCategoryRow"
-                onClick={() => openChild(item)}
-              >
-                <span>
-                  <strong>{item.title}</strong>
-                  {item.subtitle && <small>{item.subtitle}</small>}
-                </span>
-                <b>›</b>
-              </button>
-            </div>
+              <span>
+                <strong>{item.title}</strong>
+                {item.subtitle && <small>{item.subtitle}</small>}
+              </span>
+              <b>›</b>
+            </button>
           ))}
-          {!children.length && (
-            <div className="legacyEmptyLine">Bu bölümde içerik bulunamadı.</div>
-          )}
+
+          {!children.length && <div className="legacyEmptyLine">Bu bölümde içerik bulunamadı.</div>}
         </div>
 
         {message && <p className="legacyHomeMessage">{message}</p>}
@@ -192,23 +235,41 @@ export function EzberHomeView({
   }
 
   return (
-    <section className="legacyHomePage">
-      <div className="legacyHomeHead">
-        <h1>Dua Ezber</h1>
+    <section className="legacyNestedPage">
+      <div className="legacyHomeHead compact">
+        <h1>Ezber</h1>
         <p>Bir bölüm seç</p>
       </div>
 
       <div className="legacyHomeMenu">
-        {menu.map(item => (
-          <button
-            key={item.key}
-            className="legacyHomeRow"
-            onClick={() => openMenu(item.key)}
-          >
-            <strong>{item.icon ? item.icon + " " : ""}{item.label}</strong>
-            <span>›</span>
-          </button>
-        ))}
+        {menuEntries.map(entry => {
+          const id = entry.type === "db" ? entry.item.id : entry.id;
+          const title = entry.type === "db"
+            ? (entry.item.title === "Tesbihat" ? "Tesbihatlar" : entry.item.title)
+            : "🎧 Dinleme";
+
+          return (
+            <button
+              key={id}
+              draggable
+              className={"legacyHomeRow draggableWholeRow " + (dragId === id ? "dragging" : "")}
+              onDragStart={() => setDragId(id)}
+              onDragEnter={e => {
+                e.preventDefault();
+                reorderEntries(id);
+              }}
+              onDragOver={e => e.preventDefault()}
+              onDragEnd={async () => {
+                setDragId(null);
+                await saveRootOrder(menuEntries);
+              }}
+              onClick={() => openRoot(entry)}
+            >
+              <strong>{title}</strong>
+              <span>›</span>
+            </button>
+          );
+        })}
       </div>
 
       {message && <p className="legacyHomeMessage">{message}</p>}
