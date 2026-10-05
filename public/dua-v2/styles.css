@@ -1,0 +1,1952 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#24231f;background:#f5f1e8;--bg:#f5f1e8;--panel:#fffdf8;--text:#24231f;--muted:#817d71;--border:#d7d0c2;--accent:#2f5145;--segment-size:32px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);transition:background .2s,color .2s}
+body{min-height:100dvh;overscroll-behavior:none}button{font:inherit;color:inherit}
+body.dark{--bg:#151714;--panel:#20231f;--text:#f1eee5;--muted:#aaa79d;--border:#3c4039;--accent:#527c6b}
+.app{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;padding:max(14px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom))}
+header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}.right-btn{text-align:right!important}
+.text-btn{border:0;background:transparent;padding:10px 0;color:var(--muted);font-size:14px}.progress{font-size:13px;color:var(--muted)}
+.memorize{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 10px 70px;gap:14px;overflow:auto}
+.title{font-size:13px;color:var(--muted);margin-bottom:4px}
+.segment{font-family:Georgia,"Times New Roman",serif;font-size:var(--segment-size);line-height:1.45;font-weight:500;max-width:720px}
+.arabic{font-family:"Geeza Pro","Noto Naskh Arabic",serif;font-size:var(--segment-size);line-height:1.75;max-width:760px}
+.turkish{font-family:Georgia,"Times New Roman",serif;font-size:var(--segment-size);line-height:1.5;color:var(--muted);max-width:700px}
+.hidden{display:none!important}
+.navigation{display:grid;grid-template-columns:1fr 1fr;gap:12px}.navigation button{min-height:54px;border:1px solid var(--border);border-radius:16px;background:var(--panel);color:var(--text);font-weight:600}.navigation button:disabled{opacity:.35}
+.counter{position:fixed;z-index:10;left:calc(50% - 39px);top:70%;width:78px;height:78px;border-radius:50%;border:0;background:var(--accent);color:white;box-shadow:0 8px 24px #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none}.counter span{font-size:26px;font-weight:700;line-height:1}.counter small{font-size:10px;margin-top:4px;opacity:.8}.counter.dragging{transform:scale(1.07);box-shadow:0 12px 30px #0004}
+dialog{width:min(92vw,440px);border:1px solid var(--border);border-radius:20px;padding:18px;background:var(--panel);color:var(--text);box-shadow:0 20px 60px #0004}dialog::backdrop{background:#0008}.dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.close-btn{border:0;background:transparent;font-size:28px}.dua-option{width:100%;text-align:left;border:0;border-top:1px solid var(--border);background:transparent;padding:16px 4px;font-weight:600}
+.setting-row{min-height:58px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}.setting-btn,.font-controls button{border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:8px 12px}.font-controls{display:flex;gap:6px}.danger{color:#b54a42}
+@media (max-height:650px){.memorize{justify-content:flex-start;padding-top:24px}.arabic{line-height:1.5}}
+@media (display-mode:standalone){.app{padding-top:max(18px,env(safe-area-inset-top))}}
+.read-view{overflow:auto;padding:22px 4px 90px;max-width:760px;width:100%;margin:0 auto}.read-title{text-align:center;font-weight:700;font-size:18px;margin:8px 0 24px}.read-item{padding:18px 4px;border-bottom:1px solid var(--border);text-align:center}.read-item .arabic,.read-item .segment,.read-item .turkish{margin:8px auto}.read-item-number{font-size:11px;color:var(--muted);margin-bottom:8px}.read-content .segment,.read-content .arabic,.read-content .turkish{font-size:var(--segment-size)}
+
+@media (min-width:700px){.memorize{padding-top:18px}}
+
+.menu-btn{font-size:22px;text-align:left!important;width:44px}.side-backdrop{position:fixed;inset:0;z-index:40;background:#0007}.side-menu{position:fixed;z-index:50;left:0;top:0;bottom:0;width:min(82vw,320px);padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));background:var(--panel);border-right:1px solid var(--border);box-shadow:12px 0 36px #0004;transform:translateX(-105%);transition:transform .22s ease}.side-menu.open{transform:translateX(0)}.side-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding:0 4px}.side-section-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:14px 8px 6px}.side-option{display:block;width:100%;border:0;background:transparent;text-align:left;padding:13px 12px;border-radius:11px;font-weight:600}.side-option.active{background:var(--accent);color:#fff}
+
+.library-category{position:sticky;top:0;background:var(--panel);padding:14px 4px 7px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;z-index:1}#libraryList{max-height:65dvh;overflow:auto}
+
+.gesture-note{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;line-height:1.35;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:9px 12px;max-width:520px;margin:0 auto 4px}.read-item .gesture-note{display:inline-block;margin-bottom:10px}
+
+.library-page{overflow:auto;padding:12px 4px 30px;max-width:760px;width:100%;margin:0 auto}.library-page-head,.read-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 18px}.library-page-head h2{margin:0;font-size:22px}.back-btn,.primary-btn{border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:10px 14px;font-weight:600}.primary-btn{background:var(--accent);color:#fff;border-color:var(--accent)}.library-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--border);background:transparent;padding:17px 8px}.library-card strong{font-size:16px}.library-card span{font-size:12px;color:var(--muted);white-space:nowrap}
+
+.ilmihal-page{overflow:auto;padding:12px 4px 40px;max-width:760px;width:100%;margin:0 auto}.ilmihal-intro{color:var(--muted);font-size:14px;margin:4px 8px 12px}.ilmihal-article{font-family:Georgia,"Times New Roman",serif;font-size:20px;line-height:1.75;padding:8px 6px 40px}.ilmihal-article p{margin:0}.ilmihal-source{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:28px;padding-top:14px}
+
+.ilmihal-section{margin:20px 0 28px}.ilmihal-section h3{font-size:18px;margin:0;padding:8px 8px 10px;border-bottom:2px solid var(--accent)}.ilmihal-article p{margin:0 0 18px}.ilmihal-article ul,.ilmihal-article ol{padding-left:26px;margin:12px 0 24px}.ilmihal-article li{margin:9px 0;line-height:1.55}
+
+.ilmihal-page-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;margin:8px 0 22px}
+.ilmihal-page-head h2{margin:0;text-align:center;font-size:24px;line-height:1.25}
+.ilmihal-head-spacer{width:72px}
+.ilmihal-pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 8px;position:sticky;bottom:0;padding:12px 0 max(4px,env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.ilmihal-pager button{min-height:54px;border:1px solid var(--border);border-radius:16px;background:var(--panel);font-weight:600}
+.ilmihal-pager button:disabled{opacity:.35}
+
+.home-page{overflow:auto;padding:28px 4px 44px;max-width:760px;width:100%;margin:0 auto}
+.home-head{text-align:center;margin:18px 0 26px}.home-head h1{font-size:30px;margin:0 0 6px}.home-head p{margin:0;color:var(--muted)}
+.home-menu{display:grid;gap:0;border-top:1px solid var(--border)}
+.home-card{width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--border);background:transparent;padding:20px 10px}
+.home-card strong{font-size:18px}.home-card span{font-size:22px;color:var(--muted)}
+.invocation{text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:22px;font-weight:600;color:var(--accent);margin:2px 0 10px}
+.read-invocation{margin-top:-12px;margin-bottom:18px}
+.read-head-three{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}.read-head-three>*:last-child{justify-self:end}.read-head-three>*:nth-child(2){justify-self:center}
+.content-pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 4px;position:sticky;bottom:0;padding:12px 0 max(4px,env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.content-pager button{min-height:54px;border:1px solid var(--border);border-radius:16px;background:var(--panel);font-weight:600}.content-pager button:disabled{opacity:.35}
+.library-page-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center}.library-page-head h2{text-align:center}
+
+header{position:relative;z-index:20}.menu-btn{position:relative;z-index:25;cursor:pointer;pointer-events:auto}
+.read-head-three{grid-template-columns:auto 1fr auto}.read-actions{display:flex;gap:8px;justify-self:end}.read-head-three>*:nth-child(2){justify-self:center}
+.secondary-action{border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:9px 12px;font-weight:600;font-size:13px;margin-top:4px}
+.home-card-todo{background:var(--panel);border:1px solid var(--border);border-radius:16px;margin-bottom:14px;padding:18px 14px}.home-card-todo span{min-width:34px;height:34px;border-radius:17px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700}
+.todo-page{overflow:auto;padding:12px 4px 40px;max-width:760px;width:100%;margin:0 auto}.todo-page-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin:8px 0 18px}.todo-page-head h2{margin:0;text-align:center;font-size:24px}.todo-summary{font-size:13px;color:var(--muted);min-width:50px;text-align:right}
+.todo-empty{text-align:center;color:var(--muted);padding:60px 20px;line-height:1.7}
+.todo-card{display:grid;grid-template-columns:1fr auto;align-items:stretch;border-bottom:1px solid var(--border)}.todo-card.done{opacity:.58}.todo-open{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;text-align:left;border:0;background:transparent;padding:16px 8px;width:100%}.todo-check{width:28px;height:28px;border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800}.todo-card.done .todo-check{background:var(--accent);color:#fff;border-color:var(--accent)}.todo-main{min-width:0}.todo-main strong{display:block;font-size:16px;margin-bottom:4px}.todo-main small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}.todo-main p{margin:4px 0 8px;color:var(--muted);font-size:13px}.todo-progress{display:flex;gap:12px;font-size:12px;color:var(--muted)}.todo-delete{border:0;background:transparent;color:var(--muted);font-size:22px;padding:0 12px}
+.todo-form-row{display:grid;gap:7px;margin:14px 0}.todo-form-row label{font-size:13px;color:var(--muted)}.todo-form-row textarea,.todo-form-row input{width:100%;border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--text);padding:11px 12px;font:inherit}.todo-check-row{display:flex;align-items:center;gap:9px;margin:12px 0 16px}.todo-save-btn{width:100%;min-height:46px}
+@media(max-width:520px){.read-head-three{grid-template-columns:auto auto;gap:8px}.read-head-three>#backLibraryBtn{justify-self:end}.read-actions{grid-column:1/-1;width:100%;display:grid;grid-template-columns:1fr 1fr}.read-actions>*{width:100%}}
+
+.memorize{position:relative}
+.memorize-back{position:absolute;left:0;top:12px;z-index:3}
+@media(max-width:520px){.memorize-back{top:8px}}
+
+.todo-date-nav{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;margin:4px 0 10px}
+.todo-date-nav input,.todo-form-row select{width:100%;border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text);padding:10px 12px;font:inherit}
+.todo-today-btn{white-space:nowrap}.todo-date-title{text-align:center;font-weight:700;font-size:18px;margin:8px 0 18px}
+.todo-section-title{font-size:14px;color:var(--muted);margin:18px 4px 8px;text-transform:uppercase;letter-spacing:.05em}
+.todo-completed-section{margin-top:26px;border-top:1px solid var(--border);padding-top:4px}
+.todo-card-date{font-size:12px;color:var(--muted);margin-bottom:3px}.todo-completed-at{font-size:12px;color:var(--accent);margin-top:8px;font-weight:700}
+.todo-empty.compact{padding:24px 12px}
+.todo-schedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.todo-schedule-preview{border:1px solid var(--border);border-radius:12px;background:var(--bg);color:var(--muted);font-size:13px;line-height:1.4;padding:10px 12px;margin:4px 0 14px}
+.todo-form-row select{background:var(--bg)}
+@media(max-width:520px){.todo-date-nav{grid-template-columns:auto 1fr auto}.todo-today-btn{grid-column:1/-1}.todo-schedule-grid{grid-template-columns:1fr}}
+
+.read-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:760px;margin:8px auto 20px}
+.read-toolbar-group{display:flex;align-items:center;gap:8px}
+.read-toolbar .back-btn,.read-toolbar .primary-btn{min-height:42px}
+.read-title{margin-top:2px}
+.read-item{position:relative}
+.read-item-todo{cursor:pointer;padding-right:74px;padding-left:74px}
+.segment-todo-badge{position:absolute;right:8px;top:18px;width:56px;height:56px;border-radius:50%;border:1px solid var(--accent);background:var(--panel);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;box-shadow:0 5px 16px #0002}
+.segment-todo-badge.done{background:#3f8f63;border-color:#3f8f63;color:#fff}
+.counter.todo-task #count{font-size:20px;letter-spacing:-.02em}
+.counter.todo-task{background:var(--accent)}
+.counter.todo-done{background:#3f8f63;box-shadow:0 8px 24px #245d4238}
+.counter.todo-done small{font-weight:800;opacity:1}
+@media(max-width:520px){
+  .read-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .read-toolbar-group{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .read-toolbar .back-btn,.read-toolbar .primary-btn{width:100%;padding:10px 8px}
+  .read-item-todo{padding-left:4px;padding-right:66px}
+  .segment-todo-badge{right:4px;width:50px;height:50px;font-size:12px}
+}
+
+.todo-inline-progress{align-self:center;border:1px solid var(--accent);border-radius:999px;background:var(--panel);color:var(--accent);font-size:13px;font-weight:800;padding:8px 12px;line-height:1}
+.todo-inline-progress.done{background:#3f8f63;border-color:#3f8f63;color:#fff}
+.read-todo-progress{margin:0 auto 10px;width:max-content}
+.read-item-clickable{cursor:pointer;transition:background .15s ease}
+.read-item-clickable:hover{background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.read-item-clickable:active{background:var(--panel)}
+.counter.todo-task,.counter.todo-done{background:var(--accent);box-shadow:0 8px 24px #0003}
+.counter.todo-task #count,.counter.todo-done #count{font-size:26px;letter-spacing:normal}
+.counter.todo-done small{font-weight:400;opacity:.8}
+
+.segment-repeat-badge{position:absolute;left:8px;top:18px;min-width:42px;height:28px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0 9px;font-size:12px;font-weight:800}
+@media(max-width:520px){.segment-repeat-badge{left:4px;top:14px}}
+
+.segment-badges{position:absolute;right:8px;top:18px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:2}
+.segment-badges .segment-todo-badge,.segment-badges .segment-repeat-badge{position:static;cursor:pointer}
+.segment-repeat-badge{min-width:56px;height:32px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0 10px;font-size:12px;font-weight:800}
+.segment-repeat-badge.active,.segment-todo-badge.active{outline:2px solid var(--accent);outline-offset:2px}
+.segment-repeat-badge.done{background:#3f8f63;border-color:#3f8f63;color:#fff}
+.segment-todo-badge{cursor:pointer}
+.counter.quick-count{background:var(--accent)}
+.counter.quick-done{background:#3f8f63;box-shadow:0 8px 24px #245d4238}
+.read-item-todo,.read-item:has(.segment-repeat-badge){padding-right:86px}
+@media(max-width:520px){.segment-badges{right:4px;top:14px}.read-item-todo,.read-item:has(.segment-repeat-badge){padding-right:70px}}
+
+.read-sticky-header{
+  position:sticky;
+  top:0;
+  z-index:18;
+  background:color-mix(in srgb,var(--bg) 94%,transparent);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+  padding:8px 0 10px;
+  margin-bottom:6px;
+}
+.read-sticky-header .read-toolbar{
+  margin:0 auto 10px;
+}
+.read-sticky-header .read-title{
+  margin:2px 0 6px;
+}
+.read-sticky-header .read-invocation{
+  margin:2px 0 4px;
+}
+.read-sticky-header .read-todo-progress{
+  margin:0 auto 8px;
+}
+.read-content{
+  padding-top:6px;
+}
+@media(max-width:520px){
+  .read-sticky-header{
+    padding-top:6px;
+  }
+}
+
+/* v39: read header is fixed to viewport, not dependent on document scroll */
+.read-view{
+  --read-fixed-height:140px;
+  overflow:visible;
+  padding:0 4px 90px;
+}
+.read-sticky-header{
+  position:fixed;
+  top:max(8px,env(safe-area-inset-top));
+  left:50%;
+  transform:translateX(-50%);
+  width:min(760px,calc(100vw - 36px));
+  z-index:90;
+  background:color-mix(in srgb,var(--bg) 96%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  border-radius:16px;
+  padding:10px 12px 12px;
+  margin:0;
+  box-shadow:0 8px 24px #0002;
+}
+.read-sticky-header .read-toolbar{margin:0 auto 8px}
+.read-sticky-header .read-title{margin:3px 0 2px}
+.read-sticky-header .read-invocation{margin:3px 0 0}
+.read-sticky-header .read-todo-progress{margin:0 auto 6px}
+.read-content{
+  padding-top:calc(var(--read-fixed-height) + 18px);
+}
+.segment-add-todo{
+  position:absolute;
+  left:8px;
+  top:18px;
+  min-height:32px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--panel);
+  color:var(--muted);
+  padding:0 10px;
+  font-size:12px;
+  font-weight:700;
+  z-index:2;
+  cursor:pointer;
+}
+.read-item:has(.segment-add-todo){padding-left:82px}
+.segment-add-todo:hover{color:var(--text);border-color:var(--accent)}
+@media(max-width:520px){
+  .read-sticky-header{
+    width:calc(100vw - 20px);
+    top:max(6px,env(safe-area-inset-top));
+    border-radius:14px;
+    padding:8px;
+  }
+  .segment-add-todo{left:4px;top:14px;padding:0 8px}
+  .read-item:has(.segment-add-todo){padding-left:66px}
+}
+
+/* v41: keep section menu/title bars visible on all list/detail pages */
+.library-page,.todo-page,.ilmihal-page{overflow:visible}
+.library-page-head,.todo-page-head,.ilmihal-page-head{
+  position:sticky;
+  top:max(8px,env(safe-area-inset-top));
+  z-index:85;
+  background:color-mix(in srgb,var(--bg) 96%,transparent);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  border-radius:14px;
+  padding:10px 12px;
+  box-shadow:0 6px 18px #0002;
+}
+.library-page-head h2,.todo-page-head h2,.ilmihal-page-head h2{
+  text-align:center;
+}
+
+/* v42: fixed section headers on list/todo/ilmihal pages */
+.library-page,.todo-page,.ilmihal-page{
+  --section-fixed-height:78px;
+  overflow:visible;
+  padding-top:calc(var(--section-fixed-height) + 16px);
+}
+.library-page-head,.todo-page-head,.ilmihal-page-head{
+  position:fixed;
+  top:max(8px,env(safe-area-inset-top));
+  left:50%;
+  transform:translateX(-50%);
+  width:min(760px,calc(100vw - 36px));
+  z-index:95;
+  margin:0;
+  background:color-mix(in srgb,var(--bg) 97%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  border-radius:14px;
+  padding:10px 12px;
+  box-shadow:0 8px 24px #0002;
+}
+@media(max-width:520px){
+  .library-page,.todo-page,.ilmihal-page{--section-fixed-height:72px}
+  .library-page-head,.todo-page-head,.ilmihal-page-head{
+    width:calc(100vw - 20px);
+    top:max(6px,env(safe-area-inset-top));
+    padding:8px;
+  }
+}
+
+/* v44: counter stays above page content but below modal dialogs */
+.counter{z-index:120}
+
+/* v45: fixed global controls + fullscreen tasbih mode */
+:root{--global-header-height:54px}
+.app{padding-top:calc(var(--global-header-height) + env(safe-area-inset-top) + 8px)}
+.global-header{
+  position:fixed;
+  top:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(760px,100vw);
+  min-height:var(--global-header-height);
+  z-index:140;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:10px;
+  padding:max(6px,env(safe-area-inset-top)) 12px 6px;
+  background:color-mix(in srgb,var(--bg) 96%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+}
+.global-header .progress{text-align:center;pointer-events:none}
+.header-actions{display:flex;align-items:center;gap:6px;justify-self:end}
+.header-icon-btn{width:42px;height:42px;border-radius:12px;border:1px solid var(--border);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:20px}
+.menu-btn{width:42px;height:42px;border:1px solid var(--border);border-radius:12px;background:var(--panel);display:flex;align-items:center;justify-content:center}
+.read-sticky-header{
+  top:calc(var(--global-header-height) + env(safe-area-inset-top) + 8px);
+}
+.library-page-head,.todo-page-head,.ilmihal-page-head{
+  top:calc(var(--global-header-height) + env(safe-area-inset-top) + 8px);
+}
+.tasbih-fullscreen{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  background:var(--bg);
+  color:var(--text);
+  touch-action:manipulation;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.tasbih-fullscreen.done{background:#2e6d4d;color:#fff}
+.tasbih-fullscreen-center{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:90px 24px 80px;
+  pointer-events:none;
+  text-align:center;
+}
+.tasbih-fullscreen-title{
+  max-width:min(86vw,720px);
+  font-size:clamp(16px,2.5vw,24px);
+  line-height:1.4;
+  opacity:.75;
+  margin-bottom:26px;
+}
+.tasbih-fullscreen-count{
+  font-size:clamp(72px,22vw,180px);
+  font-weight:800;
+  line-height:.95;
+  letter-spacing:-.05em;
+}
+.tasbih-fullscreen-hint{
+  margin-top:28px;
+  font-size:14px;
+  opacity:.55;
+}
+.tasbih-exit{
+  position:absolute;
+  top:max(18px,env(safe-area-inset-top));
+  right:18px;
+  z-index:3;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  background:color-mix(in srgb,var(--panel) 88%,transparent);
+  color:inherit;
+  font-size:30px;
+  line-height:1;
+}
+.tasbih-minus{
+  position:absolute;
+  left:18px;
+  bottom:max(22px,env(safe-area-inset-bottom));
+  z-index:3;
+  min-width:58px;
+  min-height:44px;
+  border-radius:14px;
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  background:color-mix(in srgb,var(--panel) 88%,transparent);
+  color:inherit;
+  font-size:18px;
+  font-weight:700;
+  opacity:.55;
+}
+.tasbih-minus::after{
+  content:"basılı tut";
+  display:block;
+  font-size:8px;
+  font-weight:500;
+  margin-top:1px;
+}
+.tasbih-fullscreen.completed-pulse .tasbih-fullscreen-count{
+  animation:tasbihCompletePulse .6s ease;
+}
+@keyframes tasbihCompletePulse{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.16)}
+  100%{transform:scale(1)}
+}
+body.tasbih-mode-open{overflow:hidden}
+@media(max-width:520px){
+  :root{--global-header-height:52px}
+  .global-header{width:100vw;padding-left:8px;padding-right:8px}
+  .header-icon-btn,.menu-btn{width:38px;height:38px}
+  .read-sticky-header,.library-page-head,.todo-page-head,.ilmihal-page-head{
+    top:calc(var(--global-header-height) + env(safe-area-inset-top) + 6px);
+  }
+}
+
+/* v46: mobile-safe fixed headers and compact memorize navigation */
+:root{--global-header-height:58px}
+.global-header{
+  z-index:300;
+  width:100vw;
+  max-width:none;
+  min-height:0;
+  padding-top:max(6px,env(safe-area-inset-top));
+  padding-left:max(8px,env(safe-area-inset-left));
+  padding-right:max(8px,env(safe-area-inset-right));
+  padding-bottom:6px;
+  grid-template-columns:44px minmax(64px,1fr) auto;
+}
+.global-header .progress{
+  display:block;
+  min-width:64px;
+  text-align:center;
+  white-space:nowrap;
+  overflow:visible;
+  font-weight:700;
+  opacity:1;
+}
+.header-actions{
+  display:flex;
+  gap:6px;
+  min-width:max-content;
+}
+.header-icon-btn,.menu-btn{
+  flex:0 0 auto;
+}
+.read-sticky-header{
+  z-index:220;
+  top:calc(var(--global-header-height) + 8px);
+}
+.library-page-head,.todo-page-head,.ilmihal-page-head{
+  z-index:220;
+  top:calc(var(--global-header-height) + 8px);
+}
+.app{
+  padding-top:calc(var(--global-header-height) + 12px);
+}
+.navigation{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:max(10px,env(safe-area-inset-bottom));
+  z-index:110;
+  width:min(760px,calc(100vw - 24px));
+  height:56px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.navigation button{
+  height:56px;
+  min-height:56px;
+  max-height:56px;
+  padding:0 16px;
+}
+.memorize{
+  padding-bottom:92px;
+}
+@media(max-width:520px){
+  :root{--global-header-height:56px}
+  .global-header{
+    grid-template-columns:40px minmax(58px,1fr) auto;
+    gap:6px;
+  }
+  .header-icon-btn,.menu-btn{
+    width:38px;
+    height:38px;
+  }
+  .read-sticky-header,.library-page-head,.todo-page-head,.ilmihal-page-head{
+    top:calc(var(--global-header-height) + 6px);
+  }
+  .navigation{
+    width:calc(100vw - 16px);
+    height:52px;
+    gap:8px;
+    bottom:max(6px,env(safe-area-inset-bottom));
+  }
+  .navigation button{
+    height:52px;
+    min-height:52px;
+    max-height:52px;
+    border-radius:14px;
+  }
+}
+
+/* v47: counter default position is always bottom-right before JS restores a saved drag position */
+.counter{
+  left:auto;
+  top:auto;
+  right:max(18px,env(safe-area-inset-right));
+  bottom:calc(max(18px,env(safe-area-inset-bottom)) + 68px);
+}
+
+
+/* v50 — Dinleme / YouTube Loop Player */
+.listening-page{padding-bottom:28px}
+.listening-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;margin:4px 0 12px}
+.listening-head h2{margin:0;text-align:center}
+.listening-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 14px}
+.listening-tabs button{border:1px solid var(--border,#d7d2c8);background:var(--card,#fff);color:inherit;border-radius:14px;padding:12px 14px;font-weight:800}
+.listening-tabs button.active{background:#3b4a35;color:#fff;border-color:#3b4a35}
+body.dark .listening-tabs button.active{background:#e7e2d7;color:#171914;border-color:#e7e2d7}
+
+.listening-player-shell{position:relative;aspect-ratio:16/9;background:#000;border-radius:18px;overflow:hidden;margin:10px 0 14px;box-shadow:0 10px 28px #0002}
+#listeningPlayer,.listening-player-shell iframe{width:100%;height:100%}
+.listening-empty-player{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;padding:22px;color:#fff;background:linear-gradient(135deg,#242820,#42483c)}
+.listening-empty-player span{opacity:.75;font-size:13px;max-width:460px}
+
+.listening-card{background:var(--card,#fff);border:1px solid #ddd6c8;border-radius:18px;padding:14px;margin:12px 0;box-shadow:0 7px 22px #0000000b}
+body.dark .listening-card{background:#1d201b;border-color:#353a31}
+.listening-card h3{margin:0 0 10px}
+.listening-card label{display:grid;gap:6px;font-weight:700}
+.listening-card input,.listening-card select{width:100%;border:1px solid #d7d2c8;background:#fff;color:#222;border-radius:12px;padding:11px 12px;font:inherit}
+body.dark .listening-card input,body.dark .listening-card select{background:#151714;color:#f1eee7;border-color:#3c4138}
+.listening-picker{display:grid;gap:12px}
+.listening-todo-row{display:flex;justify-content:flex-end}
+.listening-todo-row button{font-size:13px}
+.listening-preset-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.listening-loop-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.listening-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid #ddd6c8;border-radius:13px;background:#f8f5ee;margin-top:10px}
+body.dark .listening-status{background:#151714;border-color:#353a31}
+.listening-speed-panel{display:grid;gap:10px;border:1px solid #ddd6c8;border-radius:14px;padding:11px;margin-top:10px;background:#faf8f2}
+body.dark .listening-speed-panel{background:#151714;border-color:#353a31}
+.listening-speed-buttons{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.listening-speed-buttons button,.listening-nudges button,.listening-card-actions button{border:1px solid #d7d2c8;background:#fff;color:#222;border-radius:10px;padding:8px 7px;font-weight:700}
+body.dark .listening-speed-buttons button,body.dark .listening-nudges button,body.dark .listening-card-actions button{background:#20231e;color:#f1eee7;border-color:#41473d}
+.listening-speed-buttons button.active{background:#3b4a35;color:#fff;border-color:#3b4a35}
+body.dark .listening-speed-buttons button.active{background:#e7e2d7;color:#171914}
+.listening-url-row,.listening-time-row{display:flex;gap:8px}
+.listening-url-row input,.listening-time-row input{flex:1}
+.listening-full-btn{width:100%;margin-top:9px}
+.listening-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.listening-section-head p{margin:4px 0 0}
+.listening-time-grid,.listening-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.listening-nudges{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}
+.listening-nudges>div{border:1px solid #ddd6c8;border-radius:13px;padding:9px;background:#faf8f2}
+body.dark .listening-nudges>div{background:#151714;border-color:#353a31}
+.listening-nudges>div>div{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:7px}
+.listening-list-card{border:1px solid #ddd6c8;border-radius:13px;padding:11px;margin-top:8px;display:grid;gap:8px;background:#fff}
+body.dark .listening-list-card{background:#171914;border-color:#353a31}
+.listening-list-card>div:first-child{display:grid;gap:3px}
+.listening-list-card small{color:#777}
+body.dark .listening-list-card small{color:#aaa}
+.listening-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.listening-card-actions button{font-size:12px;padding:7px 9px}
+
+@media(max-width:680px){
+  .listening-speed-buttons{grid-template-columns:repeat(3,1fr)}
+  .listening-time-grid,.listening-settings-grid,.listening-nudges{grid-template-columns:1fr}
+  .listening-url-row,.listening-time-row{display:grid;grid-template-columns:1fr auto}
+  .listening-loop-actions{position:sticky;bottom:max(8px,env(safe-area-inset-bottom));z-index:5;background:color-mix(in srgb,var(--card,#fff) 92%,transparent);padding:7px;border-radius:14px;backdrop-filter:blur(10px)}
+}
+
+
+/* v51 — Dinleme eşleştirme + dua içi oynatma */
+.listening-link-box{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+  padding:11px;
+  border:1px solid #ddd6c8;
+  border-radius:13px;
+  background:#faf8f2;
+}
+.listening-link-box>div{display:grid;gap:4px}
+.listening-link-box small{color:#777;line-height:1.35}
+body.dark .listening-link-box{background:#151714;border-color:#353a31}
+body.dark .listening-link-box small{color:#aaa}
+
+.listening-assign-list{display:grid;gap:8px;margin:12px 0}
+.listening-assign-list .library-card{text-align:left;width:100%}
+
+.dua-listening-panel{
+  margin:10px 0 14px;
+  padding:12px;
+  border:1px solid #d8d1c3;
+  border-radius:16px;
+  background:#fbf8f1;
+}
+body.dark .dua-listening-panel{background:#1a1d18;border-color:#353a31}
+.dua-listening-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+}
+.dua-listening-head>div:first-child{display:grid;gap:3px}
+.dua-listening-head small{color:#777}
+body.dark .dua-listening-head small{color:#aaa}
+.dua-listening-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.dua-linked-player-shell{
+  aspect-ratio:16/9;
+  background:#000;
+  border-radius:14px;
+  overflow:hidden;
+  margin-top:10px;
+}
+#duaLinkedPlayer,.dua-linked-player-shell iframe{width:100%;height:100%}
+.dua-listening-repeat-row{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+}
+.dua-listening-repeat-row label{
+  display:grid;
+  gap:5px;
+  font-size:13px;
+  font-weight:700;
+}
+.dua-listening-repeat-row input{
+  width:110px;
+  border:1px solid #d7d2c8;
+  border-radius:10px;
+  padding:8px 10px;
+  background:#fff;
+  color:#222;
+}
+body.dark .dua-listening-repeat-row input{background:#151714;color:#f1eee7;border-color:#3c4138}
+#duaLinkedPlayStatus{font-size:13px;color:#6b6f66;text-align:right}
+body.dark #duaLinkedPlayStatus{color:#b7bbb2}
+
+.segment-listen-play{
+  border:1px solid #aeb7a8;
+  background:#edf3ea;
+  color:#30402c;
+  border-radius:999px;
+  padding:5px 9px;
+  font-weight:800;
+  font-size:12px;
+}
+body.dark .segment-listen-play{
+  background:#273023;
+  color:#dce8d8;
+  border-color:#485443;
+}
+
+@media(max-width:680px){
+  .listening-link-box{display:grid}
+  .listening-link-box button{width:100%}
+  .dua-listening-head{grid-template-columns:1fr}
+  .dua-listening-actions{justify-content:stretch}
+  .dua-listening-actions button{flex:1}
+  .dua-listening-repeat-row{align-items:center}
+}
+
+
+/* v52 — Dinleme tab visibility + fixed dua video + auto-follow text */
+.listening-tabs button{
+  background:var(--panel,#fff);
+  color:var(--text,#222);
+  opacity:1;
+  border:1px solid var(--border,#d7d2c8);
+}
+.listening-tabs button.active{
+  background:var(--accent,#3b4a35);
+  color:#fff;
+  border-color:var(--accent,#3b4a35);
+}
+body.dark .listening-tabs button{
+  background:#20231e;
+  color:#f1eee7;
+  border-color:#41473d;
+}
+body.dark .listening-tabs button.active{
+  background:#e7e2d7;
+  color:#171914;
+  border-color:#e7e2d7;
+}
+
+.read-view.has-dua-listening .dua-listening-panel{
+  position:sticky;
+  top:calc(var(--global-header-height) + var(--read-fixed-height) + 18px);
+  z-index:80;
+  margin-top:calc(var(--read-fixed-height) + 18px);
+  background:color-mix(in srgb,var(--bg) 97%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  box-shadow:0 8px 24px #0002;
+}
+.read-view.has-dua-listening .read-content{
+  padding-top:8px;
+}
+.read-view.has-dua-listening .read-item{
+  scroll-margin-top:calc(var(--global-header-height) + var(--read-fixed-height) + 330px);
+}
+.read-item.listening-active{
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 28%,transparent),0 8px 24px #00000012;
+  transform:translateY(-1px);
+}
+.read-item.listening-active .read-item-number{
+  background:var(--accent);
+  color:#fff;
+}
+body.dark .read-item.listening-active .read-item-number{
+  color:#111;
+}
+@media(max-width:680px){
+  .read-view.has-dua-listening .dua-listening-panel{
+    top:calc(var(--global-header-height) + var(--read-fixed-height) + 12px);
+    margin-top:calc(var(--read-fixed-height) + 12px);
+    padding:10px;
+  }
+  .read-view.has-dua-listening .read-item{
+    scroll-margin-top:calc(var(--global-header-height) + var(--read-fixed-height) + 290px);
+  }
+}
+
+
+/* v53 — Dua içi video artık sayfayla birlikte yukarı kayar */
+.read-view.has-dua-listening .dua-listening-panel{
+  position:relative;
+  top:auto;
+  z-index:auto;
+  margin-top:calc(var(--read-fixed-height) + 18px);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+  box-shadow:none;
+}
+.read-view.has-dua-listening .read-content{
+  padding-top:8px;
+}
+.read-view.has-dua-listening .read-item{
+  scroll-margin-top:calc(var(--global-header-height) + var(--read-fixed-height) + 20px);
+}
+@media(max-width:680px){
+  .read-view.has-dua-listening .dua-listening-panel{
+    position:relative;
+    top:auto;
+    margin-top:calc(var(--read-fixed-height) + 12px);
+  }
+  .read-view.has-dua-listening .read-item{
+    scroll-margin-top:calc(var(--global-header-height) + var(--read-fixed-height) + 16px);
+  }
+}
+
+
+/* v54 — Okuma videosu ve metin bağımsız hareket eder */
+.read-view.has-dua-listening .dua-listening-panel{
+  position:fixed;
+  left:50%;
+  transform:translateX(-50%);
+  top:calc(var(--global-header-height) + var(--read-fixed-height) + 18px);
+  width:min(480px,calc(100vw - 20px));
+  max-height:82vh;
+  overflow:auto;
+  z-index:210;
+  margin:0;
+  padding:10px;
+  background:color-mix(in srgb,var(--bg) 97%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  box-shadow:0 10px 28px #0003;
+}
+.read-view.has-dua-listening .read-content{
+  padding-top:calc(var(--read-fixed-height) + 18px);
+}
+.read-view.has-dua-listening .read-item{
+  scroll-margin-top:calc(var(--global-header-height) + var(--read-fixed-height) + 18px);
+}
+.dua-listening-drag-handle{
+  width:100%;
+  min-height:30px;
+  margin:0 0 8px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  cursor:ns-resize;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.dua-listening-panel.dragging{
+  transition:none;
+  opacity:.98;
+}
+.dua-linked-player-shell{
+  max-height:260px;
+}
+@media(max-width:680px){
+  .read-view.has-dua-listening .dua-listening-panel{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    width:calc(100vw - 16px);
+    max-height:78vh;
+    margin:0;
+    padding:8px;
+  }
+  .read-view.has-dua-listening .read-content{
+    padding-top:calc(var(--read-fixed-height) + 12px);
+  }
+  .dua-linked-player-shell{
+    max-height:220px;
+  }
+}
+
+
+/* v55 — Taşıma çubuğu videonun solunda, video yüksekliği boyunca */
+.dua-linked-player-shell{
+  aspect-ratio:auto;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  align-items:stretch;
+  gap:0;
+  background:transparent;
+  border-radius:14px;
+  overflow:visible;
+  max-height:none;
+}
+.dua-linked-player-stage{
+  aspect-ratio:16/9;
+  min-width:0;
+  background:#000;
+  overflow:hidden;
+  border-radius:0 14px 14px 0;
+}
+#duaLinkedPlayer,.dua-linked-player-stage iframe{
+  width:100%;
+  height:100%;
+}
+.dua-listening-drag-handle{
+  width:34px;
+  min-width:34px;
+  height:100%;
+  min-height:100%;
+  margin:0;
+  padding:0;
+  border:1px solid var(--border);
+  border-right:0;
+  border-radius:14px 0 0 14px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:20px;
+  font-weight:900;
+  cursor:ns-resize;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.dua-listening-drag-handle span{
+  writing-mode:vertical-rl;
+  text-orientation:mixed;
+  letter-spacing:4px;
+}
+body.dark .dua-listening-drag-handle{
+  background:#20231e;
+  color:#e7e2d7;
+  border-color:#41473d;
+}
+@media(max-width:680px){
+  .dua-linked-player-shell{
+    grid-template-columns:30px minmax(0,1fr);
+  }
+  .dua-listening-drag-handle{
+    width:30px;
+    min-width:30px;
+    font-size:18px;
+  }
+  .dua-linked-player-stage{
+    border-radius:0 12px 12px 0;
+  }
+}
+
+
+/* v56 — Varsayılan gizli video, kompakt ses çubuğu */
+.read-view.has-dua-listening .dua-listening-panel{
+  width:min(520px,calc(100vw - 16px));
+  max-height:88vh;
+  overflow:auto;
+  padding:9px;
+}
+.dua-listening-head{
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+}
+.dua-listening-head>div:first-child{
+  min-width:0;
+}
+#duaListeningVideoTitle{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#duaVideoVisibilityBtn{
+  min-height:36px;
+  padding:7px 10px;
+  white-space:nowrap;
+  font-size:12px;
+}
+
+.dua-audio-bar{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) 72px;
+  gap:8px;
+  align-items:center;
+  margin-top:8px;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--panel);
+}
+.dua-audio-play{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:1px solid var(--border);
+  background:var(--accent);
+  color:#fff;
+  font-size:18px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+body.dark .dua-audio-play{color:#111}
+.dua-audio-progress{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+#duaLinkedSeek{
+  width:100%;
+  accent-color:var(--accent);
+  cursor:pointer;
+}
+.dua-audio-time{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+  font-size:10px;
+  font-variant-numeric:tabular-nums;
+}
+.dua-audio-speed{
+  display:grid;
+  gap:3px;
+  font-size:10px;
+  font-weight:700;
+  color:var(--muted);
+}
+.dua-audio-speed select{
+  width:100%;
+  min-height:34px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:4px 5px;
+  background:var(--bg);
+  color:var(--text);
+  font:inherit;
+  font-size:12px;
+}
+.dua-listening-repeat-row{
+  margin-top:7px;
+  align-items:center;
+}
+.dua-listening-repeat-row label{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:11px;
+}
+.dua-listening-repeat-row input{
+  width:60px;
+  padding:6px 7px;
+}
+#duaLinkedPlayStatus{
+  max-width:55%;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Video görünür olduğunda sol taşıma çubuğu gerçek yukarı/aşağı ok gösterir */
+.dua-listening-drag-handle span{
+  writing-mode:horizontal-tb;
+  text-orientation:mixed;
+  letter-spacing:0;
+  line-height:1.15;
+  text-align:center;
+}
+.dua-listening-drag-handle{
+  font-size:17px;
+}
+
+/* Video alanı gizliyken panel yalnızca ses çubuğu kadar yer kaplar */
+.dua-linked-player-shell.hidden{
+  display:none !important;
+}
+.dua-linked-player-stage{
+  aspect-ratio:16/9;
+}
+
+@media(max-width:680px){
+  .read-view.has-dua-listening .dua-listening-panel{
+    width:calc(100vw - 10px);
+    padding:7px;
+  }
+  .dua-audio-bar{
+    grid-template-columns:40px minmax(0,1fr) 66px;
+    gap:6px;
+    padding:7px;
+  }
+  .dua-audio-play{
+    width:40px;
+    height:40px;
+  }
+  #duaVideoVisibilityBtn{
+    padding:6px 8px;
+  }
+}
+
+
+/* v57 — Kompakt modda video adı gizli, YouTube iframe oynatılabilir halde tutulur */
+.dua-listening-panel:not(.video-visible) .dua-listening-meta{
+  display:none;
+}
+.dua-listening-panel:not(.video-visible) .dua-listening-head{
+  grid-template-columns:1fr;
+  justify-items:end;
+}
+.dua-listening-panel.video-visible .dua-listening-meta{
+  display:grid;
+}
+
+/* iPhone Safari'de ses oynatmayı bozabilecek display:none yerine iframe'i ekran dışında canlı tut */
+.dua-linked-player-shell.hidden{
+  display:grid !important;
+  position:absolute !important;
+  left:-10000px !important;
+  top:0 !important;
+  width:320px !important;
+  height:180px !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  overflow:hidden !important;
+}
+.dua-linked-player-shell.hidden .dua-linked-player-stage{
+  width:286px;
+  height:180px;
+  aspect-ratio:auto;
+}
+.dua-linked-player-shell.hidden .dua-listening-drag-handle{
+  width:34px;
+  min-width:34px;
+}
+
+
+/* v58 — Okuma alanı açıklığı, üst menü gizleme, kompakt oynatıcıyı taşıma */
+.read-view{
+  --dua-player-clearance:0px;
+}
+.read-view.has-dua-listening .read-content{
+  padding-top:calc(var(--read-fixed-height) + var(--dua-player-clearance) + 12px);
+}
+
+/* İlk dua satırı oynatıcının arkasında başlamasın; sonrasında metin bağımsız kayar. */
+.read-view.has-dua-listening .read-item{
+  scroll-margin-top:calc(var(--global-header-height) + 14px);
+}
+
+/* Tesbih sayacı oynatıcının her zaman üstünde kalsın. */
+.counter{
+  z-index:260;
+}
+
+/* Üst okuma menüsü tek tuşla küçültülebilir. */
+.read-header-collapse-btn{
+  width:38px;
+  min-width:38px;
+  padding:0;
+  font-size:18px;
+  font-weight:900;
+}
+.read-sticky-header.collapsed{
+  min-height:42px;
+  padding:5px 8px;
+}
+.read-sticky-header.collapsed .read-toolbar{
+  margin:0;
+  min-height:32px;
+  justify-content:flex-end;
+}
+.read-sticky-header.collapsed .read-toolbar-group:first-child,
+.read-sticky-header.collapsed #addDuaTodoBtn,
+.read-sticky-header.collapsed #memorizeThisBtn,
+.read-sticky-header.collapsed #readTodoProgress,
+.read-sticky-header.collapsed #readTitle,
+.read-sticky-header.collapsed #readInvocation{
+  display:none !important;
+}
+.read-sticky-header.collapsed .read-toolbar-group:last-child{
+  margin-left:auto;
+}
+
+/* MP3/oynatıcı panelinin solunda daima görünen taşıma rayı. */
+.read-view.has-dua-listening .dua-listening-panel{
+  padding-left:34px;
+  overflow:visible;
+}
+.dua-panel-drag-handle{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:26px;
+  min-width:26px;
+  margin:0;
+  padding:0;
+  border:1px solid var(--border);
+  border-right:0;
+  border-radius:14px 0 0 14px;
+  background:var(--panel);
+  color:var(--muted);
+  cursor:ns-resize;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:4;
+  font-size:15px;
+  font-weight:900;
+}
+.dua-panel-drag-handle span{
+  line-height:1.1;
+  text-align:center;
+}
+body.dark .dua-panel-drag-handle{
+  background:#20231e;
+  color:#e7e2d7;
+  border-color:#41473d;
+}
+
+@media(max-width:680px){
+  .read-view.has-dua-listening .dua-listening-panel{
+    padding-left:31px;
+  }
+  .dua-panel-drag-handle{
+    width:24px;
+    min-width:24px;
+    font-size:14px;
+  }
+  .read-sticky-header.collapsed{
+    min-height:40px;
+    padding:4px 6px;
+  }
+}
+
+
+/* v59 — Üst menü gizleme düğmesi küçük, menü düzenini etkilemez */
+.read-header-collapse-btn{
+  position:absolute !important;
+  left:50% !important;
+  right:auto !important;
+  bottom:-11px !important;
+  transform:translateX(-50%);
+  width:30px !important;
+  min-width:30px !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 !important;
+  border-radius:0 0 10px 10px !important;
+  font-size:13px !important;
+  line-height:1 !important;
+  z-index:3;
+  box-shadow:0 3px 8px #0002;
+}
+.read-sticky-header{
+  overflow:visible;
+}
+.read-sticky-header.collapsed{
+  min-height:24px;
+  height:24px;
+  padding:0 6px;
+}
+.read-sticky-header.collapsed .read-toolbar{
+  min-height:0;
+  height:0;
+  margin:0;
+  padding:0;
+}
+.read-sticky-header.collapsed .read-toolbar-group:last-child{
+  width:0;
+  height:0;
+  margin:0;
+}
+.read-sticky-header.collapsed .read-header-collapse-btn{
+  bottom:-11px !important;
+}
+@media(max-width:520px){
+  .read-header-collapse-btn{
+    width:28px !important;
+    min-width:28px !important;
+    height:20px !important;
+    min-height:20px !important;
+    bottom:-10px !important;
+    font-size:12px !important;
+  }
+  .read-sticky-header.collapsed{
+    min-height:22px;
+    height:22px;
+    padding:0 4px;
+  }
+}
+
+
+/* v60 — Menüyle birlikte kayan ve küçültülebilen MP3 oynatıcı */
+.dua-player-collapse-btn{
+  position:absolute;
+  right:-1px;
+  top:50%;
+  transform:translateY(-50%);
+  width:20px;
+  min-width:20px;
+  height:36px;
+  min-height:36px;
+  padding:0;
+  border:1px solid var(--border);
+  border-radius:9px 0 0 9px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:16px;
+  font-weight:900;
+  line-height:1;
+  z-index:6;
+}
+
+/* Küçük mod: yalnızca oynat/duraklat ve altında tekrar sayısı. */
+.read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+  width:88px;
+  min-width:88px;
+  max-height:none;
+  padding:7px 7px 7px 29px;
+  overflow:visible;
+}
+.dua-listening-panel.player-collapsed .dua-listening-head,
+.dua-listening-panel.player-collapsed .dua-audio-progress,
+.dua-listening-panel.player-collapsed .dua-audio-speed,
+.dua-listening-panel.player-collapsed #duaLinkedPlayStatus{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-audio-bar{
+  display:flex;
+  justify-content:center;
+  margin:0;
+  padding:3px;
+  border:0;
+  background:transparent;
+}
+.dua-listening-panel.player-collapsed .dua-audio-play{
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+}
+.dua-listening-panel.player-collapsed .dua-listening-repeat-row{
+  display:block;
+  margin:5px 0 0;
+}
+.dua-listening-panel.player-collapsed .dua-listening-repeat-row label{
+  display:block;
+  font-size:0;
+}
+.dua-listening-panel.player-collapsed .dua-repeat-label-text{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed #duaSectionRepeatCount{
+  display:block;
+  width:44px;
+  height:32px;
+  margin:0 auto;
+  padding:3px 5px;
+  border-radius:8px;
+  text-align:center;
+  font-size:14px;
+  font-weight:800;
+}
+
+/* Küçük modda video iframe'i canlı kalır ama görünmez; iPhone sesi kesilmez. */
+.dua-listening-panel.player-collapsed .dua-linked-player-shell{
+  display:grid !important;
+  position:absolute !important;
+  left:-10000px !important;
+  top:0 !important;
+  width:320px !important;
+  height:180px !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  overflow:hidden !important;
+}
+.dua-listening-panel.player-collapsed .dua-linked-player-stage{
+  width:286px;
+  height:180px;
+  aspect-ratio:auto;
+}
+.dua-listening-panel.player-collapsed .dua-listening-drag-handle{
+  width:34px;
+  min-width:34px;
+}
+
+/* Küçük oynatıcıda sol taşıma rayı panel boyunca kalır. */
+.dua-listening-panel.player-collapsed .dua-panel-drag-handle{
+  width:23px;
+  min-width:23px;
+  font-size:13px;
+}
+.dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  right:-17px;
+  width:18px;
+  min-width:18px;
+  height:30px;
+  min-height:30px;
+  border-radius:0 8px 8px 0;
+  font-size:14px;
+}
+
+@media(max-width:520px){
+  .read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+    width:82px;
+    min-width:82px;
+    padding:6px 6px 6px 27px;
+  }
+  .dua-listening-panel.player-collapsed .dua-audio-play{
+    width:42px;
+    height:42px;
+    min-width:42px;
+    min-height:42px;
+  }
+  .dua-listening-panel.player-collapsed #duaSectionRepeatCount{
+    width:42px;
+    height:30px;
+  }
+}
+
+
+/* v61 — Küçültme düğmesi artık oynatıcı çubuğunun içinde görünür */
+.dua-audio-bar{
+  position:relative;
+  grid-template-columns:42px minmax(0,1fr) 72px 26px;
+}
+.dua-player-collapse-btn{
+  position:static !important;
+  transform:none !important;
+  width:26px !important;
+  min-width:26px !important;
+  height:34px !important;
+  min-height:34px !important;
+  padding:0 !important;
+  border:1px solid var(--border) !important;
+  border-radius:9px !important;
+  background:var(--bg) !important;
+  color:var(--muted) !important;
+  font-size:16px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  z-index:auto !important;
+}
+
+/* "Bölüm tekrar sayısı" yazısı yerine döngü simgesi */
+.dua-repeat-control{
+  display:flex !important;
+  align-items:center;
+  gap:7px;
+}
+.dua-repeat-label-text{
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border:1px solid var(--border);
+  border-radius:50%;
+  font-size:18px;
+  line-height:1;
+  color:var(--accent);
+  font-weight:900;
+}
+
+/* Küçük modda yalnızca play + tekrar kutusu; büyütme oku kenarda kalır */
+.dua-listening-panel.player-collapsed .dua-audio-bar{
+  position:relative;
+  display:flex;
+  justify-content:center;
+  margin:0;
+  padding:3px;
+  border:0;
+  background:transparent;
+}
+.dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  position:absolute !important;
+  right:-20px !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  width:18px !important;
+  min-width:18px !important;
+  height:30px !important;
+  min-height:30px !important;
+  border-radius:0 8px 8px 0 !important;
+  font-size:14px !important;
+}
+.dua-listening-panel.player-collapsed .dua-repeat-label-text{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-repeat-control{
+  display:block !important;
+}
+
+@media(max-width:680px){
+  .dua-audio-bar{
+    grid-template-columns:40px minmax(0,1fr) 62px 24px;
+  }
+  .dua-player-collapse-btn{
+    width:24px !important;
+    min-width:24px !important;
+    height:32px !important;
+    min-height:32px !important;
+    font-size:15px !important;
+  }
+  .dua-repeat-label-text{
+    width:26px;
+    height:26px;
+    font-size:17px;
+  }
+}
+
+
+/* v62 — Küçük oynatıcı serbest taşınır, yan taşıma oku gizlidir */
+.dua-listening-panel.player-collapsed{
+  touch-action:none;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+  padding:6px !important;
+  width:72px !important;
+  min-width:72px !important;
+}
+.dua-listening-panel.player-collapsed.compact-dragging{
+  cursor:grabbing;
+  transition:none !important;
+  opacity:.96;
+}
+.dua-listening-panel.player-collapsed .dua-panel-drag-handle{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-audio-play{
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+}
+.dua-listening-panel.player-collapsed #duaSectionRepeatCount{
+  width:44px;
+  height:32px;
+  margin:0 auto;
+  padding:3px 5px;
+  text-align:center;
+  font-size:14px;
+  font-weight:800;
+  user-select:text;
+  -webkit-user-select:text;
+}
+.dua-listening-panel.player-collapsed .dua-listening-repeat-row{
+  margin-top:5px;
+}
+.dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  right:-18px !important;
+}
+@media(max-width:520px){
+  .read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+    width:68px !important;
+    min-width:68px !important;
+    padding:5px !important;
+  }
+}
+
+
+/* v63 — Tesbih uzun basma sıfırlama + yuvarlak mavi mini player */
+.counter-reset-popover{
+  position:fixed;
+  z-index:420;
+  min-height:36px;
+  padding:7px 13px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel);
+  color:#b42318;
+  font:inherit;
+  font-size:13px;
+  font-weight:800;
+  box-shadow:0 8px 22px #0003;
+}
+.counter-reset-popover.hidden{
+  display:none !important;
+}
+
+/* Küçük player tesbih gibi tek yuvarlak kontrol olur. */
+.read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+  width:76px !important;
+  min-width:76px !important;
+  height:76px !important;
+  min-height:76px !important;
+  max-height:76px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  background:#1677ff !important;
+  box-shadow:0 8px 24px #0b5bd34d !important;
+  overflow:visible !important;
+  cursor:grab;
+  touch-action:none;
+}
+.dua-listening-panel.player-collapsed.compact-dragging{
+  cursor:grabbing;
+  box-shadow:0 12px 30px #0b5bd366 !important;
+}
+.dua-listening-panel.player-collapsed.repeat-editing{
+  box-shadow:0 0 0 4px #ffffff55,0 8px 24px #0b5bd34d !important;
+}
+.dua-listening-panel.player-collapsed .dua-listening-head,
+.dua-listening-panel.player-collapsed .dua-audio-progress,
+.dua-listening-panel.player-collapsed .dua-audio-speed,
+.dua-listening-panel.player-collapsed #duaLinkedPlayStatus,
+.dua-listening-panel.player-collapsed .dua-repeat-label-text,
+.dua-listening-panel.player-collapsed .dua-panel-drag-handle{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-audio-bar{
+  position:absolute !important;
+  inset:0 !important;
+  display:block !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  pointer-events:none;
+}
+.dua-listening-panel.player-collapsed .dua-audio-play{
+  display:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-listening-repeat-row{
+  position:absolute;
+  inset:0;
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+  margin:0 !important;
+  pointer-events:none;
+}
+.dua-listening-panel.player-collapsed .dua-repeat-control{
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+  pointer-events:auto;
+}
+.dua-listening-panel.player-collapsed #duaSectionRepeatCount{
+  width:54px !important;
+  height:48px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  outline:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  color:#fff !important;
+  text-align:center;
+  font-size:26px !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  caret-color:#fff;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.dua-listening-panel.player-collapsed #duaSectionRepeatCount[readonly]{
+  pointer-events:auto;
+}
+.dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  position:absolute !important;
+  top:-7px !important;
+  right:-7px !important;
+  left:auto !important;
+  width:23px !important;
+  min-width:23px !important;
+  height:23px !important;
+  min-height:23px !important;
+  padding:0 !important;
+  transform:none !important;
+  border:1px solid #d6dbe3 !important;
+  border-radius:50% !important;
+  background:#fff !important;
+  color:#36506a !important;
+  font-size:14px !important;
+  line-height:1 !important;
+  box-shadow:0 3px 9px #0003;
+  pointer-events:auto;
+  z-index:8;
+}
+body.dark .dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  background:#24282e !important;
+  color:#eef4ff !important;
+  border-color:#4b5563 !important;
+}
+.dua-listening-panel.player-collapsed.is-playing{
+  background:#0d63da !important;
+  box-shadow:0 0 0 4px #1677ff33,0 10px 26px #0b5bd35c !important;
+}
+@media(max-width:520px){
+  .read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+    width:72px !important;
+    min-width:72px !important;
+    height:72px !important;
+    min-height:72px !important;
+    max-height:72px !important;
+  }
+  .dua-listening-panel.player-collapsed #duaSectionRepeatCount{
+    width:50px !important;
+    height:46px !important;
+    font-size:25px !important;
+  }
+}
+
+
+/* v65 — Okuma oynatıcısı daima yuvarlak; uzun basınca Tekrar + Hız ayarları */
+.read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+  width:76px !important;
+  min-width:76px !important;
+  height:76px !important;
+  min-height:76px !important;
+  max-height:76px !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  overflow:visible !important;
+  background:#1677ff !important;
+  box-shadow:0 8px 24px #0b5bd34d !important;
+}
+
+/* Yuvarlağın ortasında sadece oynat/duraklat simgesi kalır. */
+.dua-listening-panel.player-collapsed .dua-audio-bar{
+  position:absolute !important;
+  inset:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  pointer-events:none !important;
+}
+.dua-listening-panel.player-collapsed .dua-audio-play{
+  display:flex !important;
+  position:static !important;
+  width:58px !important;
+  min-width:58px !important;
+  height:58px !important;
+  min-height:58px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  background:transparent !important;
+  color:#fff !important;
+  font-size:28px !important;
+  line-height:1 !important;
+  box-shadow:none !important;
+  pointer-events:none !important;
+}
+.dua-listening-panel.player-collapsed.is-playing .dua-audio-play{
+  color:#fff !important;
+}
+
+/* Eski tekrar kutusu ve büyütme oku küçük modda görünmez. */
+.dua-listening-panel.player-collapsed .dua-listening-repeat-row,
+.dua-listening-panel.player-collapsed .dua-player-collapse-btn{
+  display:none !important;
+}
+
+/* Uzun basınca yuvarlağın üstünde açılan iki ayar. */
+.dua-compact-settings{
+  position:absolute;
+  left:50%;
+  bottom:calc(100% + 10px);
+  transform:translateX(-50%);
+  z-index:30;
+  width:190px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  padding:9px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:0 10px 28px #0004;
+  touch-action:manipulation;
+  user-select:auto;
+  -webkit-user-select:auto;
+}
+.dua-compact-settings.hidden{
+  display:none !important;
+}
+.dua-compact-settings::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:-6px;
+  width:12px;
+  height:12px;
+  transform:translateX(-50%) rotate(45deg);
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.dua-compact-settings label{
+  position:relative;
+  z-index:1;
+  display:grid;
+  gap:4px;
+  min-width:0;
+  font-size:11px;
+  font-weight:800;
+  color:var(--muted);
+}
+.dua-compact-settings input,
+.dua-compact-settings select{
+  width:100%;
+  min-width:0;
+  height:38px;
+  padding:6px 8px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--bg);
+  color:var(--text);
+  font:inherit;
+  font-size:15px;
+  font-weight:800;
+  text-align:center;
+}
+.dua-compact-settings input{
+  -webkit-appearance:none;
+  appearance:none;
+}
+.dua-listening-panel.player-collapsed.settings-open{
+  box-shadow:0 0 0 4px #1677ff2b,0 10px 28px #0b5bd35c !important;
+}
+
+/* Okuma modunda video hiçbir zaman görünür player olarak açılmaz. */
+.dua-listening-panel.player-collapsed .dua-listening-head{
+  display:none !important;
+}
+
+@media(max-width:520px){
+  .read-view.has-dua-listening .dua-listening-panel.player-collapsed{
+    width:72px !important;
+    min-width:72px !important;
+    height:72px !important;
+    min-height:72px !important;
+    max-height:72px !important;
+  }
+  .dua-listening-panel.player-collapsed .dua-audio-play{
+    width:54px !important;
+    min-width:54px !important;
+    height:54px !important;
+    min-height:54px !important;
+    font-size:27px !important;
+  }
+  .dua-compact-settings{
+    width:182px;
+    padding:8px;
+  }
+}
+
+
+/* v66 — Global yuvarlak player, güvenli ayar penceresi, cümle içi play */
+.counter{
+  z-index:900 !important;
+}
+.counter small:empty{
+  display:none !important;
+}
+
+/* Player artık readView dışında; okuma ve tek-cümle ezber ekranında aynı sabit kontrol kullanılır. */
+#duaListeningPanel.player-collapsed{
+  position:fixed !important;
+  z-index:1000 !important;
+  width:78px !important;
+  min-width:78px !important;
+  height:78px !important;
+  min-height:78px !important;
+  max-height:78px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  overflow:visible !important;
+  background:#1677ff !important;
+  box-shadow:0 8px 24px #0b5bd34d !important;
+  touch-action:none;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#duaListeningPanel.player-collapsed.compact-dragging{
+  cursor:grabbing;
+  box-shadow:0 12px 30px #0b5bd366 !important;
+}
+#duaListeningPanel.player-collapsed.is-playing{
+  background:#0d63da !important;
+  box-shadow:0 0 0 4px #1677ff33,0 10px 26px #0b5bd35c !important;
+}
+#duaListeningPanel.player-collapsed .dua-listening-head,
+#duaListeningPanel.player-collapsed .dua-audio-progress,
+#duaListeningPanel.player-collapsed .dua-audio-speed,
+#duaListeningPanel.player-collapsed #duaLinkedPlayStatus,
+#duaListeningPanel.player-collapsed .dua-listening-repeat-row,
+#duaListeningPanel.player-collapsed .dua-panel-drag-handle{
+  display:none !important;
+}
+#duaListeningPanel.player-collapsed .dua-audio-bar{
+  position:absolute !important;
+  inset:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+  pointer-events:none !important;
+}
+#duaListeningPanel.player-collapsed .dua-audio-play{
+  position:relative !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  width:60px !important;
+  min-width:60px !important;
+  height:60px !important;
+  min-height:60px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:50% !important;
+  background:transparent !important;
+  color:#fff !important;
+  font-size:29px !important;
+  line-height:1 !important;
+  box-shadow:none !important;
+  pointer-events:none !important;
+}
+#duaPlayIcon{
+  display:block;
+  line-height:1;
+}
+.dua-play-repeat-badge{
+  position:absolute;
+  right:5px;
+  top:50%;
+  transform:translateY(-48%);
+  min-width:15px;
+  height:15px;
+  padding:0 3px;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#ffffffed;
+  color:#0d63da;
+  font-size:9px;
+  font-weight:900;
+  line-height:1;
+  box-shadow:0 1px 4px #0003;
+}
+
+/* YouTube iframe görünmez ama iPhone ses oynatımı için canlı kalır. */
+#duaListeningPanel.player-collapsed .dua-linked-player-shell{
+  display:grid !important;
+  position:absolute !important;
+  left:-10000px !important;
+  top:0 !important;
+  width:320px !important;
+  height:180px !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  overflow:hidden !important;
+}
+
+/* Uzun basma ayarları viewport'a göre JS ile konumlandırılır; hiçbir kenardan kırpılmaz. */
+#duaCompactSettings{
+  position:fixed !important;
+  z-index:1100 !important;
+  right:auto !important;
+  bottom:auto !important;
+  transform:none !important;
+  width:190px !important;
+  max-width:calc(100vw - 16px);
+  overflow:visible !important;
+}
+#duaCompactSettings::after{
+  display:none !important;
+}
+
+/* Tek cümle ezber ekranında, eşleşmiş video bölümü varsa cümlenin yanında küçük play. */
+.memorize-segment-row{
+  width:min(100%,760px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+}
+.memorize-segment-row .segment{
+  min-width:0;
+}
+.memorize-listen-play{
+  flex:0 0 auto;
+  padding:6px 9px;
+  font-size:12px;
+}
+
+/* Okuma ekranı, global player DOM olarak dışında olsa da ilk metne normal açıklığı bırakır. */
+.read-view.has-dua-listening .read-content{
+  padding-top:calc(var(--read-fixed-height) + 94px) !important;
+}
+
+/* Mobilde de mavi player tesbih ile aynı 78px boyutta kalır. */
+@media(max-width:520px){
+  #duaListeningPanel.player-collapsed{
+    width:78px !important;
+    min-width:78px !important;
+    height:78px !important;
+    min-height:78px !important;
+    max-height:78px !important;
+  }
+  #duaListeningPanel.player-collapsed .dua-audio-play{
+    width:60px !important;
+    min-width:60px !important;
+    height:60px !important;
+    min-height:60px !important;
+    font-size:29px !important;
+  }
+  .memorize-segment-row{
+    gap:7px;
+  }
+}
