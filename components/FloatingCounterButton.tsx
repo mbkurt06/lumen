@@ -5,11 +5,20 @@ import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 export function FloatingCounterButton({
   title = "Tesbih",
   target = 0,
+  count,
+  onIncrement,
+  onDecrement,
+  onReset,
 }: {
   title?: string;
   target?: number;
+  count?: number;
+  onIncrement?: () => void | Promise<void>;
+  onDecrement?: () => void | Promise<void>;
+  onReset?: () => void | Promise<void>;
 }) {
-  const [count, setCount] = useState(0);
+  const controlled = typeof count === "number";
+  const [localCount, setLocalCount] = useState(0);
   const [pos, setPos] = useState<{x:number;y:number}|null>(null);
   const [resetMenu, setResetMenu] = useState(false);
   const pressed = useRef(false);
@@ -18,6 +27,10 @@ export function FloatingCounterButton({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const start = useRef({x:0,y:0});
   const origin = useRef({x:0,y:0});
+  const resetRef = useRef<HTMLButtonElement | null>(null);
+  const counterRef = useRef<HTMLButtonElement | null>(null);
+
+  const effectiveCount = controlled ? (count ?? 0) : localCount;
 
   useEffect(() => {
     const savedPos = localStorage.getItem("lumen-counter-pos");
@@ -25,8 +38,20 @@ export function FloatingCounterButton({
     if (savedPos) {
       try { setPos(JSON.parse(savedPos)); } catch {}
     }
-    if (savedCount) setCount(Number(savedCount) || 0);
-  }, []);
+    if (!controlled && savedCount) setLocalCount(Number(savedCount) || 0);
+  }, [controlled]);
+
+  useEffect(() => {
+    if (!resetMenu) return;
+    const close = (event: PointerEvent) => {
+      const targetNode = event.target as Node;
+      if (resetRef.current?.contains(targetNode)) return;
+      if (counterRef.current?.contains(targetNode)) return;
+      setResetMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [resetMenu]);
 
   function clamp(next:{x:number;y:number}) {
     const size = 78;
@@ -36,20 +61,37 @@ export function FloatingCounterButton({
     };
   }
 
-  function increment() {
-    setCount(current => {
+  async function increment() {
+    if (onIncrement) {
+      await onIncrement();
+      return;
+    }
+    setLocalCount(current => {
       const next = target > 0 ? Math.min(target, current + 1) : current + 1;
       localStorage.setItem("lumen-read-counter",String(next));
       return next;
     });
   }
 
-  function decrement() {
-    setCount(current => {
+  async function decrement() {
+    if (onDecrement) {
+      await onDecrement();
+      return;
+    }
+    setLocalCount(current => {
       const next = Math.max(0,current-1);
       localStorage.setItem("lumen-read-counter",String(next));
       return next;
     });
+  }
+
+  async function reset() {
+    if (onReset) await onReset();
+    else {
+      setLocalCount(0);
+      localStorage.setItem("lumen-read-counter","0");
+    }
+    setResetMenu(false);
   }
 
   function down(e:React.PointerEvent<HTMLButtonElement>) {
@@ -90,13 +132,7 @@ export function FloatingCounterButton({
       return;
     }
 
-    if (!longPressed.current) increment();
-  }
-
-  function reset() {
-    setCount(0);
-    localStorage.setItem("lumen-read-counter","0");
-    setResetMenu(false);
+    if (!longPressed.current) void increment();
   }
 
   const popoverStyle = pos
@@ -107,19 +143,25 @@ export function FloatingCounterButton({
     <>
       <FullscreenTasbih
         title={title}
-        count={count}
+        count={effectiveCount}
         target={target}
-        onIncrement={increment}
-        onDecrement={decrement}
+        onIncrement={() => void increment()}
+        onDecrement={() => void decrement()}
       />
 
       {resetMenu && (
-        <button className="counterResetPopover" style={popoverStyle} onClick={reset}>
+        <button
+          ref={resetRef}
+          className="counterResetPopover"
+          style={popoverStyle}
+          onClick={() => void reset()}
+        >
           Sıfırla
         </button>
       )}
 
       <button
+        ref={counterRef}
         className="legacyCounter readCounter"
         style={pos ? {left:pos.x,top:pos.y,right:"auto",bottom:"auto"} : undefined}
         onPointerDown={down}
@@ -127,7 +169,7 @@ export function FloatingCounterButton({
         onPointerUp={up}
         title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı"
       >
-        <span>{count}</span>
+        <span>{effectiveCount}</span>
         {target > 0 && <small>/ {target}</small>}
       </button>
     </>
