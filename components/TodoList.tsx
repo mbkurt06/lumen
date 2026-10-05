@@ -32,7 +32,10 @@ function parseMeta(notes: string | null): TodoMeta {
 }
 
 function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function occurs(meta: TodoMeta, key: string) {
@@ -48,6 +51,13 @@ function occurs(meta: TodoMeta, key: string) {
     return diff >= 0 && diff < Math.max(1, s.durationDays || 1);
   }
   return true;
+}
+
+function stateFor(todo: Todo, key: string) {
+  const meta = parseMeta(todo.notes);
+  const target = Math.max(1, Number(meta.schedule?.target || 1));
+  const count = Math.min(target, Number(meta.schedule?.history?.[key]?.count || 0));
+  return { meta, target, count, done: count >= target };
 }
 
 export function TodoList() {
@@ -75,12 +85,19 @@ export function TodoList() {
     [todos, selectedDate]
   );
 
+  const active = useMemo(
+    () => visible.filter(todo => !stateFor(todo, selectedDate).done),
+    [visible, selectedDate]
+  );
+
+  const completed = useMemo(
+    () => visible.filter(todo => stateFor(todo, selectedDate).done),
+    [visible, selectedDate]
+  );
+
   async function toggle(todo: Todo) {
-    const meta = parseMeta(todo.notes);
-    const target = Math.max(1, meta.schedule?.target || 1);
+    const { meta, target, done } = stateFor(todo, selectedDate);
     const history = { ...(meta.schedule?.history || {}) };
-    const current = history[selectedDate] || { count: 0, completedAt: null };
-    const done = (current.count || 0) >= target;
     history[selectedDate] = done
       ? { count: 0, completedAt: null }
       : { count: target, completedAt: new Date().toISOString() };
@@ -115,14 +132,28 @@ export function TodoList() {
     setSelectedDate(dateKey(d));
   }
 
+  function renderTodo(todo: Todo) {
+    const { meta, target, count, done } = stateFor(todo, selectedDate);
+    return (
+      <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
+        <button className="todoOpen" onClick={() => toggle(todo)}>
+          <div className="todoCheck">{done ? "✓" : ""}</div>
+          <div className="todoMain">
+            <strong>{todo.title}</strong>
+            {meta.description && <p>{meta.description}</p>}
+            <div className="todoProgress"><span>{target}/{count}</span></div>
+          </div>
+        </button>
+        <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
+      </article>
+    );
+  }
+
   return (
     <section className="todoPage card">
       <div className="todoPageHead">
         <h2>Günlük Todo</h2>
-        <span>{visible.filter(t => {
-          const m=parseMeta(t.notes); const h=m.schedule?.history?.[selectedDate];
-          return (h?.count||0) >= Math.max(1,m.schedule?.target||1);
-        }).length} / {visible.length}</span>
+        <span>{completed.length} / {visible.length}</span>
       </div>
 
       <div className="todoDateNav">
@@ -132,27 +163,20 @@ export function TodoList() {
         <button className="secondary" onClick={() => setSelectedDate(dateKey(new Date()))}>Bugün</button>
       </div>
 
-      <div className="todoCards">
-        {visible.map(todo => {
-          const meta = parseMeta(todo.notes);
-          const target = Math.max(1, meta.schedule?.target || 1);
-          const count = Math.min(target, meta.schedule?.history?.[selectedDate]?.count || 0);
-          const done = count >= target;
-          return (
-            <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
-              <button className="todoOpen" onClick={() => toggle(todo)}>
-                <div className="todoCheck">{done ? "✓" : ""}</div>
-                <div className="todoMain">
-                  <strong>{todo.title}</strong>
-                  {meta.description && <p>{meta.description}</p>}
-                  <div className="todoProgress"><span>{count} / {target}</span></div>
-                </div>
-              </button>
-              <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
-            </article>
-          );
-        })}
-        {!visible.length && <div className="todoEmpty">Bu tarihte görev yok.</div>}
+      <div className="todoSection">
+        <h3>Yapılacaklar</h3>
+        <div className="todoCards">
+          {active.map(renderTodo)}
+          {!active.length && <div className="todoEmpty">Bekleyen görev yok.</div>}
+        </div>
+      </div>
+
+      <div className="todoSection completedTodoSection">
+        <h3>Tamamlandı</h3>
+        <div className="todoCards">
+          {completed.map(renderTodo)}
+          {!completed.length && <div className="todoEmpty">Henüz tamamlanan görev yok.</div>}
+        </div>
       </div>
 
       {message && <p className="muted">{message}</p>}
