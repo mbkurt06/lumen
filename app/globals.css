@@ -704,3 +704,56 @@ body.dark .repeatBadge{background:var(--panel)}
     top:12px;
   }
 }
+
+/* Per-segment Todo + target counter */
+.legacyReadItem{
+  position:relative;
+  min-height:150px;
+  padding:34px 96px 26px;
+}
+.segmentTodoTopLeft{
+  position:absolute;
+  left:8px;
+  top:18px;
+  margin:0;
+  z-index:3;
+}
+.segmentTargetButton{
+  position:absolute;
+  right:8px;
+  top:18px;
+  z-index:3;
+  min-width:72px;
+  min-height:42px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--panel);
+  color:var(--text);
+  font-weight:800;
+  padding:7px 13px;
+}
+.segmentTargetButton.active{
+  outline:2px solid color-mix(in srgb,var(--accent) 75%,transparent);
+  outline-offset:2px;
+}
+.segmentTargetButton.done{
+  background:#2e6d4d;
+  border-color:#2e6d4d;
+  color:#fff;
+}
+.counterActiveItem{
+  background:color-mix(in srgb,var(--accent) 5%,transparent);
+}
+@media(max-width:700px){
+  .legacyReadItem{
+    padding:68px 8px 24px;
+  }
+  .segmentTodoTopLeft{
+    left:4px;
+    top:14px;
+  }
+  .segmentTargetButton{
+    right:4px;
+    top:14px;
+  }
+}
