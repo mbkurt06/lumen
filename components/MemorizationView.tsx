@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
+import { TodoDialog } from "@/components/TodoDialog";
 
 type Item = {
   id: string;
@@ -46,6 +47,8 @@ export function MemorizationView({
   const counterOrigin = useRef({x:0,y:0});
   const counterPressed = useRef(false);
   const [message, setMessage] = useState("");
+  const [resetMenu, setResetMenu] = useState(false);
+  const [todoOpen, setTodoOpen] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetLongPress = useRef(false);
 
@@ -151,7 +154,7 @@ export function MemorizationView({
     resetTimer.current = setTimeout(() => {
       if (!counterDragging.current) {
         resetLongPress.current = true;
-        resetCounter();
+        setResetMenu(true);
       }
     }, 650);
   }
@@ -249,6 +252,10 @@ export function MemorizationView({
             {node.translation && (
               <div className="legacyTurkish">{node.translation}</div>
             )}
+
+            <button className="segmentTodoButton memorizeTodoButton" onClick={() => setTodoOpen(true)}>
+              + Todo
+            </button>
           </>
         ) : (
           <p className="muted">Bu eserde henüz bölüm yok.</p>
@@ -272,6 +279,18 @@ export function MemorizationView({
         </button>
       </nav>
 
+      {node && resetMenu && (
+        <button
+          className="counterResetPopover"
+          onClick={() => {
+            resetCounter();
+            setResetMenu(false);
+          }}
+        >
+          Sıfırla
+        </button>
+      )}
+
       {node && (
         <button className="legacyCounter" style={counterPos ? {left:counterPos.x,top:counterPos.y,right:"auto",bottom:"auto"} : undefined} onPointerDown={counterDown} onPointerMove={counterMove} onPointerUp={counterUp} title="Dokun: say • Basılı tut: sıfırla • Sürükle: taşı">
           <span>{memory?.repeat_count ?? 0}</span>
@@ -282,6 +301,16 @@ export function MemorizationView({
       )}
 
       <FloatingPlaybackButton />
+
+      {node && (
+        <TodoDialog
+          open={todoOpen}
+          onClose={() => setTodoOpen(false)}
+          title={node.text_content || node.title || item.title}
+          libraryItemId={item.id}
+          contentNodeId={node.id}
+        />
+      )}
 
       {message && <div className="legacyMessage">{message}</div>}
     </div>
