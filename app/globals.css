@@ -1100,3 +1100,162 @@ html.pre-dark body{
     padding-top:70px!important;
   }
 }
+
+/* Finalize reader/memorize layout for active daily use */
+
+/* Document name stays visible while reading long tesbihat/sure pages. */
+.legacyReadToolbar{
+  z-index:70;
+}
+.legacyReadTitle{
+  position:sticky!important;
+  top:62px!important;
+  z-index:60!important;
+  margin:0 0 16px!important;
+  padding:10px 8px!important;
+  background:color-mix(in srgb,var(--bg) 97%,transparent)!important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
+}
+
+/* In single-part/memorize view target badges live on the right, like list view. */
+.legacyMemorize{
+  position:relative;
+}
+.memorizeTodoTargets{
+  position:absolute!important;
+  right:18px!important;
+  top:50%!important;
+  transform:translateY(-50%);
+  margin:0!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+  z-index:8;
+}
+.memorizeTodoTarget{
+  position:relative!important;
+  inset:auto!important;
+}
+.segmentTargetButton:not(.active):not(.done){
+  background:color-mix(in srgb,var(--panel) 92%,var(--accent) 8%)!important;
+  border:1px solid var(--border)!important;
+  color:var(--text)!important;
+}
+.segmentTargetButton.active:not(.done){
+  background:color-mix(in srgb,var(--panel) 96%,var(--accent) 4%)!important;
+  border:3px solid #5b8d76!important;
+  box-shadow:0 0 0 2px color-mix(in srgb,#5b8d76 30%,transparent)!important;
+  color:var(--text)!important;
+}
+.segmentTargetButton.done{
+  background:#2e6d4d!important;
+  border-color:#2e6d4d!important;
+  color:#fff!important;
+}
+
+/* Mobile: back + Todo + memorize + fullscreen + settings all share one top row. */
+@media(max-width:800px){
+  .legacyReadPage{
+    padding-top:66px!important;
+  }
+  .legacyReadToolbar{
+    position:fixed!important;
+    top:0!important;
+    left:0!important;
+    right:0!important;
+    height:58px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:5px!important;
+    padding:7px 104px 7px 8px!important;
+    background:color-mix(in srgb,var(--bg) 97%,transparent)!important;
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);
+  }
+  .legacyReadToolbar .legacyBack{
+    flex:0 0 auto;
+    padding:7px 5px!important;
+    font-size:13px!important;
+    white-space:nowrap;
+  }
+  .legacyReadToolbar .toolbar{
+    display:flex!important;
+    gap:5px!important;
+    align-items:center!important;
+    min-width:0;
+  }
+  .legacyReadToolbar .toolbar button{
+    min-height:38px!important;
+    padding:6px 9px!important;
+    border-radius:10px!important;
+    font-size:12px!important;
+    white-space:nowrap;
+  }
+  .legacyReadTitle{
+    top:58px!important;
+    font-size:17px!important;
+    padding:8px 4px!important;
+  }
+
+  .fullscreenTasbihLauncher{
+    position:fixed!important;
+    top:8px!important;
+    right:54px!important;
+    width:42px!important;
+    height:42px!important;
+    z-index:90!important;
+    box-shadow:none!important;
+  }
+  .persistentLibrarySettings{
+    position:fixed!important;
+    top:8px!important;
+    right:7px!important;
+    width:42px!important;
+    height:42px!important;
+    z-index:90!important;
+    box-shadow:none!important;
+  }
+
+  .legacyHeader.stickyMemorizeHeader{
+    min-height:58px;
+    padding-top:0!important;
+    position:sticky!important;
+    top:0!important;
+  }
+  .legacyMemorize{
+    padding-left:12px!important;
+    padding-right:92px!important;
+  }
+  .memorizeTodoTargets{
+    right:8px!important;
+    top:50%!important;
+  }
+  .memorizeTodoTarget{
+    min-width:74px!important;
+  }
+}
+
+/* Very narrow phones: preserve one-row controls by shaving labels/buttons only. */
+@media(max-width:420px){
+  .legacyReadToolbar{
+    padding-right:100px!important;
+    gap:3px!important;
+  }
+  .legacyReadToolbar .legacyBack{
+    font-size:12px!important;
+    padding-left:2px!important;
+    padding-right:2px!important;
+  }
+  .legacyReadToolbar .toolbar{
+    gap:3px!important;
+  }
+  .legacyReadToolbar .toolbar button{
+    padding:5px 6px!important;
+    font-size:11px!important;
+  }
+}
