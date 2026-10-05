@@ -366,7 +366,7 @@ export function MemorizationView({
           <>
             {typeof node.metadata?.note === "string" && node.metadata.note && <div className="legacyNote">{node.metadata.note}</div>}
             {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
-            {node.text_content && <div className="legacySegment">{node.text_content}</div>}
+            {node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
             {node.translation && <div className="legacyTurkish">{node.translation}</div>}
 
             <button className="segmentTodoButton memorizeTodoButton" onClick={() => setTodoOpen(true)}>+ Todo</button>
