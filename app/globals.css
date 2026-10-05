@@ -889,3 +889,15 @@ html.pre-dark body{
     max-width:52%;
   }
 }
+
+.tesbihatCompletionWrap{
+  display:flex;
+  justify-content:center;
+  margin:-4px 0 14px;
+}
+.tesbihatCompletionButton.done{
+  background:#2e6d4d;
+  border-color:#2e6d4d;
+  color:#fff;
+  opacity:1;
+}
