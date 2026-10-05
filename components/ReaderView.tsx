@@ -9,6 +9,7 @@ type Node = {
   kind: string;
   title: string | null;
   text_content: string | null;
+  secondary_text: string | null;
   translation: string | null;
   sort_order: number;
 };
@@ -28,7 +29,7 @@ export function ReaderView({ item }: { item: Item }) {
 
     const { data, error } = await supabase
       .from("content_nodes")
-      .select("id,kind,title,text_content,translation,sort_order")
+      .select("id,kind,title,text_content,secondary_text,translation,sort_order")
       .eq("document_id", item.id)
       .is("parent_id", null)
       .order("sort_order");
@@ -141,6 +142,11 @@ export function ReaderView({ item }: { item: Item }) {
             </div>
 
             {node.title && <h3>{node.title}</h3>}
+            {node.secondary_text && (
+              <div className="readerText" dir="rtl" style={{ fontSize: 28, marginBottom: 10 }}>
+                {node.secondary_text}
+              </div>
+            )}
             {node.text_content && (
               <div className="readerText">{node.text_content}</div>
             )}
