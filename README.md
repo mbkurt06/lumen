@@ -1,65 +1,84 @@
 # Lumen
 
-Lumen is a personal Apple-platform library, reading, listening, and memorization application.
+Lumen is a cross-platform personal library, reading, listening, memorization, and task application.
 
 ## Platforms
-- iPhone
-- iPad
+
+Lumen is a web/PWA application. The same codebase is designed to run on:
+
+- iPhone / iPad
 - macOS
+- Android
+- Windows
+- Any modern browser
+
+No Apple Developer membership is required for normal web/PWA use.
 
 ## Architecture
-- Swift 6 / SwiftUI
-- SwiftData
-- iCloud / CloudKit synchronization
-- Shared codebase for iOS, iPadOS, and macOS
-- Extensible hierarchical content model
 
-## Content hierarchy
+- Next.js + TypeScript
+- React
+- Progressive Web App (PWA)
+- Supabase PostgreSQL as the central database
+- Supabase Auth for user identity
+- Supabase Realtime for synchronized changes
+- IndexedDB for offline/local cache
 
-The application does not hard-code any real collection, work, title, or text.
+## Data policy
 
-A library can grow through generic nodes such as:
+The public GitHub repository contains application code and generic database schema only.
+
+It must not contain real library titles, book names, religious text, imported document text, personal notes, tasks, memorization progress, YouTube segment timings, or user data.
+
+All real content is stored in the central database under the authenticated user account.
+
+## Content model
+
+The content model is intentionally generic and recursive.
 
 ```
 Library
-└── Collection
-    ├── Collection / Folder
-    └── Document
-        └── Segment
-            ├── Volume
-            ├── Part
-            ├── Chapter
-            ├── Section
-            ├── Page
-            ├── Heading
-            ├── Paragraph
-            ├── Sentence
-            ├── Phrase
-            └── Custom
+└── Collection / Folder / Document
+    └── Content node
+        ├── volume
+        ├── part
+        ├── chapter
+        ├── section
+        ├── page
+        ├── heading
+        ├── paragraph
+        ├── sentence
+        ├── phrase
+        ├── verse
+        └── custom
 ```
 
-Segments can be nested recursively, so new content structures can be added later without changing the basic library model.
+The same document can therefore use only the hierarchy it needs.
 
-## User state
+## Media model
 
-Reading position, memorization state, repeat counters, playback speed, favorites, and synchronized preferences are separate from the content hierarchy.
+External media is referenced rather than duplicated.
 
-## Storage policy
+For example, a video can be stored once as:
 
-This repository contains application source code only.
+- provider
+- external video ID / URL
+- reusable time segments
 
-User-created/imported content, reading state, memorization progress, counters, playback preferences, and library metadata belong to the user's iCloud/CloudKit store and are not committed to Git.
+All devices read the same segment boundaries from the database.
 
-Large binary assets should be stored behind an iCloud/asset layer and referenced by identifier instead of being embedded in source code or Git history.
+## Synchronization
 
-No bundled content library is included in the repository.
+Reading state, memorization state, todos, media timings, preferences, and content metadata are centralized so a change made on one device appears on the others.
 
-## First Xcode setup
+IndexedDB will provide an offline cache and a queue for changes made while offline.
 
-1. Open `Lumen.xcodeproj`.
-2. Select the `Lumen` target.
-3. Under **Signing & Capabilities**, select your Apple Developer Team.
-4. Confirm that the iCloud capability uses the container `iCloud.com.mbkurt06.lumen`.
-5. Build first on one Apple device/simulator, then verify CloudKit sync with another signed-in device.
+## Local development
 
-The Apple Developer Team identifier is intentionally not stored in the repository.
+1. Copy `.env.example` to `.env.local`.
+2. Add your Supabase project URL and public anon key.
+3. Run the SQL migration in `supabase/migrations`.
+4. Install dependencies with `npm install`.
+5. Start with `npm run dev`.
+
+No production secrets should ever be committed to this repository.
