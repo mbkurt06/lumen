@@ -15,6 +15,8 @@ export function FloatingPlaybackButton() {
   const origin = useRef<Point>({ x: 0, y: 0 });
   const longPressed = useRef(false);
   const pressed = useRef(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const playRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("lumen-play-pos");
@@ -22,6 +24,18 @@ export function FloatingPlaybackButton() {
       try { setPos(JSON.parse(saved)); } catch {}
     }
   }, []);
+
+  useEffect(() => {
+    if (!panel) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target)) return;
+      if (playRef.current?.contains(target)) return;
+      setPanel(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [panel]);
 
   function clamp(next: Point) {
     const size = 62;
@@ -81,7 +95,7 @@ export function FloatingPlaybackButton() {
   return (
     <>
       {panel && (
-        <div className="floatingPanel compactPlaybackPanel" style={panelStyle}>
+        <div ref={panelRef} className="floatingPanel compactPlaybackPanel" style={panelStyle}>
           <div className="compactPlaybackControl" title="Tekrar">
             <span className="compactIcon">↻</span>
             <input
@@ -90,6 +104,8 @@ export function FloatingPlaybackButton() {
               min={1}
               max={999}
               value={repeatTarget}
+              onFocus={e => e.currentTarget.select()}
+              onClick={e => e.currentTarget.select()}
               onChange={e => setRepeatTarget(Number(e.target.value) || 1)}
             />
           </div>
@@ -103,6 +119,7 @@ export function FloatingPlaybackButton() {
       )}
 
       <button
+        ref={playRef}
         className="floatingPlay"
         style={style}
         onPointerDown={pointerDown}
