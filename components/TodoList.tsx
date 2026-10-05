@@ -113,6 +113,7 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
     return (
       <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
         <button className="todoOpen todoNavigate" onClick={() => onOpenTodo?.(todo)}>
+          {done && <div className="todoCompletedCheck">✓</div>}
           <div className="todoMain">
             <strong>{todo.title}</strong>
             {meta.description && <p>{meta.description}</p>}
