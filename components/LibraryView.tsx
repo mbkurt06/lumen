@@ -12,7 +12,7 @@ type Item = {
   sort_order: number;
 };
 
-export function LibraryView() {
+export function LibraryView({ onMemorize }: { onMemorize?: (item: Item) => void }) {
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
   const [currentParent, setCurrentParent] = useState<Item | null>(null);
@@ -147,7 +147,10 @@ export function LibraryView() {
 
       <section>
         {selected ? (
-          <ReaderView item={selected} />
+          <div style={{display:"grid",gap:12}}>
+            <div className="toolbar"><button className="primary" onClick={() => onMemorize?.(selected)}>Ezber yap</button></div>
+            <ReaderView item={selected} />
+          </div>
         ) : (
           <div className="card" style={{ padding: 24 }}>
             <h2>{currentParent ? currentParent.title : "Bir öğe seç"}</h2>
