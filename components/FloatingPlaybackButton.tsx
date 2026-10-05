@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 export function FloatingPlaybackButton() {
   const [playing, setPlaying] = useState(false);
   const [panel, setPanel] = useState(false);
-  const [repeatTarget, setRepeatTarget] = useState(10);
+  const [repeatTarget, setRepeatTarget] = useState(1);
   const [rate, setRate] = useState(1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressed = useRef(false);
