@@ -59,7 +59,6 @@ const keep = new Set([
   "Yatsı Namazı Tesbihatı",
   "Salât-ı Münciye (Salâten Tüncînâ)",
   "İstiâze Duası (Uzun)",
-  "Namaz Sonrası Salavatlar",
 ]);
 
 const ayetelTitles = new Set(["Âyetel Kürsî", "Ayetel Kürsî"]);
