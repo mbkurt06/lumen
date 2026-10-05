@@ -8,6 +8,7 @@ type Props = {
   title: string;
   libraryItemId?: string | null;
   contentNodeId?: string | null;
+  onSaved?: () => void | Promise<void>;
 };
 
 export function TodoDialog({
@@ -16,6 +17,7 @@ export function TodoDialog({
   title,
   libraryItemId = null,
   contentNodeId = null,
+  onSaved,
 }: Props) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [description, setDescription] = useState("");
@@ -60,6 +62,7 @@ export function TodoDialog({
       return;
     }
 
+    if (onSaved) await onSaved();
     onClose();
   }
 
