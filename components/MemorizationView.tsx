@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 
@@ -39,6 +39,8 @@ export function MemorizationView({
   const [states, setStates] = useState<Record<string, MemoryState>>({});
   const [active, setActive] = useState(0);
   const [message, setMessage] = useState("");
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetLongPress = useRef(false);
 
   const load = useCallback(async () => {
     if (!item) {
@@ -105,6 +107,34 @@ export function MemorizationView({
         is_memorized: false,
       }
     : null;
+
+  async function resetCounter() {
+    if (!node || !memory) return;
+    const next = { ...memory, repeat_count: 0 };
+    setStates(current => ({ ...current, [node.id]: next }));
+    const { error } = await supabase.from("memorization_state").upsert({
+      content_node_id: node.id,
+      repeat_count: 0,
+      repeat_target: memory.repeat_target || 1,
+      playback_rate: memory.playback_rate,
+      is_memorized: false,
+      last_practiced_at: new Date().toISOString(),
+    }, { onConflict: "owner_id,content_node_id" });
+    if (error) setMessage(error.message);
+  }
+
+  function counterDown() {
+    resetLongPress.current = false;
+    resetTimer.current = setTimeout(() => {
+      resetLongPress.current = true;
+      resetCounter();
+    }, 650);
+  }
+
+  function counterUp() {
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    if (!resetLongPress.current) increment();
+  }
 
   async function increment() {
     if (!node || !memory) return;
@@ -202,7 +232,7 @@ export function MemorizationView({
       </nav>
 
       {node && (
-        <button className="legacyCounter" onClick={increment}>
+        <button className="legacyCounter" onPointerDown={counterDown} onPointerUp={counterUp} onPointerLeave={() => resetTimer.current && clearTimeout(resetTimer.current)} title="Dokun: say • Basılı tut: sıfırla">
           <span>{memory?.repeat_count ?? 0}</span>
           <small>
             {configuredTarget > 0 ? "/ " + configuredTarget : "tekrar"}
