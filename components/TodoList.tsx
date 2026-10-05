@@ -1,199 +1,161 @@
 "use client";
-
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 type Todo = {
   id: string;
   title: string;
+  notes: string | null;
   is_completed: boolean;
-  sort_order: number;
+  due_at: string | null;
+  related_library_item_id: string | null;
+  related_content_node_id: string | null;
   created_at: string;
 };
 
+type TodoMeta = {
+  description?: string;
+  schedule?: {
+    mode?: "single" | "range" | "days" | "forever";
+    startDate?: string;
+    endDate?: string | null;
+    durationDays?: number | null;
+    target?: number;
+    history?: Record<string, { count?: number; completedAt?: string | null }>;
+  };
+  source?: "document" | "segment";
+};
+
+function parseMeta(notes: string | null): TodoMeta {
+  if (!notes) return {};
+  try { return JSON.parse(notes) as TodoMeta; } catch { return { description: notes }; }
+}
+
+function dateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function occurs(meta: TodoMeta, key: string) {
+  const s = meta.schedule;
+  if (!s?.startDate) return true;
+  if (key < s.startDate) return false;
+  if (s.mode === "single") return key === s.startDate;
+  if (s.mode === "range") return !s.endDate || key <= s.endDate;
+  if (s.mode === "days") {
+    const start = new Date(s.startDate + "T00:00:00");
+    const current = new Date(key + "T00:00:00");
+    const diff = Math.floor((current.getTime() - start.getTime()) / 86400000);
+    return diff >= 0 && diff < Math.max(1, s.durationDays || 1);
+  }
+  return true;
+}
+
 export function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [title, setTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [message, setMessage] = useState("Yükleniyor...");
-  const [busy, setBusy] = useState(false);
 
   const loadTodos = useCallback(async () => {
     const { data, error } = await supabase
       .from("todos")
-      .select("id,title,is_completed,sort_order,created_at")
-      .order("sort_order", { ascending: true })
+      .select("id,title,notes,is_completed,due_at,related_library_item_id,related_content_node_id,created_at")
       .order("created_at", { ascending: true });
 
-    if (error) {
-      setMessage("Todo okunamadı: " + error.message);
-      return;
+    if (error) setMessage("Todo okunamadı: " + error.message);
+    else {
+      setTodos(data ?? []);
+      setMessage("");
     }
-
-    setTodos(data ?? []);
-    setMessage("Senkronizasyon hazır.");
   }, []);
 
-  useEffect(() => {
-    loadTodos();
-  }, [loadTodos]);
+  useEffect(() => { loadTodos(); }, [loadTodos]);
 
-  async function addTodo(event: FormEvent) {
-    event.preventDefault();
-    const clean = title.trim();
-    if (!clean) return;
+  const visible = useMemo(
+    () => todos.filter(todo => occurs(parseMeta(todo.notes), selectedDate)),
+    [todos, selectedDate]
+  );
 
-    setBusy(true);
-    const { error } = await supabase.from("todos").insert({
-      title: clean,
-      sort_order: todos.length
-    });
+  async function toggle(todo: Todo) {
+    const meta = parseMeta(todo.notes);
+    const target = Math.max(1, meta.schedule?.target || 1);
+    const history = { ...(meta.schedule?.history || {}) };
+    const current = history[selectedDate] || { count: 0, completedAt: null };
+    const done = (current.count || 0) >= target;
+    history[selectedDate] = done
+      ? { count: 0, completedAt: null }
+      : { count: target, completedAt: new Date().toISOString() };
 
-    if (error) {
-      setMessage("Eklenemedi: " + error.message);
-    } else {
-      setTitle("");
-      await loadTodos();
-    }
-    setBusy(false);
-  }
+    const nextMeta = {
+      ...meta,
+      schedule: { ...meta.schedule, history },
+    };
 
-  async function toggleTodo(todo: Todo) {
     const { error } = await supabase
       .from("todos")
-      .update({ is_completed: !todo.is_completed })
+      .update({
+        notes: JSON.stringify(nextMeta),
+        is_completed: meta.schedule?.mode === "single" ? !done : false,
+      })
       .eq("id", todo.id);
 
-    if (error) {
-      setMessage("Güncellenemedi: " + error.message);
-      return;
-    }
-
-    await loadTodos();
+    if (error) setMessage(error.message);
+    else await loadTodos();
   }
 
-  async function deleteTodo(id: string) {
+  async function remove(id: string) {
+    if (!window.confirm("Bu Todo silinsin mi?")) return;
     const { error } = await supabase.from("todos").delete().eq("id", id);
+    if (error) setMessage(error.message);
+    else await loadTodos();
+  }
 
-    if (error) {
-      setMessage("Silinemedi: " + error.message);
-      return;
-    }
-
-    await loadTodos();
+  function shift(days: number) {
+    const d = new Date(selectedDate + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    setSelectedDate(dateKey(d));
   }
 
   return (
-    <section style={styles.card}>
-      <h2 style={styles.heading}>Yapılacaklar</h2>
-
-      <form onSubmit={addTodo} style={styles.form}>
-        <input
-          style={styles.input}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Yeni görev..."
-          maxLength={300}
-        />
-        <button style={styles.primaryButton} type="submit" disabled={busy || !title.trim()}>
-          Ekle
-        </button>
-      </form>
-
-      <div style={styles.list}>
-        {todos.length === 0 ? (
-          <p style={styles.empty}>Henüz görev yok.</p>
-        ) : (
-          todos.map((todo) => (
-            <div key={todo.id} style={styles.todoRow}>
-              <button
-                type="button"
-                onClick={() => toggleTodo(todo)}
-                style={styles.checkButton}
-              >
-                {todo.is_completed ? "✓" : ""}
-              </button>
-
-              <span
-                style={{
-                  ...styles.todoTitle,
-                  textDecoration: todo.is_completed ? "line-through" : "none",
-                  opacity: todo.is_completed ? 0.5 : 1
-                }}
-              >
-                {todo.title}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => deleteTodo(todo.id)}
-                style={styles.deleteButton}
-              >
-                Sil
-              </button>
-            </div>
-          ))
-        )}
+    <section className="todoPage card">
+      <div className="todoPageHead">
+        <h2>Günlük Todo</h2>
+        <span>{visible.filter(t => {
+          const m=parseMeta(t.notes); const h=m.schedule?.history?.[selectedDate];
+          return (h?.count||0) >= Math.max(1,m.schedule?.target||1);
+        }).length} / {visible.length}</span>
       </div>
 
-      <p style={styles.status}>{message}</p>
+      <div className="todoDateNav">
+        <button className="secondary" onClick={() => shift(-1)}>‹</button>
+        <input className="input" type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
+        <button className="secondary" onClick={() => shift(1)}>›</button>
+        <button className="secondary" onClick={() => setSelectedDate(dateKey(new Date()))}>Bugün</button>
+      </div>
+
+      <div className="todoCards">
+        {visible.map(todo => {
+          const meta = parseMeta(todo.notes);
+          const target = Math.max(1, meta.schedule?.target || 1);
+          const count = Math.min(target, meta.schedule?.history?.[selectedDate]?.count || 0);
+          const done = count >= target;
+          return (
+            <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
+              <button className="todoOpen" onClick={() => toggle(todo)}>
+                <div className="todoCheck">{done ? "✓" : ""}</div>
+                <div className="todoMain">
+                  <strong>{todo.title}</strong>
+                  {meta.description && <p>{meta.description}</p>}
+                  <div className="todoProgress"><span>{count} / {target}</span></div>
+                </div>
+              </button>
+              <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
+            </article>
+          );
+        })}
+        {!visible.length && <div className="todoEmpty">Bu tarihte görev yok.</div>}
+      </div>
+
+      {message && <p className="muted">{message}</p>}
     </section>
   );
 }
-
-const styles = {
-  card: {
-    width: "100%",
-    border: "1px solid #ddd",
-    borderRadius: 18,
-    padding: 24,
-    background: "white",
-    boxShadow: "0 10px 30px rgba(0,0,0,.06)"
-  },
-  heading: { marginTop: 0 },
-  form: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 10
-  },
-  input: {
-    padding: "12px 14px",
-    border: "1px solid #ccc",
-    borderRadius: 10,
-    fontSize: 16
-  },
-  primaryButton: {
-    border: 0,
-    borderRadius: 10,
-    padding: "11px 18px",
-    background: "#2563eb",
-    color: "white",
-    fontWeight: 650,
-    cursor: "pointer"
-  },
-  list: { display: "grid", gap: 8, marginTop: 18 },
-  empty: { color: "#777" },
-  todoRow: {
-    display: "grid",
-    gridTemplateColumns: "34px 1fr auto",
-    alignItems: "center",
-    gap: 10,
-    padding: "10px 0",
-    borderBottom: "1px solid #eee"
-  },
-  checkButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    border: "1px solid #bbb",
-    background: "white",
-    cursor: "pointer"
-  },
-  todoTitle: { lineHeight: 1.4 },
-  deleteButton: {
-    border: 0,
-    background: "transparent",
-    color: "#b91c1c",
-    cursor: "pointer"
-  },
-  status: { margin: "16px 0 0", fontSize: 14, color: "#666" }
-};
