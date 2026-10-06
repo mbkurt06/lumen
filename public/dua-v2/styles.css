@@ -2080,3 +2080,59 @@ body.dark .dua-listening-panel.player-collapsed .dua-player-collapse-btn{
     width:100% !important;
   }
 }
+
+
+/* v75 — Tam ekran tesbih başlığı daha büyük ve ortak ayarlanabilir */
+.tasbih-fullscreen{
+  --tasbih-title-size:36px;
+}
+.tasbih-fullscreen-title{
+  font-size:var(--tasbih-title-size) !important;
+  max-width:min(90vw,900px);
+  line-height:1.28;
+  opacity:.9;
+  margin-bottom:28px;
+  font-weight:700;
+}
+.tasbih-font-controls{
+  position:absolute;
+  left:50%;
+  bottom:max(22px,env(safe-area-inset-bottom));
+  transform:translateX(-50%);
+  z-index:4;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:5px;
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  border-radius:14px;
+  background:color-mix(in srgb,var(--panel) 90%,transparent);
+  box-shadow:0 6px 18px #0002;
+}
+.tasbih-font-controls button{
+  min-width:44px;
+  height:38px;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-weight:800;
+}
+.tasbih-font-controls button:hover{
+  background:color-mix(in srgb,var(--text) 8%,transparent);
+}
+@media(max-width:520px){
+  .tasbih-fullscreen{
+    --tasbih-title-size:30px;
+  }
+  .tasbih-fullscreen-title{
+    max-width:88vw;
+  }
+  .tasbih-font-controls{
+    bottom:max(14px,env(safe-area-inset-bottom));
+  }
+  .tasbih-minus{
+    bottom:calc(max(14px,env(safe-area-inset-bottom)) + 54px);
+  }
+}
