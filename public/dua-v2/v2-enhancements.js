@@ -18,6 +18,7 @@
   const originalOpenTodo = openTodo;
   const originalOpenHome = openHome;
   const originalOpenListening = openListening;
+  const originalOpenListeningTodoDialog = openListeningTodoDialog;
   const originalOpenCategory = openCategory;
   const originalOpenDua = openDua;
   const originalSyncDuaCompactSettings = syncDuaCompactSettings;
@@ -679,6 +680,13 @@
     if(s.mode==="days"&&s.startDate&&s.endDate){$("#todoDurationDays").value=Math.max(1,Math.round((dateFromKey(s.endDate)-dateFromKey(s.startDate))/86400000)+1)}else $("#todoDurationDays").value=10;
     updateTodoScheduleFields();$("#saveTodoBtn").textContent="Değişiklikleri kaydet";$("#todoDialog").showModal();
   }
+
+  const baseOpenListeningTodoDialog = originalOpenListeningTodoDialog;
+  openListeningTodoDialog = function(type,videoId,presetId){
+    pendingEditTodoId=null;
+    $("#saveTodoBtn").textContent="Todo'ya ekle";
+    baseOpenListeningTodoDialog(type,videoId,presetId);
+  };
 
   const baseOpenTodoDialog = openTodoDialog;
   openTodoDialog = function(scope,segmentIndex=null){
