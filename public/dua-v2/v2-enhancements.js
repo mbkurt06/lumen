@@ -226,8 +226,10 @@
       const progress = readNormalCount();
       return { type: target > 1 ? "normal" : "none", segmentIndex: null, target: target > 1 ? target : 0, progress, done: target > 1 && progress >= target };
     }
-    const t = selectedTodoFor("segment", index, k);
-    if (t) return { type: "todo", todo: t, todoId: t.id, segmentIndex: index, target: Number(t.target), progress: Math.min(taskProgress(t,k), Number(t.target)), done: taskDone(t,k) };
+    if (activeCounterKind !== "normal") {
+      const t = selectedTodoFor("segment", index, k);
+      if (t) return { type: "todo", todo: t, todoId: t.id, segmentIndex: index, target: Number(t.target), progress: Math.min(taskProgress(t,k), Number(t.target)), done: taskDone(t,k) };
+    }
     const target = normalTargetForSegment(index);
     const progress = segmentNormalCount(index);
     return { type: target ? "normal" : "none", segmentIndex: index, target, progress, done: !!target && progress >= target };
@@ -437,7 +439,8 @@
     $("#readContent").innerHTML = dua.segments.map((raw,i) => {
       const s = typeof raw === "string" ? {latin:raw} : raw;
       const todoList = visibleTodoCandidates("segment", i, k);
-      const selected = (activeTodoId && todoList.find(t=>t.id===activeTodoId)) || todoList[0] || null;
+      const normalSelectedHere = activeQuickCount?.type === "segmentRepeat" && activeQuickCount.segmentIndex === i;
+      const selected = normalSelectedHere ? null : ((activeTodoId && todoList.find(t=>t.id===activeTodoId)) || todoList[0] || null);
       const todoBadge = selected ? todoBadgeHtml(selected, todoList, i) : "";
       const repeatBadge = selected ? "" : normalBadgeHtml(s,i);
       const addTodo = '<button class="segment-add-todo" data-add-todo-segment="'+i+'" aria-label="Bu bölümü Todo\'ya ekle">+ Todo</button>';
@@ -461,7 +464,7 @@
     const host = $("#memorizeTodoProgress");
     if (!host || !dua) return;
     const list = visibleTodoCandidates("segment", index);
-    let t = selectedTodoFor("segment",index);
+    let t = activeCounterKind === "normal" ? null : selectedTodoFor("segment",index);
     const normalTarget = normalTargetForSegment(index);
     if (!t && !normalTarget) { host.classList.add("hidden"); host.innerHTML=""; return; }
     let label="", done=false, multi="";
@@ -521,7 +524,7 @@
     if (!d) { originalOpenHome(); updateBottomNav(); return; }
     dua=d; state.duaId=d.id; index=Math.max(0,Math.min(Number(last.index||0),d.segments.length-1));
     state.settings.mode=last.mode==="memorize"?"memorize":"read";
-    activeTodoId=null; completedVisibleTodoId=null; activeQuickCount=null; counterArmed=true;
+    activeTodoId=null; activeCounterKind=null; completedVisibleTodoId=null; activeQuickCount=null; counterArmed=true;
     render(); applyMode();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       if(state.settings.mode==="read") $("#readView").scrollTop=Number(last.scrollTop||0);
@@ -557,7 +560,8 @@
     const list=visibleTodoCandidates("segment",index);
     const keep=activeTodoId&&list.find(t=>t.id===activeTodoId);
     activeTodoId=keep?.id || list.find(t=>!taskDone(t,todayKey()))?.id || null;
-    state.activeTodoId=activeTodoId;
+    activeCounterKind=activeTodoId?"todo":(normalTargetForSegment(index)?"normal":null);
+    state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
     completedVisibleTodoId=null;
     activeQuickCount=null;
     counterArmed=!!activeTodoId || !!normalTargetForSegment(index);
@@ -579,7 +583,7 @@
     index=Math.max(0,Math.min(Number(state.lastVisibleSegment||0),dua.segments.length-1));
     state.settings.mode="memorize";
     const list=visibleTodoCandidates("segment",index);
-    activeTodoId=list.find(t=>!taskDone(t,todayKey()))?.id||null;state.activeTodoId=activeTodoId;
+    activeTodoId=list.find(t=>!taskDone(t,todayKey()))?.id||null;activeCounterKind=activeTodoId?"todo":(normalTargetForSegment(index)?"normal":null);state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
     counterArmed=!!activeTodoId||!!normalTargetForSegment(index);
     activeQuickCount=null;render();applyMode();updateBottomNav();
   };
@@ -627,7 +631,7 @@
     }
     const d=data.duas.find(x=>x.id===t.duaId);if(!d)return;
     rememberReader();
-    dua=d;state.duaId=d.id;activeTodoId=t.id;state.activeTodoId=t.id;completedVisibleTodoId=null;counterArmed=true;activeQuickCount=null;
+    dua=d;state.duaId=d.id;activeTodoId=t.id;activeCounterKind="todo";state.activeTodoId=t.id;state.activeCounterKind="todo";completedVisibleTodoId=null;counterArmed=true;activeQuickCount=null;
     if(t.segmentIndex==null){index=0;state.settings.mode="read"}else{index=Math.max(0,Math.min(t.segmentIndex,d.segments.length-1));state.settings.mode="memorize"}
     render();applyMode();updateBottomNav();
   };
@@ -693,7 +697,7 @@
   openHome = function(){rememberReader();originalOpenHome();updateBottomNav()};
   openListening = function(){rememberReader();originalOpenListening();updateBottomNav()};
   openCategory = function(cat){rememberReader();originalOpenCategory(cat);updateBottomNav()};
-  openDua = function(d){rememberReader();originalOpenDua(d);counterArmed=true;activeTodoId=null;completedVisibleTodoId=null;updateBottomNav()};
+  openDua = function(d){rememberReader();originalOpenDua(d);counterArmed=true;activeTodoId=null;activeCounterKind=null;state.activeTodoId=null;state.activeCounterKind=null;completedVisibleTodoId=null;updateBottomNav()};
 
   $("#homeTodoBtn").onclick=openTodo;
   $("#todoMenuBtn").onclick=openHome;
@@ -732,6 +736,7 @@
     $("#todoCompletedSection")?.after(section);
   }
 
+  if($("#resetBtn"))$("#resetBtn").onclick=resetActiveCounter;
   ensureCounterMenu();ensureBottomNav();updateBottomNav();
   requestAnimationFrame(()=>{updateCounterDisplay();updateTodoProgressDisplay();syncDuaCompactSettings();updateReadProgressFromScroll()});
 })();
