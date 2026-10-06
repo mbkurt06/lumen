@@ -8,8 +8,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Dua Ezber">
   <title>Dua Ezber</title>
+  <script id="theme-preload">
+    try {
+      const saved = JSON.parse(localStorage.getItem("duaEzberState") || "{}");
+      if (saved?.settings?.dark) document.documentElement.classList.add("dark");
+    } catch {}
+  </script>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=80">
+  <link rel="stylesheet" href="./styles.css?v=81">
 </head>
 <body>
   <main class="app">
@@ -50,7 +56,9 @@
         <button id="memorizeListenBtn" class="segment-listen-play memorize-listen-play hidden" type="button" aria-label="Bu bölümün eşleşen videosunu oynat">▶</button>
       </div>
       <div id="turkish" class="turkish"></div>
-      <button id="addSegmentTodoBtn" class="secondary-action memorize-add-todo">+ Todo</button>
+      <div class="memorize-todo-row">
+        <button id="addSegmentTodoBtn" class="secondary-action memorize-add-todo">+ Todo</button>
+      </div>
     </section>
 
     <section id="readView" class="read-view hidden">
@@ -388,11 +396,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=80"></script>
+  <script src="./cloud-sync.js?v=81"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=80";
+      script.src = "./app.js?v=81";
       document.body.appendChild(script);
     });
   </script>
