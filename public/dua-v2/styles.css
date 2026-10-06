@@ -2216,3 +2216,31 @@ body{padding-bottom:76px}
     min-width:39px;
   }
 }
+
+
+/* v70 — tıklama güvenliği: şeffaf sabit katmanlar menü tuşlarını engellemesin */
+.global-header{
+  pointer-events:none;
+}
+.global-header button,
+.global-header .header-actions,
+.global-header .progress{
+  pointer-events:auto;
+}
+.read-sticky-header{
+  z-index:180 !important;
+}
+.read-sticky-header button,
+.read-sticky-header .read-toolbar,
+.read-sticky-header .read-title,
+.read-sticky-header .read-todo-progress{
+  pointer-events:auto;
+}
+@media (pointer:fine){
+  .counter{
+    cursor:pointer !important;
+  }
+  .counter.dragging{
+    cursor:pointer !important;
+  }
+}
