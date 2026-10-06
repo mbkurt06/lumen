@@ -2201,3 +2201,43 @@ body.dark .counter-reset-popover:hover{
     margin-right:70px;
   }
 }
+
+
+/* v78 — Esmâ detayında isim + hitap ayrı; Todo solda */
+.memorize-add-todo{
+  left:8px !important;
+  right:auto !important;
+}
+.memorize.esma-detail .title{
+  font-family:inherit;
+  font-size:clamp(22px,3vw,34px);
+  line-height:1.2;
+  color:var(--muted);
+  font-weight:700;
+  margin:0 80px 2px;
+}
+.memorize.esma-detail .invocation{
+  display:block !important;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(34px,6vw,64px);
+  line-height:1.2;
+  color:var(--accent);
+  font-weight:700;
+  margin:0 80px 10px;
+}
+@media(max-width:520px){
+  .memorize-add-todo{
+    left:6px !important;
+    right:auto !important;
+  }
+  .memorize.esma-detail .title{
+    font-size:22px;
+    margin-left:72px;
+    margin-right:20px;
+  }
+  .memorize.esma-detail .invocation{
+    font-size:clamp(30px,10vw,48px);
+    margin-left:72px;
+    margin-right:20px;
+  }
+}
