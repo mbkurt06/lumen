@@ -66,6 +66,7 @@
       state.readCounts[d.id] = 0;
       delete state.counterSessions[sid];
       save();
+      audit("expire",{type:"normal",segmentIndex:null,progress:0,target:Number(d.target||0)},{previousValue:raw,timeoutMinutes:30});
       return 0;
     }
     return raw;
@@ -86,6 +87,8 @@
       counts[storageKey] = 0;
       delete state.counterSessions[sid];
       save();
+      const rawSeg=d.segments[segIndex],seg=typeof rawSeg==="string"?{latin:rawSeg}:rawSeg;
+      audit("expire",{type:"normal",segmentIndex:segIndex,progress:0,target:Number(seg?.target||0)},{previousValue:raw,timeoutMinutes:30});
       return 0;
     }
     return raw;
@@ -690,7 +693,7 @@
     const now=Date.now();
     const docSid="dua:"+dua.id;
     if(state.counterSessions?.[docSid] && now-Number(state.counterSessions[docSid].lastAt||0)>SESSION_MS){
-      if(Number(state.readCounts[dua.id]||0)!==0){state.readCounts[dua.id]=0;changed=true}
+      if(Number(state.readCounts[dua.id]||0)!==0){const prev=Number(state.readCounts[dua.id]||0);state.readCounts[dua.id]=0;changed=true;audit("expire",{type:"normal",segmentIndex:null,progress:0,target:Number(dua.target||0)},{previousValue:prev,timeoutMinutes:30})}
       delete state.counterSessions[docSid];
     }
     for(let i=0;i<dua.segments.length;i++){
@@ -698,7 +701,7 @@
       const meta=state.counterSessions?.[sid];
       if(meta && now-Number(meta.lastAt||0)>SESSION_MS){
         const storageKey=dua.id+":"+i;
-        if(Number(counts[storageKey]||0)!==0){counts[storageKey]=0;changed=true}
+        if(Number(counts[storageKey]||0)!==0){const prev=Number(counts[storageKey]||0);counts[storageKey]=0;changed=true;const raw=dua.segments[i],s=typeof raw==="string"?{latin:raw}:raw;audit("expire",{type:"normal",segmentIndex:i,progress:0,target:Number(s?.target||0)},{previousValue:prev,timeoutMinutes:30})}
         delete state.counterSessions[sid];
       }
     }
