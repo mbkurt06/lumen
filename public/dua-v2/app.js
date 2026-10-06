@@ -373,7 +373,68 @@ function ilmihalTopicList(){const out=[];ilmihalData.sections.forEach((sec,si)=>
 function moveIlmihal(step){const all=ilmihalTopicList(),i=all.findIndex(x=>x.key===state.ilmihalTopic),n=i+step;if(i>=0&&n>=0&&n<all.length)openIlmihal(all[n].key)}
 function updateIlmihalPager(topic){const pager=$("#ilmihalPager");if(!topic){pager.classList.add("hidden");return}const all=ilmihalTopicList(),i=all.findIndex(x=>x.key===topic);pager.classList.remove("hidden");$("#ilmihalPrevBtn").disabled=i<=0;$("#ilmihalNextBtn").disabled=i<0||i>=all.length-1}
 function openIlmihal(topic=null){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="ilmihal";state.ilmihalTopic=topic;$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#listeningView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#ilmihalView").classList.remove("hidden");const box=$("#ilmihalContent");updateIlmihalPager(topic);$("#ilmihalTopicsBtn").classList.toggle("hidden",!topic);if(topic){const [si,ti]=topic.split(":").map(Number),sec=ilmihalData.sections[si],item=sec?.topics?.[ti];$("#ilmihalTitle").textContent=item?.title||sec?.title||"İslam İlmihali";box.innerHTML='<article class="ilmihal-article">'+(item?.body||[]).map(p=>'<p>'+escapeHtml(p)+'</p>').join("")+(item?.list?'<ul>'+item.list.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ul>':"")+(item?.steps?'<ol>'+item.steps.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ol>':"")+'<div class="ilmihal-source">'+escapeHtml(ilmihalData.source)+'</div></article>';}else{$("#ilmihalTitle").textContent=ilmihalData.title;box.innerHTML='<p class="ilmihal-intro">Temel ve ayrıntılı ilmihal konuları</p>'+ilmihalData.sections.map((sec,si)=>'<section class="ilmihal-section"><h3>'+escapeHtml(sec.title)+'</h3>'+sec.topics.map((t,ti)=>'<button class="library-card ilmihal-topic" data-topic="'+si+':'+ti+'"><strong>'+escapeHtml(t.title)+'</strong><span>›</span></button>').join("")+'</section>').join("");box.querySelectorAll(".ilmihal-topic").forEach(b=>b.onclick=()=>openIlmihal(b.dataset.topic));}save()}
-function categoryItems(cat){return data.duas.filter(d=>d.category===cat).sort((x,y)=>cat==="Sûreler"?(x.surahNo||999)-(y.surahNo||999):0)}
+const SURAH_EXTRA_IDS=new Set(["bakara-285-286","fetih-27-29","hasr-20-24"]);
+const HOME_ORDER_KEY="duaHomeMenuOrder";
+const LIBRARY_ORDERS_KEY="duaLibraryOrders";
+function homeMenuKey(el){return el.dataset.category?"cat:"+el.dataset.category:(el.id||el.textContent.trim())}
+function applyHomeMenuOrder(){
+  const menu=document.querySelector(".home-menu");if(!menu)return;
+  let order=[];try{order=JSON.parse(localStorage.getItem(HOME_ORDER_KEY)||"[]")}catch{}
+  const items=[...menu.querySelectorAll(".home-card")],byKey=new Map(items.map(el=>[homeMenuKey(el),el]));
+  for(const key of order){const el=byKey.get(key);if(el){menu.appendChild(el);byKey.delete(key)}}
+  for(const el of items){if(byKey.has(homeMenuKey(el)))menu.appendChild(el)}
+}
+function saveHomeMenuOrder(){
+  const menu=document.querySelector(".home-menu");if(menu)localStorage.setItem(HOME_ORDER_KEY,JSON.stringify([...menu.querySelectorAll(".home-card")].map(homeMenuKey)))
+}
+function libraryOrders(){try{return JSON.parse(localStorage.getItem(LIBRARY_ORDERS_KEY)||"{}")||{}}catch{return{}}}
+function saveLibraryOrder(cat,list){
+  const all=libraryOrders();all[cat]=[...list.querySelectorAll(".library-card[data-dua-id]")].map(el=>el.dataset.duaId);
+  localStorage.setItem(LIBRARY_ORDERS_KEY,JSON.stringify(all))
+}
+function bindLongPressReorder(container,selector,onSave){
+  if(!container)return;
+  container.querySelectorAll(selector).forEach(item=>{
+    if(item.dataset.reorderBound==="1")return;
+    item.dataset.reorderBound="1";
+    let timer=null,dragging=false,pointerId=null,startX=0,startY=0;
+    item.addEventListener("click",e=>{if(item.dataset.suppressClick==="1"){e.preventDefault();e.stopImmediatePropagation();item.dataset.suppressClick="0"}},true);
+    item.addEventListener("pointerdown",e=>{
+      if(e.button!=null&&e.button!==0)return;
+      pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;dragging=false;
+      timer=setTimeout(()=>{timer=null;dragging=true;item.classList.add("reorder-dragging","reorder-ready");try{item.setPointerCapture(pointerId)}catch{}},550)
+    });
+    item.addEventListener("pointermove",e=>{
+      if(e.pointerId!==pointerId)return;
+      if(timer&&Math.hypot(e.clientX-startX,e.clientY-startY)>8){clearTimeout(timer);timer=null}
+      if(!dragging)return;
+      e.preventDefault();
+      const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest(selector);
+      if(!hit||hit===item||hit.parentElement!==container)return;
+      const r=hit.getBoundingClientRect();
+      if(e.clientY<r.top+r.height/2)container.insertBefore(item,hit);else container.insertBefore(item,hit.nextSibling)
+    });
+    const finish=e=>{
+      if(e.pointerId!==pointerId)return;
+      if(timer){clearTimeout(timer);timer=null}
+      if(dragging){dragging=false;item.classList.remove("reorder-dragging","reorder-ready");item.dataset.suppressClick="1";onSave?.();setTimeout(()=>{item.dataset.suppressClick="0"},120)}
+      try{if(item.hasPointerCapture?.(pointerId))item.releasePointerCapture(pointerId)}catch{}
+      pointerId=null
+    };
+    item.addEventListener("pointerup",finish);item.addEventListener("pointercancel",finish)
+  })
+}
+function setupHomeMenuReorder(){applyHomeMenuOrder();bindLongPressReorder(document.querySelector(".home-menu"),".home-card",saveHomeMenuOrder)}
+function applyLibraryOrder(cat,items){
+  if(cat==="Sûreler")return items;
+  const order=libraryOrders()[cat]||[],rank=new Map(order.map((id,i)=>[id,i]));
+  return [...items].sort((x,y)=>(rank.has(x.id)?rank.get(x.id):999999)-(rank.has(y.id)?rank.get(y.id):999999))
+}
+function categoryItems(cat){
+  const items=data.duas.filter(d=>d.category===cat);
+  if(cat==="Sûreler")return items.filter(d=>!SURAH_EXTRA_IDS.has(d.id)).sort((x,y)=>(x.surahNo||999)-(y.surahNo||999));
+  return applyLibraryOrder(cat,items)
+}
 function openDua(d){closeFullscreenTasbih();clearQuickCount();dua=d;index=0;state.duaId=d.id;state.settings.mode=isEsmaNameDua(d)?"memorize":"read";if($("#duaSectionRepeatCount"))$("#duaSectionRepeatCount").value="1";if($("#duaLinkedPlayerShell"))setDuaVideoVisible(false);render();applyMode();if(state.settings.mode==="read")$("#readView").scrollTop=0}
 function updateDuaPager(){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id);$("#duaPrevBtn").disabled=i<=0;$("#duaNextBtn").disabled=i<0||i>=items.length-1}
 function moveDua(step){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id),n=i+step;if(i>=0&&n>=0&&n<items.length)openDua(items[n])}
