@@ -1950,3 +1950,226 @@ body.dark .dua-listening-panel.player-collapsed .dua-player-collapse-btn{
     gap:7px;
   }
 }
+
+
+/* v68 — birleşik V2 davranışları */
+body{padding-bottom:76px}
+.v2-bottom-nav{
+  position:fixed;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  width:min(760px,100vw);
+  min-height:62px;
+  padding:8px 16px calc(8px + env(safe-area-inset-bottom));
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  z-index:320;
+  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.v2-bottom-nav button{
+  border:0;
+  border-radius:14px;
+  background:transparent;
+  color:var(--muted);
+  min-height:42px;
+  font-weight:800;
+}
+.v2-bottom-nav button.active{
+  background:var(--accent);
+  color:#fff;
+}
+.navigation{margin-bottom:64px}
+
+.segment-badges{
+  min-width:64px;
+}
+.segment-todo-badge,
+.segment-repeat-badge,
+.memorize-counter-badge{
+  position:relative;
+  overflow:visible;
+}
+.todo-multi-count{
+  position:absolute;
+  right:-7px;
+  top:-7px;
+  min-width:19px;
+  height:19px;
+  border-radius:10px;
+  padding:0 5px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--text);
+  color:var(--bg);
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+  box-shadow:0 2px 7px #0003;
+}
+.segment-todo-badge.active,
+.segment-repeat-badge.active,
+.memorize-counter-badge.active{
+  outline:3px solid #5f957b;
+  outline-offset:2px;
+}
+.segment-todo-badge.done,
+.segment-repeat-badge.done,
+.memorize-counter-badge.done{
+  background:#2f7c52 !important;
+  border-color:#2f7c52 !important;
+  color:#fff !important;
+}
+
+.memorize{
+  position:relative;
+  padding-right:96px;
+  padding-bottom:130px;
+}
+.memorize-counter-host{
+  position:absolute;
+  top:50%;
+  right:12px;
+  transform:translateY(-50%);
+  padding:0;
+  border:0;
+  background:transparent;
+  z-index:16;
+}
+.memorize-counter-badge{
+  min-width:78px;
+  min-height:58px;
+  padding:0 14px;
+  border-radius:999px;
+  border:1px solid var(--accent);
+  background:var(--panel);
+  color:var(--accent);
+  font-weight:900;
+  box-shadow:0 6px 18px #0002;
+}
+.counter.counter-inactive{
+  opacity:.48;
+  filter:saturate(.45);
+}
+.counter.todo-done,
+.counter.quick-done{
+  background:#2f7c52 !important;
+}
+
+.v2-counter-menu{
+  position:fixed;
+  z-index:1400;
+  width:min(280px,calc(100vw - 16px));
+  max-height:min(62vh,420px);
+  overflow:auto;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--panel);
+  color:var(--text);
+  box-shadow:0 16px 46px #0006;
+}
+.v2-counter-menu-title{
+  padding:7px 9px 9px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.v2-counter-menu>button,
+.v2-counter-menu-actions button{
+  width:100%;
+  border:0;
+  border-radius:11px;
+  background:transparent;
+  color:var(--text);
+  min-height:46px;
+  padding:9px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  text-align:left;
+  font-weight:700;
+}
+.v2-counter-menu>button.selected{
+  background:color-mix(in srgb,var(--accent) 18%,var(--panel));
+}
+.v2-counter-menu>button span{
+  color:var(--accent);
+  font-weight:900;
+}
+.v2-counter-menu-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  border-top:1px solid var(--border);
+  padding-top:7px;
+  margin-top:5px;
+}
+.v2-counter-menu-actions button{
+  justify-content:center;
+  background:var(--bg);
+}
+
+.todo-count-pill{
+  border:1px solid var(--accent);
+  border-radius:999px;
+  background:var(--panel);
+  color:var(--accent);
+  padding:5px 9px;
+  font-weight:900;
+}
+.todo-card.archived{
+  opacity:.68;
+}
+#todoArchivedSection{
+  margin-top:22px;
+}
+.doc-todo-badge{
+  position:relative;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-weight:900;
+  padding:0 2px;
+}
+.dua-play-repeat-badge.hidden{
+  display:none !important;
+}
+
+@media(max-width:520px){
+  body{padding-bottom:72px}
+  .v2-bottom-nav{
+    min-height:58px;
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom));
+    gap:4px;
+  }
+  .v2-bottom-nav button{
+    min-height:40px;
+    font-size:13px;
+  }
+  .memorize{
+    padding-left:10px;
+    padding-right:86px;
+    padding-bottom:120px;
+  }
+  .memorize-counter-host{right:5px}
+  .memorize-counter-badge{
+    min-width:72px;
+    min-height:54px;
+    padding:0 10px;
+    font-size:13px;
+  }
+  .segment-badges{right:4px}
+  .segment-todo-badge{
+    width:58px;
+    height:58px;
+  }
+}
