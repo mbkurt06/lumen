@@ -15,7 +15,18 @@ const saveTodos=()=>localStorage.setItem("duaTodoState",JSON.stringify(todos));
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
-async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=82").then(r=>r.update())}
+async function init(){
+  const [baseData,quranData,ilmihal]=await Promise.all([
+    fetch("./data/dualar.json").then(r=>r.json()),
+    fetch("./data/quran-surahs.json").then(r=>r.json()),
+    fetch("./data/ilmihal.json").then(r=>r.json())
+  ]);
+  data=baseData;ilmihalData=ilmihal;
+  const existingSurahNos=new Set(data.duas.filter(d=>d.category==="Sûreler"&&Number.isInteger(d.surahNo)&&!SURAH_EXTRA_IDS.has(d.id)).map(d=>d.surahNo));
+  for(const d of quranData.duas||[]){if(!existingSurahNos.has(d.surahNo))data.duas.push(d)}
+  data.quranSource=quranData.source||null;
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=83").then(r=>r.update())
+}
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
 function render(){const s=current(),esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";$("#title").textContent=dua.title;const inv=dua.invocation||"";$("#invocation").textContent=inv;$("#invocation").classList.toggle("hidden",!inv);$("#segment").textContent=esmaDetail?"":(s.latin||"");$("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);$("#arabic").textContent=s.arabic||"";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#turkish").textContent=s.turkish||"";$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}$("#progress").textContent=(index+1)+" / "+dua.segments.length;$("#count").textContent=counts[key()]||0;$("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;if(isEsmaNameDua())syncMemorizePager();applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}
@@ -495,6 +506,10 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
       const head=document.createElement("div");head.className="library-subheading";head.textContent="Ek okumalar";list.appendChild(head);
       extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm"))
     }
+    const source=document.createElement("div");
+    source.className="quran-source-note";
+    source.innerHTML='Kur’an metni ve çeviriyazı: <a href="https://tanzil.net/" target="_blank" rel="noreferrer">Tanzil Project</a> · Türkçe meal: Diyanet Vakfı';
+    list.appendChild(source);
   }else{
     categoryItems(cat).forEach(d=>appendCard(d,d.title,d.target?d.target+" tekrar":d.segments.length+" bölüm"));
     bindLongPressReorder(list,'.library-card[data-dua-id]',()=>saveLibraryOrder(cat,list))
