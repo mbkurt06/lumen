@@ -25,7 +25,7 @@ async function init(){
   const existingSurahNos=new Set(data.duas.filter(d=>d.category==="Sûreler"&&Number.isInteger(d.surahNo)&&!SURAH_EXTRA_IDS.has(d.id)).map(d=>d.surahNo));
   for(const d of quranData.duas||[]){if(!existingSurahNos.has(d.surahNo))data.duas.push(d)}
   data.quranSource=quranData.source||null;
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=84").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=85").then(r=>r.update())
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
@@ -359,7 +359,7 @@ $("#todoStartDate").onchange=updateTodoScheduleFields;
 $("#todoEndDate").onchange=updateTodoScheduleFields;
 $("#todoDurationDays").oninput=updateTodoScheduleFields;
 $("#addDuaTodoBtn").onclick=()=>openTodoDialog("dua");
-$("#addSegmentTodoBtn").onclick=()=>openTodoDialog("segment");
+$("#memorizeHeaderTodoBtn").onclick=()=>openTodoDialog("segment");
 $("#saveTodoBtn").onclick=()=>{
   const target=Math.max(1,parseInt($("#todoTarget").value||"1",10));
   const mode=$("#todoScheduleMode").value,start=$("#todoStartDate").value||todayKey();
@@ -515,7 +515,7 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
     bindLongPressReorder(list,'.library-card[data-dua-id]',()=>saveLibraryOrder(cat,list))
   }
   save()
-}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeBackBtn").onclick=()=>{
+}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeMenuBtn").onclick=openHome;$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeHeaderModeBtn").onclick=()=>{};$("#memorizeHeaderBackBtn").onclick=()=>{
   if(isEsmaNameDua()){openCategory("Esmâü’l-Hüsnâ");return}
   const ret=state.readerReturn&&state.readerReturn.duaId===dua.id?{...state.readerReturn}:null;
   state.settings.mode="read";
