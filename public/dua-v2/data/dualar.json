@@ -6574,5 +6574,463 @@
         }
       ]
     }
+  ],
+  "surahCatalog": [
+    {
+      "surahNo": 1,
+      "name": "Fâtiha Sûresi"
+    },
+    {
+      "surahNo": 2,
+      "name": "Bakara Sûresi"
+    },
+    {
+      "surahNo": 3,
+      "name": "Âl-i İmrân Sûresi"
+    },
+    {
+      "surahNo": 4,
+      "name": "Nisâ Sûresi"
+    },
+    {
+      "surahNo": 5,
+      "name": "Mâide Sûresi"
+    },
+    {
+      "surahNo": 6,
+      "name": "En‘âm Sûresi"
+    },
+    {
+      "surahNo": 7,
+      "name": "A‘râf Sûresi"
+    },
+    {
+      "surahNo": 8,
+      "name": "Enfâl Sûresi"
+    },
+    {
+      "surahNo": 9,
+      "name": "Tevbe Sûresi"
+    },
+    {
+      "surahNo": 10,
+      "name": "Yûnus Sûresi"
+    },
+    {
+      "surahNo": 11,
+      "name": "Hûd Sûresi"
+    },
+    {
+      "surahNo": 12,
+      "name": "Yûsuf Sûresi"
+    },
+    {
+      "surahNo": 13,
+      "name": "Ra‘d Sûresi"
+    },
+    {
+      "surahNo": 14,
+      "name": "İbrâhîm Sûresi"
+    },
+    {
+      "surahNo": 15,
+      "name": "Hicr Sûresi"
+    },
+    {
+      "surahNo": 16,
+      "name": "Nahl Sûresi"
+    },
+    {
+      "surahNo": 17,
+      "name": "İsrâ Sûresi"
+    },
+    {
+      "surahNo": 18,
+      "name": "Kehf Sûresi"
+    },
+    {
+      "surahNo": 19,
+      "name": "Meryem Sûresi"
+    },
+    {
+      "surahNo": 20,
+      "name": "Tâhâ Sûresi"
+    },
+    {
+      "surahNo": 21,
+      "name": "Enbiyâ Sûresi"
+    },
+    {
+      "surahNo": 22,
+      "name": "Hac Sûresi"
+    },
+    {
+      "surahNo": 23,
+      "name": "Mü’minûn Sûresi"
+    },
+    {
+      "surahNo": 24,
+      "name": "Nûr Sûresi"
+    },
+    {
+      "surahNo": 25,
+      "name": "Furkân Sûresi"
+    },
+    {
+      "surahNo": 26,
+      "name": "Şuarâ Sûresi"
+    },
+    {
+      "surahNo": 27,
+      "name": "Neml Sûresi"
+    },
+    {
+      "surahNo": 28,
+      "name": "Kasas Sûresi"
+    },
+    {
+      "surahNo": 29,
+      "name": "Ankebût Sûresi"
+    },
+    {
+      "surahNo": 30,
+      "name": "Rûm Sûresi"
+    },
+    {
+      "surahNo": 31,
+      "name": "Lokmân Sûresi"
+    },
+    {
+      "surahNo": 32,
+      "name": "Secde Sûresi"
+    },
+    {
+      "surahNo": 33,
+      "name": "Ahzâb Sûresi"
+    },
+    {
+      "surahNo": 34,
+      "name": "Sebe’ Sûresi"
+    },
+    {
+      "surahNo": 35,
+      "name": "Fâtır Sûresi"
+    },
+    {
+      "surahNo": 36,
+      "name": "Yâsîn Sûresi"
+    },
+    {
+      "surahNo": 37,
+      "name": "Sâffât Sûresi"
+    },
+    {
+      "surahNo": 38,
+      "name": "Sâd Sûresi"
+    },
+    {
+      "surahNo": 39,
+      "name": "Zümer Sûresi"
+    },
+    {
+      "surahNo": 40,
+      "name": "Mü’min (Gâfir) Sûresi"
+    },
+    {
+      "surahNo": 41,
+      "name": "Fussilet Sûresi"
+    },
+    {
+      "surahNo": 42,
+      "name": "Şûrâ Sûresi"
+    },
+    {
+      "surahNo": 43,
+      "name": "Zuhruf Sûresi"
+    },
+    {
+      "surahNo": 44,
+      "name": "Duhân Sûresi"
+    },
+    {
+      "surahNo": 45,
+      "name": "Câsiye Sûresi"
+    },
+    {
+      "surahNo": 46,
+      "name": "Ahkâf Sûresi"
+    },
+    {
+      "surahNo": 47,
+      "name": "Muhammed Sûresi"
+    },
+    {
+      "surahNo": 48,
+      "name": "Fetih Sûresi"
+    },
+    {
+      "surahNo": 49,
+      "name": "Hucurât Sûresi"
+    },
+    {
+      "surahNo": 50,
+      "name": "Kâf Sûresi"
+    },
+    {
+      "surahNo": 51,
+      "name": "Zâriyât Sûresi"
+    },
+    {
+      "surahNo": 52,
+      "name": "Tûr Sûresi"
+    },
+    {
+      "surahNo": 53,
+      "name": "Necm Sûresi"
+    },
+    {
+      "surahNo": 54,
+      "name": "Kamer Sûresi"
+    },
+    {
+      "surahNo": 55,
+      "name": "Rahmân Sûresi"
+    },
+    {
+      "surahNo": 56,
+      "name": "Vâkıa Sûresi"
+    },
+    {
+      "surahNo": 57,
+      "name": "Hadîd Sûresi"
+    },
+    {
+      "surahNo": 58,
+      "name": "Mücâdele Sûresi"
+    },
+    {
+      "surahNo": 59,
+      "name": "Haşr Sûresi"
+    },
+    {
+      "surahNo": 60,
+      "name": "Mümtehine Sûresi"
+    },
+    {
+      "surahNo": 61,
+      "name": "Saff Sûresi"
+    },
+    {
+      "surahNo": 62,
+      "name": "Cum‘a Sûresi"
+    },
+    {
+      "surahNo": 63,
+      "name": "Münâfikûn Sûresi"
+    },
+    {
+      "surahNo": 64,
+      "name": "Teğâbün Sûresi"
+    },
+    {
+      "surahNo": 65,
+      "name": "Talâk Sûresi"
+    },
+    {
+      "surahNo": 66,
+      "name": "Tahrîm Sûresi"
+    },
+    {
+      "surahNo": 67,
+      "name": "Mülk Sûresi"
+    },
+    {
+      "surahNo": 68,
+      "name": "Kalem Sûresi"
+    },
+    {
+      "surahNo": 69,
+      "name": "Hâkka Sûresi"
+    },
+    {
+      "surahNo": 70,
+      "name": "Meâric Sûresi"
+    },
+    {
+      "surahNo": 71,
+      "name": "Nûh Sûresi"
+    },
+    {
+      "surahNo": 72,
+      "name": "Cin Sûresi"
+    },
+    {
+      "surahNo": 73,
+      "name": "Müzzemmil Sûresi"
+    },
+    {
+      "surahNo": 74,
+      "name": "Müddessir Sûresi"
+    },
+    {
+      "surahNo": 75,
+      "name": "Kıyâme Sûresi"
+    },
+    {
+      "surahNo": 76,
+      "name": "İnsan Sûresi"
+    },
+    {
+      "surahNo": 77,
+      "name": "Mürselât Sûresi"
+    },
+    {
+      "surahNo": 78,
+      "name": "Nebe Sûresi"
+    },
+    {
+      "surahNo": 79,
+      "name": "Nâziât Sûresi"
+    },
+    {
+      "surahNo": 80,
+      "name": "Abese Sûresi"
+    },
+    {
+      "surahNo": 81,
+      "name": "Tekvîr Sûresi"
+    },
+    {
+      "surahNo": 82,
+      "name": "İnfitâr Sûresi"
+    },
+    {
+      "surahNo": 83,
+      "name": "Mutaffifîn Sûresi"
+    },
+    {
+      "surahNo": 84,
+      "name": "İnşikâk Sûresi"
+    },
+    {
+      "surahNo": 85,
+      "name": "Bürûc Sûresi"
+    },
+    {
+      "surahNo": 86,
+      "name": "Târık Sûresi"
+    },
+    {
+      "surahNo": 87,
+      "name": "A‘lâ Sûresi"
+    },
+    {
+      "surahNo": 88,
+      "name": "Gâşiye Sûresi"
+    },
+    {
+      "surahNo": 89,
+      "name": "Fecr Sûresi"
+    },
+    {
+      "surahNo": 90,
+      "name": "Beled Sûresi"
+    },
+    {
+      "surahNo": 91,
+      "name": "Şems Sûresi"
+    },
+    {
+      "surahNo": 92,
+      "name": "Leyl Sûresi"
+    },
+    {
+      "surahNo": 93,
+      "name": "Duhâ Sûresi"
+    },
+    {
+      "surahNo": 94,
+      "name": "İnşirâh Sûresi"
+    },
+    {
+      "surahNo": 95,
+      "name": "Tîn Sûresi"
+    },
+    {
+      "surahNo": 96,
+      "name": "Alak Sûresi"
+    },
+    {
+      "surahNo": 97,
+      "name": "Kadr Sûresi"
+    },
+    {
+      "surahNo": 98,
+      "name": "Beyyine Sûresi"
+    },
+    {
+      "surahNo": 99,
+      "name": "Zilzâl Sûresi"
+    },
+    {
+      "surahNo": 100,
+      "name": "Âdiyât Sûresi"
+    },
+    {
+      "surahNo": 101,
+      "name": "Kâria Sûresi"
+    },
+    {
+      "surahNo": 102,
+      "name": "Tekâsür Sûresi"
+    },
+    {
+      "surahNo": 103,
+      "name": "Asr Sûresi"
+    },
+    {
+      "surahNo": 104,
+      "name": "Hümeze Sûresi"
+    },
+    {
+      "surahNo": 105,
+      "name": "Fîl Sûresi"
+    },
+    {
+      "surahNo": 106,
+      "name": "Kureyş Sûresi"
+    },
+    {
+      "surahNo": 107,
+      "name": "Mâûn Sûresi"
+    },
+    {
+      "surahNo": 108,
+      "name": "Kevser Sûresi"
+    },
+    {
+      "surahNo": 109,
+      "name": "Kâfirûn Sûresi"
+    },
+    {
+      "surahNo": 110,
+      "name": "Nasr Sûresi"
+    },
+    {
+      "surahNo": 111,
+      "name": "Tebbet (Mesed) Sûresi"
+    },
+    {
+      "surahNo": 112,
+      "name": "İhlâs Sûresi"
+    },
+    {
+      "surahNo": 113,
+      "name": "Felak Sûresi"
+    },
+    {
+      "surahNo": 114,
+      "name": "Nâs Sûresi"
+    }
   ]
 }
