@@ -6119,41 +6119,6 @@
       ]
     },
     {
-      "id": "namaz-sonrasi-salavat",
-      "category": "Tesbihat",
-      "title": "Namaz Sonrası Salavatlar",
-      "segments": [
-        {
-          "latin": "Bismillâhirrahmânirrahîm."
-        },
-        {
-          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk."
-        },
-        {
-          "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîrâ.",
-          "target": 2
-        },
-        {
-          "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîran kesîrâ."
-        },
-        {
-          "latin": "Salli ve sellim yâ Rabbi alâ habîbike Muhammedin ve alâ cemî‘i’l-enbiyâi ve’l-mürselîne ve alâ âli küllin ve sahbi küllin ecmaîn. Âmîn ve’l-hamdü lillâhi Rabbi’l-âlemîn."
-        },
-        {
-          "latin": "Elfû elfi salâtin ve elfû elfi selâmin aleyke yâ Resûlallah."
-        },
-        {
-          "latin": "Elfû elfi salâtin ve elfû elfi selâmin aleyke yâ Habîballah."
-        },
-        {
-          "latin": "Elfû elfi salâtin ve elfû elfi selâmin aleyke yâ emîne vahyillah."
-        },
-        {
-          "latin": "Allâhümme salli ve sellim ve bârik alâ seyyidinâ Muhammedin ve alâ âlihî ve ashâbihî bi-adedi evrâkı’l-eşcâr ve emvâci’l-bihâr ve katarâti’l-emtâr; vağfir lenâ verhamnâ veltuf binâ ve bi-Üstâzinâ Saîdi’n-Nursî radıyallâhu anh ve vâlideynâ ve bi-talebeti Resâili’n-Nûri’s-sâdıkîne yâ ilâhenâ bi-külli salâtin minhâ eşhedü en lâ ilâhe illallâh ve eşhedü enne Muhammede’r-Resûlullâhi sallallâhü aleyhi ve sellem."
-        }
-      ]
-    },
-    {
       "id": "ism-i-azam-duasi",
       "category": "Tesbihat",
       "title": "İsm-i Âzam Duası",
