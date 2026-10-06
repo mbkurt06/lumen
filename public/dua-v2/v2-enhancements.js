@@ -815,4 +815,11 @@
   expireCurrentNormalCounters();
   setInterval(expireCurrentNormalCounters,60000);
   requestAnimationFrame(()=>{updateCounterDisplay();updateTodoProgressDisplay();syncDuaCompactSettings();updateReadProgressFromScroll()});
+  setTimeout(()=>{
+    try{
+      if(state.currentView==="dua"){if(state.settings.mode==="read")renderRead();else render()}
+      else if(state.currentView==="todo")renderTodo();
+      updateBottomNav();syncDuaCompactSettings();
+    }catch{}
+  },250);
 })();
