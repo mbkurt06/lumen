@@ -15,7 +15,7 @@ const saveTodos=()=>localStorage.setItem("duaTodoState",JSON.stringify(todos));
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
-async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=81").then(r=>r.update())}
+async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=82").then(r=>r.update())}
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
 function render(){const s=current(),esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";$("#title").textContent=dua.title;const inv=dua.invocation||"";$("#invocation").textContent=inv;$("#invocation").classList.toggle("hidden",!inv);$("#segment").textContent=esmaDetail?"":(s.latin||"");$("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);$("#arabic").textContent=s.arabic||"";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#turkish").textContent=s.turkish||"";$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}$("#progress").textContent=(index+1)+" / "+dua.segments.length;$("#count").textContent=counts[key()]||0;$("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;if(isEsmaNameDua())syncMemorizePager();applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}
@@ -217,7 +217,7 @@ function syncMemorizePager(){
 $("#prevBtn").onclick=()=>{if(isEsmaNameDua()){moveEsmaName(-1);return}if(index>0){index--;render()}};
 $("#nextBtn").onclick=()=>{if(isEsmaNameDua()){moveEsmaName(1);return}if(index<dua.segments.length-1){index++;render()}};
 
-function counterContextInfo(){if(!dua)return{target:0,progress:0,done:false,title:"Tesbih"};const k=todayKey(),read=state.settings.mode==="read",quick=quickCountInfo();if(read&&quick){const s=dua.segments[quick.segmentIndex],seg=typeof s==="string"?{latin:s}:s;return{target:quick.target,progress:quick.progress,done:quick.done,title:(seg?.latin||dua.title||"Tesbih").slice(0,100)}}if(read){const t=currentTodoTask("dua",null,k);if(t)return{target:Number(t.target||0),progress:Math.min(taskProgress(t,k),Number(t.target||0)),done:taskDone(t,k),title:dua.title};const target=Number(dua.target||0),progress=state.readCounts[dua.id]||0;return{target,progress,done:!!target&&progress>=target,title:dua.title}}const t=currentTodoTask("segment",index,k);if(t)return{target:Number(t.target||0),progress:Math.min(taskProgress(t,k),Number(t.target||0)),done:taskDone(t,k),title:(current()?.latin||dua.title||"Tesbih").slice(0,100)};const target=Number(current()?.target||dua.target||0),progress=counts[key()]||0;return{target,progress,done:!!target&&progress>=target,title:(current()?.latin||dua.title||"Tesbih").slice(0,100)}}
+function counterContextInfo(){if(!dua)return{target:0,progress:0,done:false,title:"Tesbih"};const k=todayKey(),read=state.settings.mode==="read",quick=quickCountInfo();if(read&&quick){const s=dua.segments[quick.segmentIndex],seg=typeof s==="string"?{latin:s}:s;return{target:quick.target,progress:quick.progress,done:quick.done,title:(seg?.latin||dua.title||"Tesbih")}}if(read){const t=currentTodoTask("dua",null,k);if(t)return{target:Number(t.target||0),progress:Math.min(taskProgress(t,k),Number(t.target||0)),done:taskDone(t,k),title:dua.title};const target=Number(dua.target||0),progress=state.readCounts[dua.id]||0;return{target,progress,done:!!target&&progress>=target,title:dua.title}}const t=currentTodoTask("segment",index,k);if(t)return{target:Number(t.target||0),progress:Math.min(taskProgress(t,k),Number(t.target||0)),done:taskDone(t,k),title:(current()?.latin||dua.title||"Tesbih")};const target=Number(current()?.target||dua.target||0),progress=counts[key()]||0;return{target,progress,done:!!target&&progress>=target,title:(current()?.latin||dua.title||"Tesbih")}}
 function fullscreenTasbihTitle(raw){
   if(isEsmaNameDua()&&dua?.invocation)return String(dua.invocation).trim();
   return String(raw||"Tesbih").trim();
@@ -230,11 +230,43 @@ function setFullscreenTasbihTitleSize(value){
   tasbihTitleSize=Math.max(22,Math.min(64,Number(value)||36));
   localStorage.setItem("tasbihFullscreenTitleSize",String(tasbihTitleSize));
   applyFullscreenTasbihTitleSize();
+  fitFullscreenTasbihLayout();
 }
 function resetFullscreenTasbihTitleSize(){
   setFullscreenTasbihTitleSize(Math.max(28,Math.min(48,Number(state.settings.fontSize||32)+4)));
 }
-function renderFullscreenTasbih(){const box=$("#tasbihFullscreen");if(!box||box.classList.contains("hidden"))return;const info=counterContextInfo();applyFullscreenTasbihTitleSize();$("#tasbihFullscreenTitle").textContent=fullscreenTasbihTitle(info.title);$("#tasbihFullscreenCount").textContent=info.target?info.target+"/"+info.progress:String(info.progress);box.classList.toggle("done",!!info.done)}
+function fitFullscreenTasbihLayout(){
+  const box=$("#tasbihFullscreen"),center=box?.querySelector(".tasbih-fullscreen-center"),title=$("#tasbihFullscreenTitle"),count=$("#tasbihFullscreenCount");
+  if(!box||!center||!title||!count)return;
+  let size=tasbihTitleSize;
+  title.style.fontSize=size+"px";
+  count.style.fontSize="";
+  box.classList.remove("long-title","very-long-title");
+  const len=title.textContent.trim().length;
+  if(len>180)box.classList.add("long-title");
+  if(len>420)box.classList.add("very-long-title");
+  // First let CSS reduce the counter for long texts, then shrink only the title as much as needed.
+  requestAnimationFrame(()=>{
+    const maxHeight=Math.max(260,box.clientHeight-24);
+    while(center.scrollHeight>maxHeight&&size>12){
+      size-=1;
+      title.style.fontSize=size+"px";
+    }
+    // Last-resort safety for unusually long text: keep everything inside the viewport.
+    if(center.scrollHeight>maxHeight){
+      count.style.fontSize="clamp(48px,10vw,86px)";
+    }
+  });
+}
+function renderFullscreenTasbih(){
+  const box=$("#tasbihFullscreen");if(!box||box.classList.contains("hidden"))return;
+  const info=counterContextInfo();
+  applyFullscreenTasbihTitleSize();
+  $("#tasbihFullscreenTitle").textContent=fullscreenTasbihTitle(info.title);
+  $("#tasbihFullscreenCount").textContent=info.target?info.target+"/"+info.progress:String(info.progress);
+  box.classList.toggle("done",!!info.done);
+  fitFullscreenTasbihLayout();
+}
 function completionFeedback(){const box=$("#tasbihFullscreen");box?.classList.add("completed-pulse");setTimeout(()=>box?.classList.remove("completed-pulse"),650);if("vibrate"in navigator){try{navigator.vibrate([120,70,180])}catch{}}}
 function decrementTodoProgress(scope,segmentIndex=index){const k=todayKey();todos.forEach(t=>{if(t.duaId!==dua.id||!todoOccursOn(t,k))return;if(scope==="dua"&&t.segmentIndex!=null)return;if(scope==="segment"&&t.segmentIndex!==segmentIndex)return;const h=t.history?.[k];if(!h)return;h.count=Math.max(0,Number(h.count||0)-1);if(h.count<Number(t.target||1))h.completedAt=null});saveTodos();updateHomeTodoCount()}
 function incrementActiveCounter(){const before=counterContextInfo();const quick=quickCountInfo();if(state.settings.mode==="read"&&quick){if(!quick.done){if(quick.type==="segmentRepeat"){const k=segmentKey(quick.segmentIndex);counts[k]=Math.min((counts[k]||0)+1,quick.target);const oldIndex=index;index=quick.segmentIndex;addTodoProgress("segment");index=oldIndex}else if(quick.type==="todoSegment"){const oldIndex=index;index=quick.segmentIndex;addTodoProgress("segment");index=oldIndex}}renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}else if(state.settings.mode==="read"){state.readCounts[dua.id]=(state.readCounts[dua.id]||0)+1;addTodoProgress("dua");if(dua.target&&state.readCounts[dua.id]>dua.target)state.readCounts[dua.id]=0;renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}else{counts[key()]=(counts[key()]||0)+1;addTodoProgress("segment");const target=Number(current()?.target||dua.target||0);if(current()?.target&&target)counts[key()]=Math.min(counts[key()],target);else if(dua.target&&counts[key()]>target)counts[key()]=0;render();updateCounterDisplay();updateTodoProgressDisplay()}const after=counterContextInfo();if(!before.done&&after.done)completionFeedback();renderFullscreenTasbih()}
