@@ -25,7 +25,7 @@ async function init(){
   const existingSurahNos=new Set(data.duas.filter(d=>d.category==="Sûreler"&&Number.isInteger(d.surahNo)&&!SURAH_EXTRA_IDS.has(d.id)).map(d=>d.surahNo));
   for(const d of quranData.duas||[]){if(!existingSurahNos.has(d.surahNo))data.duas.push(d)}
   data.quranSource=quranData.source||null;
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=83").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=84").then(r=>r.update())
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
@@ -508,7 +508,7 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
     }
     const source=document.createElement("div");
     source.className="quran-source-note";
-    source.innerHTML='Kur’an metni ve çeviriyazı: <a href="https://tanzil.net/" target="_blank" rel="noreferrer">Tanzil Project</a> · Türkçe meal: Diyanet Vakfı';
+    source.innerHTML='Kur’an metni ve çeviriyazı: <a href="https://tanzil.net/" target="_blank" rel="noreferrer">Tanzil Project</a> · Türkçe meal: QuranEnc Türkçe';
     list.appendChild(source);
   }else{
     categoryItems(cat).forEach(d=>appendCard(d,d.title,d.target?d.target+" tekrar":d.segments.length+" bölüm"));
