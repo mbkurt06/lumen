@@ -350,7 +350,7 @@ $("#turkishToggle").onclick=()=>toggleTextMode("showTurkish");
 $("#notesToggle").onclick=()=>{state.settings.showNotes=!state.settings.showNotes;applySettings();render();renderRead();save()};
 $("#fontDown").onclick=()=>setFont(state.settings.fontSize-3);$("#fontUp").onclick=()=>setFont(state.settings.fontSize+3);$("#fontReset").onclick=()=>setFont(32);
 function setFont(n){state.settings.fontSize=Math.max(20,Math.min(52,n));applySettings();save()}
-const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false;
+const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false,counterPointerId=null,counterPointerType="";
 function hideCounterResetPopover(){
   const p=$("#counterResetPopover");if(!p)return;
   p.classList.add("hidden");counterResetShown=false;
@@ -382,26 +382,43 @@ function resetActiveCounter(){
   }
   renderFullscreenTasbih();hideCounterResetPopover();
 }
+function finishCounterPointer(e,cancelled=false){
+  if(counterPointerId==null||e.pointerId!==counterPointerId)return;
+  if(timer){clearTimeout(timer);timer=null}
+  try{if(counter.hasPointerCapture?.(e.pointerId))counter.releasePointerCapture(e.pointerId)}catch{}
+  const wasDragging=dragging;
+  dragging=false;counter.classList.remove("dragging");
+  const r=counter.getBoundingClientRect();
+  const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+  const shouldIncrement=!cancelled&&!wasDragging&&!counterResetShown&&(counterPointerType!=="mouse"||inside);
+  counterPointerId=null;counterPointerType="";
+  if(wasDragging)storeCounter();
+  else if(shouldIncrement)incrementActiveCounter();
+}
 counter.addEventListener("pointerdown",e=>{
-  try{counter.setPointerCapture(e.pointerId)}catch{}
+  if(counterPointerId!=null)return;
+  counterPointerId=e.pointerId;counterPointerType=e.pointerType||"mouse";
+  if(counterPointerType!=="mouse"){try{counter.setPointerCapture(e.pointerId)}catch{}}
   hideCounterResetPopover();dragging=false;counterResetShown=false;startX=e.clientX;startY=e.clientY;
   const r=counter.getBoundingClientRect();offsetX=e.clientX-r.left;offsetY=e.clientY-r.top;
   timer=setTimeout(()=>{timer=null;showCounterResetPopover()},550);
 });
 counter.addEventListener("pointermove",e=>{
+  if(counterPointerId==null||e.pointerId!==counterPointerId)return;
+  if(counterPointerType==="mouse")return;
   const distance=Math.hypot(e.clientX-startX,e.clientY-startY);
-  if(!dragging&&distance>8){
+  if(!dragging&&distance>10){
     if(timer){clearTimeout(timer);timer=null}
     hideCounterResetPopover();dragging=true;counter.classList.add("dragging");
   }
   if(dragging)moveCounter(e.clientX-offsetX,e.clientY-offsetY);
 });
-counter.addEventListener("pointerup",()=>{
-  if(timer){clearTimeout(timer);timer=null}
-  if(dragging){dragging=false;counter.classList.remove("dragging");storeCounter()}
-  else if(!counterResetShown)incrementActiveCounter();
-});
-counter.addEventListener("pointercancel",()=>{if(timer){clearTimeout(timer);timer=null}dragging=false;counter.classList.remove("dragging")});
+counter.addEventListener("pointerup",e=>finishCounterPointer(e,false));
+counter.addEventListener("pointercancel",e=>finishCounterPointer(e,true));
+window.addEventListener("pointerup",e=>finishCounterPointer(e,false),true);
+window.addEventListener("pointercancel",e=>finishCounterPointer(e,true),true);
+window.addEventListener("blur",()=>{if(timer){clearTimeout(timer);timer=null}counterPointerId=null;counterPointerType="";dragging=false;counter.classList.remove("dragging")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(timer){clearTimeout(timer);timer=null}counterPointerId=null;counterPointerType="";dragging=false;counter.classList.remove("dragging");hideCounterResetPopover()}});
 $("#counterResetPopover").onclick=e=>{e.stopPropagation();resetActiveCounter()};
 document.addEventListener("pointerdown",e=>{if(counterResetShown&&!counter.contains(e.target)&&!$("#counterResetPopover").contains(e.target))hideCounterResetPopover()});
 function counterSafeTop(){let y=12;const globalHead=document.querySelector(".global-header");if(globalHead)y=Math.max(y,globalHead.getBoundingClientRect().bottom+12);if(state.currentView==="dua"&&state.settings.mode==="read"){const head=$("#readView .read-sticky-header");if(head&&!head.classList.contains("hidden"))y=Math.max(y,head.getBoundingClientRect().bottom+12)}return y}
