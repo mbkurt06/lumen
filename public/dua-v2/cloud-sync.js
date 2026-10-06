@@ -9,6 +9,8 @@
     "duaCompactPlayerPos",
     "duaPlayerCollapsed",
     "duaCounterPos",
+    "listeningPlayerScale",
+    "listeningPlayerCompact",
     "ylp_saved_videos",
     "ylp_presets",
     "ylp_history",
