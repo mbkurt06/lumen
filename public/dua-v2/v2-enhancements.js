@@ -684,6 +684,39 @@
     if(state.currentView==="todo")renderTodo();else if(state.currentView==="dua"&&state.settings.mode==="read")renderRead();else if(state.currentView==="dua")render();else if(state.currentView==="listening")renderListeningAll();
   };
 
+  function expireCurrentNormalCounters() {
+    if(!dua)return false;
+    let changed=false;
+    const now=Date.now();
+    const docSid="dua:"+dua.id;
+    if(state.counterSessions?.[docSid] && now-Number(state.counterSessions[docSid].lastAt||0)>SESSION_MS){
+      if(Number(state.readCounts[dua.id]||0)!==0){state.readCounts[dua.id]=0;changed=true}
+      delete state.counterSessions[docSid];
+    }
+    for(let i=0;i<dua.segments.length;i++){
+      const sid="seg:"+dua.id+":"+i;
+      const meta=state.counterSessions?.[sid];
+      if(meta && now-Number(meta.lastAt||0)>SESSION_MS){
+        const storageKey=dua.id+":"+i;
+        if(Number(counts[storageKey]||0)!==0){counts[storageKey]=0;changed=true}
+        delete state.counterSessions[sid];
+      }
+    }
+    if(changed){save();if(state.currentView==="dua"){if(state.settings.mode==="read")renderRead();else render();updateCounterDisplay();updateTodoProgressDisplay()}}
+    return changed;
+  }
+
+  function leaveCounterScreen() {
+    if(completedVisibleTodoId){
+      const t=todos.find(x=>x.id===completedVisibleTodoId);
+      if(t&&taskDone(t,todayKey())){activeTodoId=null;state.activeTodoId=null;activeCounterKind=null;state.activeCounterKind=null}
+    }
+    completedVisibleTodoId=null;
+    activeQuickCount=null;
+    counterArmed=true;
+    save();
+  }
+
   function resetCurrentDuaSession() {
     if(!dua)return;
     const prefix="seg:"+dua.id+":";
@@ -709,9 +742,9 @@
     const nav=document.createElement("nav");nav.id="v2BottomNav";nav.className="v2-bottom-nav";
     nav.innerHTML='<button id="v2BottomTodo">TODO</button><button id="v2BottomLibrary">Kütüphane</button><button id="v2BottomSettings">Ayarlar</button>';
     document.body.appendChild(nav);
-    $("#v2BottomTodo").onclick=()=>{rememberReader();originalOpenTodo();updateBottomNav()};
+    $("#v2BottomTodo").onclick=()=>{rememberReader();leaveCounterScreen();originalOpenTodo();updateBottomNav()};
     $("#v2BottomLibrary").onclick=()=>{
-      if(state.currentView==="dua"){rememberReader();originalOpenCategory(dua.category)}
+      if(state.currentView==="dua"){rememberReader();leaveCounterScreen();originalOpenCategory(dua.category)}
       else if(state.lastReader?.duaId)resumeLastReader();
       else originalOpenHome();
       updateBottomNav();
@@ -726,10 +759,10 @@
     $("#sessionResetBtn")?.classList.toggle("hidden",state.currentView!=="dua");
   }
 
-  openTodo = function(){rememberReader();originalOpenTodo();updateBottomNav()};
-  openHome = function(){rememberReader();originalOpenHome();updateBottomNav()};
-  openListening = function(){rememberReader();originalOpenListening();updateBottomNav()};
-  openCategory = function(cat){rememberReader();originalOpenCategory(cat);updateBottomNav()};
+  openTodo = function(){rememberReader();leaveCounterScreen();originalOpenTodo();updateBottomNav()};
+  openHome = function(){rememberReader();leaveCounterScreen();originalOpenHome();updateBottomNav()};
+  openListening = function(){rememberReader();leaveCounterScreen();originalOpenListening();updateBottomNav()};
+  openCategory = function(cat){rememberReader();leaveCounterScreen();originalOpenCategory(cat);updateBottomNav()};
   openDua = function(d){rememberReader();originalOpenDua(d);counterArmed=true;activeTodoId=null;activeCounterKind=null;state.activeTodoId=null;state.activeCounterKind=null;completedVisibleTodoId=null;updateBottomNav()};
 
   $("#homeTodoBtn").onclick=openTodo;
@@ -738,7 +771,7 @@
   $("#listeningMenuBtn").onclick=openHome;
   $("#backContentBtn").onclick=openHome;
   $("#readMenuBtn").onclick=openHome;
-  $("#backLibraryBtn").onclick=()=>{rememberReader();originalOpenCategory(dua.category);updateBottomNav()};
+  $("#backLibraryBtn").onclick=()=>{rememberReader();leaveCounterScreen();originalOpenCategory(dua.category);updateBottomNav()};
 
   syncDuaCompactSettings = function(){
     originalSyncDuaCompactSettings();
@@ -773,5 +806,7 @@
   if($("#sessionResetBtn"))$("#sessionResetBtn").onclick=resetCurrentDuaSession;
   ensureCounterMenu();ensureBottomNav();updateBottomNav();
   if($("#sessionResetBtn"))$("#sessionResetBtn").classList.toggle("hidden",state.currentView!=="dua");
+  expireCurrentNormalCounters();
+  setInterval(expireCurrentNormalCounters,60000);
   requestAnimationFrame(()=>{updateCounterDisplay();updateTodoProgressDisplay();syncDuaCompactSettings();updateReadProgressFromScroll()});
 })();
