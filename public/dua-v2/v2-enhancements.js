@@ -526,7 +526,7 @@
       duaId: dua.id,
       index,
       mode: state.settings.mode,
-      scrollTop: readView && !readView.classList.contains("hidden") ? readView.scrollTop : Number(state.lastReader?.scrollTop || 0),
+      scrollTop: state.settings.mode==="read" ? Number(window.scrollY||document.documentElement.scrollTop||0) : Number(state.lastReader?.scrollTop || 0),
       visibleSegment: Number(state.lastVisibleSegment || index || 0)
     };
     save();
@@ -542,7 +542,7 @@
     activeTodoId=null; activeCounterKind=null; completedVisibleTodoId=null; activeQuickCount=null; counterArmed=true;
     render(); applyMode();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      if(state.settings.mode==="read") $("#readView").scrollTop=Number(last.scrollTop||0);
+      if(state.settings.mode==="read") window.scrollTo({top:Number(last.scrollTop||0),behavior:"auto"});
       updateReadProgressFromScroll();
     }));
     updateBottomNav();
@@ -563,10 +563,13 @@
     $("#progress").textContent=(i+1)+" / "+dua.segments.length;
   }
 
-  $("#readView")?.addEventListener("scroll",()=>{
+  const persistReadScroll=()=>{
+    if(state.currentView!=="dua"||state.settings.mode!=="read")return;
     clearTimeout(readScrollTimer);
     readScrollTimer=setTimeout(()=>{updateReadProgressFromScroll();rememberReader()},120);
-  },{passive:true});
+  };
+  $("#readView")?.addEventListener("scroll",persistReadScroll,{passive:true});
+  window.addEventListener("scroll",persistReadScroll,{passive:true});
 
   openSegmentMemorize = function(i) {
     rememberReader();
@@ -589,7 +592,7 @@
     if(completedWas){activeTodoId=null;state.activeTodoId=null;completedVisibleTodoId=null}
     activeQuickCount=null;counterArmed=true;
     render();applyMode();
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{$("#readView").scrollTop=Number(state.lastReader?.scrollTop||0);updateReadProgressFromScroll()}));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{window.scrollTo({top:Number(state.lastReader?.scrollTop||0),behavior:"auto"});updateReadProgressFromScroll()}));
     updateBottomNav();
   };
 
