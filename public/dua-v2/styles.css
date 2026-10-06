@@ -2241,3 +2241,32 @@ body.dark .counter-reset-popover:hover{
     margin-right:20px;
   }
 }
+
+
+/* v79 — Todo hizası ve küçük sayaç sıfırlama görünümü */
+.memorize-add-todo{
+  left:28px !important;
+  right:auto !important;
+}
+.counter-reset-popover{
+  background:#fffdf8 !important;
+  color:#b42318 !important;
+  border-color:#cfc7b8 !important;
+}
+body.dark .counter-reset-popover{
+  background:#efe9dd !important;
+  color:#d73a2f !important;
+  border-color:#8b8173 !important;
+  box-shadow:0 10px 30px #0008 !important;
+}
+.segment-repeat-badge,
+.segment-todo-badge{
+  touch-action:manipulation;
+  user-select:none;
+  -webkit-user-select:none;
+}
+@media(max-width:520px){
+  .memorize-add-todo{
+    left:14px !important;
+  }
+}
