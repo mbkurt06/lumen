@@ -14,7 +14,7 @@ const saveTodos=()=>localStorage.setItem("duaTodoState",JSON.stringify(todos));
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
-async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,dua.segments.length-1);applySettings();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=70").then(r=>r.update())}
+async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,dua.segments.length-1);applySettings();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=71").then(r=>r.update())}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
 function render(){const s=current();$("#title").textContent=dua.title;const inv=dua.invocation||"";$("#invocation").textContent=inv;$("#invocation").classList.toggle("hidden",!inv);$("#segment").textContent=s.latin||"";$("#segment").classList.toggle("hidden",!state.settings.showLatin||!s.latin);$("#arabic").textContent=s.arabic||"";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#turkish").textContent=s.turkish||"";$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}$("#progress").textContent=(index+1)+" / "+dua.segments.length;$("#count").textContent=counts[key()]||0;$("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}
 function applySettings(){syncGlobalHeaderHeight();document.body.classList.toggle("dark",state.settings.dark);document.documentElement.style.setProperty("--segment-size",state.settings.fontSize+"px");document.querySelector('meta[name="theme-color"]').content=state.settings.dark?"#151714":"#f5f1e8";$("#themeToggle").textContent=state.settings.dark?"Açık":"Kapalı";$("#arabicToggle").textContent=state.settings.showArabic?"Açık":"Gizli";$("#latinToggle").textContent=state.settings.showLatin?"Açık":"Gizli";$("#turkishToggle").textContent=state.settings.showTurkish?"Açık":"Gizli";$("#notesToggle").textContent=state.settings.showNotes?"Açık":"Gizli";applyVisibility()}
@@ -350,7 +350,7 @@ $("#turkishToggle").onclick=()=>toggleTextMode("showTurkish");
 $("#notesToggle").onclick=()=>{state.settings.showNotes=!state.settings.showNotes;applySettings();render();renderRead();save()};
 $("#fontDown").onclick=()=>setFont(state.settings.fontSize-3);$("#fontUp").onclick=()=>setFont(state.settings.fontSize+3);$("#fontReset").onclick=()=>setFont(32);
 function setFont(n){state.settings.fontSize=Math.max(20,Math.min(52,n));applySettings();save()}
-const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false,counterPointerId=null,counterPointerType="";
+const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false;
 function hideCounterResetPopover(){
   const p=$("#counterResetPopover");if(!p)return;
   p.classList.add("hidden");counterResetShown=false;
@@ -382,43 +382,26 @@ function resetActiveCounter(){
   }
   renderFullscreenTasbih();hideCounterResetPopover();
 }
-function finishCounterPointer(e,cancelled=false){
-  if(counterPointerId==null||e.pointerId!==counterPointerId)return;
-  if(timer){clearTimeout(timer);timer=null}
-  try{if(counter.hasPointerCapture?.(e.pointerId))counter.releasePointerCapture(e.pointerId)}catch{}
-  const wasDragging=dragging;
-  dragging=false;counter.classList.remove("dragging");
-  const r=counter.getBoundingClientRect();
-  const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
-  const shouldIncrement=!cancelled&&!wasDragging&&!counterResetShown&&(counterPointerType!=="mouse"||inside);
-  counterPointerId=null;counterPointerType="";
-  if(wasDragging)storeCounter();
-  else if(shouldIncrement)incrementActiveCounter();
-}
 counter.addEventListener("pointerdown",e=>{
-  if(counterPointerId!=null)return;
-  counterPointerId=e.pointerId;counterPointerType=e.pointerType||"mouse";
-  if(counterPointerType!=="mouse"){try{counter.setPointerCapture(e.pointerId)}catch{}}
+  try{counter.setPointerCapture(e.pointerId)}catch{}
   hideCounterResetPopover();dragging=false;counterResetShown=false;startX=e.clientX;startY=e.clientY;
   const r=counter.getBoundingClientRect();offsetX=e.clientX-r.left;offsetY=e.clientY-r.top;
   timer=setTimeout(()=>{timer=null;showCounterResetPopover()},550);
 });
 counter.addEventListener("pointermove",e=>{
-  if(counterPointerId==null||e.pointerId!==counterPointerId)return;
-  if(counterPointerType==="mouse")return;
   const distance=Math.hypot(e.clientX-startX,e.clientY-startY);
-  if(!dragging&&distance>10){
+  if(!dragging&&distance>8){
     if(timer){clearTimeout(timer);timer=null}
     hideCounterResetPopover();dragging=true;counter.classList.add("dragging");
   }
   if(dragging)moveCounter(e.clientX-offsetX,e.clientY-offsetY);
 });
-counter.addEventListener("pointerup",e=>finishCounterPointer(e,false));
-counter.addEventListener("pointercancel",e=>finishCounterPointer(e,true));
-window.addEventListener("pointerup",e=>finishCounterPointer(e,false),true);
-window.addEventListener("pointercancel",e=>finishCounterPointer(e,true),true);
-window.addEventListener("blur",()=>{if(timer){clearTimeout(timer);timer=null}counterPointerId=null;counterPointerType="";dragging=false;counter.classList.remove("dragging")});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(timer){clearTimeout(timer);timer=null}counterPointerId=null;counterPointerType="";dragging=false;counter.classList.remove("dragging");hideCounterResetPopover()}});
+counter.addEventListener("pointerup",()=>{
+  if(timer){clearTimeout(timer);timer=null}
+  if(dragging){dragging=false;counter.classList.remove("dragging");storeCounter()}
+  else if(!counterResetShown)incrementActiveCounter();
+});
+counter.addEventListener("pointercancel",()=>{if(timer){clearTimeout(timer);timer=null}dragging=false;counter.classList.remove("dragging")});
 $("#counterResetPopover").onclick=e=>{e.stopPropagation();resetActiveCounter()};
 document.addEventListener("pointerdown",e=>{if(counterResetShown&&!counter.contains(e.target)&&!$("#counterResetPopover").contains(e.target))hideCounterResetPopover()});
 function counterSafeTop(){let y=12;const globalHead=document.querySelector(".global-header");if(globalHead)y=Math.max(y,globalHead.getBoundingClientRect().bottom+12);if(state.currentView==="dua"&&state.settings.mode==="read"){const head=$("#readView .read-sticky-header");if(head&&!head.classList.contains("hidden"))y=Math.max(y,head.getBoundingClientRect().bottom+12)}return y}
