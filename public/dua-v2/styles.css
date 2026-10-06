@@ -2173,3 +2173,46 @@ body{padding-bottom:76px}
     height:58px;
   }
 }
+
+
+/* v69 — eski uygulamadaki kompakt üst menü düzeni */
+@media(max-width:520px){
+  .read-sticky-header .read-toolbar{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    gap:5px !important;
+    flex-wrap:nowrap !important;
+  }
+  .read-sticky-header .read-toolbar-group{
+    display:flex !important;
+    align-items:center !important;
+    gap:5px !important;
+    flex-wrap:nowrap !important;
+    min-width:0;
+  }
+  .read-sticky-header .read-toolbar .back-btn,
+  .read-sticky-header .read-toolbar .primary-btn{
+    width:auto !important;
+    min-width:0 !important;
+    min-height:38px !important;
+    padding:6px 8px !important;
+    font-size:12px !important;
+    white-space:nowrap !important;
+  }
+  .read-sticky-header #memorizeThisBtn{
+    padding-left:10px !important;
+    padding-right:10px !important;
+  }
+  .global-header{
+    gap:6px;
+    padding-left:8px;
+    padding-right:8px;
+  }
+  .header-actions{gap:4px}
+  .header-icon-btn,.menu-btn{
+    width:39px;
+    height:39px;
+    min-width:39px;
+  }
+}
