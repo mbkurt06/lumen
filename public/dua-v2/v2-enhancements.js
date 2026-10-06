@@ -691,7 +691,10 @@
     let endDate=start;if(mode==="forever")endDate=null;else if(mode==="days"){const days=Math.max(1,parseInt($("#todoDurationDays").value||"1",10));endDate=addDaysKey(start,days-1)}else if(mode==="range"){endDate=$("#todoEndDate").value||start;if(endDate<start)endDate=start}
     if(pendingEditTodoId){
       const t=todos.find(x=>x.id===pendingEditTodoId);
-      if(t){t.description=$("#todoDescription").value.trim();t.target=target;t.schedule={mode,startDate:start,endDate};t.updatedAt=new Date().toISOString()}
+      if(t){
+        t.description=$("#todoDescription").value.trim();t.target=target;t.schedule={mode,startDate:start,endDate};t.updatedAt=new Date().toISOString();
+        Object.values(t.history||{}).forEach(h=>{if(Number(h.count||0)>=target){if(!h.completedAt)h.completedAt=new Date().toISOString()}else h.completedAt=null});
+      }
       pendingEditTodoId=null;
     }else if(pendingTodoScope==="listeningVideo"||pendingTodoScope==="listeningSection"){
       const v=listeningVideos.find(x=>x.videoId===pendingListeningTodo?.videoId),p=listeningPresets.find(x=>x.id===pendingListeningTodo?.presetId),isSection=pendingTodoScope==="listeningSection";
