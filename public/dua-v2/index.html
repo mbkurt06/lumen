@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Dua Ezber">
   <title>Dua Ezber</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=75">
+  <link rel="stylesheet" href="./styles.css?v=76">
 </head>
 <body>
   <main class="app">
@@ -50,7 +50,7 @@
         <button id="memorizeListenBtn" class="segment-listen-play memorize-listen-play hidden" type="button" aria-label="Bu bölümün eşleşen videosunu oynat">▶</button>
       </div>
       <div id="turkish" class="turkish"></div>
-      <button id="addSegmentTodoBtn" class="secondary-action">+ Bu bölümü Todo'ya ekle</button>
+      <button id="addSegmentTodoBtn" class="secondary-action memorize-add-todo">+ Todo</button>
     </section>
 
     <section id="readView" class="read-view hidden">
@@ -388,11 +388,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=75"></script>
+  <script src="./cloud-sync.js?v=76"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=75";
+      script.src = "./app.js?v=76";
       document.body.appendChild(script);
     });
   </script>
