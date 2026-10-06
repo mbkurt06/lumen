@@ -2405,3 +2405,52 @@ html.dark body{
 .quran-source-note a:hover{
   text-decoration:underline;
 }
+
+
+/* v85 — iç ezber ekranında aynı üst menü */
+.memorize{
+  --memorize-fixed-height:150px;
+  padding-top:calc(var(--memorize-fixed-height) + 18px) !important;
+}
+.memorize-sticky-header{
+  position:fixed;
+  top:calc(var(--global-header-height) + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  width:min(760px,calc(100vw - 36px));
+  z-index:220;
+  background:color-mix(in srgb,var(--bg) 97%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+  border-radius:16px;
+  padding:10px 12px 12px;
+  box-shadow:0 8px 24px #0002;
+}
+.memorize-sticky-header .read-toolbar{
+  margin:0 auto 8px;
+}
+.memorize-sticky-header .title{
+  margin:3px 0 2px;
+  text-align:center;
+}
+.memorize-sticky-header .invocation{
+  margin:3px 0 0;
+}
+.memorize-sticky-header .todo-inline-progress{
+  margin:0 auto 6px;
+}
+#memorizeHeaderModeBtn{
+  cursor:default;
+}
+@media(max-width:520px){
+  .memorize{
+    --memorize-fixed-height:142px;
+  }
+  .memorize-sticky-header{
+    width:calc(100vw - 20px);
+    top:calc(var(--global-header-height) + 6px);
+    padding:8px;
+    border-radius:14px;
+  }
+}
