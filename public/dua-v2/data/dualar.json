@@ -529,7 +529,8 @@
         {
           "arabic": "اللَّهُمَّ صَلِّ عَلَى سَيِّدِنَا مُحَمَّدٍ وَعَلَى آلِ سَيِّدِنَا مُحَمَّدٍ",
           "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed.",
-          "turkish": "Allah’ım! Efendimiz Muhammed’e ve onun âline salât eyle."
+          "turkish": "Allah’ım! Efendimiz Muhammed’e ve onun âline salât eyle.",
+          "note": "Denir ve aşağıdaki Salât-ı Münciye Duası (yani Salâte’n-Tüncînâ) okunur."
         },
         {
           "arabic": "صَلَاةً تُنْجِينَا بِهَا مِنْ جَمِيعِ الْأَهْوَالِ وَالْآفَاتِ",
@@ -563,14 +564,15 @@
         {
           "arabic": "آمِينَ يَا مُجِيبَ الدَّعَوَاتِ وَالْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ آمِينَ",
           "latin": "Âmîn yâ Mücîbe’d-deavât. Ve’l-hamdü lillâhi Rabbi’l-âlemîn. Âmîn.",
-          "turkish": "Âmin ey dualara cevap veren! Hamd âlemlerin Rabbi Allah’a mahsustur. Âmin.",
-          "note": "Salât-ı Münciye burada tamamlanır; sonunda eller yüze sürülüp indirilir."
+          "turkish": "Âmin ey dualara cevap veren! Hamd âlemlerin Rabbi Allah’a mahsustur. Âmin."
         },
         {
-          "latin": "Öğle namazının son sünneti kılınır; selâm verildikten sonra tesbihata devam edilir."
+          "latin": "Sübhânellâhi ve’l-hamdü lillâhi ve lâ ilâhe illallâhü vallâhü ekber ve lâ havle ve lâ kuvvete illâ billâhi’l-aliyyi’l-azîm.",
+          "note": "Denilir ve eller yüze sürülüp indirilir. Öğle namazının son sünneti kılınır. Selâm verildikten sonra tesbihata şu dua ile devam edilir:"
         },
         {
-          "latin": "Sübhânellâhi ve’l-hamdü lillâhi ve lâ ilâhe illallâhü vallâhü ekber ve lâ havle ve lâ kuvvete illâ billâhi’l-aliyyi’l-azîm."
+          "latin": "Bismillâhirrahmânirrahîm.",
+          "note": "Ve Âyetel-Kürsî okunur:"
         },
         {
           "arabic": "اللّٰهُ لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
@@ -618,7 +620,8 @@
           "turkish": "O çok yücedir, çok büyüktür."
         },
         {
-          "latin": "Ve hüve’l-aliyyü’l-azîmü zü’l-celâli sübhânellâh."
+          "latin": "Ve hüve’l-aliyyü’l-azîmü zü’l-celâli sübhânellâh.",
+          "note": "Şu tesbih sözleri tekrarlanır:"
         },
         {
           "latin": "Sübhânellâh.",
@@ -642,10 +645,8 @@
           "latin": "Lâ ilâhe illallâhü vahdehû lâ şerîke leh. Lehü’l-mülkü ve lehü’l-hamdü, yuhyî ve yumîtü ve hüve hayyün lâ yemût, bi-yedihi’l-hayru ve hüve alâ külli şey’in kadîrun ve ileyhi’l-masîr."
         },
         {
-          "latin": "Namaz duası yapılır."
-        },
-        {
-          "latin": "Fa‘lem ennehû."
+          "latin": "Fa‘lem ennehû.",
+          "note": "Denilir ve namaz duası yapılır. Duâdan sonra tesbihata şöyle devam edilir:"
         },
         {
           "latin": "Lâ ilâhe illallâh.",
@@ -658,7 +659,12 @@
           "latin": "Bismillâhirrahmânirrahîm."
         },
         {
-          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk."
+          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk.",
+          "note": "Tesbihâtın burasında Peygamberimize (a.s.m.) şöyle salât ve selâm edilir:"
+        },
+        {
+          "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîrâ.",
+          "target": 2
         },
         {
           "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîrâ.",
@@ -666,9 +672,6 @@
         },
         {
           "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîran kesîrâ."
-        },
-        {
-          "latin": "Salli ve sellim yâ Rabbi alâ habîbike Muhammedin ve alâ cemî‘i’l-enbiyâi ve’l-mürselîne ve alâ âli küllin ve sahbi küllin ecmaîn. Âmîn ve’l-hamdü lillâhi Rabbi’l-âlemîn."
         },
         {
           "latin": "Elfû elfi salâtin ve elfû elfi selâmin aleyke yâ Resûlallah."
@@ -683,7 +686,8 @@
           "latin": "Allâhümme salli ve sellim ve bârik alâ seyyidinâ Muhammedin ve alâ âlihî ve ashâbihî bi-adedi evrâkı’l-eşcâr ve emvâci’l-bihâr ve katarâti’l-emtâr; vağfir lenâ verhamnâ veltuf binâ ve bi-Üstâzinâ Saîdi’n-Nursî radıyallâhu anh ve vâlideynâ ve bi-talebeti Resâili’n-Nûri’s-sâdıkîne yâ ilâhenâ bi-külli salâtin minhâ eşhedü en lâ ilâhe illallâh ve eşhedü enne Muhammede’r-Resûlullâhi sallallâhü aleyhi ve sellem."
         },
         {
-          "latin": "Bismillâhirrahmânirrahîm."
+          "latin": "Bismillâhirrahmânirrahîm.",
+          "note": "İsm-i A‘zâm duası okunur:"
         },
         {
           "arabic": "يَا جَمِيلُ يَا اللّٰهُ",
@@ -897,7 +901,7 @@
         },
         {
           "latin": "Yâ Rabbe’s-semâvâti ve’l-ardı, yâ ze’l-celâli ve’l-ikrâm.",
-          "note": "Avuçlar yukarı gelecek şekilde eller açılır."
+          "note": "Avuçlar yukarı gelecek şekilde eller açılır:"
         },
         {
           "latin": "Es’elüke bi-hakkı hâzihi’l-esmâi küllihâ en tüsalliye alâ seyyidinâ Muhammedin kemâ salleyte ve sellemte ve bârekte ve rahimte ve terahhamte alâ İbrâhîme ve alâ âli İbrâhîme fi’l-âlemîn."
@@ -906,7 +910,8 @@
           "latin": "Rabbenâ inneke hamîdü’n-mecîd, bi-rahmetike yâ erhame’r-râhimîn, ve’l-hamdü lillâhi Rabbi’l-âlemîn."
         },
         {
-          "latin": "Bismillâhirrahmânirrahîm."
+          "latin": "Bismillâhirrahmânirrahîm.",
+          "note": "Fetih Sûresi’nin 27-29. âyetleri (Lekad Sadakallâhü) okunur ve tesbihat sona erer."
         },
         {
           "latin": "Lekad sadakallâhü resûlehü’r-rü’yâ bi’l-hakk.",
