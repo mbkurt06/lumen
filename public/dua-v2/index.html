@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Dua Ezber">
   <title>Dua Ezber</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=70">
+  <link rel="stylesheet" href="./styles.css?v=71">
 </head>
 <body>
   <main class="app">
@@ -17,7 +17,6 @@
       <button id="menuBtn" class="text-btn menu-btn" aria-label="Ana menüye dön">☰</button>
       <div id="progress" class="progress"></div>
       <div class="header-actions">
-        <button id="sessionResetBtn" class="text-btn header-icon-btn hidden" aria-label="Bu çalışma oturumunu sıfırla" title="Sayaçları sıfırla">↺</button>
         <button id="fullscreenTasbihBtn" class="text-btn header-icon-btn hidden" aria-label="Tam ekran tesbih modu" title="Tam ekran tesbih">⛶</button>
         <button id="settingsBtn" class="text-btn header-icon-btn" aria-label="Ayarlar" title="Ayarlar">⚙︎</button>
       </div>
@@ -369,16 +368,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=2"></script>
+  <script src="./cloud-sync.js?v=71"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=70";
-      script.onload = () => {
-        const enhancements = document.createElement("script");
-        enhancements.src = "./v2-enhancements.js?v=10";
-        document.body.appendChild(enhancements);
-      };
+      script.src = "./app.js?v=71";
       document.body.appendChild(script);
     });
   </script>
