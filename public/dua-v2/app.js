@@ -15,7 +15,7 @@ const saveTodos=()=>localStorage.setItem("duaTodoState",JSON.stringify(todos));
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
-async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,dua.segments.length-1);applySettings();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=78").then(r=>r.update())}
+async function init(){data=await fetch("./data/dualar.json").then(r=>r.json());ilmihalData=await fetch("./data/ilmihal.json").then(r=>r.json());normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,dua.segments.length-1);applySettings();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=79").then(r=>r.update())}
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
 function render(){const s=current(),esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";$("#title").textContent=dua.title;const inv=dua.invocation||"";$("#invocation").textContent=inv;$("#invocation").classList.toggle("hidden",!inv);$("#segment").textContent=esmaDetail?"":(s.latin||"");$("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);$("#arabic").textContent=s.arabic||"";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#turkish").textContent=s.turkish||"";$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}$("#progress").textContent=(index+1)+" / "+dua.segments.length;$("#count").textContent=counts[key()]||0;$("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;if(isEsmaNameDua())syncMemorizePager();applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}
@@ -49,8 +49,8 @@ function renderRead(){
   }).join("");
 
   $("#readContent").querySelectorAll("[data-open-segment]").forEach(el=>el.onclick=()=>openSegmentMemorize(Number(el.dataset.openSegment)));
-  $("#readContent").querySelectorAll("[data-repeat-segment]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleQuickCount("segmentRepeat",Number(b.dataset.repeatSegment))});
-  $("#readContent").querySelectorAll("[data-todo-segment]").forEach(b=>b.onclick=e=>{e.stopPropagation();toggleQuickCount("todoSegment",Number(b.dataset.todoSegment))});
+  $("#readContent").querySelectorAll("[data-repeat-segment]").forEach(b=>bindSmallCounterPress(b,"segmentRepeat",Number(b.dataset.repeatSegment)));
+  $("#readContent").querySelectorAll("[data-todo-segment]").forEach(b=>bindSmallCounterPress(b,"todoSegment",Number(b.dataset.todoSegment)));
   $("#readContent").querySelectorAll("[data-add-todo-segment]").forEach(b=>b.onclick=e=>{e.stopPropagation();openTodoDialog("segment",Number(b.dataset.addTodoSegment))});
   $("#readContent").querySelectorAll("[data-listen-dua-segment]").forEach(b=>b.onclick=e=>{e.stopPropagation();playDuaLinkedSection(Number(b.dataset.listenDuaSegment)+1)});
   updateDuaPager();updateCounterDisplay();updateTodoProgressDisplay();syncReadHeaderHeight();
@@ -273,7 +273,13 @@ function toggleQuickCount(type,segmentIndex){if(activeQuickCount?.type===type&&a
 function quickCountInfo(){if(!activeQuickCount||state.settings.mode!=="read")return null;const i=activeQuickCount.segmentIndex,s=dua?.segments?.[i],seg=typeof s==="string"?{latin:s}:s;if(activeQuickCount.type==="segmentRepeat"&&seg?.target){const target=Number(seg.target),progress=Math.min(counts[segmentKey(i)]||0,target);return{type:"segmentRepeat",segmentIndex:i,target,progress,done:progress>=target}}if(activeQuickCount.type==="todoSegment"){const t=currentTodoTask("segment",i,todayKey());if(t){const target=Number(t.target),progress=Math.min(taskProgress(t,todayKey()),target);return{type:"todoSegment",segmentIndex:i,target,progress,done:taskDone(t,todayKey()),task:t}}}return null}
 function updateCounterDisplay(){if(!dua||!counter)return;const read=state.settings.mode==="read",quick=quickCountInfo(),segmentTarget=!read?Number(current()?.target||0):0,target=segmentTarget||Number(dua?.target||0);counter.classList.remove("todo-task","todo-done","quick-count","quick-done");if(quick){counter.classList.add("quick-count");if(quick.done)counter.classList.add("quick-done");$("#count").textContent=quick.progress;counter.querySelector("small").textContent="/ "+quick.target;return}$("#count").textContent=read?(state.readCounts[dua.id]||0):(counts[key()]||0);counter.querySelector("small").textContent=target?"/ "+target:(read?"":"tekrar")}
 function updateTodoProgressDisplay(){if(!dua)return;const k=todayKey(),read=state.settings.mode==="read",t=read?currentTodoTask("dua",null,k):currentTodoTask("segment",index,k),el=read?$("#readTodoProgress"):$("#memorizeTodoProgress");if(!el)return;if(!t){el.classList.add("hidden");el.textContent="";el.classList.remove("done");return}const p=Math.min(taskProgress(t,k),t.target),done=taskDone(t,k);el.textContent="Todo "+t.target+"/"+p+(done?" ✓":"");el.classList.toggle("done",done);el.classList.remove("hidden")}
-function openSegmentMemorize(i){clearQuickCount();index=Math.max(0,Math.min(i,dua.segments.length-1));state.settings.mode="memorize";render();applyMode()}
+function openSegmentMemorize(i){
+  state.readerReturn={duaId:dua.id,scrollY:Number(window.scrollY||document.documentElement.scrollTop||0),segmentIndex:i};
+  clearQuickCount();
+  index=Math.max(0,Math.min(i,dua.segments.length-1));
+  state.settings.mode="memorize";
+  render();applyMode();save();
+}
 function scheduleLabel(t){const s=t.schedule||{};if(s.mode==="forever")return "Her gün";if(s.mode==="single")return formatTodoDate(s.startDate,false);if(s.mode==="range")return formatTodoDate(s.startDate,false)+" – "+formatTodoDate(s.endDate,false);if(s.mode==="days"){const days=Math.max(1,Math.round((dateFromKey(s.endDate)-dateFromKey(s.startDate))/86400000)+1);return days+" gün";}return ""}
 function updateHomeTodoCount(){const k=todayKey(),todayTasks=todos.filter(t=>todoOccursOn(t,k)),pending=todayTasks.filter(t=>!taskDone(t,k)).length;const el=$("#homeTodoCount");if(el)el.textContent=pending}
 function setTodoDate(k){state.todoDate=k||todayKey();renderTodo();save()}
@@ -372,7 +378,20 @@ function openDua(d){closeFullscreenTasbih();clearQuickCount();dua=d;index=0;stat
 function updateDuaPager(){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id);$("#duaPrevBtn").disabled=i<=0;$("#duaNextBtn").disabled=i<0||i>=items.length-1}
 function moveDua(step){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id),n=i+step;if(i>=0&&n>=0&&n<items.length)openDua(items[n])}
 $("#duaPrevBtn").onclick=()=>moveDua(-1);$("#duaNextBtn").onclick=()=>moveDua(1);
-document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategory(b.dataset.category));function openCategory(cat){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="library";$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryPageTitle").textContent=cat;const list=$("#libraryPageList");list.innerHTML="";data.duas.filter(d=>d.category===cat).sort((x,y)=>cat==="Sûreler"?(x.surahNo||999)-(y.surahNo||999):0).forEach(d=>{const b=document.createElement("button");b.className="library-card";b.innerHTML="<strong>"+(d.surahNo?d.surahNo+". ":"")+escapeHtml(d.title)+"</strong><span>"+(d.target?d.target+" tekrar":d.segments.length+" bölüm")+"</span>";b.onclick=()=>openDua(d);list.appendChild(b)});save()}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeBackBtn").onclick=()=>{if(isEsmaNameDua()){openCategory("Esmâü’l-Hüsnâ");return}state.settings.mode="read";render();applyMode();$("#readView").scrollTop=0};
+document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategory(b.dataset.category));function openCategory(cat){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="library";$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryPageTitle").textContent=cat;const list=$("#libraryPageList");list.innerHTML="";data.duas.filter(d=>d.category===cat).sort((x,y)=>cat==="Sûreler"?(x.surahNo||999)-(y.surahNo||999):0).forEach(d=>{const b=document.createElement("button");b.className="library-card";b.innerHTML="<strong>"+(d.surahNo?d.surahNo+". ":"")+escapeHtml(d.title)+"</strong><span>"+(d.target?d.target+" tekrar":d.segments.length+" bölüm")+"</span>";b.onclick=()=>openDua(d);list.appendChild(b)});save()}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeBackBtn").onclick=()=>{
+  if(isEsmaNameDua()){openCategory("Esmâü’l-Hüsnâ");return}
+  const ret=state.readerReturn&&state.readerReturn.duaId===dua.id?{...state.readerReturn}:null;
+  state.settings.mode="read";
+  render();applyMode();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(ret&&Number.isFinite(Number(ret.scrollY))){
+      window.scrollTo({top:Number(ret.scrollY),behavior:"auto"});
+    }else if(ret&&Number.isInteger(ret.segmentIndex)){
+      document.querySelector('[data-open-segment="'+ret.segmentIndex+'"]')?.scrollIntoView({block:"center",behavior:"auto"});
+    }
+  }));
+  save();
+};
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$("#"+b.dataset.close).close());
 if($("#resetBtn"))$("#resetBtn").onclick=()=>{if(state.settings.mode==="read"){state.readCounts[dua.id]=0;applyMode()}else{counts[key()]=0;render()}};
 $("#themeToggle").onclick=()=>{state.settings.dark=!state.settings.dark;applySettings();save()};
@@ -383,13 +402,14 @@ $("#turkishToggle").onclick=()=>toggleTextMode("showTurkish");
 $("#notesToggle").onclick=()=>{state.settings.showNotes=!state.settings.showNotes;applySettings();render();renderRead();save()};
 $("#fontDown").onclick=()=>setFont(state.settings.fontSize-3);$("#fontUp").onclick=()=>setFont(state.settings.fontSize+3);$("#fontReset").onclick=()=>setFont(32);
 function setFont(n){state.settings.fontSize=Math.max(20,Math.min(52,n));applySettings();save()}
-const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false,counterPointerActive=false,counterPointerId=null;
+const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false,counterPointerActive=false,counterPointerId=null,pendingSmallReset=null;
 function hideCounterResetPopover(){
   const p=$("#counterResetPopover");if(!p)return;
-  p.classList.add("hidden");counterResetShown=false;
+  p.classList.add("hidden");counterResetShown=false;pendingSmallReset=null;
 }
 function showCounterResetPopover(){
   const p=$("#counterResetPopover");if(!p)return;
+  pendingSmallReset=null;
   const r=counter.getBoundingClientRect();
   p.classList.remove("hidden");
   const pr=p.getBoundingClientRect();
@@ -398,6 +418,54 @@ function showCounterResetPopover(){
   if(top<8)top=Math.min(innerHeight-pr.height-8,r.bottom+8);
   p.style.left=left+"px";p.style.top=top+"px";
   counterResetShown=true;
+}
+function showSmallCounterResetPopover(button,type,segmentIndex){
+  const p=$("#counterResetPopover");if(!p||!button)return;
+  pendingSmallReset={type,segmentIndex};
+  const r=button.getBoundingClientRect();
+  p.classList.remove("hidden");
+  const pr=p.getBoundingClientRect();
+  const left=Math.max(8,Math.min(innerWidth-pr.width-8,r.left+r.width/2-pr.width/2));
+  let top=r.top-pr.height-8;
+  if(top<8)top=Math.min(innerHeight-pr.height-8,r.bottom+8);
+  p.style.left=left+"px";p.style.top=top+"px";
+  counterResetShown=true;
+}
+function resetSmallCounter(ctx){
+  if(!ctx)return;
+  const i=Number(ctx.segmentIndex),k=todayKey();
+  if(ctx.type==="segmentRepeat"){
+    counts[segmentKey(i)]=0;
+    if(activeQuickCount?.type==="segmentRepeat"&&activeQuickCount.segmentIndex===i)activeQuickCount={type:"segmentRepeat",segmentIndex:i};
+  }else if(ctx.type==="todoSegment"){
+    const t=currentTodoTask("segment",i,k);
+    if(t){
+      t.history=t.history||{};
+      t.history[k]={count:0,completedAt:null};
+      saveTodos();
+    }
+  }
+  renderRead();updateCounterDisplay();updateTodoProgressDisplay();save();
+  hideCounterResetPopover();
+}
+function bindSmallCounterPress(button,type,segmentIndex){
+  let holdTimer=null,held=false,startX=0,startY=0;
+  button.addEventListener("pointerdown",e=>{
+    e.stopPropagation();held=false;startX=e.clientX;startY=e.clientY;
+    holdTimer=setTimeout(()=>{holdTimer=null;held=true;showSmallCounterResetPopover(button,type,segmentIndex)},550);
+  });
+  button.addEventListener("pointermove",e=>{
+    if(holdTimer&&Math.hypot(e.clientX-startX,e.clientY-startY)>8){clearTimeout(holdTimer);holdTimer=null}
+  });
+  button.addEventListener("pointerup",e=>{
+    e.stopPropagation();
+    if(holdTimer){clearTimeout(holdTimer);holdTimer=null;toggleQuickCount(type,segmentIndex)}
+    else if(held){e.preventDefault();held=false}
+  });
+  ["pointercancel","pointerleave"].forEach(ev=>button.addEventListener(ev,e=>{
+    e.stopPropagation();if(holdTimer){clearTimeout(holdTimer);holdTimer=null}
+  }));
+  button.addEventListener("click",e=>{e.preventDefault();e.stopPropagation()});
 }
 function resetActiveCounter(){
   const quick=quickCountInfo();
@@ -457,7 +525,7 @@ window.addEventListener("blur",()=>{
   if(timer){clearTimeout(timer);timer=null}
   dragging=false;counterPointerActive=false;counterPointerId=null;counter.classList.remove("dragging");
 });
-$("#counterResetPopover").onclick=e=>{e.stopPropagation();resetActiveCounter()};
+$("#counterResetPopover").onclick=e=>{e.stopPropagation();const ctx=pendingSmallReset?{...pendingSmallReset}:null;if(ctx)resetSmallCounter(ctx);else resetActiveCounter()};
 document.addEventListener("pointerdown",e=>{if(counterResetShown&&!counter.contains(e.target)&&!$("#counterResetPopover").contains(e.target))hideCounterResetPopover()});
 function counterSafeTop(){let y=12;const globalHead=document.querySelector(".global-header");if(globalHead)y=Math.max(y,globalHead.getBoundingClientRect().bottom+12);if(state.currentView==="dua"&&state.settings.mode==="read"){const head=$("#readView .read-sticky-header");if(head&&!head.classList.contains("hidden"))y=Math.max(y,head.getBoundingClientRect().bottom+12)}return y}
 function counterSafeBottom(){let bottom=12;if(state.currentView==="dua"&&state.settings.mode!=="read"){const nav=document.querySelector(".navigation");if(nav&&!nav.classList.contains("hidden"))bottom=Math.max(bottom,innerHeight-nav.getBoundingClientRect().top+12)}return bottom}
