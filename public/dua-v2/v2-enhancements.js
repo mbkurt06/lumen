@@ -28,14 +28,20 @@
   }
 
   function audit(action, ctx, extra = {}) {
+    const segIndex=Number.isInteger(ctx?.segmentIndex)?ctx.segmentIndex:null;
+    const raw=segIndex!=null?dua?.segments?.[segIndex]:null;
+    const seg=typeof raw==="string"?{latin:raw}:raw;
     const event = {
       id: (crypto.randomUUID ? crypto.randomUUID() : "evt-" + Date.now() + "-" + Math.random().toString(36).slice(2)),
       at: new Date().toISOString(),
       action,
       counterType: ctx?.type || "unknown",
       duaId: dua?.id || null,
-      segmentIndex: Number.isInteger(ctx?.segmentIndex) ? ctx.segmentIndex : null,
+      duaTitle: dua?.title || null,
+      segmentIndex: segIndex,
+      contentLabel: ctx?.todo?.scopeLabel || seg?.latin || seg?.turkish || dua?.title || null,
       todoId: ctx?.todo?.id || ctx?.todoId || null,
+      todoTitle: ctx?.todo?.title || null,
       value: Number(ctx?.progress ?? 0),
       target: Number(ctx?.target ?? 0),
       ...extra
