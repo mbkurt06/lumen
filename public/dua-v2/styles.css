@@ -1963,3 +1963,120 @@ body.dark .dua-listening-panel.player-collapsed .dua-player-collapse-btn{
     margin:10px 0 14px;
   }
 }
+
+
+/* v74 — Dinleme ekranında ayarlanabilir video boyutu + MP3 mini player */
+.listening-player-toolbar{
+  width:min(900px,100%);
+  margin:8px auto 6px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+}
+.listening-size-control{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+.listening-size-control input{
+  width:150px;
+}
+.listening-player-shell{
+  width:min(var(--listening-player-width,65%),900px);
+  min-width:320px;
+  transition:width .18s ease,height .18s ease;
+}
+.listening-player-shell.is-compact{
+  width:min(620px,100%) !important;
+  min-width:0;
+  height:74px !important;
+  aspect-ratio:auto !important;
+  border-radius:16px;
+  background:var(--panel);
+}
+.listening-player-shell.is-compact #listeningPlayer,
+.listening-player-shell.is-compact iframe{
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  left:-10000px !important;
+  top:0 !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+.listening-player-shell.is-compact .listening-empty-player{
+  display:none !important;
+}
+.listening-mini-player{
+  display:none;
+}
+.listening-player-shell.is-compact .listening-mini-player{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:10px 12px;
+  background:var(--panel);
+  color:var(--text);
+}
+.listening-mini-toggle{
+  width:48px;
+  height:48px;
+  border:0;
+  border-radius:50%;
+  background:var(--accent);
+  color:#fff;
+  font-size:20px;
+  font-weight:900;
+}
+.listening-mini-info{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.listening-mini-info strong,
+.listening-mini-info small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.listening-mini-info strong{
+  font-size:14px;
+}
+.listening-mini-info small{
+  color:var(--muted);
+  font-size:11px;
+}
+.listening-mini-expand{
+  padding:8px 11px;
+  min-height:38px;
+}
+.listening-player-shell.is-compact + #listeningError{
+  margin-top:8px;
+}
+@media(max-width:680px){
+  .listening-player-toolbar{
+    width:100%;
+    justify-content:space-between;
+  }
+  .listening-size-control{
+    flex:1;
+  }
+  .listening-size-control input{
+    width:100%;
+    min-width:90px;
+  }
+  .listening-player-shell{
+    width:100% !important;
+    min-width:0;
+  }
+  .listening-player-shell.is-compact{
+    width:100% !important;
+  }
+}
