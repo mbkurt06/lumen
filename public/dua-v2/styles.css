@@ -1950,3 +1950,16 @@ body.dark .dua-listening-panel.player-collapsed .dua-player-collapse-btn{
     gap:7px;
   }
 }
+
+
+/* v73 — Dinleme videosu masaüstünde daha kompakt */
+.listening-player-shell{
+  width:min(900px,100%);
+  margin:10px auto 14px;
+}
+@media(max-width:680px){
+  .listening-player-shell{
+    width:100%;
+    margin:10px 0 14px;
+  }
+}
