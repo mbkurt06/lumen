@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Dua Ezber">
   <title>Dua Ezber</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=68">
+  <link rel="stylesheet" href="./styles.css?v=69">
 </head>
 <body>
   <main class="app">
@@ -369,14 +369,14 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=1"></script>
+  <script src="./cloud-sync.js?v=2"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=68";
+      script.src = "./app.js?v=69";
       script.onload = () => {
         const enhancements = document.createElement("script");
-        enhancements.src = "./v2-enhancements.js?v=1";
+        enhancements.src = "./v2-enhancements.js?v=10";
         document.body.appendChild(enhancements);
       };
       document.body.appendChild(script);
