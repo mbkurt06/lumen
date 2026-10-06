@@ -78,6 +78,46 @@
     if (Array.isArray(rows) && rows[0]?.payload) hydrate(rows[0].payload);
   }
 
+  async function loadNormalized() {
+    if (!auth) return;
+    const uid = encodeURIComponent(auth.user.id);
+    const safe = async path => {
+      try { return await request(path); }
+      catch (error) { console.warn("Dua V2 normalized load:", error); return null; }
+    };
+
+    const todoRows = await safe("dua_v2_todos?owner_id=eq." + uid + "&select=payload,updated_at");
+    if (Array.isArray(todoRows) && todoRows.length) {
+      const items = todoRows.map(r => r.payload).filter(Boolean);
+      if (items.length) localStorage.setItem("duaTodoState", JSON.stringify(items));
+    }
+
+    const videoRows = await safe("dua_v2_listening_videos?owner_id=eq." + uid + "&select=payload");
+    if (Array.isArray(videoRows) && videoRows.length) {
+      const items = videoRows.map(r => r.payload).filter(Boolean);
+      if (items.length) localStorage.setItem("ylp_saved_videos", JSON.stringify(items));
+    }
+
+    const sectionRows = await safe("dua_v2_listening_sections?owner_id=eq." + uid + "&select=payload");
+    if (Array.isArray(sectionRows) && sectionRows.length) {
+      const items = sectionRows.map(r => r.payload).filter(Boolean);
+      if (items.length) localStorage.setItem("ylp_presets", JSON.stringify(items));
+    }
+
+    const linkRows = await safe("dua_v2_listening_links?owner_id=eq." + uid + "&select=video_id,payload,dua_id,linked_at");
+    if (Array.isArray(linkRows) && linkRows.length) {
+      const links = {};
+      for (const r of linkRows) links[r.video_id] = r.payload && Object.keys(r.payload).length ? r.payload : { duaId:r.dua_id, linkedAt:r.linked_at };
+      localStorage.setItem("duaListeningLinks", JSON.stringify(links));
+    }
+
+    const historyRows = await safe("dua_v2_listening_history?owner_id=eq." + uid + "&select=payload,last_played_at&order=last_played_at.desc&limit=50");
+    if (Array.isArray(historyRows) && historyRows.length) {
+      const items = historyRows.map(r => r.payload).filter(Boolean);
+      if (items.length) localStorage.setItem("ylp_history", JSON.stringify(items));
+    }
+  }
+
   async function saveRemote() {
     if (!remoteReady || !auth) return;
     try {
@@ -259,6 +299,7 @@
   window.duaV2CloudReady = (async () => {
     try { await loadRemote(); }
     catch (error) { console.warn("Dua V2 cloud load:", error); }
+    await loadNormalized();
 
     const originalSetItem = localStorage.setItem.bind(localStorage);
     const originalRemoveItem = localStorage.removeItem.bind(localStorage);
