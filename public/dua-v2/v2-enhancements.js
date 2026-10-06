@@ -583,7 +583,7 @@
     completedVisibleTodoId=null;
     activeQuickCount=null;
     counterArmed=!!activeTodoId || !!normalTargetForSegment(index);
-    render();applyMode();updateBottomNav();
+    render();applyMode();window.scrollTo({top:0,behavior:"auto"});updateBottomNav();
   };
 
   $("#memorizeBackBtn").onclick=()=>{
@@ -603,7 +603,7 @@
     const list=visibleTodoCandidates("segment",index);
     activeTodoId=list.find(t=>!taskDone(t,todayKey()))?.id||null;activeCounterKind=activeTodoId?"todo":(normalTargetForSegment(index)?"normal":null);state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
     counterArmed=!!activeTodoId||!!normalTargetForSegment(index);
-    activeQuickCount=null;render();applyMode();updateBottomNav();
+    activeQuickCount=null;render();applyMode();window.scrollTo({top:0,behavior:"auto"});updateBottomNav();
   };
 
   $("#memorizeView")?.addEventListener("pointerdown",e=>{
@@ -651,7 +651,7 @@
     rememberReader();
     dua=d;state.duaId=d.id;activeTodoId=t.id;activeCounterKind="todo";state.activeTodoId=t.id;state.activeCounterKind="todo";completedVisibleTodoId=null;counterArmed=true;activeQuickCount=null;
     if(t.segmentIndex==null){index=0;state.settings.mode="read"}else{index=Math.max(0,Math.min(t.segmentIndex,d.segments.length-1));state.settings.mode="memorize"}
-    render();applyMode();updateBottomNav();
+    render();applyMode();if(t.segmentIndex!=null)window.scrollTo({top:0,behavior:"auto"});updateBottomNav();
   };
 
   function openTodoEditDialog(id) {
