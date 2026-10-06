@@ -486,6 +486,18 @@
     }, () => openCounterMenu(index,b));
   }
 
+  function openDocumentCounterMenu(anchorEl) {
+    const menu=ensureCounterMenu(), list=visibleTodoCandidates("dua",null), selected=selectedTodoFor("dua",null);
+    let html='<div class="v2-counter-menu-title">Todo seç</div>';
+    html+=list.map((t,n)=>'<button data-doc-todo="'+t.id+'" class="'+(selected?.id===t.id?"selected":"")+'">Todo '+(n+1)+'<span>'+Math.min(taskProgress(t,todayKey()),Number(t.target))+'/'+t.target+'</span></button>').join("");
+    html+='<div class="v2-counter-menu-actions"><button data-doc-reset="1">Sıfırla</button>'+(selected?'<button data-doc-edit="'+selected.id+'">Düzenle</button>':"")+'</div>';
+    menu.innerHTML=html;
+    menu.querySelectorAll("[data-doc-todo]").forEach(b=>b.onclick=()=>{completedVisibleTodoId=null;activeTodoId=b.dataset.docTodo;activeCounterKind="todo";state.activeTodoId=activeTodoId;state.activeCounterKind="todo";activeQuickCount=null;counterArmed=true;save();menu.classList.add("hidden");renderRead();updateCounterDisplay();});
+    menu.querySelector("[data-doc-reset]")?.addEventListener("click",()=>{if(selected)resetTodoExact(selected);menu.classList.add("hidden");renderRead();updateCounterDisplay();});
+    menu.querySelector("[data-doc-edit]")?.addEventListener("click",e=>{menu.classList.add("hidden");openTodoEditDialog(e.currentTarget.dataset.docEdit)});
+    placeMenu(menu,anchorEl);
+  }
+
   updateTodoProgressDisplay = function() {
     if (!dua) return;
     if (state.settings.mode !== "read") {
@@ -501,7 +513,7 @@
     host.innerHTML = '<button class="doc-todo-badge" type="button">'+t.target+'/'+p+(list.length>1?'<span class="todo-multi-count">'+list.length+'</span>':'')+'</button>';
     host.classList.remove("hidden");
     const b=host.querySelector("button");
-    bindPress(b,()=>{activeTodoId=t.id;state.activeTodoId=t.id;activeQuickCount=null;counterArmed=true;save();updateCounterDisplay();},()=>{resetTodoExact(t);renderRead();});
+    bindPress(b,()=>{activeTodoId=t.id;activeCounterKind="todo";state.activeTodoId=t.id;state.activeCounterKind="todo";activeQuickCount=null;counterArmed=true;save();updateCounterDisplay();},()=>openDocumentCounterMenu(b));
   };
 
   function rememberReader() {
@@ -609,7 +621,7 @@
 
     const card=t=>{
       const p=Math.min(taskProgress(t,k),Number(t.target)),ok=taskDone(t,k),completed=formatCompletedAt(t,k);
-      return '<article class="todo-card '+(ok?'done ':'')+(t.archivedAt?'archived':'')+'" data-todo-id="'+t.id+'"><button class="todo-open" data-open-todo="'+t.id+'"><div class="todo-check">'+(ok?'✓':'')+'</div><div class="todo-main"><div class="todo-card-date">'+escapeHtml(formatTodoDate(k,false))+'</div><strong>'+escapeHtml(t.title)+'</strong>'+(t.scopeLabel?'<small>'+escapeHtml(t.scopeLabel)+'</small>':'')+(t.description?'<p>'+escapeHtml(t.description)+'</p>':'')+'<div class="todo-progress"><button type="button" class="todo-count-pill" data-edit-todo="'+t.id+'">'+p+' / '+t.target+'</button><span>'+escapeHtml(scheduleLabel(t))+'</span></div>'+(completed?'<div class="todo-completed-at">✓ '+escapeHtml(completed)+'</div>':'')+'</div></button>'+(t.archivedAt?'':'<button class="todo-delete" data-archive-todo="'+t.id+'" aria-label="Todo arşivle">×</button>')+'</article>';
+      return '<article class="todo-card '+(ok?'done ':'')+(t.archivedAt?'archived':'')+'" data-todo-id="'+t.id+'"><button class="todo-open" data-open-todo="'+t.id+'"><div class="todo-check">'+(ok?'✓':'')+'</div><div class="todo-main"><div class="todo-card-date">'+escapeHtml(formatTodoDate(k,false))+'</div><strong>'+escapeHtml(t.title)+'</strong>'+(t.scopeLabel?'<small>'+escapeHtml(t.scopeLabel)+'</small>':'')+(t.description?'<p>'+escapeHtml(t.description)+'</p>':'')+'<div class="todo-progress"><span role="button" tabindex="0" class="todo-count-pill" data-edit-todo="'+t.id+'">'+p+' / '+t.target+'</span><span>'+escapeHtml(scheduleLabel(t))+'</span></div>'+(completed?'<div class="todo-completed-at">✓ '+escapeHtml(completed)+'</div>':'')+'</div></button>'+(t.archivedAt?'':'<button class="todo-delete" data-archive-todo="'+t.id+'" aria-label="Todo arşivle">×</button>')+'</article>';
     };
     $("#todoList").innerHTML=pending.length?pending.map(card).join(""):'<div class="todo-empty compact">Bu tarihte bekleyen görev yok.</div>';
     $("#todoCompletedList").innerHTML=done.map(card).join("");
@@ -672,6 +684,26 @@
     if(state.currentView==="todo")renderTodo();else if(state.currentView==="dua"&&state.settings.mode==="read")renderRead();else if(state.currentView==="dua")render();else if(state.currentView==="listening")renderListeningAll();
   };
 
+  function resetCurrentDuaSession() {
+    if(!dua)return;
+    const prefix="seg:"+dua.id+":";
+    for(const key of Object.keys(state.counterSessions||{})){
+      if(key===("dua:"+dua.id)||key.startsWith(prefix)) delete state.counterSessions[key];
+    }
+    state.readCounts[dua.id]=0;
+    for(let i=0;i<dua.segments.length;i++){
+      const storageKey=dua.id+":"+i;
+      if(Number(counts[storageKey]||0)!==0){
+        counts[storageKey]=0;
+        const raw=dua.segments[i],s=typeof raw==="string"?{latin:raw}:raw;
+        audit("reset",{type:"normal",segmentIndex:i,progress:0,target:Number(s?.target||0)},{scope:"dua-session"});
+      }
+    }
+    save();
+    if(state.settings.mode==="read")renderRead();else render();
+    updateCounterDisplay();updateTodoProgressDisplay();renderFullscreenTasbih();
+  }
+
   function ensureBottomNav() {
     if ($("#v2BottomNav")) return;
     const nav=document.createElement("nav");nav.id="v2BottomNav";nav.className="v2-bottom-nav";
@@ -691,6 +723,7 @@
     ensureBottomNav();
     $("#v2BottomTodo")?.classList.toggle("active",state.currentView==="todo");
     $("#v2BottomLibrary")?.classList.toggle("active",state.currentView==="dua"||state.currentView==="library");
+    $("#sessionResetBtn")?.classList.toggle("hidden",state.currentView!=="dua");
   }
 
   openTodo = function(){rememberReader();originalOpenTodo();updateBottomNav()};
@@ -737,6 +770,8 @@
   }
 
   if($("#resetBtn"))$("#resetBtn").onclick=resetActiveCounter;
+  if($("#sessionResetBtn"))$("#sessionResetBtn").onclick=resetCurrentDuaSession;
   ensureCounterMenu();ensureBottomNav();updateBottomNav();
+  if($("#sessionResetBtn"))$("#sessionResetBtn").classList.toggle("hidden",state.currentView!=="dua");
   requestAnimationFrame(()=>{updateCounterDisplay();updateTodoProgressDisplay();syncDuaCompactSettings();updateReadProgressFromScroll()});
 })();
