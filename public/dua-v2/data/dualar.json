@@ -198,6 +198,9 @@
           "latin": "Sübhânellâhi ve’l-hamdü lillâhi ve lâ ilâhe illallâhü vallâhü ekber ve lâ havle ve lâ kuvvete illâ billâhi’l-aliyyi’l-azîm."
         },
         {
+          "latin": "Bismillâhirrahmânirrahîm."
+        },
+        {
           "arabic": "اللّٰهُ لَا إِلٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
           "latin": "Allâhü lâ ilâhe illâ hüve’l-Hayyü’l-Kayyûm.",
           "turkish": "Allah, O’ndan başka ilâh olmayandır; diridir, her şeyi ayakta tutandır."
@@ -264,10 +267,8 @@
           "target": 33
         },
         {
-          "latin": "Lâ ilâhe illallâhü vahdehû lâ şerîke leh. Lehü’l-mülkü ve lehü’l-hamdü, yuhyî ve yumîtü ve hüve hayyün lâ yemût, bi-yedihi’l-hayru ve hüve alâ külli şey’in kadîrun ve ileyhi’l-masîr."
-        },
-        {
-          "latin": "Namaz duası yapılır."
+          "latin": "Lâ ilâhe illallâhü vahdehû lâ şerîke leh. Lehü’l-mülkü ve lehü’l-hamdü, yuhyî ve yumîtü ve hüve hayyün lâ yemût, bi-yedihi’l-hayru ve hüve alâ külli şey’in kadîrun ve ileyhi’l-masîr.",
+          "note": "Denilir ve namaz duası yapılır. Duâdan sonra tesbihata şöyle devam edilir:"
         },
         {
           "latin": "Fa‘lem ennehû."
