@@ -12,6 +12,8 @@
     "listeningPlayerScale",
     "listeningPlayerCompact",
     "tasbihFullscreenTitleSize",
+    "duaHomeMenuOrder",
+    "duaLibraryOrders",
     "ylp_saved_videos",
     "ylp_presets",
     "ylp_history",
