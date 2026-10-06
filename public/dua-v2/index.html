@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Dua Ezber">
   <title>Dua Ezber</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=73">
+  <link rel="stylesheet" href="./styles.css?v=74">
 </head>
 <body>
   <main class="app">
@@ -171,9 +171,24 @@
         <button id="listeningEditTab">Düzenle</button>
       </nav>
 
-      <section class="listening-player-shell">
+      <div class="listening-player-toolbar">
+        <label class="listening-size-control">Video boyutu
+          <input id="listeningPlayerSize" type="range" min="35" max="100" step="5" value="65" aria-label="Video alanı boyutu">
+        </label>
+        <button id="listeningCompactToggle" class="back-btn" type="button">🎧 MP3 çalar</button>
+      </div>
+
+      <section id="listeningPlayerShell" class="listening-player-shell">
         <div id="listeningPlayer"></div>
         <div id="listeningEmptyPlayer" class="listening-empty-player"><strong>Bir video seç</strong><span>Kayıtlı videolardan seçim yap veya Düzenle bölümünden YouTube bağlantısı ekle.</span></div>
+        <div id="listeningMiniPlayer" class="listening-mini-player" aria-label="Küçük dinleme oynatıcısı">
+          <button id="listeningMiniToggle" class="listening-mini-toggle" type="button" aria-label="Oynat">▶</button>
+          <div class="listening-mini-info">
+            <strong id="listeningMiniTitle">Bir video seç</strong>
+            <small id="listeningMiniStatus">Hazır</small>
+          </div>
+          <button id="listeningMiniExpand" class="back-btn listening-mini-expand" type="button">Video</button>
+        </div>
       </section>
       <p id="listeningError" class="error hidden"></p>
 
@@ -368,11 +383,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=72"></script>
+  <script src="./cloud-sync.js?v=74"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=72";
+      script.src = "./app.js?v=74";
       document.body.appendChild(script);
     });
   </script>
