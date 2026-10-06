@@ -2338,3 +2338,51 @@ html.dark body{
     font-size:12px !important;
   }
 }
+
+
+/* v82 — tam ekran tesbihte uzun metnin tamamını görünür tut */
+.tasbih-fullscreen-center{
+  box-sizing:border-box;
+  width:100%;
+  max-height:100dvh;
+  overflow:hidden;
+}
+.tasbih-fullscreen-title{
+  width:min(94vw,1200px);
+  max-width:min(94vw,1200px) !important;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  word-break:normal;
+  overflow-wrap:break-word;
+  hyphens:auto;
+}
+.tasbih-fullscreen.long-title .tasbih-fullscreen-count{
+  font-size:clamp(64px,14vw,120px);
+}
+.tasbih-fullscreen.very-long-title .tasbih-fullscreen-count{
+  font-size:clamp(52px,11vw,92px);
+}
+.tasbih-fullscreen.very-long-title .tasbih-fullscreen-hint{
+  margin-top:14px;
+}
+@media(max-width:520px){
+  .tasbih-fullscreen-center{
+    padding:76px 14px 76px;
+  }
+  .tasbih-fullscreen-title{
+    width:94vw;
+    max-width:94vw !important;
+    line-height:1.2;
+    margin-bottom:18px;
+  }
+  .tasbih-fullscreen.long-title .tasbih-fullscreen-count{
+    font-size:clamp(56px,18vw,88px);
+  }
+  .tasbih-fullscreen.very-long-title .tasbih-fullscreen-count{
+    font-size:clamp(46px,15vw,72px);
+  }
+  .tasbih-fullscreen-hint{
+    margin-top:18px;
+  }
+}
