@@ -2176,3 +2176,28 @@ body.dark .counter-reset-popover:hover{
     font-size:12px !important;
   }
 }
+
+
+/* v76b — Esmâ tek detay görünümü */
+.memorize.esma-detail .title{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(34px,6vw,64px);
+  line-height:1.2;
+  color:var(--text);
+  font-weight:700;
+  margin:0 90px 8px;
+}
+.memorize.esma-detail .invocation,
+.memorize.esma-detail .segment{
+  display:none !important;
+}
+.memorize.esma-detail .arabic{
+  margin-top:4px;
+}
+@media(max-width:520px){
+  .memorize.esma-detail .title{
+    font-size:clamp(30px,10vw,48px);
+    margin-left:70px;
+    margin-right:70px;
+  }
+}
