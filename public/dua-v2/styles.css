@@ -2386,3 +2386,22 @@ html.dark body{
     margin-top:18px;
   }
 }
+
+
+/* v83 — Kur’an veri kaynağı notu */
+.quran-source-note{
+  margin:18px 8px 8px;
+  padding:12px 4px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+  text-align:center;
+}
+.quran-source-note a{
+  color:var(--accent);
+  text-decoration:none;
+}
+.quran-source-note a:hover{
+  text-decoration:underline;
+}
