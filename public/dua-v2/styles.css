@@ -2270,3 +2270,71 @@ body.dark .counter-reset-popover{
     left:14px !important;
   }
 }
+
+
+/* v81 — koyu tema ilk boyama, Todo satırı ve sürüklenebilir menü geri bildirimi */
+html.dark{
+  background:#151714;
+  color-scheme:dark;
+}
+html.dark body{
+  background:#151714;
+  color:#f2efe7;
+}
+.memorize-todo-row{
+  width:min(100%,760px);
+  display:flex;
+  justify-content:flex-start;
+  align-items:center;
+  margin-top:8px;
+}
+.memorize-add-todo{
+  position:static !important;
+  inset:auto !important;
+  width:auto !important;
+  min-width:0 !important;
+  margin:0 !important;
+  padding:8px 12px !important;
+  border-radius:999px !important;
+  font-size:13px !important;
+}
+.home-card.reorder-dragging,
+.library-card.reorder-dragging{
+  opacity:.72;
+  transform:scale(.99);
+  background:color-mix(in srgb,var(--accent) 10%,transparent);
+}
+.home-card.reorder-ready,
+.library-card.reorder-ready{
+  outline:2px solid var(--accent);
+  outline-offset:-2px;
+}
+.home-card,
+.library-card{
+  touch-action:manipulation;
+}
+.library-subheading{
+  margin:22px 8px 6px;
+  padding-top:14px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.library-card.surah-placeholder{
+  opacity:.58;
+}
+.library-card.surah-placeholder strong{
+  font-weight:600;
+}
+@media(max-width:520px){
+  .memorize-todo-row{
+    width:100%;
+  }
+  .memorize-add-todo{
+    padding:7px 10px !important;
+    font-size:12px !important;
+  }
+}
