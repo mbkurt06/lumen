@@ -533,7 +533,10 @@
       index,
       mode: state.settings.mode,
       scrollTop: state.settings.mode==="read" ? Number(window.scrollY||document.documentElement.scrollTop||0) : Number(state.lastReader?.scrollTop || 0),
-      visibleSegment: Number(state.lastVisibleSegment || index || 0)
+      visibleSegment: Number(state.lastVisibleSegment || index || 0),
+      activeTodoId: activeTodoId || null,
+      activeCounterKind: activeCounterKind || null,
+      quickCount: activeQuickCount ? {...activeQuickCount} : null
     };
     save();
   }
@@ -545,7 +548,12 @@
     if (!d) { originalOpenHome(); updateBottomNav(); return; }
     dua=d; state.duaId=d.id; index=Math.max(0,Math.min(Number(last.index||0),d.segments.length-1));
     state.settings.mode=last.mode==="memorize"?"memorize":"read";
-    activeTodoId=null; activeCounterKind=null; completedVisibleTodoId=null; activeQuickCount=null; counterArmed=true;
+    activeTodoId=last.activeTodoId||null;activeCounterKind=last.activeCounterKind||null;completedVisibleTodoId=null;activeQuickCount=last.quickCount?{...last.quickCount}:null;counterArmed=true;
+    if(activeTodoId){
+      const t=todos.find(x=>x.id===activeTodoId);
+      if(!t||t.archivedAt||taskDone(t,todayKey())){activeTodoId=null;state.activeTodoId=null;if(activeCounterKind==="todo")activeCounterKind=null}
+    }
+    state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
     render(); applyMode();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       if(state.settings.mode==="read") window.scrollTo({top:Number(last.scrollTop||0),behavior:"auto"});
@@ -721,7 +729,7 @@
   function leaveCounterScreen() {
     if(completedVisibleTodoId){
       const t=todos.find(x=>x.id===completedVisibleTodoId);
-      if(t&&taskDone(t,todayKey())){activeTodoId=null;state.activeTodoId=null;activeCounterKind=null;state.activeCounterKind=null}
+      if(t&&taskDone(t,todayKey())){activeTodoId=null;state.activeTodoId=null;activeCounterKind=null;state.activeCounterKind=null;if(state.lastReader){state.lastReader.activeTodoId=null;state.lastReader.activeCounterKind=null;state.lastReader.quickCount=null}}
     }
     completedVisibleTodoId=null;
     activeQuickCount=null;
