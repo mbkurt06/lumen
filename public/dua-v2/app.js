@@ -439,7 +439,36 @@ function openDua(d){closeFullscreenTasbih();clearQuickCount();dua=d;index=0;stat
 function updateDuaPager(){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id);$("#duaPrevBtn").disabled=i<=0;$("#duaNextBtn").disabled=i<0||i>=items.length-1}
 function moveDua(step){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id),n=i+step;if(i>=0&&n>=0&&n<items.length)openDua(items[n])}
 $("#duaPrevBtn").onclick=()=>moveDua(-1);$("#duaNextBtn").onclick=()=>moveDua(1);
-document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategory(b.dataset.category));function openCategory(cat){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="library";$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryPageTitle").textContent=cat;const list=$("#libraryPageList");list.innerHTML="";data.duas.filter(d=>d.category===cat).sort((x,y)=>cat==="Sûreler"?(x.surahNo||999)-(y.surahNo||999):0).forEach(d=>{const b=document.createElement("button");b.className="library-card";b.innerHTML="<strong>"+(d.surahNo?d.surahNo+". ":"")+escapeHtml(d.title)+"</strong><span>"+(d.target?d.target+" tekrar":d.segments.length+" bölüm")+"</span>";b.onclick=()=>openDua(d);list.appendChild(b)});save()}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeBackBtn").onclick=()=>{
+document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategory(b.dataset.category));function openCategory(cat){
+  hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();
+  state.currentView="library";$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");
+  state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");
+  $(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryPageTitle").textContent=cat;
+  const list=$("#libraryPageList");list.innerHTML="";
+  const appendCard=(d,label,meta,extraClass="")=>{
+    const b=document.createElement("button");b.className=("library-card "+extraClass).trim();
+    if(d)b.dataset.duaId=d.id;
+    b.innerHTML="<strong>"+escapeHtml(label)+"</strong><span>"+escapeHtml(meta)+"</span>";
+    if(d)b.onclick=()=>openDua(d);else b.disabled=true;
+    list.appendChild(b);return b
+  };
+  if(cat==="Sûreler"){
+    const catalog=Array.isArray(data.surahCatalog)?data.surahCatalog:[];
+    for(const row of catalog){
+      const d=data.duas.find(x=>x.category==="Sûreler"&&x.surahNo===row.surahNo&&!SURAH_EXTRA_IDS.has(x.id));
+      appendCard(d,row.surahNo+". "+row.name,d?(d.segments.length+" bölüm"):"Metin eklenecek",d?"":"surah-placeholder")
+    }
+    const extras=data.duas.filter(d=>d.category==="Sûreler"&&SURAH_EXTRA_IDS.has(d.id)).sort((x,y)=>(x.surahNo||999)-(y.surahNo||999));
+    if(extras.length){
+      const head=document.createElement("div");head.className="library-subheading";head.textContent="Ek okumalar";list.appendChild(head);
+      extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm"))
+    }
+  }else{
+    categoryItems(cat).forEach(d=>appendCard(d,d.title,d.target?d.target+" tekrar":d.segments.length+" bölüm"));
+    bindLongPressReorder(list,'.library-card[data-dua-id]',()=>saveLibraryOrder(cat,list))
+  }
+  save()
+}$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeBackBtn").onclick=()=>{
   if(isEsmaNameDua()){openCategory("Esmâü’l-Hüsnâ");return}
   const ret=state.readerReturn&&state.readerReturn.duaId===dua.id?{...state.readerReturn}:null;
   state.settings.mode="read";
