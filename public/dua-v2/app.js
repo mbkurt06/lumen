@@ -347,6 +347,7 @@ function toggleTextMode(key){const on=["showArabic","showLatin","showTurkish"].f
 $("#arabicToggle").onclick=()=>toggleTextMode("showArabic");
 $("#latinToggle").onclick=()=>toggleTextMode("showLatin");
 $("#turkishToggle").onclick=()=>toggleTextMode("showTurkish");
+$("#notesToggle").onclick=()=>{state.settings.showNotes=!state.settings.showNotes;applySettings();render();renderRead();save()};
 $("#fontDown").onclick=()=>setFont(state.settings.fontSize-3);$("#fontUp").onclick=()=>setFont(state.settings.fontSize+3);$("#fontReset").onclick=()=>setFont(32);
 function setFont(n){state.settings.fontSize=Math.max(20,Math.min(52,n));applySettings();save()}
 const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false;
