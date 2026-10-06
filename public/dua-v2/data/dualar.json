@@ -1129,8 +1129,7 @@
           "latin": "Bismillâhirrahmânirrahîm."
         },
         {
-          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk.",
-          "note": "Tesbihâtın burasında Peygamberimize (a.s.m.) şöyle salât ve selâm edilir:"
+          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk."
         },
         {
           "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîrâ.",
@@ -1271,14 +1270,15 @@
         },
         {
           "latin": "Sübhâneke âhiyyen şerâhiyyen teâleyte lâ ilâhe illâ ente ecirnâ ve ecir Üstâzenâ Saîde’n-Nursî radıyallâhu anh ve vâlideynâ ve ihvânenâ ve ehavâtinâ ve talebete Resâili’n-Nûri ve rufekâenâ ve ahbâbene’l-mü’minîne’l-muhlisîne mine’n-nâr.",
-          "note": "Avuçlar yukarı gelecek şekilde eller kaldırılır; bu cümlenin sonunda avuç içleri yere çevrilir."
+          "note": "Avuçlar yukarı gelecek şekilde eller kaldırılır:"
         },
         {
           "latin": "Ve min-külli nâr vahfeznâ min-şerri’n-nefsi ve’ş-şeytân ve min-şerri’l-cinni ve’l-insân ve min-şerri’l-bid‘ati ve’d-dalâlâti ve’l-ilhâdi ve’t-tuğyân.",
-          "note": "Bu bölümün sonunda avuç içleri tekrar yukarı çevrilir."
+          "note": "Avuç içleri yere bakacak şekilde çevrilir."
         },
         {
-          "latin": "Bi-afvike yâ Mücîr, bi-fadlike yâ Gaffâr bi-rahmetike yâ Erhame’r-râhimîn."
+          "latin": "Bi-afvike yâ Mücîr, bi-fadlike yâ Gaffâr bi-rahmetike yâ Erhame’r-râhimîn.",
+          "note": "Avuç içleri tekrar yukarıya bakacak şekilde getirilir."
         },
         {
           "latin": "Allâhümme’d-hılne’l-Cennete me‘a’l-ebrâr, bi-şefâati nebiyyike’l-muhtâr. Âmîn, ve’l-hamdü lillâhi Rabbi’l-âlemîn."
@@ -1669,10 +1669,8 @@
           "note": "Bundan sonra avuç içleri yukarı çevrilir."
         },
         {
-          "latin": "Allâhümme’d-hılne’l-Cennete me‘a’l-ebrâr."
-        },
-        {
-          "latin": "Allâhümme’d-hılne’l-Cennete me‘a’l-ebrâr."
+          "latin": "Allâhümme’d-hılne’l-Cennete me‘a’l-ebrâr.",
+          "target": 2
         },
         {
           "latin": "Allâhümme’d-hılnâ ve edhıl Üstâzenâ Saîde’n-Nursî radıyallâhu anh ve vâlideynâ ve talebete Resâili’n-Nûri’s-sâdıkîne ve ihvânenâ ve ehavâtinâ ve akrabâenâ ve ecdâdenâ ve ahbâbene’l-mü’minîne’l-muhlisîne fî-hidmeti’l-îmâni ve’l-Kur’ân."
@@ -1776,8 +1774,7 @@
           "latin": "Bismillâhirrahmânirrahîm."
         },
         {
-          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk.",
-          "note": "Tesbihâtın burasında Peygamberimize (a.s.m.) şöyle salât ve selâm edilir:"
+          "latin": "İnnallâhe ve melâiketehû yusallûne ale’n-nebiyy. Yâ eyyühellezîne âmenû sallû aleyhi ve sellimû teslîmâ. Lebbeyk."
         },
         {
           "latin": "Allâhümme salli alâ seyyidinâ Muhammedin ve alâ âli seyyidinâ Muhammed. Bi-adedi külli dâin ve devâin ve bârik ve sellim aleyhi ve aleyhim kesîrâ.",
