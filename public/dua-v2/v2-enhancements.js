@@ -231,9 +231,9 @@
       }
       const docTodo = selectedTodoFor("dua", null, k);
       if (docTodo) return { type: "todo", todo: docTodo, todoId: docTodo.id, segmentIndex: null, target: Number(docTodo.target), progress: Math.min(taskProgress(docTodo,k), Number(docTodo.target)), done: taskDone(docTodo,k) };
-      const target = Number(dua.target || 0);
+      const target = Number(dua.target || 0) > 1 ? Number(dua.target) : 0;
       const progress = readNormalCount();
-      return { type: target > 1 ? "normal" : "none", segmentIndex: null, target: target > 1 ? target : 0, progress, done: target > 1 && progress >= target };
+      return { type: "normal", segmentIndex: null, target, progress, done: target > 0 && progress >= target };
     }
     if (activeCounterKind !== "normal") {
       const t = selectedTodoFor("segment", index, k);
@@ -241,7 +241,7 @@
     }
     const target = normalTargetForSegment(index);
     const progress = segmentNormalCount(index);
-    return { type: target ? "normal" : "none", segmentIndex: index, target, progress, done: !!target && progress >= target };
+    return { type: "normal", segmentIndex: index, target, progress, done: !!target && progress >= target };
   }
 
   counterContextInfo = function() {
@@ -584,11 +584,11 @@
     const list=visibleTodoCandidates("segment",index);
     const keep=activeTodoId&&list.find(t=>t.id===activeTodoId);
     activeTodoId=keep?.id || list.find(t=>!taskDone(t,todayKey()))?.id || null;
-    activeCounterKind=activeTodoId?"todo":(normalTargetForSegment(index)?"normal":null);
+    activeCounterKind=activeTodoId?"todo":"normal";
     state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
     completedVisibleTodoId=null;
     activeQuickCount=null;
-    counterArmed=!!activeTodoId || !!normalTargetForSegment(index);
+    counterArmed=true;
     render();applyMode();window.scrollTo({top:0,behavior:"auto"});updateBottomNav();
   };
 
@@ -607,8 +607,8 @@
     index=Math.max(0,Math.min(Number(state.lastVisibleSegment||0),dua.segments.length-1));
     state.settings.mode="memorize";
     const list=visibleTodoCandidates("segment",index);
-    activeTodoId=list.find(t=>!taskDone(t,todayKey()))?.id||null;activeCounterKind=activeTodoId?"todo":(normalTargetForSegment(index)?"normal":null);state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
-    counterArmed=!!activeTodoId||!!normalTargetForSegment(index);
+    activeTodoId=list.find(t=>!taskDone(t,todayKey()))?.id||null;activeCounterKind=activeTodoId?"todo":"normal";state.activeTodoId=activeTodoId;state.activeCounterKind=activeCounterKind;
+    counterArmed=true;
     activeQuickCount=null;render();applyMode();window.scrollTo({top:0,behavior:"auto"});updateBottomNav();
   };
 
