@@ -7,6 +7,7 @@ import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
+import { RisaleBookView } from "@/components/RisaleBookView";
 import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
@@ -1261,6 +1262,12 @@ export function ReaderView({
             ))}
           </div>
         </div>
+      ) : isRisaleDocument ? (
+        <RisaleBookView
+          title={item.title}
+          bookTitle={String(itemMeta.book_title || "")}
+          nodes={nodes}
+        />
       ) : (
       <div className="legacyReadContent">
         {nodes.map((node, index) => {
@@ -1350,7 +1357,7 @@ export function ReaderView({
       </div>
       )}
 
-      {!isQuranDocument && (
+      {!isQuranDocument && !isRisaleDocument && (
         <nav className="contentPager">
           <button className="secondary" disabled={!hasPreviousItem} onClick={() => leaveDocument(onPreviousItem)}>‹ Önceki</button>
           <button className="secondary" disabled={!hasNextItem} onClick={() => leaveDocument(onNextItem)}>Sonraki ›</button>
