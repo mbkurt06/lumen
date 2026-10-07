@@ -1642,3 +1642,23 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
   pointer-events:auto;
   clip-path:none;
 }
+
+
+/* v0.4.0 — native React Ezber is preloaded inside Library */
+.nativeEzberMount.preloaded{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  overflow:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+  clip-path:inset(50%)!important;
+}
+.nativeEzberMount.active{
+  position:relative;
+  width:100%;
+  height:auto;
+  opacity:1;
+  pointer-events:auto;
+  clip-path:none;
+}
