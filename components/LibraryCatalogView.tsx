@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import type { EzberItem } from "@/components/EzberHomeView";
 
@@ -55,20 +56,27 @@ export function LibraryCatalogView({
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
 
   const loadChildren = useCallback(async (parentId: string) => {
+    const cached = await getCachedLibraryChildren(parentId).catch(() => []);
+    if (cached.length) return cached as CatalogItem[];
+
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at,updated_at")
       .eq("parent_id", parentId)
       .order("sort_order")
       .order("title");
     if (error) throw error;
+    if (data?.length) void putStaticRows("library_items",data).catch(() => {});
     return (data ?? []) as CatalogItem[];
   }, []);
 
   const loadRoot = useCallback(async () => {
+    const cachedRoot = await getCachedLibraryRoot(source).catch(() => null);
+    if (cachedRoot) return cachedRoot as CatalogItem;
+
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at,updated_at")
       .contains("metadata", { source, entity: "root" })
       .eq("metadata->>fully_seeded", "true")
       .order("created_at", { ascending: false })
@@ -76,6 +84,7 @@ export function LibraryCatalogView({
 
     if (error) throw error;
     const found = data?.[0] ?? null;
+    if (found) void putStaticRows("library_items",[found]).catch(() => {});
     if (!found) {
       throw new Error(
         section === "quran"
