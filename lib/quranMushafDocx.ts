@@ -2,7 +2,6 @@
 
 import JSZip from "jszip";
 import { supabase } from "@/lib/supabase/client";
-import quranTranslit from "@/data/quran-translit-tr.json";
 import { getCachedQuranMushafPage, putStaticRows } from "@/lib/localContentDb";
 
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -361,11 +360,6 @@ type VerseRecord = {
   nodeId:string;
 };
 
-function transcriptionFor(surahNo:number,ayahNo:number){
-  const corpus=quranTranslit as Record<string,Record<string,string>>;
-  return String(corpus[String(surahNo)]?.[String(ayahNo)] || "").trim();
-}
-
 
 const TEST_ROOT_ID = "7e100000-0000-4000-8000-000000000001";
 const TEST_FATIHA_ID = "7e100000-0000-4000-8000-000000000002";
@@ -416,7 +410,457 @@ function firstJuzLogicalPages(pages: MutablePage[]) {
   return logical;
 }
 
-function fullLogicalPages(pages:MutablePage[]) {
+function fullLogicalPages(pages: MutablePage[]) {
+  if (pages.length !== 604) {
+    throw new Error(`Tam Mushaf için 604 Word sayfası bekleniyordu; ${pages.length} bulundu.`);
+  }
+
+  const first = pages[0];
+  const baqaraStart = first.paragraphs.findIndex(paragraph =>
+    paragraph.style === "mshfSureBal" && /﴿2﴾/.test(paragraphText(paragraph))
+  );
+  if (baqaraStart < 0) {
+    throw new Error("İlk Word sayfasında Fâtiha/Bakara ayrımı bulunamadı.");
+  }
+
+  const makePage = (
+    wordPage:number,
+    displayPage:number,
+    originalWordPage:number,
+    paragraphs: MutablePage["paragraphs"],
+  ): MutablePage & {displayPage:number;originalWordPage:number} => {
+    const surahNumbers = new Set<number>();
+    let juz:number|null = null;
+    for (const paragraph of paragraphs) {
+      for (const run of paragraph.runs) {
+        if (run.surahNo) surahNumbers.add(run.surahNo);
+        if (!juz && run.surahNo && run.ayahNo) juz = juzFor(run.surahNo,run.ayahNo);
+      }
+    }
+    return {wordPage,displayPage,originalWordPage,paragraphs,surahNumbers,juz};
+  };
+
+  const logical:Array<MutablePage & {displayPage:number;originalWordPage:number}> = [
+    makePage(1,0,1,first.paragraphs.slice(0,baqaraStart)),
+    makePage(2,1,1,first.paragraphs.slice(baqaraStart)),
+  ];
+
+  for (const page of pages.slice(1)) {
+    logical.push(
+      makePage(
+        page.wordPage + 1,
+        page.wordPage,
+        page.wordPage,
+        page.paragraphs,
+      )
+    );
+  }
+
+  return logical;
+}
+
+
+async function rebuildFirstJuzCatalog(
+  ownerId:string,
+  pages:MutablePage[],
+) {
+  const verses = new Map<string,VerseRecord>();
+
+  for (const page of pages) {
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        if (juzFor(run.surahNo,run.ayahNo) !== 1) continue;
+        const key = `${run.surahNo}:${run.ayahNo}`;
+        const logicalPage = run.surahNo === 1 ? 1 : (page.wordPage === 1 ? 2 : page.wordPage + 1);
+        const existing = verses.get(key);
+        if (!existing) {
+          verses.set(key,{
+            surahNo:run.surahNo,
+            ayahNo:run.ayahNo,
+            page:logicalPage,
+            juz:1,
+            text:run.marker ? "" : run.text,
+            nodeId:safeRandomUUID(),
+          });
+        } else if (!run.marker) {
+          existing.text += run.text;
+          existing.page = Math.min(existing.page,logicalPage);
+        }
+      }
+    }
+  }
+
+  if (verses.size !== 148) {
+    throw new Error(`İlk cüz için beklenen 148 ayet yerine ${verses.size} ayet çıkarıldı.`);
+  }
+  const fatihaVerses = Array.from(verses.values()).filter(v=>v.surahNo===1);
+  const baqaraVerses = Array.from(verses.values()).filter(v=>v.surahNo===2);
+  if (fatihaVerses.length !== 7 || baqaraVerses.length !== 141) {
+    throw new Error(`İlk cüz ayet dağılımı beklenenden farklı: Fâtiha ${fatihaVerses.length}, Bakara ${baqaraVerses.length}.`);
+  }
+
+  const rows = [
+    {
+      id:TEST_ROOT_ID,owner_id:ownerId,parent_id:null,kind:"folder",title:"Kur’an-ı Kerim",
+      subtitle:"İlk cüz · Word birebir test",sort_order:0,
+      metadata:{source:"quran_v1",entity:"root",fully_seeded:true,arabic_source:SOURCE_KEY,test_first_juz:true}
+    },
+    {
+      id:TEST_FATIHA_ID,owner_id:ownerId,parent_id:TEST_ROOT_ID,kind:"document",title:"Fâtiha",
+      subtitle:"0. sayfa",sort_order:1,
+      metadata:{source:"quran_seeded",catalog_source:"quran_v1",arabic_source:SOURCE_KEY,surah_no:1,start_page:1,end_page:1,start_juz:1,end_juz:1,fully_seeded:true,test_first_juz:true}
+    },
+    {
+      id:TEST_BAQARA_ID,owner_id:ownerId,parent_id:TEST_ROOT_ID,kind:"document",title:"Bakara",
+      subtitle:"1–20. sayfalar",sort_order:2,
+      metadata:{source:"quran_seeded",catalog_source:"quran_v1",arabic_source:SOURCE_KEY,surah_no:2,start_page:2,end_page:21,start_juz:1,end_juz:1,fully_seeded:true,test_first_juz:true}
+    },
+    {
+      id:TEST_JUZ1_ID,owner_id:ownerId,parent_id:TEST_ROOT_ID,kind:"document",title:"1. Cüz",
+      subtitle:"0–20. sayfalar",sort_order:1001,
+      metadata:{source:"quran_juz_view",catalog_source:"quran_v1",arabic_source:SOURCE_KEY,juz_no:1,start_surah:1,start_ayah:1,start_page:1,end_page:21,fully_seeded:true,test_first_juz:true}
+    }
+  ];
+  const {error:itemError}=await supabase.from("library_items").upsert(rows,{onConflict:"id"});
+  if (itemError) throw itemError;
+
+  await supabase.from("content_nodes").delete().in("document_id",[TEST_FATIHA_ID,TEST_BAQARA_ID]);
+
+  const nodeRows = Array.from(verses.values())
+    .sort((a,b)=>a.surahNo-b.surahNo||a.ayahNo-b.ayahNo)
+    .map(v=>({
+      id:v.nodeId,owner_id:ownerId,
+      document_id:v.surahNo===1?TEST_FATIHA_ID:TEST_BAQARA_ID,
+      parent_id:null,kind:"verse",sort_order:v.ayahNo,title:`${v.surahNo}:${v.ayahNo}`,
+      text_content:null,secondary_text:v.text,translation:null,
+      metadata:{
+        source:"quran_seeded",arabic_source:SOURCE_KEY,surah_no:v.surahNo,ayah_no:v.ayahNo,
+        page:v.page,juz:1,surah_title:v.surahNo===1?"Fâtiha":"Bakara",
+        page_scheme:"first-juz-docx-test",test_first_juz:true
+      }
+    }));
+  const {error:nodeError}=await supabase.from("content_nodes").insert(nodeRows);
+  if (nodeError) throw nodeError;
+
+  for (const page of pages.slice(0,20)) {
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        const verse=verses.get(`${run.surahNo}:${run.ayahNo}`);
+        if (verse) run.nodeId=verse.nodeId;
+      }
+    }
+  }
+
+  return verses;
+}
+
+async function rebuildQuranFromWord(
+  ownerId:string,
+  pages:MutablePage[],
+  savedTodos:Array<{id:string;notes:string|null}>,
+  savedPreferences:Record<string,any>
+) {
+  const verseMap = new Map<string,VerseRecord>();
+
+  for (const page of pages) {
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        const key = `${run.surahNo}:${run.ayahNo}`;
+        const existing = verseMap.get(key);
+        if (!existing) {
+          verseMap.set(key,{
+            surahNo:run.surahNo,
+            ayahNo:run.ayahNo,
+            page:page.wordPage,
+            juz:juzFor(run.surahNo,run.ayahNo),
+            text:run.marker ? "" : run.text,
+            nodeId:safeRandomUUID(),
+          });
+        } else if (!run.marker) {
+          existing.text += run.text;
+          if (page.wordPage < existing.page) existing.page = page.wordPage;
+        }
+      }
+    }
+  }
+
+  if (verseMap.size !== 6236) {
+    throw new Error(`Word belgesinden 6236 yerine ${verseMap.size} tekil ayet çıkarıldı.`);
+  }
+
+  const rootId = safeRandomUUID();
+  const surahIds = new Map<number,string>();
+  for (let s=1;s<=114;s+=1) surahIds.set(s,safeRandomUUID());
+
+  const verses = Array.from(verseMap.values()).sort((a,b)=>a.surahNo-b.surahNo||a.ayahNo-b.ayahNo);
+  const ranges = new Map<number,{startPage:number;endPage:number;startJuz:number;endJuz:number}>();
+  for (const verse of verses) {
+    const current = ranges.get(verse.surahNo);
+    if (!current) ranges.set(verse.surahNo,{startPage:verse.page,endPage:verse.page,startJuz:verse.juz,endJuz:verse.juz});
+    else {
+      current.startPage=Math.min(current.startPage,verse.page);
+      current.endPage=Math.max(current.endPage,verse.page);
+      current.startJuz=Math.min(current.startJuz,verse.juz);
+      current.endJuz=Math.max(current.endJuz,verse.juz);
+    }
+  }
+
+  const rootRow = {
+    id:rootId, owner_id:ownerId, parent_id:null, kind:"folder", title:"Kur’an-ı Kerim",
+    subtitle:"İstanbul Mushafı · Word kaynağı", sort_order:0,
+    metadata:{source:"quran_v1",entity:"root",fully_seeded:true,arabic_source:"istanbul_mushaf_docx"}
+  };
+
+  const surahRows = Array.from({length:114},(_,i)=>{
+    const surahNo=i+1;
+    const range=ranges.get(surahNo)!;
+    return {
+      id:surahIds.get(surahNo)!, owner_id:ownerId, parent_id:rootId, kind:"document",
+      title:SURAH_TITLES[i], subtitle:`${range.startPage-1}–${range.endPage-1}. sayfalar`, sort_order:surahNo,
+      metadata:{
+        source:"quran_seeded",catalog_source:"quran_v1",arabic_source:"istanbul_mushaf_docx",
+        surah_no:surahNo,start_page:range.startPage,end_page:range.endPage,
+        start_juz:range.startJuz,end_juz:range.endJuz,fully_seeded:true,page_scheme:"istanbul-docx-604"
+      }
+    };
+  });
+
+  const juzRows = Array.from({length:30},(_,i)=>{
+    const juzNo=i+1;
+    const inJuz=verses.filter(v=>v.juz===juzNo);
+    const startPage=Math.min(...inJuz.map(v=>v.page));
+    const endPage=Math.max(...inJuz.map(v=>v.page));
+    const first=inJuz[0];
+    return {
+      id:safeRandomUUID(),owner_id:ownerId,parent_id:rootId,kind:"document",title:`${juzNo}. Cüz`,
+      subtitle:`${startPage-1}–${endPage-1}. sayfalar`,sort_order:1000+juzNo,
+      metadata:{
+        source:"quran_juz_view",catalog_source:"quran_v1",arabic_source:"istanbul_mushaf_docx",
+        juz_no:juzNo,start_surah:first.surahNo,start_ayah:first.ayahNo,start_page:startPage,end_page:endPage,fully_seeded:true
+      }
+    };
+  });
+
+  // Önce Word kaynaklı yeni yapı hazırlanır. Eski Kur’an ancak yeni yapı hazır olduğunda kaldırılır.
+  const {error:rootInsertError}=await supabase.from("library_items").insert(rootRow);
+  if (rootInsertError) throw rootInsertError;
+
+  for (let i=0;i<surahRows.length;i+=50) {
+    const {error}=await supabase.from("library_items").insert(surahRows.slice(i,i+50));
+    if (error) throw error;
+  }
+  const {error:juzInsertError}=await supabase.from("library_items").insert(juzRows);
+  if (juzInsertError) throw juzInsertError;
+
+  const nodeRows = verses.map(v=>({
+    id:v.nodeId,owner_id:ownerId,document_id:surahIds.get(v.surahNo)!,parent_id:null,kind:"verse",
+    sort_order:v.ayahNo,title:`${v.surahNo}:${v.ayahNo}`,text_content:null,secondary_text:v.text,translation:null,
+    metadata:{
+      source:"quran_seeded",arabic_source:"istanbul_mushaf_docx",surah_no:v.surahNo,ayah_no:v.ayahNo,
+      page:v.page,juz:v.juz,surah_title:SURAH_TITLES[v.surahNo-1],page_scheme:"istanbul-docx-604"
+    }
+  }));
+
+  for (let i=0;i<nodeRows.length;i+=250) {
+    const {error}=await supabase.from("content_nodes").insert(nodeRows.slice(i,i+250));
+    if (error) throw error;
+  }
+
+  for (const page of pages) {
+    page.juz = null;
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        const verse=verseMap.get(`${run.surahNo}:${run.ayahNo}`);
+        if (verse) run.nodeId=verse.nodeId;
+        page.surahNumbers.add(run.surahNo);
+        if (!page.juz && verse) page.juz=verse.juz;
+      }
+    }
+  }
+
+  // Eski kökü ve varsa eski bağımsız Kur’an kayıtlarını kaldır.
+  const {data:oldRoots}=await supabase
+    .from("library_items").select("id")
+    .contains("metadata",{source:"quran_v1",entity:"root"})
+    .neq("id",rootId);
+  for (const old of oldRoots ?? []) {
+    const {error}=await supabase.from("library_items").delete().eq("id",old.id);
+    if (error) throw error;
+  }
+  await supabase.from("content_nodes").delete().eq("metadata->>source","quran_seeded").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+  await supabase.from("library_items").delete().eq("metadata->>source","quran_seeded").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+  await supabase.from("library_items").delete().eq("metadata->>source","quran_juz_view").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+
+  const byKey=new Map(verses.map(v=>[`${v.surahNo}:${v.ayahNo}`,v]));
+
+  for (const todo of savedTodos) {
+    let meta:any={};
+    try { meta=JSON.parse(todo.notes||"{}"); } catch {}
+    const pos=meta?.quran?.position;
+    if (!pos?.surahNo || !pos?.ayahNo) continue;
+    const verse=byKey.get(`${pos.surahNo}:${pos.ayahNo}`);
+    if (!verse) continue;
+    const nextPos={...pos,nodeId:verse.nodeId,page:verse.page,juz:verse.juz,surahTitle:SURAH_TITLES[verse.surahNo-1],updatedAt:new Date().toISOString()};
+    await supabase.from("todos").update({
+      related_library_item_id:surahIds.get(verse.surahNo),
+      related_content_node_id:verse.nodeId,
+      notes:JSON.stringify({...meta,quran:{...meta.quran,tracking:true,position:nextPos}})
+    }).eq("id",todo.id);
+  }
+
+  const bookmarks=Array.isArray(savedPreferences.quranBookmarks)?savedPreferences.quranBookmarks:[];
+  const remapped=bookmarks.map((bookmark:any)=>{
+    const pos=bookmark?.position;
+    const verse=pos?.surahNo&&pos?.ayahNo?byKey.get(`${pos.surahNo}:${pos.ayahNo}`):null;
+    if (!verse) return bookmark;
+    return {...bookmark,position:{...pos,nodeId:verse.nodeId,page:verse.page,juz:verse.juz,surahTitle:SURAH_TITLES[verse.surahNo-1],updatedAt:new Date().toISOString()}};
+  });
+  if (remapped.length || savedPreferences.quranBookmarks) {
+    await supabase.from("user_preferences").upsert({
+      owner_id:ownerId,
+      preferences:{...savedPreferences,quranBookmarks:remapped,quranBookmark:null},
+      updated_at:new Date().toISOString()
+    },{onConflict:"owner_id"});
+  }
+
+  return {verseMap,rootId,surahIds};
+}
+
+export async function importQuranMushafDocx(
+  file: File,
+  ownerId: string,
+  onProgress?: (message: string, percent: number) => void,
+) {
+  const progress = (message: string, percent: number) => onProgress?.(message, percent);
+  progress("Word dosyası okunuyor…", 2);
+
+  const fileBuffer = await file.arrayBuffer();
+  const fileSha256 = await sha256Hex(fileBuffer);
+  const zip = await JSZip.loadAsync(fileBuffer);
+
+  const documentXml = await zip.file("word/document.xml")?.async("string");
+  const stylesXml = await zip.file("word/styles.xml")?.async("string");
+  const fontTableXml = await zip.file("word/fontTable.xml")?.async("string");
+  const exactFontBytes = await extractEmbeddedMushafFont(zip, fontTableXml);
+  if (exactFontBytes) {
+    await cacheExactMushafFont(exactFontBytes);
+    await ensureExactMushafFont();
+  }
+  const settingsXml = await zip.file("word/settings.xml")?.async("string");
+  const themeXml = await zip.file("word/theme/theme1.xml")?.async("string");
+
+  if (!documentXml) throw new Error("DOCX içinde word/document.xml bulunamadı.");
+
+  const xml = new DOMParser().parseFromString(documentXml, "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error("Word XML okunamadı.");
+
+  const body = xml.getElementsByTagNameNS(W, "body")[0];
+  if (!body) throw new Error("Word belgesinin gövdesi bulunamadı.");
+
+  const serializer = new XMLSerializer();
+  const pages: MutablePage[] = [];
+  let current: MutablePage = {
+    wordPage: 1,
+    paragraphs: [],
+    surahNumbers: new Set<number>(),
+    juz: null,
+  };
+  let currentSurah = 0;
+  let headingCount = 0;
+  let ayahMarkerCount = 0;
+  const pending: MutableRun[] = [];
+
+  const pushPage = () => {
+    if (!current.paragraphs.length) return;
+    pages.push(current);
+    current = {
+      wordPage: pages.length + 1,
+      paragraphs: [],
+      surahNumbers: new Set<number>(),
+      juz: null,
+    };
+  };
+
+  progress("604 sayfalık Mushaf yapısı ayrıştırılıyor…", 8);
+
+  for (const child of Array.from(body.childNodes)) {
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const p = child as Element;
+    if (p.namespaceURI !== W || p.localName !== "p") continue;
+
+    if (hasPageBreak(p) && current.paragraphs.length) pushPage();
+
+    const style = paragraphStyle(p);
+    const paragraph = {
+      style,
+      rawOoxml: serializer.serializeToString(p),
+      runs: [] as MutableRun[],
+    };
+
+    const rawRunRecords: MutableRun[] = [];
+    for (const r of directChildrenNS(p, "r")) {
+      const info = runInfo(r);
+      const { text } = textFromRun(r);
+      if (!text && !info.runStyle && !info.font) continue;
+
+      for (const piece of splitMarkers(text)) {
+        const run: MutableRun = {
+          text: piece.text,
+          ...(info.runStyle ? { runStyle: info.runStyle } : {}),
+          ...(info.font ? { font: info.font } : {}),
+          ...(info.rtl ? { rtl: true } : {}),
+          ...(info.lang ? { lang: info.lang } : {}),
+          ...(piece.marker ? { marker: true, ayahNo: piece.ayahNo } : {}),
+        };
+        rawRunRecords.push(run);
+        paragraph.runs.push(run);
+      }
+    }
+
+    const paragraphText = paragraph.runs.map(run => run.text).join("");
+
+    if (style === "mshfSureBal") {
+      const match = paragraphText.match(/﴿([0-9٠-٩]+)﴾/);
+      if (match) {
+        currentSurah = arabicNumberToInt(match[1]);
+        current.surahNumbers.add(currentSurah);
+        headingCount += 1;
+      }
+    }
+
+    const canContainAyah = style === "mshfKuranMetni"
+      || (style === "mshfBesmele" && /﴿([0-9٠-٩]+)﴾/.test(paragraphText));
+
+    if (canContainAyah && currentSurah) {
+      for (const run of rawRunRecords) {
+        if (run.marker && run.ayahNo) {
+          ayahMarkerCount += 1;
+          const nodeGroup = [...pending, run];
+          for (const piece of nodeGroup) {
+            piece.surahNo = currentSurah;
+            piece.ayahNo = run.ayahNo;
+          }
+          pending.length = 0;
+        } else if (run.text && run.text.trim().length > 0) {
+          pending.push(run);
+        }
+      }
+    }
+
+    if (paragraph.runs.length) current.paragraphs.push(paragraph);
+  }
+  pushPage();
+
+  const remainingPendingText = pending.map(run => run.text).join("").trim();
+  if (remainingPendingText) {
+    throw new Error("Belgenin sonunda ayet numarasıyla kapanmayan metin bulundu: " + remainingPendingText.slice(0, 80));
+  }
+  pending.length = 0;
+
   if (pages.length !== 604) {
     throw new Error(`Beklenen 604 sayfa yerine ${pages.length} sayfa bulundu.`);
   }
@@ -428,12 +872,12 @@ function fullLogicalPages(pages:MutablePage[]) {
   }
 
   progress("Mevcut Kur’an Todo ve ayraçları korunuyor…", 20);
-  const [{data:savedTodoRows},{data:preferenceRow}] = await Promise.all([
-    supabase.from("todos").select("id,notes").eq("owner_id",ownerId),
-    supabase.from("user_preferences").select("preferences").eq("owner_id",ownerId).maybeSingle(),
+  const [{ data: savedTodoRows }, { data: preferenceRow }] = await Promise.all([
+    supabase.from("todos").select("id,notes").eq("owner_id", ownerId),
+    supabase.from("user_preferences").select("preferences").eq("owner_id", ownerId).maybeSingle(),
   ]);
-  const savedTodos=(savedTodoRows ?? []) as Array<{id:string;notes:string|null}>;
-  const savedPreferences=((preferenceRow?.preferences ?? {}) as Record<string,any>);
+  const savedTodos = (savedTodoRows ?? []) as Array<{id:string;notes:string|null}>;
+  const savedPreferences = (preferenceRow?.preferences ?? {}) as Record<string,any>;
 
   for (const page of pages) {
     for (const paragraph of page.paragraphs) {
@@ -442,13 +886,15 @@ function fullLogicalPages(pages:MutablePage[]) {
   }
 
   progress("604 sayfalık Word Mushaf kitap düzenine dönüştürülüyor…", 26);
-  const logicalPages=fullLogicalPages(pages);
-  if(logicalPages.length !== 605){
-    throw new Error(`Fâtiha ayrı sayfa olacak şekilde 605 mantıksal sayfa bekleniyordu; ${logicalPages.length} oluştu.`);
+  const logicalPages = fullLogicalPages(pages);
+  if (logicalPages.length !== 605) {
+    throw new Error(
+      `Fâtiha ayrı sayfa olacak şekilde 605 mantıksal sayfa bekleniyordu; ${logicalPages.length} oluştu.`
+    );
   }
 
   progress("114 sûre ve 30 cüz veritabanında hazırlanıyor…", 32);
-  await rebuildQuranFromWord(ownerId,logicalPages,savedTodos,savedPreferences);
+  await rebuildQuranFromWord(ownerId, logicalPages, savedTodos, savedPreferences);
 
   const sourceMeta = {
     source: "Diyanet İşleri Başkanlığı Kur’an-ı Kerim Word",
@@ -513,8 +959,8 @@ function fullLogicalPages(pages:MutablePage[]) {
     source_sha256: fileSha256,
     metadata: {
       source: "mushaf_istanbul_docx",
-      importScope:"full-quran",
-      originalWordPage:page.originalWordPage,
+      importScope: "full-quran",
+      originalWordPage: page.originalWordPage,
       exactWordCharacters: true,
       exactWordRunStyles: true,
       exactWordParagraphStyles: true,
@@ -531,6 +977,7 @@ function fullLogicalPages(pages:MutablePage[]) {
       .from("quran_mushaf_pages")
       .upsert(batch, { onConflict: "owner_id,source_key,word_page" });
     if (error) throw error;
+
     const completed = Math.min(rows.length, index + batch.length);
     progress(
       `Kur’an sayfaları yazılıyor: ${completed}/${rows.length}`,
@@ -540,7 +987,14 @@ function fullLogicalPages(pages:MutablePage[]) {
 
   progress("Kur’an’ın tamamı hazır: 114 sûre · 30 cüz · 6236 ayet.", 100);
   window.dispatchEvent(new CustomEvent("lumen-quran-mushaf-imported", {
-    detail: { sourceKey: SOURCE_KEY, sha256: fileSha256, pages: logicalPages.length, ayahs: 6236, surahs:114, scope:"full-quran" },
+    detail: {
+      sourceKey: SOURCE_KEY,
+      sha256: fileSha256,
+      pages: logicalPages.length,
+      ayahs: 6236,
+      surahs: 114,
+      scope: "full-quran",
+    },
   }));
 
   return {
