@@ -3462,3 +3462,51 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     width:min(360px,calc(100vw - 16px));
   }
 }
+
+
+/* v0.6.2 — agenda month sections */
+.calendarMonthDivider{
+  position:sticky;
+  top:58px;
+  z-index:11;
+  margin:18px 0 4px;
+  padding:10px 2px 8px;
+  border-bottom:2px solid color-mix(in srgb,var(--accent) 42%,var(--border));
+  background:color-mix(in srgb,var(--bg) 96%,transparent);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.calendarMonthDivider strong{
+  display:block;
+  font-size:18px;
+  line-height:1.2;
+  text-transform:capitalize;
+}
+.calendarAgenda .calendarMonthDivider + section h3{
+  top:100px;
+}
+.calendarTodayAnchor{
+  scroll-margin-top:92px;
+  margin:8px 0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--accent);
+  font-size:12px;
+  font-weight:800;
+}
+.calendarTodayAnchor::before,
+.calendarTodayAnchor::after{
+  content:"";
+  height:1px;
+  flex:1;
+  background:color-mix(in srgb,var(--accent) 45%,var(--border));
+}
+@media(max-width:800px){
+  .calendarMonthDivider{
+    top:112px;
+  }
+  .calendarAgenda .calendarMonthDivider + section h3{
+    top:154px;
+  }
+}
