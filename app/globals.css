@@ -5228,3 +5228,228 @@ body.quranEasyRead .quranFlow{
     height:auto!important;
   }
 }
+
+
+/* v0.9.5 — Diyanet-like Quran typography, themes, named bookmarks and targeted tracking */
+.quranFlow{
+  text-align:right!important;
+  text-align-last:auto!important;
+  word-spacing:0!important;
+  letter-spacing:0!important;
+  font-family:
+    "KFGQPC Uthmanic Script HAFS",
+    "KFGQPC Uthman Taha Naskh",
+    "Noto Naskh Arabic",
+    "Geeza Pro",
+    "Traditional Arabic",
+    serif!important;
+  font-weight:var(--quran-font-weight,300)!important;
+  font-variation-settings:"wght" var(--quran-font-weight,300);
+  font-synthesis:none;
+  line-height:1.78!important;
+}
+.quranAyahInline{
+  display:inline!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:4px;
+  background:transparent!important;
+  color:inherit!important;
+  font:inherit!important;
+  line-height:inherit!important;
+  white-space:normal!important;
+  vertical-align:baseline;
+  cursor:pointer;
+}
+.quranAyahText{
+  display:inline!important;
+}
+.quranAyahNo{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  min-width:1.78em!important;
+  height:1.78em!important;
+  margin:0 .12em 0 .1em!important;
+  padding:0 .18em!important;
+  vertical-align:middle!important;
+  line-height:1!important;
+}
+.quranSelectionWrap{
+  position:sticky;
+  top:6px;
+  z-index:25;
+  width:min(900px,calc(100% - 12px));
+  margin:0 auto 8px;
+}
+.quranSelectionWrap .quranSelectionBar{
+  position:static!important;
+  margin:0 auto!important;
+}
+.quranSelectionAction.pressed{
+  background:color-mix(in srgb,var(--accent) 35%,var(--panel))!important;
+  border-color:var(--accent)!important;
+  color:var(--text)!important;
+  transform:translateY(1px);
+}
+.quranSelectionAction.primaryAction.pressed{
+  background:color-mix(in srgb,var(--accent) 78%,#000)!important;
+  color:#fff!important;
+}
+.quranActionChooser{
+  width:min(620px,100%);
+  margin:7px auto 0;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--panel) 98%,transparent);
+  box-shadow:0 12px 30px #0003;
+}
+.quranActionChooser>strong{
+  display:block;
+  margin-bottom:8px;
+  font-size:12px;
+}
+.quranActionChoiceList{
+  display:grid;
+  gap:6px;
+}
+.quranActionChoiceList>button{
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"title action" "meta action";
+  gap:2px 10px;
+  align-items:center;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--bg);
+  color:var(--text);
+  text-align:left;
+}
+.quranActionChoiceList>button:hover{
+  border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 8%,var(--bg));
+}
+.quranActionChoiceList b{grid-area:title}
+.quranActionChoiceList small{grid-area:meta;color:var(--muted)}
+.quranActionChoiceList span{grid-area:action;color:var(--accent);font-size:10px;font-weight:800}
+.quranNewBookmarkRow{
+  display:flex;
+  gap:7px;
+  margin-top:8px;
+}
+.quranNewBookmarkRow input{
+  flex:1;
+  min-width:0;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--bg);
+  color:var(--text);
+  padding:8px 10px;
+}
+.quranNewBookmarkRow button{
+  border:1px solid var(--accent);
+  border-radius:8px;
+  background:var(--accent);
+  color:#fff;
+  padding:8px 10px;
+  font-weight:800;
+}
+.quranNewBookmarkRow button:disabled{
+  opacity:.45;
+}
+.quranBookmarkCards{
+  width:min(760px,100%);
+  margin:10px auto 8px;
+  display:grid;
+  gap:7px;
+}
+.quranBookmarkCards .quranBookmarkCard{
+  width:100%;
+  margin:0;
+}
+.quranThemeChoices{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+}
+.quranThemeChip{
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+.quranThemeChip.active{
+  border-color:var(--accent);
+  color:var(--text);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent);
+}
+body[data-quran-page-theme="paper"] .quranPage{
+  --quran-page-bg:#f6f3ed;
+  --quran-page-fg:#171717;
+  --quran-page-muted:#5b5750;
+  --quran-verse:#9b4b4d;
+}
+body[data-quran-page-theme="white"] .quranPage{
+  --quran-page-bg:#fff;
+  --quran-page-fg:#111;
+  --quran-page-muted:#555;
+  --quran-verse:#9b4b4d;
+}
+body[data-quran-page-theme="sepia"] .quranPage{
+  --quran-page-bg:#efe2b8;
+  --quran-page-fg:#211b12;
+  --quran-page-muted:#6c5b36;
+  --quran-verse:#8a4a3f;
+}
+body[data-quran-page-theme="dark"] .quranPage{
+  --quran-page-bg:#171a17;
+  --quran-page-fg:#f1eee5;
+  --quran-page-muted:#aaa79f;
+  --quran-verse:#b88f81;
+  border-color:#30362f!important;
+}
+.quranPage{
+  background:var(--quran-page-bg,#f6f3ed)!important;
+  color:var(--quran-page-fg,#171717)!important;
+}
+.quranPageTopLine{
+  color:var(--quran-page-muted,#555)!important;
+}
+.quranFlow{
+  color:var(--quran-page-fg,#171717)!important;
+}
+.quranAyahNo{
+  color:var(--quran-verse,#9b4b4d)!important;
+  border-color:var(--quran-verse,#9b4b4d)!important;
+  background:var(--quran-page-bg,#f6f3ed)!important;
+}
+.quranAyahNo::before,
+.quranAyahNo::after{
+  border-color:color-mix(in srgb,var(--quran-verse,#9b4b4d) 58%,transparent)!important;
+}
+body[data-quran-page-theme="dark"] .quranAyahInline.selected{
+  background:#ffffff12!important;
+}
+.quranWeightControl input[type="range"]{
+  min-width:130px;
+}
+@media(max-width:800px){
+  .quranFlow{
+    line-height:1.74!important;
+  }
+  .quranActionChoiceList>button{
+    grid-template-columns:1fr;
+    grid-template-areas:"title" "meta" "action";
+  }
+  .quranNewBookmarkRow{
+    flex-direction:column;
+  }
+}
