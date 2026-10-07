@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FloatingCounterButton } from "@/components/FloatingCounterButton";
+import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
@@ -503,6 +504,14 @@ export function ReaderView({
         onIncrement={incrementActive}
         onDecrement={decrementActive}
         onReset={resetActive}
+      />
+
+      <FullscreenTasbih
+        title={activeTitle}
+        count={activeCount}
+        target={activeTarget}
+        onIncrement={() => void incrementActive()}
+        onDecrement={() => void decrementActive()}
       />
 
       <TodoDialog
