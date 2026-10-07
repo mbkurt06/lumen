@@ -1669,3 +1669,83 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
   margin:18px auto 22px;
   width:min(900px,calc(100% - 24px));
 }
+
+
+/* v0.4.1 — match the original V2 shared menu geometry exactly */
+.v2SharedHeader,
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader{
+  position:sticky!important;
+  top:8px!important;
+  left:auto!important;
+  transform:none!important;
+  width:min(760px,calc(100% - 36px))!important;
+  max-width:760px!important;
+  margin:8px auto 24px!important;
+  padding:10px 12px 12px!important;
+  border:1px solid color-mix(in srgb,var(--border) 80%,transparent)!important;
+  border-radius:16px!important;
+  background:color-mix(in srgb,var(--bg) 96%,transparent)!important;
+  box-shadow:0 8px 24px #0002!important;
+  backdrop-filter:blur(12px)!important;
+  -webkit-backdrop-filter:blur(12px)!important;
+  box-sizing:border-box!important;
+  z-index:70!important;
+}
+.v2HeaderToolbar{
+  gap:8px!important;
+}
+.v2HeaderGroup{
+  gap:8px!important;
+  min-height:42px!important;
+}
+.v2HeaderButton,
+.v2HeaderPrimary{
+  min-height:42px!important;
+  padding:10px 14px!important;
+  border-radius:12px!important;
+  font-size:15px!important;
+  line-height:1!important;
+}
+.v2HeaderTitle{
+  margin:3px 0 2px!important;
+  font-size:18px!important;
+  line-height:1.25!important;
+}
+.v2HeaderInvocation{
+  margin:3px 0 0!important;
+}
+.v2HeaderCollapse{
+  bottom:-18px!important;
+}
+.v2SharedHeader.collapsed{
+  width:min(760px,calc(100% - 36px))!important;
+  max-width:760px!important;
+  min-height:18px!important;
+  height:18px!important;
+  padding:0!important;
+  margin:8px auto 24px!important;
+  border-radius:0!important;
+  border-left:0!important;
+  border-right:0!important;
+  border-top:0!important;
+  box-shadow:none!important;
+}
+@media(max-width:520px){
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader,
+  .v2SharedHeader.collapsed{
+    width:calc(100% - 20px)!important;
+    max-width:none!important;
+    top:6px!important;
+    padding:8px!important;
+    border-radius:14px!important;
+  }
+  .v2SharedHeader.collapsed{
+    padding:0!important;
+    border-radius:0!important;
+  }
+}
