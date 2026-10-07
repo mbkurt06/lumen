@@ -78,6 +78,7 @@ export function AppShell({
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
         const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
         const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 300;
+        const quranFontFamily = typeof prefs.quranFontFamily === "string" ? prefs.quranFontFamily : "Shaikh Hamdullah Mushaf";
         const quranPageTheme = typeof prefs.quranPageTheme === "string" ? prefs.quranPageTheme : "paper";
         document.documentElement.classList.toggle("pre-dark", theme === "dark");
         document.body.classList.toggle("dark", theme === "dark");
@@ -88,6 +89,7 @@ export function AppShell({
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
         document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
         document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
+        document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(quranFontFamily));
         document.body.dataset.quranPageTheme = quranPageTheme;
         document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
         document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
