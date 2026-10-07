@@ -56,10 +56,12 @@ type QuranTodoChoice = {
   id: string;
   title: string;
   notes: string | null;
+  description?: string;
   position?: QuranPosition | null;
 };
 
 type TodoMeta = {
+  description?: string;
   quran?: {
     tracking?: boolean;
     position?: QuranPosition;
@@ -139,7 +141,7 @@ export function ReaderView({
   const [localCounts, setLocalCounts] = useState<Record<string, number>>({});
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string;defaultTarget:number}|null>(null);
+  const [todoTarget, setTodoTarget] = useState<{title:string;nodeId?:string;defaultTarget:number;quranPosition?:QuranPosition|null}|null>(null);
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
   const [documentTodoOpen, setDocumentTodoOpen] = useState(false);
   const [activeDocumentTodoId, setActiveDocumentTodoId] = useState<string | null>(null);
@@ -161,6 +163,8 @@ export function ReaderView({
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
   const quranSwipeStartX = useRef<number | null>(null);
+  const quranPageCache = useRef<Map<number, Node[]>>(new Map());
+  const quranPageRequest = useRef(0);
 
   const today = localDateKey();
 
@@ -261,6 +265,7 @@ export function ReaderView({
         id: todo.id,
         title: todo.title,
         notes: todo.notes,
+        description: meta.description || "",
         position: meta.quran.position ?? null,
       }];
     });
@@ -829,10 +834,13 @@ export function ReaderView({
                         {quranTodoChoices.map(todo => (
                           <button key={todo.id} onClick={() => void updateQuranTodoPosition(todo,selected)}>
                             <b>{todo.title}</b>
-                            <small>
-                              {todo.position
-                                ? `Şu an: Sayfa ${displayQuranPage(todo.position.page)} · ${todo.position.surahTitle} ${todo.position.ayahNo}. ayet`
-                                : "Henüz konum yok"}
+                            <small className="quranTodoChoiceMeta">
+                              {todo.description && <span className="quranTodoChoiceDescription">{todo.description}</span>}
+                              <span>
+                                {todo.position
+                                  ? `Şu an: Sayfa ${displayQuranPage(todo.position.page)} · ${todo.position.surahTitle} ${todo.position.ayahNo}. ayet`
+                                  : "Henüz konum yok"}
+                              </span>
                             </small>
                             <span>Bu Todo'yu güncelle</span>
                           </button>
