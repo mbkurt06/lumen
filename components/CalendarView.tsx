@@ -942,7 +942,6 @@ export function CalendarView({ user }: { user: User }) {
       setDraft(null);
       setDraftPosition(null);
       await loadEvents();
-      await loadCalendarTodoLinks();
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
