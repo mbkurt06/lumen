@@ -46,6 +46,23 @@ function meta(item: EzberItem) {
   return (item.metadata ?? {}) as Record<string, any>;
 }
 
+function itemCountLabel(item: EzberItem, parent: EzberItem | null) {
+  const m = meta(item);
+  const count = Math.max(0, Number(m.segment_count || 0));
+  const target = Math.max(0, Number(m.target || 0));
+  if (target > 0) return target + " tekrar";
+  if (count > 0) return count + (parent && meta(parent).menu_key === "surahs" ? " âyet" : " bölüm");
+  return "";
+}
+
+function itemDisplayTitle(item: EzberItem, parent: EzberItem | null) {
+  const m = meta(item);
+  if (parent && meta(parent).menu_key === "surahs" && m.surah_no && !m.extra) {
+    return m.surah_no + ". " + item.title;
+  }
+  return item.title;
+}
+
 export function EzberHomeView({
   onOpenItem,
   user,
@@ -268,71 +285,87 @@ export function EzberHomeView({
   }
 
   const rows = currentRoot ? children : orderedRoots;
+  const surahMode = !!currentRoot && meta(currentRoot).menu_key === "surahs";
+  const primaryRows = surahMode
+    ? [...children].filter(item => !meta(item).extra).sort((a,b) => Number(meta(a).surah_no || 999) - Number(meta(b).surah_no || 999))
+    : rows;
+  const featuredRows = surahMode
+    ? [...children].filter(item => !meta(item).extra && meta(item).featured).sort((a,b) => Number(meta(a).featured_order || 999) - Number(meta(b).featured_order || 999))
+    : [];
+  const extraRows = surahMode
+    ? [...children].filter(item => meta(item).extra).sort((a,b) => a.sort_order - b.sort_order)
+    : [];
+
+  const renderRow = (item: EzberItem, key = item.id, labelOverride?: string, draggable = true) => (
+    <button
+      key={key}
+      className={(currentRoot ? "legacyCategoryRow " : "legacyHomeRow ") + "draggableWholeRow " + (dragId === item.id ? "dragging" : "")}
+      onPointerDown={draggable ? (ev => down(item.id, ev.clientY)) : undefined}
+      onPointerMove={draggable ? (ev => movePointer(item.id, ev.clientY, currentRoot ? reorderChildren : reorderRoots)) : undefined}
+      onPointerUp={draggable ? (async () => {
+        const wasMoved = moved.current;
+        await finish(currentRoot ? persistChildren : async () => {
+          const ids = rootOrderRef.current.length ? rootOrderRef.current : orderedRoots.map(x => x.id);
+          await saveRootOrder(ids);
+        });
+        if (!wasMoved) await openEntry(item);
+      }) : (() => void openEntry(item))}
+      onPointerCancel={draggable ? (() => {
+        if (holdTimer.current) clearTimeout(holdTimer.current);
+        holdTimer.current = null;
+        setDragId(null);
+        pressId.current = null;
+        moved.current = false;
+      }) : undefined}
+    >
+      <span className="ezberRowMain">
+        <strong>{labelOverride || itemDisplayTitle(item, currentRoot)}</strong>
+        {(item.subtitle || Number(meta(item).target || 0) > 0) && currentRoot && (
+          <small className="itemMetaInline">
+            {item.subtitle && <span>{item.subtitle}</span>}
+          </small>
+        )}
+      </span>
+
+      <span className="categoryRowRight">
+        {currentRoot && (() => {
+          const active = todoSummaries.filter(t => t.itemId === item.id && !t.done);
+          const groups = Object.values(active.reduce((acc, t) => {
+            const groupKey = t.target + "/" + t.count;
+            (acc[groupKey] ||= []).push(t);
+            return acc;
+          }, {} as Record<string, TodoSummary[]>));
+          return groups.map(group => (
+            <span className="listTodoBadge" key={group[0].id}>
+              {group[0].target}/{group[0].count}
+              {group.length > 1 && <i>{group.length}</i>}
+            </span>
+          ));
+        })()}
+        {currentRoot && itemCountLabel(item,currentRoot) && <span className="ezberRowCount">{itemCountLabel(item,currentRoot)}</span>}
+        {!currentRoot && <b>›</b>}
+      </span>
+    </button>
+  );
 
   return (
     <section className="legacyNestedPage duaEzberIntegrated">
       <div className={currentRoot ? "legacyListHead" : "legacyHomeHead compact"}>
         {currentRoot ? (
-          <button className="legacyBack" onClick={goBack}>‹ Geri</button>
+          <button className="legacyBack v2MenuBack" onClick={goBack}>{trail.length ? "‹ Geri" : "‹ Menü"}</button>
         ) : <span />}
         <h1>{currentRoot?.title || duaRoot?.title || "Ezber"}</h1>
         <span />
       </div>
 
       <div className={currentRoot ? "legacyCategoryList" : "legacyHomeMenu"}>
-        {rows.map(item => (
-          <button
-            key={item.id}
-            className={(currentRoot ? "legacyCategoryRow " : "legacyHomeRow ") + "draggableWholeRow " + (dragId === item.id ? "dragging" : "")}
-            onPointerDown={e => down(item.id, e.clientY)}
-            onPointerMove={e => movePointer(item.id, e.clientY, currentRoot ? reorderChildren : reorderRoots)}
-            onPointerUp={async () => {
-              const wasMoved = moved.current;
-              await finish(currentRoot ? persistChildren : async () => {
-                const ids = rootOrderRef.current.length ? rootOrderRef.current : orderedRoots.map(x => x.id);
-                await saveRootOrder(ids);
-              });
-              if (!wasMoved) await openEntry(item);
-            }}
-            onPointerCancel={() => {
-              if (holdTimer.current) clearTimeout(holdTimer.current);
-              holdTimer.current = null;
-              setDragId(null);
-              pressId.current = null;
-              moved.current = false;
-            }}
-          >
-            <span>
-              <strong>{item.title}</strong>
-              {(item.subtitle || Number(meta(item).target || 0) > 0) && currentRoot && (
-                <small className="itemMetaInline">
-                  {item.subtitle && <span>{item.subtitle}</span>}
-                  {Number(meta(item).target || 0) > 0 && <b>{Number(meta(item).target)}</b>}
-                </small>
-              )}
-            </span>
-
-            <span className="categoryRowRight">
-              {currentRoot && (() => {
-                const active = todoSummaries.filter(t => t.itemId === item.id && !t.done);
-                const groups = Object.values(active.reduce((acc, t) => {
-                  const key = t.target + "/" + t.count;
-                  (acc[key] ||= []).push(t);
-                  return acc;
-                }, {} as Record<string, TodoSummary[]>));
-                return groups.map(group => (
-                  <span className="listTodoBadge" key={group[0].id}>
-                    {group[0].target}/{group[0].count}
-                    {group.length > 1 && <i>{group.length}</i>}
-                  </span>
-                ));
-              })()}
-              <b>›</b>
-            </span>
-          </button>
-        ))}
-
-        {!rows.length && <div className="legacyEmptyLine">Bu bölümde içerik bulunamadı.</div>}
+        {primaryRows.map(item => renderRow(item))}
+        {surahMode && (featuredRows.length > 0 || extraRows.length > 0) && (
+          <div className="ezberSubheading">{String(meta(currentRoot!).extra_section_title || "Ek okumalar")}</div>
+        )}
+        {surahMode && featuredRows.map(item => renderRow(item, "featured:"+item.id, String(meta(item).featured_label || item.title), false))}
+        {surahMode && extraRows.map(item => renderRow(item, "extra:"+item.id, item.title))}
+        {!primaryRows.length && <div className="legacyEmptyLine">Bu bölümde içerik bulunamadı.</div>}
       </div>
 
       {message && <p className="legacyHomeMessage">{message}</p>}
