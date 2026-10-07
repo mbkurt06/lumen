@@ -4,6 +4,17 @@ export const runtime = "nodejs";
 export const revalidate = 604800;
 
 const BASE = "https://risaleinur.hizmetvakfi.org";
+const FETCH_TIMEOUT_MS = 8000;
+
+async function timedFetch(url:string, init:RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await timedFetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const ORDINALS: Record<number,string> = {
   1:"Birinci",2:"İkinci",3:"Üçüncü",4:"Dördüncü",5:"Beşinci",6:"Altıncı",7:"Yedinci",8:"Sekizinci",9:"Dokuzuncu",10:"Onuncu",
@@ -64,9 +75,51 @@ function officialTitle(title:string, book:string, chapterNo:number) {
   return title;
 }
 
+
+async function findViaSearchPage(query:string) {
+  try {
+    const searchUrl = `${BASE}/?s=${encodeURIComponent(query)}`;
+    const response = await timedFetch(searchUrl, {
+      headers: { accept: "text/html", "user-agent": "Mozilla/5.0 Lumen/0.8" },
+      next: { revalidate: 604800 },
+      redirect: "follow",
+    } as RequestInit & { next?: { revalidate:number } });
+    if (!response.ok) return null;
+    const html = await response.text();
+
+    const articles = [...html.matchAll(/<article[^>]*>([\s\S]*?)<\/article>/gi)].map(match => match[1]);
+    const normalized = slugify(query);
+
+    for (const article of articles) {
+      const headingHtml =
+        article.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i)?.[1] ||
+        article.match(/<a[^>]*>([\s\S]*?)<\/a>/i)?.[1] ||
+        "";
+      const heading = stripTags(headingHtml);
+      const headingSlug = slugify(heading);
+      if (headingSlug && !(headingSlug === normalized || headingSlug.includes(normalized) || normalized.includes(headingSlug))) {
+        continue;
+      }
+
+      const href = article.match(/<a[^>]+href=["']([^"']+)["']/i)?.[1] || searchUrl;
+      const entry =
+        article.match(/<div[^>]+class=["'][^"']*entry-content[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] ||
+        article.match(/<div[^>]+class=["'][^"']*entry-summary[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] ||
+        article;
+      if (stripTags(entry).length > 120) {
+        return { title: heading || query, html: entry, url: href };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function findViaWpApi(query:string) {
   try {
-    const search = await fetch(`${BASE}/wp-json/wp/v2/search?search=${encodeURIComponent(query)}&per_page=20`, {
+    const search = await timedFetch(`${BASE}/wp-json/wp/v2/search?search=${encodeURIComponent(query)}&per_page=20`, {
       headers: { accept: "application/json", "user-agent": "Lumen/0.8 (+personal reading app)" },
       next: { revalidate: 604800 },
     });
@@ -86,7 +139,7 @@ async function findViaWpApi(query:string) {
       })[0] ?? results[0];
 
     if (!best?.id) return null;
-    const post = await fetch(`${BASE}/wp-json/wp/v2/posts/${best.id}`, {
+    const post = await timedFetch(`${BASE}/wp-json/wp/v2/posts/${best.id}`, {
       headers: { accept: "application/json", "user-agent": "Lumen/0.8 (+personal reading app)" },
       next: { revalidate: 604800 },
     });
@@ -110,7 +163,7 @@ async function findViaHtml(query:string) {
 
   for (const url of candidates) {
     try {
-      const response = await fetch(url, {
+      const response = await timedFetch(url, {
         headers: { accept: "text/html", "user-agent": "Mozilla/5.0 Lumen/0.8" },
         next: { revalidate: 604800 },
         redirect: "follow",
@@ -127,7 +180,7 @@ async function findViaHtml(query:string) {
 
   try {
     const searchUrl = `${BASE}/?s=${encodeURIComponent(query)}`;
-    const response = await fetch(searchUrl, {
+    const response = await timedFetch(searchUrl, {
       headers: { accept: "text/html", "user-agent": "Mozilla/5.0 Lumen/0.8" },
       next: { revalidate: 604800 },
     });
@@ -143,7 +196,7 @@ async function findViaHtml(query:string) {
       return as-bs;
     })[0];
     if (!best) return null;
-    const page = await fetch(best.url, {
+    const page = await timedFetch(best.url, {
       headers: { accept: "text/html", "user-agent": "Mozilla/5.0 Lumen/0.8" },
       next: { revalidate: 604800 },
     });
@@ -205,7 +258,7 @@ export async function GET(request:Request) {
     if(!title) return NextResponse.json({error:"Başlık gerekli."},{status:400});
 
     const query=officialTitle(title,book,chapterNo);
-    const found=(await findViaWpApi(query)) || (await findViaHtml(query));
+    const found=(await findViaSearchPage(query)) || (await findViaWpApi(query)) || (await findViaHtml(query));
     if(!found) {
       return NextResponse.json({error:`Resmî kaynakta “${query}” bulunamadı.`},{status:404});
     }
