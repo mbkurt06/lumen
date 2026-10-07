@@ -123,7 +123,7 @@ export function ReaderView({
   const isQuranDocument = sourceType === "quran_api" && quranSurahNo >= 1 && quranSurahNo <= 114;
   const isRisaleExternal = sourceType === "risale_external";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
-  const invocation = String(itemMeta.invocation || item.subtitle || "");
+  const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleExternal) ? item.subtitle : "") || "");
 
   const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
@@ -220,7 +220,14 @@ export function ReaderView({
           book:String(itemMeta.book_title || ""),
           chapter:String(itemMeta.chapter_no || 0),
         });
-        const response = await fetch(`/api/library/risale/content?${params.toString()}`);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12000);
+        let response: Response;
+        try {
+          response = await fetch(`/api/library/risale/content?${params.toString()}`, { signal: controller.signal });
+        } finally {
+          window.clearTimeout(timeout);
+        }
         const json = await response.json();
         if (!response.ok) throw new Error(json.error || "Risale metni alınamadı.");
 
@@ -268,7 +275,10 @@ export function ReaderView({
         }
         setMessage("");
       } catch(importError) {
-        setMessage(importError instanceof Error ? importError.message : "Risale metni alınamadı.");
+        const text = importError instanceof DOMException && importError.name === "AbortError"
+          ? "Risale kaynağı zaman aşımına uğradı. Tekrar deneyin."
+          : importError instanceof Error ? importError.message : "Risale metni alınamadı.";
+        setMessage(text);
       }
     }
 
