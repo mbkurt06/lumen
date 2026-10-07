@@ -13,6 +13,7 @@ type Prefs = {
   quranShowTranslation: boolean;
   quranEasyRead: boolean;
   quranFontScale: number;
+  quranFontWeight: number;
 };
 
 const defaults: Prefs = {
@@ -25,6 +26,7 @@ const defaults: Prefs = {
   quranShowTranslation: false,
   quranEasyRead: false,
   quranFontScale: 1,
+  quranFontWeight: 350,
 };
 
 function applyPrefs(p: Prefs) {
@@ -36,6 +38,7 @@ function applyPrefs(p: Prefs) {
   document.body.classList.toggle("hideTurkish", !p.showTurkish);
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
+  document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
   document.body.classList.toggle("quranHideLatin", !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", !p.quranShowTranslation);
   document.body.classList.toggle("quranEasyRead", p.quranEasyRead);
@@ -136,6 +139,22 @@ export function LibrarySettingsModal({
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
             <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
+          </div>
+        </div>
+
+        <div className="settingRow quranWeightSetting">
+          <span>Arapça yazı kalınlığı</span>
+          <div className="quranWeightControl">
+            <span>İnce</span>
+            <input
+              type="range"
+              min={200}
+              max={700}
+              step={50}
+              value={prefs.quranFontWeight}
+              onChange={e => update({...prefs,quranFontWeight:Number(e.target.value)})}
+            />
+            <span>Kalın</span>
           </div>
         </div>
 
