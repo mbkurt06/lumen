@@ -565,6 +565,16 @@ export function ReaderView({
 
   useEffect(() => {
     if (!isQuranDocument) return;
+    const handleImported = () => {
+      quranMushafPageCache.current.clear();
+      if (quranPage) void loadQuranPage(quranPage, quranSelectedNodeId);
+    };
+    window.addEventListener("lumen-quran-mushaf-imported", handleImported);
+    return () => window.removeEventListener("lumen-quran-mushaf-imported", handleImported);
+  }, [isQuranDocument, quranPage, quranSelectedNodeId, loadQuranPage]);
+
+  useEffect(() => {
+    if (!isQuranDocument) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "ArrowLeft" && quranPage && quranPage < quranPageMax) {
         event.preventDefault();
