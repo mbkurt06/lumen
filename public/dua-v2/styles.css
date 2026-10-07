@@ -2,7 +2,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);transition:background .2s,color .2s}
 body{min-height:100dvh;overscroll-behavior:none}button{font:inherit;color:inherit}
-body.dark{--bg:#151714;--panel:#20231f;--text:#f1eee5;--muted:#aaa79d;--border:#3c4039;--accent:#527c6b}
+html.dark,body.dark{--bg:#151714;--panel:#20231f;--text:#f1eee5;--muted:#aaa79d;--border:#3c4039;--accent:#527c6b}
 .app{min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;padding:max(14px,env(safe-area-inset-top)) 18px max(22px,env(safe-area-inset-bottom))}
 header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}.right-btn{text-align:right!important}
 .text-btn{border:0;background:transparent;padding:10px 0;color:var(--muted);font-size:14px}.progress{font-size:13px;color:var(--muted)}
@@ -2454,3 +2454,8 @@ html.dark body{
     border-radius:14px;
   }
 }
+
+
+/* v86: prevent first-paint flashes before app state is restored */
+html.dark{color-scheme:dark}
+html:not(.dark){color-scheme:light}
