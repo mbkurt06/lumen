@@ -75,6 +75,22 @@ function directChildrenNS(parent: Element, name: string) {
   ) as Element[];
 }
 
+function safeRandomUUID() {
+  const cryptoObj = globalThis.crypto as Crypto | undefined;
+  if (typeof cryptoObj?.randomUUID === "function") return cryptoObj.randomUUID();
+
+  const bytes = new Uint8Array(16);
+  if (typeof cryptoObj?.getRandomValues === "function") {
+    cryptoObj.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, "0"));
+  return `${hex.slice(0,4).join("")}-${hex.slice(4,6).join("")}-${hex.slice(6,8).join("")}-${hex.slice(8,10).join("")}-${hex.slice(10,16).join("")}`;
+}
+
 function arabicNumberToInt(value: string) {
   const western = value.replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
   return Number(western);
@@ -411,7 +427,7 @@ async function rebuildFirstJuzCatalog(
             page:logicalPage,
             juz:1,
             text:run.marker ? "" : run.text,
-            nodeId:crypto.randomUUID(),
+            nodeId:safeRandomUUID(),
           });
         } else if (!run.marker) {
           existing.text += run.text;
@@ -507,7 +523,7 @@ async function rebuildQuranFromWord(
             page:page.wordPage,
             juz:juzFor(run.surahNo,run.ayahNo),
             text:run.marker ? "" : run.text,
-            nodeId:crypto.randomUUID(),
+            nodeId:safeRandomUUID(),
           });
         } else if (!run.marker) {
           existing.text += run.text;
@@ -521,9 +537,9 @@ async function rebuildQuranFromWord(
     throw new Error(`Word belgesinden 6236 yerine ${verseMap.size} tekil ayet çıkarıldı.`);
   }
 
-  const rootId = crypto.randomUUID();
+  const rootId = safeRandomUUID();
   const surahIds = new Map<number,string>();
-  for (let s=1;s<=114;s+=1) surahIds.set(s,crypto.randomUUID());
+  for (let s=1;s<=114;s+=1) surahIds.set(s,safeRandomUUID());
 
   const verses = Array.from(verseMap.values()).sort((a,b)=>a.surahNo-b.surahNo||a.ayahNo-b.ayahNo);
   const ranges = new Map<number,{startPage:number;endPage:number;startJuz:number;endJuz:number}>();
@@ -565,7 +581,7 @@ async function rebuildQuranFromWord(
     const endPage=Math.max(...inJuz.map(v=>v.page));
     const first=inJuz[0];
     return {
-      id:crypto.randomUUID(),owner_id:ownerId,parent_id:rootId,kind:"document",title:`${juzNo}. Cüz`,
+      id:safeRandomUUID(),owner_id:ownerId,parent_id:rootId,kind:"document",title:`${juzNo}. Cüz`,
       subtitle:`${startPage-1}–${endPage-1}. sayfalar`,sort_order:1000+juzNo,
       metadata:{
         source:"quran_juz_view",catalog_source:"quran_v1",arabic_source:"istanbul_mushaf_docx",
