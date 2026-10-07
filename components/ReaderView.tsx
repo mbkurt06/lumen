@@ -128,6 +128,7 @@ export function ReaderView({
   onNextItem,
   hasPreviousItem,
   hasNextItem,
+  readerScope = "ezber",
 }: {
   item: Item;
   onBack?: () => void;
@@ -139,6 +140,7 @@ export function ReaderView({
   onNextItem?: () => void;
   hasPreviousItem?: boolean;
   hasNextItem?: boolean;
+  readerScope?: "ezber" | "risale" | "quran" | "he";
 }) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -168,6 +170,8 @@ export function ReaderView({
   const [quranDebugOpen, setQuranDebugOpen] = useState(false);
   const [quranDebugBusy, setQuranDebugBusy] = useState(false);
   const [quranDebugSnapshot, setQuranDebugSnapshot] = useState<Record<string, any> | null>(null);
+  const [showCounterControl, setShowCounterControl] = useState(true);
+  const [showPlayControl, setShowPlayControl] = useState(true);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
   const quranSwipeStartX = useRef<number | null>(null);
@@ -178,6 +182,41 @@ export function ReaderView({
   const quranFlowRef = useRef<HTMLDivElement | null>(null);
 
   const today = localDateKey();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const apply = (preferences: Record<string, unknown>) => {
+      const counterKey = readerScope + "ShowCounter";
+      const playKey = readerScope + "ShowPlay";
+      if (!cancelled) {
+        setShowCounterControl(
+          typeof preferences[counterKey] === "boolean" ? Boolean(preferences[counterKey]) : true
+        );
+        setShowPlayControl(
+          typeof preferences[playKey] === "boolean" ? Boolean(preferences[playKey]) : true
+        );
+      }
+    };
+
+    void supabase
+      .from("user_preferences")
+      .select("preferences")
+      .maybeSingle()
+      .then(({ data }) => apply((data?.preferences ?? {}) as Record<string, unknown>));
+
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+      if (!detail || detail.scope !== readerScope) return;
+      if (typeof detail.showCounter === "boolean") setShowCounterControl(detail.showCounter);
+      if (typeof detail.showPlay === "boolean") setShowPlayControl(detail.showPlay);
+    };
+    window.addEventListener("lumen-library-prefs", handle);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("lumen-library-prefs", handle);
+    };
+  }, [readerScope]);
 
   const itemTarget = Number(item.metadata?.target || 0);
   const itemMeta = (item.metadata ?? {}) as Record<string, any>;
@@ -1364,17 +1403,19 @@ export function ReaderView({
         </nav>
       )}
 
-      <FloatingPlaybackButton />
+      {showPlayControl && <FloatingPlaybackButton />}
 
-      <FloatingCounterButton
-        key={item.id}
-        title={activeTitle}
-        target={activeTarget}
-        count={activeCount}
-        onIncrement={incrementActive}
-        onDecrement={decrementActive}
-        onReset={resetActive}
-      />
+      {showCounterControl && (
+        <FloatingCounterButton
+          key={item.id}
+          title={activeTitle}
+          target={activeTarget}
+          count={activeCount}
+          onIncrement={incrementActive}
+          onDecrement={decrementActive}
+          onReset={resetActive}
+        />
+      )}
 
       <FullscreenTasbih
         title={activeTitle}
