@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
+import { type EzberItem } from "@/components/EzberHomeView";
+import { DuaEzberExactEmbed } from "@/components/DuaEzberExactEmbed";
 
 type SectionKey = "ezber" | "risale" | "quran" | "he";
 
@@ -115,9 +116,7 @@ export function LibraryHubView({
         </div>
       )}
 
-      {section === "ezber" && (
-        <EzberHomeView onOpenItem={onOpenItem} user={user} initialRoot={initialEzberRoot} onOpenListening={onOpenListening} />
-      )}
+      {section === "ezber" && <DuaEzberExactEmbed />}
 
       {section && section !== "ezber" && (
         <div className="libraryPlaceholder">
