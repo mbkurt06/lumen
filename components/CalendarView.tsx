@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
@@ -121,6 +121,8 @@ export function CalendarView({ user }: { user: User }) {
   const [sourcePanelOpen, setSourcePanelOpen] = useState(true);
   const [draft, setDraft] = useState<EventDraft | null>(null);
   const [googleConnecting, setGoogleConnecting] = useState(false);
+  const yearlyTodayRef = useRef<HTMLDivElement | null>(null);
+  const [yearlyAutoScrollPending, setYearlyAutoScrollPending] = useState(false);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -323,8 +325,33 @@ export function CalendarView({ user }: { user: User }) {
 
   function setViewAndSave(next: ViewMode) {
     setView(next);
+    if (next === "list" && listRange === "year") {
+      setAnchor(new Date());
+      setYearlyAutoScrollPending(true);
+    }
     void saveCalendarPrefs(hiddenKeys, next);
   }
+
+  function setListRangeAndScroll(next: ListRange) {
+    setListRange(next);
+    if (next === "year") {
+      setAnchor(new Date());
+      setYearlyAutoScrollPending(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!yearlyAutoScrollPending) return;
+    if (view !== "list" || listRange !== "year" || loadingEvents) return;
+
+    const id = window.requestAnimationFrame(() => {
+      yearlyTodayRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+      window.scrollBy({ top: -76, behavior: "auto" });
+      setYearlyAutoScrollPending(false);
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, [yearlyAutoScrollPending, view, listRange, loadingEvents, events.length]);
 
   function move(delta: number) {
     if (view === "year") setAnchor(new Date(anchor.getFullYear() + delta, anchor.getMonth(), 1));
@@ -632,27 +659,55 @@ export function CalendarView({ user }: { user: User }) {
       list.push(event);
       grouped.set(key,list);
     }
+
+    const entries = [...grouped.entries()];
+    const today = startOfDay(new Date());
+    let todayAnchorInserted = false;
+
     return (
       <div className="calendarAgenda">
-        {[...grouped.entries()].map(([key,list]) => {
+        {entries.map(([key,list]) => {
           const date = new Date(key+"T00:00:00");
+          const shouldPlaceTodayAnchor =
+            view === "list" &&
+            listRange === "year" &&
+            !yearlyAutoScrollPending ? false :
+            view === "list" &&
+            listRange === "year" &&
+            !todayAnchorInserted &&
+            date >= today;
+
+          if (shouldPlaceTodayAnchor) todayAnchorInserted = true;
+
           return (
-            <section key={key}>
-              <h3>{date.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</h3>
-              {list.map(event => {
-                const meta=calendarMeta(event);
-                return (
-                  <button className="agendaEvent" key={event.calendarKey+":"+event.id} onClick={()=>openEditEvent(event)}>
-                    <span className="agendaTime">{timeLabel(event)}</span>
-                    <span className="agendaDot" style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
-                    <span className="agendaMain"><strong>{event.summary}</strong>{event.location&&<small>{event.location}</small>}</span>
-                    <span className="agendaCalendar">{meta?.summary}</span>
-                  </button>
-                );
-              })}
-            </section>
+            <div key={key}>
+              {shouldPlaceTodayAnchor && (
+                <div ref={yearlyTodayRef} className="calendarTodayAnchor">
+                  <span>Bugün</span>
+                </div>
+              )}
+              <section>
+                <h3>{date.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</h3>
+                {list.map(event => {
+                  const meta=calendarMeta(event);
+                  return (
+                    <button className="agendaEvent" key={event.calendarKey+":"+event.id} onClick={()=>openEditEvent(event)}>
+                      <span className="agendaTime">{timeLabel(event)}</span>
+                      <span className="agendaDot" style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
+                      <span className="agendaMain"><strong>{event.summary}</strong>{event.location&&<small>{event.location}</small>}</span>
+                      <span className="agendaCalendar">{meta?.summary}</span>
+                    </button>
+                  );
+                })}
+              </section>
+            </div>
           );
         })}
+        {view === "list" && listRange === "year" && !todayAnchorInserted && (
+          <div ref={yearlyTodayRef} className="calendarTodayAnchor">
+            <span>Bugün</span>
+          </div>
+        )}
         {!events.length && !loadingEvents && <div className="calendarEmpty">Bu aralıkta etkinlik yok.</div>}
       </div>
     );
@@ -718,7 +773,7 @@ export function CalendarView({ user }: { user: User }) {
           <div className="calendarListControls">
             <div>
               {(["day","week","month","year","custom"] as ListRange[]).map(mode => (
-                <button key={mode} className={listRange===mode?"active":""} onClick={()=>setListRange(mode)}>
+                <button key={mode} className={listRange===mode?"active":""} onClick={()=>setListRangeAndScroll(mode)}>
                   {{day:"Günlük",week:"Haftalık",month:"Aylık",year:"Yıllık",custom:"Tarih aralığı"}[mode]}
                 </button>
               ))}
