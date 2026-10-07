@@ -372,9 +372,8 @@ export function ReaderView({
     if(error){setBookActionMessage(error.message);return;}
     setBookTodoMenuOpen(false);
     setBookActionMessage(`${todo.title} seçili konuma güncellendi.`);
-    await loadTodos();
     window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
-  }, [bookSelection,item.id,item.title,readerScope,loadTodos]);
+  }, [bookSelection,item.id,item.title,readerScope]);
 
   const clearBookSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
