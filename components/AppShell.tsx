@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase/client";
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
 type RightPanelMode = "todo" | "calendar";
+type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
 export function AppShell({
   user,
@@ -38,6 +39,16 @@ export function AppShell({
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>("todo");
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
+
+  const readerScope: ReaderScope = useMemo(() => {
+    const source = String((selectedItem?.metadata as any)?.source || (selectedItem?.metadata as any)?.catalog_source || "");
+    if (source.startsWith("quran")) return "quran";
+    if (source.startsWith("risale")) return "risale";
+    if (returnLibrarySection === "he") return "he";
+    if (returnLibrarySection === "quran") return "quran";
+    if (returnLibrarySection === "risale") return "risale";
+    return "ezber";
+  }, [selectedItem, returnLibrarySection]);
 
   useEffect(() => {
     try {
@@ -83,9 +94,6 @@ export function AppShell({
         document.documentElement.classList.toggle("pre-dark", theme === "dark");
         document.body.classList.toggle("dark", theme === "dark");
         localStorage.setItem("lumen-theme", theme);
-        document.body.classList.toggle("hideArabic", prefs.showArabic === false);
-        document.body.classList.toggle("hideLatin", prefs.showLatin === false);
-        document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
         document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
         document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
@@ -105,6 +113,25 @@ export function AppShell({
         }));
       });
   }, []);
+
+  useEffect(() => {
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+      const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
+      const cap = readerScope[0].toUpperCase() + readerScope.slice(1);
+      const fontScale = typeof prefs[readerScope + "FontScale"] === "number" ? Number(prefs[readerScope + "FontScale"]) : 1;
+      const showArabic = typeof prefs[readerScope + "ShowArabic"] === "boolean" ? Boolean(prefs[readerScope + "ShowArabic"]) : true;
+      const showLatin = typeof prefs[readerScope + "ShowLatin"] === "boolean" ? Boolean(prefs[readerScope + "ShowLatin"]) : true;
+      const showTurkish = typeof prefs[readerScope + "ShowTurkish"] === "boolean" ? Boolean(prefs[readerScope + "ShowTurkish"]) : false;
+      document.body.dataset.readerScope = readerScope;
+      document.documentElement.style.setProperty("--font-scale", String(fontScale));
+      document.body.classList.toggle("hideArabic", readerScope !== "quran" && !showArabic);
+      document.body.classList.toggle("hideLatin", readerScope !== "quran" && !showLatin);
+      document.body.classList.toggle("hideTurkish", readerScope !== "quran" && !showTurkish);
+      if (readerScope === "quran") {
+        document.body.classList.remove("hideArabic","hideLatin","hideTurkish");
+      }
+    });
+  }, [readerScope]);
 
   useEffect(() => {
     const openSettings = () => setLibrarySettingsOpen(open => !open);
@@ -524,6 +551,7 @@ export function AppShell({
         user={user}
         open={librarySettingsOpen}
         onClose={() => setLibrarySettingsOpen(false)}
+        scope={readerScope}
       />
     </div>
   );
