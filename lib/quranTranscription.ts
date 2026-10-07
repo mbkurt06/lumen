@@ -64,3 +64,29 @@ export async function loadTurkishQuranTranscription(surahNo:number):Promise<Reco
   pending.set(surahNo,request);
   return request;
 }
+
+
+export async function loadTurkishQuranAyahTranscription(
+  surahNo:number,
+  ayahNo:number
+):Promise<string>{
+  const cached=await loadTurkishQuranTranscription(surahNo).catch(()=>({}));
+  if(cached[ayahNo]) return cached[ayahNo];
+
+  const response=await fetch(
+    `/api/quran-transcription/${surahNo}?ayah=${ayahNo}`,
+    {headers:{Accept:"application/json"},cache:"force-cache"}
+  );
+  if(!response.ok) return "";
+
+  const payload=await response.json() as {transcription?:string|null};
+  const text=clean(String(payload.transcription || ""));
+  if(!text) return "";
+
+  const next={...(memory.get(surahNo) || cached),[ayahNo]:text};
+  memory.set(surahNo,next);
+  if(typeof window!=="undefined"){
+    try{localStorage.setItem(cacheKey(surahNo),JSON.stringify(next));}catch{}
+  }
+  return text;
+}
