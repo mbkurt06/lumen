@@ -50,10 +50,12 @@ export function EzberHomeView({
   onOpenItem,
   user,
   initialRoot = null,
+  onOpenListening,
 }: {
   onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
   user: User;
   initialRoot?: EzberItem | null;
+  onOpenListening?: () => void;
 }) {
   const [duaRoot, setDuaRoot] = useState<EzberItem | null>(null);
   const [rootChildren, setRootChildren] = useState<EzberItem[]>([]);
@@ -236,7 +238,7 @@ export function EzberHomeView({
   async function openEntry(item: EzberItem) {
     const route = String(meta(item).route || "");
     if (route === "listening") {
-      setMessage("Dinleme bölümü bir sonraki taşıma adımında normal arayüze bağlanacak.");
+      onOpenListening?.();
       return;
     }
 
