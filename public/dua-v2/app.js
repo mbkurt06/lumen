@@ -14,7 +14,12 @@ let activeQuickCount=null;
 let tasbihTitleSize=Math.max(22,Math.min(64,Number(localStorage.getItem("tasbihFullscreenTitleSize"))||36));
 let ilmihalData=null;
 const save=()=>localStorage.setItem("duaEzberState",JSON.stringify({...state,duaId:dua?.id,index,counts}));
-const saveTodos=()=>localStorage.setItem("duaTodoState",JSON.stringify(todos));
+const saveTodos=()=>{
+  localStorage.setItem("duaTodoState",JSON.stringify(todos));
+  if(EMBEDDED&&data&&window.duaV2Db?.syncMainTodos){
+    window.duaV2Db.syncMainTodos(todos,data).catch(err=>console.error("Todo sync:",err));
+  }
+};
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
@@ -24,7 +29,10 @@ async function init(){
   migrateLegacyViewState();
   buildHomeMenuFromDb();
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(FORCED_VIEW==="listening"){openListening()}else if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=97").then(r=>r.update())
+  if(EMBEDDED&&window.duaV2Db?.loadMainTodos){
+    try{todos=await window.duaV2Db.loadMainTodos(data);localStorage.setItem("duaTodoState",JSON.stringify(todos))}catch(err){console.error("Todo load:",err)}
+  }
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(FORCED_VIEW==="listening"){openListening()}else if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=98").then(r=>r.update())
 }
 function migrateLegacyViewState(){
   const map={
