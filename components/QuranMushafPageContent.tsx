@@ -164,6 +164,7 @@ export function QuranMushafPageContent({
                   role="button"
                   tabIndex={0}
                   className={"quranWordAyah" + (selected ? " selected" : "")}
+                  data-node-id={group.nodeId}
                   data-surah={group.surahNo}
                   data-ayah={group.ayahNo}
                   onMouseEnter={event => {
