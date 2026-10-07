@@ -82,3 +82,39 @@ IndexedDB will provide an offline cache and a queue for changes made while offli
 5. Start with `npm run dev`.
 
 No production secrets should ever be committed to this repository.
+
+
+## Google Takvim
+
+Lumen'in Takvim sekmesi birden fazla Google hesabını ve her hesaptaki birden fazla takvimi destekler.
+
+### Google Cloud kurulumu
+
+1. Google Cloud Console'da bir proje seçin veya oluşturun.
+2. **Google Calendar API**'yi etkinleştirin.
+3. OAuth consent screen'i yapılandırın.
+4. **Web application** türünde bir OAuth Client oluşturun.
+5. Authorized redirect URI olarak geliştirme için:
+   `http://localhost:3100/api/google-calendar/callback`
+   ekleyin.
+6. `.env.local` içine şunları ekleyin:
+
+```env
+SUPABASE_SERVICE_ROLE_KEY=...
+GOOGLE_CALENDAR_CLIENT_ID=...
+GOOGLE_CALENDAR_CLIENT_SECRET=...
+GOOGLE_CALENDAR_STATE_SECRET=uzun-rastgele-bir-deger
+GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:3100/api/google-calendar/callback
+```
+
+Google OAuth web akışında localhost geliştirme için kullanılabilir. Uygulamayı telefondan LAN IP'si üzerinden (`192.168.x.x`) kullanırken Google callback'in telefondaki localhost'a dönmemesi için uygulamayı HTTPS bir alan adı/Tailscale Funnel/benzeri güvenli bir URL üzerinden yayınlayıp `GOOGLE_CALENDAR_REDIRECT_URI` değerini o HTTPS adrese ayarlayın.
+
+### Desteklenen Takvim işlevleri
+
+- Birden fazla Google hesabı bağlama
+- Her hesaptaki takvimleri ayrı ayrı gösterme/gizleme
+- Yıl, Ay, Hafta, 3 Gün, 1 Gün ve Liste görünümü
+- Liste görünümünde günlük, haftalık, aylık, yıllık veya özel tarih aralığı
+- Etkinlik oluşturma, düzenleme ve silme
+- Hesap kaldırma
+- Görünür takvim ve görünüm tercihlerinin kullanıcı hesabında saklanması
