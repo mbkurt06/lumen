@@ -2739,3 +2739,25 @@ body.embedded-mode .global-header{
 body.embedded-mode{
   --global-header-height:0px;
 }
+
+
+/* v99 — exact V2 embed keeps its own settings and fullscreen tasbih controls */
+body.embedded-mode .global-header{
+  display:grid!important;
+}
+body.embedded-mode{
+  --global-header-height:54px;
+}
+body.embedded-mode .global-header{
+  width:min(760px,100vw);
+  pointer-events:auto;
+}
+body.embedded-mode .header-actions{
+  display:flex!important;
+}
+body.embedded-mode #settingsBtn{
+  display:flex!important;
+}
+body.embedded-mode #fullscreenTasbihBtn:not(.hidden){
+  display:flex!important;
+}
