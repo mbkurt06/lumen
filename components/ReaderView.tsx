@@ -138,6 +138,7 @@ export function ReaderView({
   const [quranActionMessage, setQuranActionMessage] = useState("");
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
+  const quranSwipeStartX = useRef<number | null>(null);
 
   const today = localDateKey();
 
@@ -666,7 +667,18 @@ export function ReaderView({
             );
           })()}
 
-          <div className={"quranPage " + (quranPageLoading ? "loading" : "")}>
+          <div
+            className={"quranPage " + (quranPageLoading ? "loading" : "")}
+            onTouchStart={e => { quranSwipeStartX.current = e.touches[0]?.clientX ?? null; }}
+            onTouchEnd={e => {
+              const startX = quranSwipeStartX.current;
+              const endX = e.changedTouches[0]?.clientX ?? null;
+              quranSwipeStartX.current = null;
+              if (startX == null || endX == null || Math.abs(endX - startX) < 55 || !quranPage) return;
+              if (endX < startX && quranPage < quranPageMax) void loadQuranPage(quranPage + 1);
+              if (endX > startX && quranPage > quranPageMin) void loadQuranPage(quranPage - 1);
+            }}
+          >
             <div className="quranPageTopLine">
               <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.surah_title || item.title)}</span>
               <span>{quranPage ? `Sayfa ${quranPage}` : ""}</span>
