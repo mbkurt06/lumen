@@ -29,6 +29,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: url.toString() });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Google bağlantısı başlatılamadı." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Google bağlantısı başlatılamadı.";
+    const notConfigured = message.startsWith("Missing environment variable:");
+    return NextResponse.json(
+      {
+        error: notConfigured
+          ? "Google Takvim OAuth yapılandırması eksik."
+          : message,
+        code: notConfigured ? "GOOGLE_CALENDAR_NOT_CONFIGURED" : "GOOGLE_CALENDAR_CONNECT_FAILED",
+        detail: notConfigured ? message : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
