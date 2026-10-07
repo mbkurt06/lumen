@@ -5602,3 +5602,133 @@ body.quranEasyRead .quranFlow{
     font-size:calc(29px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
   }
 }
+
+
+/* v0.9.8 — exact Word Mushaf source rendering */
+.quranWordPage{
+  aspect-ratio:11906 / 16838!important;
+  padding:
+    clamp(18px,6.2%,54px)
+    clamp(26px,10.5%,92px)
+    clamp(24px,7.5%,66px)!important;
+}
+.quranWordSourceActive{
+  font-size:calc(26.6667px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+  line-height:1.72!important;
+  text-align:justify!important;
+  text-align-last:auto!important;
+  font-family:
+    var(--quran-font-family,"Shaikh Hamdullah Mushaf"),
+    "Shaikh Hamdullah Mushaf",
+    "Shaikh Hamdullah Book",
+    "Traditional Naskh",
+    "Traditional Arabic",
+    "Noto Naskh Arabic",
+    serif!important;
+  font-weight:var(--quran-font-weight,300)!important;
+  font-synthesis:none!important;
+  font-kerning:normal;
+}
+.quranWordParagraph{
+  margin:0;
+  padding:0;
+  direction:rtl;
+  unicode-bidi:plaintext;
+  white-space:pre-wrap;
+}
+.quranWordParagraph-mshfKuranMetni{
+  text-align:justify;
+  text-align-last:auto;
+}
+.quranWordParagraph-mshfSureBal,
+.quranWordParagraph-mshfBesmele{
+  text-align:center;
+  text-align-last:center;
+}
+.quranWordParagraph-mshfSureBal{
+  margin:.2em 0 .35em;
+}
+.quranWordParagraph-mshfBesmele{
+  margin:.08em 0 .22em;
+}
+.quranWordRun{
+  font:inherit;
+  color:inherit;
+}
+.quranWordRun-mshfAyetNo{
+  color:#999!important;
+}
+.quranWordRun-mshfSureAd{
+  color:#993300!important;
+}
+body[data-quran-page-theme="dark"] .quranWordRun-mshfAyetNo{
+  color:#b7b7b7!important;
+}
+body[data-quran-page-theme="dark"] .quranWordRun-mshfSureAd{
+  color:#d49772!important;
+}
+.quranWordAyah{
+  display:inline;
+  border-radius:5px;
+  cursor:pointer;
+  -webkit-box-decoration-break:clone;
+  box-decoration-break:clone;
+  padding:.08em .025em;
+  transition:background .12s ease, box-shadow .12s ease;
+}
+.quranWordAyah:hover{
+  background:color-mix(in srgb,var(--accent) 10%,transparent);
+}
+.quranWordAyah.selected{
+  background:color-mix(in srgb,#e9c873 38%,transparent)!important;
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 72%,transparent),
+    0 0 0 1px color-mix(in srgb,#fff 38%,transparent)!important;
+}
+body[data-quran-page-theme="dark"] .quranWordAyah.selected{
+  background:color-mix(in srgb,#c8a24f 30%,transparent)!important;
+}
+.quranWordAyah:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.quranWordNonAyah{
+  display:inline;
+}
+.quranDocxImportControl{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  min-width:min(340px,100%);
+}
+.quranDocxImportStatus{
+  width:min(340px,100%);
+  display:grid;
+  gap:4px;
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.35;
+}
+.quranDocxImportStatus progress{
+  width:100%;
+  height:6px;
+  accent-color:var(--accent);
+}
+@media(max-width:800px){
+  .quranWordPage{
+    padding:
+      clamp(14px,5.8%,34px)
+      clamp(18px,8.5%,44px)
+      clamp(18px,6.8%,40px)!important;
+  }
+  .quranWordSourceActive{
+    font-size:calc(23px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+    line-height:1.68!important;
+  }
+  .quranDocxImportControl{
+    min-width:0;
+    width:100%;
+    align-items:stretch;
+  }
+}
