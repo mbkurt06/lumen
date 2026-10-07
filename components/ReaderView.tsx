@@ -417,6 +417,21 @@ export function ReaderView({
     setBookTodoExistingOpen(false);
   }, []);
 
+  const openBookActions = useCallback((args:{nodeId:string;text:string;x:number;y:number}) => {
+    setBookSelection({
+      nodeId:args.nodeId,
+      text:args.text.slice(0,1200),
+      x:args.x,
+      y:args.y,
+    });
+    setBookBookmarkMenuOpen(false);
+    setBookBookmarkExistingOpen(false);
+    setBookTodoMenuOpen(false);
+    setBookTodoExistingOpen(false);
+    setBookActionMessage("");
+  }, []);
+
+
   useEffect(() => {
     if (!bookSelection) return;
 
@@ -1436,6 +1451,7 @@ export function ReaderView({
                       setActiveTodoId(null);
                       setCounterArmed(true);
                     }}
+                    onOpenActions={openBookActions}
                   />
                 ) : (
                   <pre
@@ -1460,6 +1476,17 @@ export function ReaderView({
                       data-reader-index={index}
                       onClick={e => {
                         e.stopPropagation();
+                        if (e.metaKey || e.ctrlKey) {
+                          e.preventDefault();
+                          const rect=e.currentTarget.getBoundingClientRect();
+                          openBookActions({
+                            nodeId:node.id,
+                            text:String(node.secondary_text || node.text_content || "").trim(),
+                            x:Math.max(110,Math.min(window.innerWidth-110,e.clientX || rect.left+rect.width/2)),
+                            y:Math.max(52,rect.top-8),
+                          });
+                          return;
+                        }
                         setQuranBookmarkMenuOpen(false);
                         setQuranTodoMenuOpen(false);
                         setQuranSelectedNodeId(node.id);
