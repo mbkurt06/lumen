@@ -22,7 +22,7 @@ export function SettingsView({
 }) {
   const [autoSync,setAutoSync]=useState(false);
   const [syncing,setSyncing]=useState(false);
-  const [syncStatus,setSyncStatus]=useState("Hazır");
+  const [syncStatus,setSyncStatus]=useState("Güncel");
   const [lastSync,setLastSync]=useState<string|null>(null);
 
   useEffect(()=>{
