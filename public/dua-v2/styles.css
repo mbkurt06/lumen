@@ -2696,3 +2696,31 @@ body.page-headers-collapsed .esma-detail-content{
     font-size:clamp(38px,12vw,58px);
   }
 }
+
+
+/* v95 — robust press-and-drag menu ordering */
+.swipe-row.reorder-ready,
+.swipe-row.reorder-dragging{
+  cursor:grabbing !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  touch-action:none !important;
+}
+.swipe-row.reorder-dragging{
+  position:relative;
+  z-index:80;
+  opacity:.94;
+  transform:scale(1.012);
+  box-shadow:0 12px 34px rgba(0,0,0,.32);
+}
+.swipe-row.reorder-dragging > .swipe-main{
+  transform:none !important;
+}
+body.menu-reorder-active,
+body.menu-reorder-active *{
+  cursor:grabbing !important;
+}
+body.menu-reorder-active{
+  user-select:none !important;
+  -webkit-user-select:none !important;
+}
