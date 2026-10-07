@@ -196,17 +196,29 @@ export function QuranMushafPageContent({
                   onMouseEnter={event => {
                     const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
                     if (!text || document.body.classList.contains("quranHideLatin")) return;
-                    const rect = event.currentTarget.getBoundingClientRect();
+                    const rects = Array.from(event.currentTarget.getClientRects());
+                    const lineRect =
+                      rects.find(rect => event.clientY >= rect.top && event.clientY <= rect.bottom) ??
+                      rects.reduce((best, rect) =>
+                        Math.abs(rect.top - event.clientY) < Math.abs(best.top - event.clientY) ? rect : best,
+                        rects[0]
+                      );
                     const x = Math.max(190, Math.min(window.innerWidth - 190, event.clientX));
-                    const y = Math.max(12, rect.top - 8);
+                    const y = Math.max(12, (lineRect?.top ?? event.clientY) - 4);
                     setPronunciationTooltip({ text, x, y });
                   }}
                   onMouseMove={event => {
                     const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
                     if (!text || document.body.classList.contains("quranHideLatin")) return;
-                    const rect = event.currentTarget.getBoundingClientRect();
+                    const rects = Array.from(event.currentTarget.getClientRects());
+                    const lineRect =
+                      rects.find(rect => event.clientY >= rect.top && event.clientY <= rect.bottom) ??
+                      rects.reduce((best, rect) =>
+                        Math.abs(rect.top - event.clientY) < Math.abs(best.top - event.clientY) ? rect : best,
+                        rects[0]
+                      );
                     const x = Math.max(190, Math.min(window.innerWidth - 190, event.clientX));
-                    const y = Math.max(12, rect.top - 8);
+                    const y = Math.max(12, (lineRect?.top ?? event.clientY) - 4);
                     setPronunciationTooltip({ text, x, y });
                   }}
                   onMouseLeave={() => setPronunciationTooltip(null)}
