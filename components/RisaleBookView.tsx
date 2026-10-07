@@ -49,19 +49,36 @@ function paginate(nodes:RisaleNode[],target=2250){
 }
 
 export function RisaleBookView({
+  itemId,
   title,
   bookTitle,
   nodes,
+  hasPreviousDocument=false,
+  hasNextDocument=false,
+  onPreviousDocument,
+  onNextDocument,
 }:{
+  itemId:string;
   title:string;
   bookTitle?:string;
   nodes:RisaleNode[];
+  hasPreviousDocument?:boolean;
+  hasNextDocument?:boolean;
+  onPreviousDocument?:()=>void;
+  onNextDocument?:()=>void;
 }){
   const [page,setPage]=useState(0);
   const [fontScale,setFontScale]=useState(1);
   const pages=useMemo(()=>paginate(nodes,2250/Math.pow(fontScale,1.65)),[nodes,fontScale]);
 
-  useEffect(()=>setPage(0),[title]);
+  useEffect(()=>{
+    let restoredPage=0;
+    try {
+      const saved=Number(localStorage.getItem("lumen-risale-page:"+itemId) || 0);
+      if(Number.isFinite(saved) && saved>=0) restoredPage=saved;
+    } catch {}
+    setPage(Math.min(restoredPage,Math.max(0,pages.length-1)));
+  },[itemId,title,pages.length]);
   useEffect(()=>{
     const readScale=()=>{
       const raw=getComputedStyle(document.documentElement).getPropertyValue("--font-scale");
@@ -74,31 +91,56 @@ export function RisaleBookView({
   },[]);
   useEffect(()=>setPage(current=>Math.min(current,pages.length-1)),[pages.length]);
   useEffect(()=>{
+    try { localStorage.setItem("lumen-risale-page:"+itemId,String(page)); } catch {}
+  },[itemId,page]);
+  useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(event.key==="ArrowLeft" && page>0){
-        event.preventDefault();
-        setPage(v=>Math.max(0,v-1));
+      if(event.key==="ArrowLeft"){
+        if(page>0){
+          event.preventDefault();
+          setPage(v=>Math.max(0,v-1));
+        }else if(hasPreviousDocument && onPreviousDocument){
+          event.preventDefault();
+          onPreviousDocument();
+        }
       }
-      if(event.key==="ArrowRight" && page<pages.length-1){
-        event.preventDefault();
-        setPage(v=>Math.min(pages.length-1,v+1));
+      if(event.key==="ArrowRight"){
+        if(page<pages.length-1){
+          event.preventDefault();
+          setPage(v=>Math.min(pages.length-1,v+1));
+        }else if(hasNextDocument && onNextDocument){
+          event.preventDefault();
+          onNextDocument();
+        }
       }
     };
     window.addEventListener("keydown",onKey);
     return()=>window.removeEventListener("keydown",onKey);
-  },[page,pages.length]);
+  },[page,pages.length,hasPreviousDocument,hasNextDocument,onPreviousDocument,onNextDocument]);
 
   const visible=pages[page] ?? [];
 
   return (
     <div className="risaleBookReader">
       <nav className="risalePagePager" aria-label="Risale sayfa geçişi">
-        <button disabled={page<=0} onClick={()=>setPage(v=>Math.max(0,v-1))}>
-          ‹ Önceki sayfa
+        <button
+          disabled={page<=0 && !hasPreviousDocument}
+          onClick={()=>{
+            if(page>0) setPage(v=>Math.max(0,v-1));
+            else onPreviousDocument?.();
+          }}
+        >
+          {page>0 ? "‹ Önceki sayfa" : "‹ Önceki bölüm"}
         </button>
         <span>{page+1} / {pages.length}</span>
-        <button disabled={page>=pages.length-1} onClick={()=>setPage(v=>Math.min(pages.length-1,v+1))}>
-          Sonraki sayfa ›
+        <button
+          disabled={page>=pages.length-1 && !hasNextDocument}
+          onClick={()=>{
+            if(page<pages.length-1) setPage(v=>Math.min(pages.length-1,v+1));
+            else onNextDocument?.();
+          }}
+        >
+          {page<pages.length-1 ? "Sonraki sayfa ›" : "Sonraki bölüm ›"}
         </button>
       </nav>
 
