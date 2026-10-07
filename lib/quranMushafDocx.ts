@@ -429,7 +429,7 @@ async function rebuildQuranFromWord(
   if (juzInsertError) throw juzInsertError;
 
   const nodeRows = verses.map(v=>({
-    id:v.nodeId,owner_id:ownerId,document_id:surahIds.get(v.surahNo)!,parent_id:null,kind:"segment",
+    id:v.nodeId,owner_id:ownerId,document_id:surahIds.get(v.surahNo)!,parent_id:null,kind:"verse",
     sort_order:v.ayahNo,title:`${v.surahNo}:${v.ayahNo}`,text_content:null,secondary_text:v.text,translation:null,
     metadata:{
       source:"quran_seeded",arabic_source:"istanbul_mushaf_docx",surah_no:v.surahNo,ayah_no:v.ayahNo,
