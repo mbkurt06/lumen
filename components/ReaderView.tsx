@@ -212,6 +212,66 @@ export function ReaderView({
       }
     }
 
+    if (!loaded.length && isRisaleExternal) {
+      try {
+        setMessage("Risale metni resmî kaynaktan hazırlanıyor…");
+        const params = new URLSearchParams({
+          title:item.title,
+          book:String(itemMeta.book_title || ""),
+          chapter:String(itemMeta.chapter_no || 0),
+        });
+        const response = await fetch(`/api/library/risale/content?${params.toString()}`);
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || "Risale metni alınamadı.");
+
+        const rows = (json.blocks || []).map((block:any,index:number) => ({
+          document_id:item.id,
+          kind:block.kind === "heading" ? "heading" : "paragraph",
+          title:block.kind === "heading" ? String(block.title || block.text || "") : null,
+          text_content:block.kind === "heading" ? null : String(block.text || ""),
+          secondary_text:null,
+          translation:null,
+          sort_order:index + 1,
+          metadata:{
+            source:"risaleinur.hizmetvakfi.org",
+            official_source:String(json.sourceName || "Hizmet Vakfı Risale-i Nur Külliyatı"),
+            source_url:String(json.sourceUrl || itemMeta.source_url || ""),
+            block_kind:String(block.kind || "paragraph"),
+          },
+        }));
+
+        if (rows.length) {
+          const {error:insertError}=await supabase.from("content_nodes").insert(rows);
+          if(insertError) {
+            const {data:existingAfterRace}=await supabase
+              .from("content_nodes")
+              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+              .eq("document_id",item.id)
+              .order("sort_order");
+            if(!existingAfterRace?.length) throw insertError;
+            loaded=existingAfterRace;
+          } else {
+            const {data:hydrated,error:hydrateError}=await supabase
+              .from("content_nodes")
+              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+              .eq("document_id",item.id)
+              .order("sort_order");
+            if(hydrateError) throw hydrateError;
+            loaded=hydrated ?? [];
+          }
+        }
+
+        if (json.sourceUrl && json.sourceUrl !== itemMeta.source_url) {
+          await supabase.from("library_items").update({
+            metadata:{...itemMeta,source_url:String(json.sourceUrl),imported:true}
+          }).eq("id",item.id);
+        }
+        setMessage("");
+      } catch(importError) {
+        setMessage(importError instanceof Error ? importError.message : "Risale metni alınamadı.");
+      }
+    }
+
     setNodes(loaded);
     setLocalCounts(getTransientCounts(item.id));
 
@@ -225,7 +285,7 @@ export function ReaderView({
     setActiveTodoId(null);
     scrollRestored.current = false;
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, quranSurahNo]);
+  }, [item.id, item.title, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, quranSurahNo, isRisaleExternal, itemMeta.book_title, itemMeta.chapter_no, itemMeta.source_url]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -437,7 +497,7 @@ export function ReaderView({
         title={isEsmaDetail ? (categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}
-        showMemorize={!isRisaleExternal || nodes.length > 0}
+        showMemorize={true}
         onMenu={() => leaveDocument(onMenu)}
         onBack={() => leaveDocument(onBack)}
         onTodo={() => setDocumentTodoOpen(true)}
@@ -452,22 +512,9 @@ export function ReaderView({
           Kaynak: AlQuran Cloud Uthmânî metin · Diyanet İşleri Başkanlığı Türkçe meali
         </div>
       )}
-
-      {isRisaleExternal && !nodes.length && (
-        <div className="externalLibraryReader">
-          <div>
-            <strong>{item.title}</strong>
-            <p>
-              Bu eser için resmî Risale-i Nur kaynağına bağlı okuma bağlantısı kullanılıyor.
-              Üst menü, ayarlar ve TODO kontrolleri Lumen içinde kalır.
-            </p>
-          </div>
-          {itemMeta.source_url && (
-            <a href={String(itemMeta.source_url)} target="_blank" rel="noreferrer">
-              Resmî metni aç ↗
-            </a>
-          )}
-          {itemMeta.official_source && <small>{String(itemMeta.official_source)}</small>}
+      {isRisaleExternal && nodes.length > 0 && (
+        <div className="readerSourceNote">
+          Kaynak: Hizmet Vakfı Risale-i Nur Külliyatı · Metin ilk açılışta Lumen veritabanına kaydedilir.
         </div>
       )}
 
@@ -585,7 +632,7 @@ export function ReaderView({
             </article>
           );
         })}
-        {!nodes.length && !isRisaleExternal && <p className="muted">{isQuranDocument ? "Sûre metni yükleniyor…" : "Henüz içerik yok."}</p>}
+        {!nodes.length && <p className="muted">{isQuranDocument ? "Sûre metni yükleniyor…" : isRisaleExternal ? "Risale metni yükleniyor…" : "Henüz içerik yok."}</p>}
       </div>
 
       <nav className="contentPager">
