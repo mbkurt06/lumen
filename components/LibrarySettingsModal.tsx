@@ -153,7 +153,7 @@ export function LibrarySettingsModal({
         setMushafImportProgress(message);
         setMushafImportPercent(percent);
       });
-      setMushafImportProgress("604 sayfa ve 6236 ayet Word belgesinden birebir kaydedildi.");
+      setMushafImportProgress("1. cüz test olarak birebir kaydedildi: 21 sayfa · 148 ayet.");
       setMushafImportPercent(100);
     } catch (error) {
       const message =
@@ -226,7 +226,7 @@ export function LibrarySettingsModal({
               disabled={mushafImporting}
               onClick={() => mushafFileRef.current?.click()}
             >
-              {mushafImporting ? "İçe aktarılıyor…" : "DOCX'i birebir içe aktar"}
+              {mushafImporting ? "İçe aktarılıyor…" : "1. cüzü DOCX'ten birebir içe aktar"}
             </button>
             {!!mushafImportProgress && (
               <div className="quranDocxImportStatus">
