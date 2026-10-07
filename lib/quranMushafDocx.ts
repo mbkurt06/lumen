@@ -12,6 +12,8 @@ const EXACT_FONT_FAMILY = "LumenExactMushaf";
 const FONT_CACHE_DB = "lumen-quran-word-font";
 const FONT_CACHE_STORE = "fonts";
 const FONT_CACHE_KEY = "shaikh-hamdullah-mushaf";
+const FONT_STORAGE_BUCKET = "quran-assets";
+const FONT_STORAGE_FILENAME = "shaikh-hamdullah-mushaf.ttf";
 
 export type QuranMushafRun = {
   text: string;
@@ -278,20 +280,112 @@ async function readExactMushafFont() {
   }
 }
 
+async function currentFontOwnerId() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function exactFontStoragePath(ownerId:string) {
+  return `${ownerId}/mushaf/${FONT_STORAGE_FILENAME}`;
+}
+
+async function downloadExactMushafFontFromSupabase(ownerId?:string|null) {
+  const resolvedOwnerId = ownerId || await currentFontOwnerId();
+  if (!resolvedOwnerId) return null;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(FONT_STORAGE_BUCKET)
+      .download(exactFontStoragePath(resolvedOwnerId));
+    if (error || !data) return null;
+
+    const buffer = await data.arrayBuffer();
+    if (!buffer.byteLength) return null;
+    await cacheExactMushafFont(new Uint8Array(buffer));
+    return buffer;
+  } catch {
+    return null;
+  }
+}
+
+let exactFontPublishAttempted = false;
+
+async function publishExactMushafFontToSupabase(
+  buffer:ArrayBuffer,
+  ownerId?:string|null,
+) {
+  if (exactFontPublishAttempted) return false;
+  exactFontPublishAttempted = true;
+
+  const resolvedOwnerId = ownerId || await currentFontOwnerId();
+  if (!resolvedOwnerId || !navigator.onLine) return false;
+
+  try {
+    const path = exactFontStoragePath(resolvedOwnerId);
+    const bytes = new Uint8Array(buffer.slice(0));
+    const { error } = await supabase.storage
+      .from(FONT_STORAGE_BUCKET)
+      .upload(path, bytes, {
+        upsert: true,
+        contentType: "font/ttf",
+        cacheControl: "31536000",
+      });
+    if (error) {
+      console.warn("Exact Mushaf font Supabase upload failed", error);
+      return false;
+    }
+
+    const { data: source } = await supabase
+      .from("quran_mushaf_sources")
+      .select("metadata")
+      .eq("owner_id", resolvedOwnerId)
+      .eq("source_key", SOURCE_KEY)
+      .maybeSingle();
+
+    const metadata = (source?.metadata ?? {}) as Record<string,unknown>;
+    await supabase
+      .from("quran_mushaf_sources")
+      .update({
+        metadata: {
+          ...metadata,
+          exactFontStorageBucket: FONT_STORAGE_BUCKET,
+          exactFontStoragePath: path,
+          exactFontPublishedAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("owner_id", resolvedOwnerId)
+      .eq("source_key", SOURCE_KEY);
+
+    return true;
+  } catch (error) {
+    console.warn("Exact Mushaf font Supabase publish failed", error);
+    return false;
+  }
+}
+
 let exactFontLoadPromise: Promise<boolean> | null = null;
 let exactFontRegistered = false;
 
-export async function ensureExactMushafFont() {
+export async function ensureExactMushafFont(ownerId?:string|null) {
   if (typeof window === "undefined" || typeof FontFace === "undefined") return false;
   if (exactFontRegistered) return true;
   if (exactFontLoadPromise) return exactFontLoadPromise;
 
   exactFontLoadPromise = (async () => {
+    // 1) fastest: this device's IndexedDB
     let buffer = await readExactMushafFont();
 
-    // The desktop that imported the DOCX already has the exact embedded font in
-    // IndexedDB, but a second device (iPad/iPhone) does not. Bootstrap the same
-    // official Word font once on that device, then keep it locally.
+    // 2) canonical shared source: private Supabase Storage
+    if (!buffer && navigator.onLine) {
+      buffer = await downloadExactMushafFontFromSupabase(ownerId);
+    }
+
+    // 3) last resort: extract once from the official Word source
     if (!buffer && navigator.onLine) {
       try {
         const response = await fetch("/api/quran-source", { cache: "force-cache" });
@@ -309,11 +403,17 @@ export async function ensureExactMushafFont() {
           }
         }
       } catch (error) {
-        console.warn("Exact Mushaf font bootstrap failed", error);
+        console.warn("Exact Mushaf font Word fallback failed", error);
       }
     }
 
     if (!buffer) return false;
+
+    // If this is the desktop that already had the correct font locally, publish
+    // it once so every other logged-in device gets the exact same binary.
+    if (navigator.onLine) {
+      void publishExactMushafFontToSupabase(buffer, ownerId);
+    }
 
     const blob = new Blob([buffer], { type: "font/ttf" });
     const url = URL.createObjectURL(blob);
@@ -327,7 +427,10 @@ export async function ensureExactMushafFont() {
       document.fonts.add(face);
       await document.fonts.ready;
       exactFontRegistered = true;
-      document.documentElement.style.setProperty("--quran-exact-font-family", JSON.stringify(EXACT_FONT_FAMILY));
+      document.documentElement.style.setProperty(
+        "--quran-exact-font-family",
+        JSON.stringify(EXACT_FONT_FAMILY),
+      );
       return true;
     } finally {
       URL.revokeObjectURL(url);
