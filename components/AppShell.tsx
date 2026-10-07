@@ -42,6 +42,11 @@ export function AppShell({
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>("todo");
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
+  const [quranBootstrapStatus,setQuranBootstrapStatus] = useState<{
+    state:string;
+    message:string;
+    percent?:number;
+  } | null>(null);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -54,6 +59,23 @@ export function AppShell({
       console.warn("Service worker registration failed", error);
     });
   }, []);
+
+  useEffect(() => {
+    const onQuranBootstrap=(event:Event)=>{
+      const detail=(event as CustomEvent<{state?:string;message?:string;percent?:number}>).detail;
+      if(!detail?.message) return;
+      setQuranBootstrapStatus({
+        state:detail.state || "working",
+        message:detail.message,
+        percent:detail.percent,
+      });
+      if(detail.state==="ready"){
+        window.setTimeout(()=>setQuranBootstrapStatus(null),5000);
+      }
+    };
+    window.addEventListener("lumen-quran-bootstrap",onQuranBootstrap as EventListener);
+    return()=>window.removeEventListener("lumen-quran-bootstrap",onQuranBootstrap as EventListener);
+  },[]);
 
   useEffect(() => {
     if (!navigator.onLine || window.innerWidth < 900) return;
@@ -492,6 +514,15 @@ export function AppShell({
 
   return (
     <div className={"appShell " + (sidebarOpen ? "sidebarOpen " : "sidebarClosed ") + (rightPanelOpen ? "rightPanelOpen" : "rightPanelClosed")}>
+      {quranBootstrapStatus && (
+        <div className={"quranBootstrapBanner " + quranBootstrapStatus.state}>
+          <span>{quranBootstrapStatus.message}</span>
+          {typeof quranBootstrapStatus.percent === "number" && (
+            <progress max={100} value={quranBootstrapStatus.percent} />
+          )}
+        </div>
+      )}
+
       {!sidebarOpen && (
         <button className="sidebarReopen" onClick={() => setSidebarOpen(true)} aria-label="Menüyü aç" title="Menüyü aç">☰</button>
       )}
