@@ -48,7 +48,7 @@ const FATIHA_WORD_PRONUNCIATION: Record<string,string> = {
   "الحمد":"Elhamdü",
   "لله":"lillâhi",
   "رب":"rabbi",
-  "العالمين":"âlemîn",
+  "العالمين":"l-âlemîn",
   "مالك":"mâliki",
   "يوم":"yevmi",
   "الدين":"d-dîn",
