@@ -20,11 +20,13 @@ export function LibraryHubView({
   onOpenItem,
   initialSection = null,
   initialEzberRoot = null,
+  onOpenListening,
 }: {
   user: User;
   onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
   initialSection?: SectionKey | null;
   initialEzberRoot?: EzberItem | null;
+  onOpenListening?: () => void;
 }) {
   const [section, setSection] = useState<SectionKey | null>(initialSection);
   const [order, setOrder] = useState<SectionKey[]>(defaultOrder);
@@ -114,7 +116,7 @@ export function LibraryHubView({
       )}
 
       {section === "ezber" && (
-        <EzberHomeView onOpenItem={onOpenItem} user={user} initialRoot={initialEzberRoot} />
+        <EzberHomeView onOpenItem={onOpenItem} user={user} initialRoot={initialEzberRoot} onOpenListening={onOpenListening} />
       )}
 
       {section && section !== "ezber" && (
