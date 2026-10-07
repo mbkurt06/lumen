@@ -74,8 +74,8 @@ export function LibrarySettingsModal({
   if (!open) return null;
 
   return (
-    <div className="librarySettingsBackdrop" onMouseDown={onClose}>
-      <div className="librarySettingsModal" onMouseDown={e => e.stopPropagation()}>
+    <aside className="librarySettingsDock" aria-label="Okuma ayarları">
+      <div className="librarySettingsModal">
         <div className="modalHead">
           <strong>Okuma ayarları</strong>
           <button className="modalClose" onClick={onClose}>×</button>
@@ -121,6 +121,6 @@ export function LibrarySettingsModal({
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
