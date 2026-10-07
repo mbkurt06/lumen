@@ -88,7 +88,7 @@ export function LibraryHubView({
 
   return (
     <div className="libraryHubPage">
-      {section !== "ezber" && (
+      {(section === null || section === "he") && (
         <div className="libraryHubTopbar">
           <div>
             {section && (
