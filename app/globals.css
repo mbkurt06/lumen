@@ -3583,3 +3583,134 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     display:none;
   }
 }
+
+
+/* v0.6.4 — resizable right calendar panel with persistent edge handle */
+.calendarPage{
+  position:relative;
+}
+.calendarPage.sourcesOpen{
+  grid-template-columns:minmax(0,1fr) var(--calendar-sources-width,250px)!important;
+}
+.calendarPage.sourcesClosed{
+  grid-template-columns:minmax(0,1fr) 0!important;
+}
+.calendarSources{
+  position:sticky;
+  top:0;
+  width:var(--calendar-sources-width,250px)!important;
+  min-width:180px;
+  max-width:420px;
+  overflow:visible!important;
+}
+.calendarSourcesHead{
+  padding-left:8px;
+}
+.calendarSourcesResizeHandle{
+  position:absolute;
+  left:-4px;
+  top:0;
+  bottom:0;
+  width:8px;
+  cursor:col-resize;
+  z-index:12;
+}
+.calendarSourcesResizeHandle::after{
+  content:"";
+  position:absolute;
+  left:3px;
+  top:0;
+  bottom:0;
+  width:1px;
+  background:transparent;
+  transition:background .12s ease;
+}
+.calendarSourcesResizeHandle:hover::after,
+.sourcesResizing .calendarSourcesResizeHandle::after{
+  background:var(--accent);
+}
+.sourcesResizing,
+.sourcesResizing *{
+  user-select:none!important;
+}
+.calendarSourcesEdgeToggle{
+  position:absolute;
+  left:-16px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:14;
+  width:30px;
+  height:54px;
+  border:1px solid var(--border);
+  border-radius:12px 0 0 12px;
+  background:var(--panel);
+  color:var(--text);
+  display:grid;
+  place-items:center;
+  font-size:24px;
+  line-height:1;
+  box-shadow:-6px 0 18px #0002;
+}
+.calendarSourcesCollapsedHandle{
+  position:fixed;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:65;
+  width:22px;
+  height:64px;
+  padding:0;
+  border:1px solid var(--border);
+  border-right:0;
+  border-radius:12px 0 0 12px;
+  background:color-mix(in srgb,var(--panel) 88%,transparent);
+  color:var(--muted);
+  display:grid;
+  place-items:center;
+  font-size:21px;
+  box-shadow:-5px 0 16px #0002;
+  opacity:.72;
+  transition:opacity .12s ease,width .12s ease,color .12s ease;
+}
+.calendarSourcesCollapsedHandle:hover{
+  width:30px;
+  opacity:1;
+  color:var(--text);
+}
+.calendarPage.sourcesClosed .calendarSources{
+  width:0!important;
+  min-width:0!important;
+  max-width:0!important;
+  padding:0!important;
+  border:0!important;
+  transform:translateX(100%)!important;
+}
+.calendarPage.sourcesClosed .calendarSourcesEdgeToggle,
+.calendarPage.sourcesClosed .calendarSourcesResizeHandle{
+  display:none!important;
+}
+
+/* Desktop uses the edge handle; toolbar toggle remains only for small screens. */
+@media(min-width:801px){
+  .calendarSourcesToggle{
+    display:none!important;
+  }
+}
+@media(max-width:800px){
+  .calendarSourcesResizeHandle{
+    display:none!important;
+  }
+  .calendarSourcesEdgeToggle{
+    left:-18px;
+    top:50%;
+  }
+  .calendarSourcesCollapsedHandle{
+    width:24px;
+    height:58px;
+  }
+  .calendarPage.sourcesOpen .calendarSources{
+    width:min(84vw,310px)!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+}
