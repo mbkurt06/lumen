@@ -5820,7 +5820,8 @@ body.hideArabic .quranReaderRawDebugText{
 .quranWordSourceActive.quranExactWordFont{
   font-family:var(--quran-exact-font-family,"LumenExactMushaf"),"LumenExactMushaf",serif!important;
   font-size:calc(26.6667px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
-  font-weight:400!important;
+  font-weight:var(--quran-font-weight,300)!important;
+  font-variation-settings:"wght" var(--quran-font-weight,300);
   font-style:normal!important;
   font-synthesis:none!important;
   font-feature-settings:"ccmp" 1,"rlig" 1,"liga" 1,"calt" 1,"mark" 1,"mkmk" 1!important;
@@ -5829,7 +5830,8 @@ body.hideArabic .quranReaderRawDebugText{
 .quranWordSourceActive.quranExactWordFont .quranWordRun{
   font-family:inherit!important;
   font-size:inherit!important;
-  font-weight:400!important;
+  font-weight:inherit!important;
+  font-variation-settings:inherit!important;
   font-style:normal!important;
   font-synthesis:none!important;
   font-feature-settings:inherit!important;
