@@ -6281,3 +6281,28 @@ body[data-reader-scope="quran"] .legacyCounter.readCounter:not([style*="left"]){
     bottom:auto!important;
   }
 }
+
+
+/* Quran floating counter: visible, light, and freely draggable on both axes. */
+body[data-reader-scope="quran"] .legacyCounter.readCounter{
+  background:var(--panel)!important;
+  color:var(--accent)!important;
+  border:2px solid var(--accent)!important;
+  box-shadow:0 8px 24px #0002!important;
+}
+body[data-reader-scope="quran"] .legacyCounter.readCounter:not([style]){
+  left:auto!important;
+  right:24px!important;
+  top:auto!important;
+  bottom:120px!important;
+}
+body[data-reader-scope="quran"] .legacyCounter.readCounter[style]{
+  right:auto!important;
+  bottom:auto!important;
+}
+@media(max-width:800px){
+  body[data-reader-scope="quran"] .legacyCounter.readCounter:not([style]){
+    right:16px!important;
+    bottom:120px!important;
+  }
+}
