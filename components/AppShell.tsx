@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
 import { type EzberItem } from "@/components/EzberHomeView";
-import { LibraryHubView } from "@/components/LibraryHubView";
+import { LibraryHubView, type SectionKey } from "@/components/LibraryHubView";
 import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
@@ -32,6 +32,7 @@ export function AppShell({
   const [librarySettingsOpen, setLibrarySettingsOpen] = useState(false);
   const [returnEzberRoot, setReturnEzberRoot] = useState<EzberItem | null>(null);
   const [returnToEzber, setReturnToEzber] = useState(false);
+  const [returnLibrarySection, setReturnLibrarySection] = useState<SectionKey | null>(null);
   const [restored, setRestored] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
@@ -51,6 +52,9 @@ export function AppShell({
         if (typeof state.initialSegmentIndex === "number") setInitialSegmentIndex(state.initialSegmentIndex);
         if (state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
         if (typeof state.returnToEzber === "boolean") setReturnToEzber(state.returnToEzber);
+        if (state.returnLibrarySection === "ezber" || state.returnLibrarySection === "risale" || state.returnLibrarySection === "quran" || state.returnLibrarySection === "he") {
+          setReturnLibrarySection(state.returnLibrarySection);
+        }
         if (typeof state.sidebarOpen === "boolean") {
           setSidebarOpen(state.sidebarOpen);
           restoredSidebar = true;
@@ -162,11 +166,12 @@ export function AppShell({
       initialSegmentIndex,
       returnEzberRoot,
       returnToEzber,
+      returnLibrarySection,
       sidebarOpen,
       rightPanelOpen,
       rightPanelMode,
     }));
-  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, sidebarOpen, rightPanelOpen, rightPanelMode]);
+  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, returnLibrarySection, sidebarOpen, rightPanelOpen, rightPanelMode]);
 
   async function openTodoSource(todo: {
     related_library_item_id: string | null;
@@ -213,9 +218,17 @@ export function AppShell({
       if (idx >= 0) segmentIndex = idx;
     }
 
+    const itemMeta = (item.metadata ?? {}) as Record<string, unknown>;
+    const sourceName = String(itemMeta.source || itemMeta.catalog_source || "");
+    const targetSection: SectionKey =
+      sourceName.startsWith("quran") ? "quran" :
+      sourceName.startsWith("risale") ? "risale" :
+      "ezber";
+
     setSelectedItem(item);
-    setReturnEzberRoot(parent);
-    setReturnToEzber(true);
+    setReturnLibrarySection(targetSection);
+    setReturnEzberRoot(targetSection === "ezber" ? parent : null);
+    setReturnToEzber(targetSection === "ezber");
     setSiblings(list.filter(x => x.kind === "document"));
     setInitialSegmentIndex(segmentIndex);
     setLibraryMode("read");
@@ -223,9 +236,10 @@ export function AppShell({
   }
 
   function openRead(item: EzberItem, list: EzberItem[], parent: EzberItem | null) {
+    const section = returnLibrarySection ?? "ezber";
     setSelectedItem(item);
-    setReturnEzberRoot(parent);
-    setReturnToEzber(true);
+    setReturnEzberRoot(section === "ezber" ? parent : null);
+    setReturnToEzber(section === "ezber");
     setSiblings(list.filter(x => x.kind === "document"));
     setInitialSegmentIndex(0);
     setLibraryMode("read");
@@ -238,6 +252,7 @@ export function AppShell({
     setInitialSegmentIndex(0);
     setReturnEzberRoot(null);
     setReturnToEzber(false);
+    setReturnLibrarySection(null);
     setLibraryMode("hub");
     setTab("library");
   }
@@ -328,10 +343,16 @@ export function AppShell({
             <LibraryHubView
               user={user}
               onOpenItem={openRead}
-              initialSection={(returnToEzber || returnEzberRoot) ? "ezber" : null}
-              initialEzberRoot={returnEzberRoot}
+              initialSection={returnLibrarySection ?? ((returnToEzber || returnEzberRoot) ? "ezber" : null)}
+              initialEzberRoot={returnLibrarySection === "ezber" || (!returnLibrarySection && (returnToEzber || returnEzberRoot)) ? returnEzberRoot : null}
+              onSectionChange={section => {
+                setReturnLibrarySection(section);
+                setReturnToEzber(section === "ezber");
+                if (section !== "ezber") setReturnEzberRoot(null);
+              }}
               onOpenListening={() => {
                 setReturnEzberRoot(null);
+                setReturnLibrarySection("ezber");
                 setReturnToEzber(true);
                 setLibraryMode("listening");
               }}
@@ -349,8 +370,10 @@ export function AppShell({
               initialFocusIndex={initialSegmentIndex}
               onBack={() => setLibraryMode("hub")}
               onMenu={() => {
-                setReturnEzberRoot(null);
-                setReturnToEzber(true);
+                if (returnLibrarySection === "ezber") {
+                  setReturnEzberRoot(null);
+                  setReturnToEzber(true);
+                }
                 setLibraryMode("hub");
               }}
               onMemorize={(index = 0) => {
@@ -370,8 +393,10 @@ export function AppShell({
               initialIndex={initialSegmentIndex}
               categoryTitle={returnEzberRoot?.title || ""}
               onMenu={() => {
-                setReturnEzberRoot(null);
-                setReturnToEzber(true);
+                if (returnLibrarySection === "ezber") {
+                  setReturnEzberRoot(null);
+                  setReturnToEzber(true);
+                }
                 setLibraryMode("hub");
               }}
               onBack={() => setLibraryMode("read")}
