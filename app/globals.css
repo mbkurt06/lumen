@@ -5989,3 +5989,39 @@ body[data-quran-page-theme="dark"]:not(.quranHideLatin) .quranWordAyah[data-sura
   color:#f4f1e8;
   border-color:#596059;
 }
+
+
+/* Real Quran pronunciation tooltip follows the mouse.
+   The old ::after tooltip was anchored to one visual fragment of a multi-line
+   inline ayah, which could place it far away from the hovered text. */
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"]:hover::after{
+  content:none!important;
+  display:none!important;
+}
+.quranPronunciationTooltip{
+  position:fixed;
+  z-index:9999;
+  transform:translate(-50%,-100%);
+  width:max-content;
+  max-width:min(820px,86vw);
+  padding:8px 12px;
+  border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));
+  border-radius:9px;
+  background:color-mix(in srgb,var(--quran-page-bg,#f6f3ed) 96%,white);
+  color:var(--quran-page-fg,#171717);
+  box-shadow:0 5px 18px #00000026;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  font-size:17px!important;
+  font-weight:700!important;
+  line-height:1.35!important;
+  white-space:normal;
+  text-align:center;
+  direction:ltr;
+  unicode-bidi:isolate;
+  pointer-events:none;
+}
+body[data-quran-page-theme="dark"] .quranPronunciationTooltip{
+  background:#242824;
+  color:#f4f1e8;
+  border-color:#596059;
+}
