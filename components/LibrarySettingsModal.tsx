@@ -27,6 +27,7 @@ function applyPrefs(p: Prefs) {
   document.body.classList.toggle("hideLatin", !p.showLatin);
   document.body.classList.toggle("hideTurkish", !p.showTurkish);
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
+  window.dispatchEvent(new CustomEvent("lumen-library-prefs", { detail: p }));
 }
 
 export function LibrarySettingsModal({
