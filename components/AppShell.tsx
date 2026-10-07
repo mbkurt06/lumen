@@ -85,6 +85,12 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
+    const openSettings = () => setLibrarySettingsOpen(open => !open);
+    window.addEventListener("lumen-open-library-settings", openSettings);
+    return () => window.removeEventListener("lumen-open-library-settings", openSettings);
+  }, []);
+
+  useEffect(() => {
     if (!restored) return;
     if (localStorage.getItem("lumen-repair-todo-target-v1") === "done") return;
 
