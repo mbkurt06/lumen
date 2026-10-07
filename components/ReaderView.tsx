@@ -986,7 +986,15 @@ export function ReaderView({
               <span>{quranPage ? `Sayfa ${displayQuranPage(quranPage)}` : ""}</span>
               <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.juz ? `Cüz ${(nodes[0]?.metadata as Record<string,any>).juz}` : "")}</span>
             </div>
-            <div ref={quranFlowRef} className={"quranFlow" + (quranMushafPage ? " quranWordSourceActive" : "")} dir="rtl">
+            <div
+              ref={quranFlowRef}
+              className={
+                "quranFlow"
+                + (quranMushafPage ? " quranWordSourceActive" : "")
+                + (quranMushafPage?.metadata?.exactWordCharacters === true ? " quranExactWordFont" : "")
+              }
+              dir="rtl"
+            >
               {quranMushafPage ? (
                 <QuranMushafPageContent
                   page={quranMushafPage}
