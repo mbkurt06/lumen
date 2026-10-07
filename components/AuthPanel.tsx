@@ -14,22 +14,58 @@ export function AuthPanel() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (error) {
-        setMessage("Supabase bağlantısı var, aktif oturum bulunamadı.");
+    let cancelled=false;
+
+    const boot=async()=>{
+      // getSession reads the persisted Supabase session locally, so an already
+      // signed-in device can boot even when there is no network connection.
+      const {data:sessionData}=await supabase.auth.getSession();
+      if(cancelled) return;
+
+      const cachedUser=sessionData.session?.user ?? null;
+      if(cachedUser){
+        setUser(cachedUser);
+        setMessage(navigator.onLine ? "Oturum açık." : "Çevrimdışı mod — kayıtlı oturum kullanılıyor.");
         setAuthReady(true);
+      }
+
+      if(!navigator.onLine){
+        if(!cachedUser){
+          setMessage("Çevrimdışısın. Bu cihazda daha önce açılmış bir oturum bulunamadı.");
+          setAuthReady(true);
+        }
         return;
       }
-      setUser(data.user ?? null);
-      setMessage(data.user ? "Oturum açık." : "Supabase bağlantısı hazır.");
+
+      const {data,error}=await supabase.auth.getUser();
+      if(cancelled) return;
+      if(error){
+        if(!cachedUser){
+          setMessage("Aktif oturum bulunamadı.");
+          setAuthReady(true);
+        }
+        return;
+      }
+      setUser(data.user ?? cachedUser);
+      setMessage(data.user || cachedUser ? "Oturum açık." : "Supabase bağlantısı hazır.");
       setAuthReady(true);
-    });
+    };
+
+    void boot();
+
+    const handleOnline=()=>void boot();
+    window.addEventListener("online",handleOnline);
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAuthReady(true);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled=true;
+      window.removeEventListener("online",handleOnline);
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   async function signIn(event: FormEvent) {
