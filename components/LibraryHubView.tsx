@@ -115,14 +115,14 @@ export function LibraryHubView({
         </div>
       )}
 
-      {section === "ezber" && (
+      <div className={"nativeEzberMount " + (section === "ezber" ? "active" : "preloaded")}>
         <EzberHomeView
           user={user}
           onOpenItem={onOpenItem}
           initialRoot={initialEzberRoot}
           onOpenListening={onOpenListening}
         />
-      )}
+      </div>
 
       {section && section !== "ezber" && (
         <div className="libraryPlaceholder">
