@@ -322,6 +322,11 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   }, [authHeaders]);
 
   useEffect(() => { void loadTodos(); }, [loadTodos]);
+  useEffect(() => {
+    const refreshTodos = () => void loadTodos();
+    window.addEventListener("lumen-todos-changed", refreshTodos);
+    return () => window.removeEventListener("lumen-todos-changed", refreshTodos);
+  }, [loadTodos]);
   useEffect(() => { void loadCalendarForDate(selectedDate); }, [selectedDate, loadCalendarForDate]);
   useEffect(() => {
     const refresh = () => void loadCalendarForDate(selectedDate);
@@ -364,7 +369,10 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     if (!window.confirm("Bu Todo silinsin mi?")) return;
     const { error } = await supabase.from("todos").delete().eq("id", id);
     if (error) setMessage(error.message);
-    else await loadTodos();
+    else {
+      await loadTodos();
+      window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
+    }
   }
 
   async function toggleCalendarDone(event: CalendarEvent) {
