@@ -945,7 +945,7 @@ export function ReaderView({
 
           <div
             ref={quranPageRef}
-            className={"quranPage " + (quranPageLoading ? "loading" : "")}
+            className={"quranPage " + (quranMushafPage ? "quranWordPage " : "") + (quranPageLoading ? "loading" : "")}
             onClick={() => setQuranSelectedNodeId(null)}
             onTouchStart={e => { quranSwipeStartX.current = e.touches[0]?.clientX ?? null; }}
             onTouchEnd={e => {
