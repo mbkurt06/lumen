@@ -73,6 +73,14 @@ export async function GET(request: Request) {
             status: event.status || "",
             htmlLink: event.htmlLink || "",
             colorId: event.colorId || null,
+            reminders: {
+              useDefault: event.reminders?.useDefault !== false,
+              overrides: Array.isArray(event.reminders?.overrides)
+                ? event.reminders.overrides
+                    .filter((item: any) => item?.method === "popup" && Number.isFinite(Number(item?.minutes)))
+                    .map((item: any) => ({ method: "popup", minutes: Number(item.minutes) }))
+                : [],
+            },
           });
         }
       }
