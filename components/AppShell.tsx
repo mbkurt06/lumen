@@ -294,7 +294,7 @@ export function AppShell({
           </button>
         )}
 
-        <div className={tab === "library" ? "" : "pageWrap"}>
+        <div className={tab === "library" || tab === "calendar" ? "" : "pageWrap"}>
           {tab === "todos" && <TodoList onOpenTodo={openTodoSource} />}
 
           {tab === "library" && libraryMode === "hub" && (
