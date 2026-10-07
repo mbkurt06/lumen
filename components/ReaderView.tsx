@@ -240,9 +240,11 @@ export function ReaderView({
           translation:null,
           sort_order:index + 1,
           metadata:{
-            source:"risaleinur.hizmetvakfi.org",
-            official_source:String(json.sourceName || "Hizmet Vakfı Risale-i Nur Külliyatı"),
+            source:"risale_diyanet_corpus",
+            official_source:String(json.sourceName || "Risale-i-Nur Diyanet Asıl Nüsha metin arşivi"),
             source_url:String(json.sourceUrl || itemMeta.source_url || ""),
+            official_site:String(json.officialSource || "https://risaleinur.hizmetvakfi.org"),
+            license:String(json.license || "CC BY-ND 4.0"),
             block_kind:String(block.kind || "paragraph"),
           },
         }));
@@ -524,7 +526,7 @@ export function ReaderView({
       )}
       {isRisaleExternal && nodes.length > 0 && (
         <div className="readerSourceNote">
-          Kaynak: Hizmet Vakfı Risale-i Nur Külliyatı · Metin ilk açılışta Lumen veritabanına kaydedilir.
+          Kaynak: Diyanet asıl nüsha Risale-i Nur metin arşivi · Hizmet Vakfı kaynağından derlenmiş · CC BY-ND 4.0 · İlk açılışta Lumen veritabanına kaydedilir.
         </div>
       )}
 
