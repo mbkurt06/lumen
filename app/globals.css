@@ -4475,3 +4475,23 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
   .globalRightPanel.closed{width:0}
   .globalRightPanelToggle{top:72px}
 }
+
+
+/* v0.7.2 — compact calendar TODO details + hover editor */
+.calendarTodoDescription{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  white-space:normal!important;
+}
+.todoPageCompact .calendarTodoDescription{
+  -webkit-line-clamp:2;
+}
+.todoCalendarHoverEditor{
+  z-index:140;
+  width:min(360px,calc(100vw - 24px));
+}
+.todoCalendarHoverEditor .calendarQuickDescription{
+  min-height:66px;
+}
