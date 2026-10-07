@@ -196,6 +196,7 @@ export function LibraryCatalogView({
                     metadata: {
                       ...(surahItem.metadata ?? {}),
                       start_page: quranBookmark.page,
+                      initial_node_id: quranBookmark.nodeId || null,
                     },
                   },
                   items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"),
