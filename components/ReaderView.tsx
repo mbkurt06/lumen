@@ -807,6 +807,13 @@ export function ReaderView({
         onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
+      {isQuranDocument && !quranMushafPage && (
+        <div className="quranWordSourceWarning">
+          Şu anda Word Mushaf kaynağı yüklü değil; eski Kur’an veritabanı metni gösteriliyor.
+          Birebir Word karakterleri için ⚙️ Ayarlar → “DOCX'i birebir içe aktar” ile Mushaf DOCX dosyasını bir kez yükle.
+        </div>
+      )}
+
       {isQuranDocument && quranPage && (
         <div className="quranPageMetaBar">
           <strong>{String((nodes[0]?.metadata as Record<string,any> | null)?.surah_title || item.title)}</strong>
