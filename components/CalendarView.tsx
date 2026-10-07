@@ -127,6 +127,8 @@ export function CalendarView({ user }: { user: User }) {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [message, setMessage] = useState("");
   const [sourcePanelOpen, setSourcePanelOpen] = useState(true);
+  const [sourcePanelWidth, setSourcePanelWidth] = useState(250);
+  const [sourcePanelResizing, setSourcePanelResizing] = useState(false);
   const [draft, setDraft] = useState<EventDraft | null>(null);
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const yearlyTodayRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +183,9 @@ export function CalendarView({ user }: { user: User }) {
     if (typeof prefs.calendarCustomStart === "string") setCustomStart(prefs.calendarCustomStart);
     if (typeof prefs.calendarCustomEnd === "string") setCustomEnd(prefs.calendarCustomEnd);
     if (typeof prefs.calendarSourcesOpen === "boolean") setSourcePanelOpen(prefs.calendarSourcesOpen);
+    if (typeof prefs.calendarSourcesWidth === "number") {
+      setSourcePanelWidth(Math.max(180, Math.min(420, prefs.calendarSourcesWidth)));
+    }
     if (prefs.calendarMonthDensity === "compact" || prefs.calendarMonthDensity === "comfortable") {
       setMonthDensity(prefs.calendarMonthDensity);
     }
@@ -481,6 +486,32 @@ export function CalendarView({ user }: { user: User }) {
       void saveViewPrefs({ calendarSourcesOpen: next });
       return next;
     });
+  }
+
+  function beginSourcesResize(event: React.PointerEvent<HTMLDivElement>) {
+    if (window.innerWidth <= 800) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = sourcePanelWidth;
+    setSourcePanelResizing(true);
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = startX - moveEvent.clientX;
+      setSourcePanelWidth(Math.max(180, Math.min(420, startWidth + delta)));
+    };
+
+    const onUp = (upEvent: PointerEvent) => {
+      const delta = startX - upEvent.clientX;
+      const nextWidth = Math.max(180, Math.min(420, startWidth + delta));
+      setSourcePanelWidth(nextWidth);
+      setSourcePanelResizing(false);
+      void saveViewPrefs({ calendarSourcesWidth: nextWidth });
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   const title = useMemo(() => {
@@ -1121,11 +1152,27 @@ export function CalendarView({ user }: { user: User }) {
   }, [draft, view, anchor, hiddenKeys, listRange]);
 
   return (
-    <div className={"calendarPage " + (sourcePanelOpen ? "sourcesOpen" : "sourcesClosed")}>
+    <div
+      className={"calendarPage " + (sourcePanelOpen ? "sourcesOpen " : "sourcesClosed ") + (sourcePanelResizing ? "sourcesResizing" : "")}
+      style={{ ["--calendar-sources-width" as string]: `${sourcePanelWidth}px` }}
+    >
       <aside className={"calendarSources " + (sourcePanelOpen ? "open" : "")}>
+        <div
+          className="calendarSourcesResizeHandle"
+          onPointerDown={beginSourcesResize}
+          title="Panel genişliğini ayarla"
+          aria-hidden="true"
+        />
+        <button
+          className="calendarSourcesEdgeToggle"
+          onClick={toggleSourcesPanel}
+          title={sourcePanelOpen ? "Takvim panelini gizle" : "Takvim panelini aç"}
+          aria-label={sourcePanelOpen ? "Takvim panelini gizle" : "Takvim panelini aç"}
+        >
+          {sourcePanelOpen ? "›" : "‹"}
+        </button>
         <div className="calendarSourcesHead">
           <strong>Takvimler</strong>
-          <button onClick={() => { setSourcePanelOpen(false); void saveViewPrefs({ calendarSourcesOpen:false }); }}>×</button>
         </div>
         <button className="calendarAddAccount" onClick={connectGoogle} disabled={googleConnecting}>
           {googleConnecting ? "Google açılıyor…" : "+ Google hesabı ekle"}
@@ -1154,6 +1201,17 @@ export function CalendarView({ user }: { user: User }) {
         ))}
         {!loadingAccounts && !accounts.length && <p className="muted">Henüz Google Takvim hesabı bağlı değil.</p>}
       </aside>
+
+      {!sourcePanelOpen && (
+        <button
+          className="calendarSourcesCollapsedHandle"
+          onClick={toggleSourcesPanel}
+          title="Takvim panelini aç"
+          aria-label="Takvim panelini aç"
+        >
+          ‹
+        </button>
+      )}
 
       <main className="calendarMain">
         <div className="calendarToolbar">
