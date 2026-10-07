@@ -99,12 +99,14 @@ export function LibraryCatalogView({
   }, []);
 
   const ensureRoot = useCallback(async () => {
-    const { data: existing, error: findError } = await supabase
+    const { data: existingRows, error: findError } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at")
       .contains("metadata", { source, entity: "root" })
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
     if (findError) throw findError;
+    const existing = existingRows?.[0] ?? null;
     if (existing) return existing as CatalogItem;
 
     const { data, error } = await supabase
@@ -338,7 +340,7 @@ export function LibraryCatalogView({
       )}
       {section === "risale" && current?.id === root?.id && (
         <div className="libraryCatalogSourceNote">
-          Külliyat yapısı uygulamada; metin bağlantıları Hizmet Vakfı Risale-i Nur Külliyatı resmî sitesine gider.
+          Risale-i Nur metinleri ilk açılışta resmî kaynaktan alınır ve Lumen veritabanına kaydedilir.
         </div>
       )}
 
