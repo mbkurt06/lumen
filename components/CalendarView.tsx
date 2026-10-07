@@ -126,7 +126,7 @@ function keyFor(accountId: string, calendarId: string) {
   return `${accountId}|${calendarId}`;
 }
 
-export function CalendarView({ user }: { user: User }) {
+export function CalendarView({ user, externalSources = false }: { user: User; externalSources?: boolean }) {
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
@@ -401,6 +401,15 @@ export function CalendarView({ user }: { user: User }) {
   useEffect(() => {
     if (!loadingAccounts) void loadEvents();
   }, [loadingAccounts, loadEvents]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadPreferences();
+      void loadAccounts();
+    };
+    window.addEventListener("lumen-calendar-sources-changed", refresh);
+    return () => window.removeEventListener("lumen-calendar-sources-changed", refresh);
+  }, [loadPreferences, loadAccounts]);
 
   async function connectGoogle() {
     if (googleConnecting) return;
@@ -1567,10 +1576,10 @@ export function CalendarView({ user }: { user: User }) {
 
   return (
     <div
-      className={"calendarPage " + (sourcePanelOpen ? "sourcesOpen " : "sourcesClosed ") + (sourcePanelResizing ? "sourcesResizing" : "")}
+      className={"calendarPage " + (externalSources ? "externalSources " : "") + (sourcePanelOpen ? "sourcesOpen " : "sourcesClosed ") + (sourcePanelResizing ? "sourcesResizing" : "")}
       style={{ ["--calendar-sources-width" as string]: `${sourcePanelWidth}px` }}
     >
-      <aside className={"calendarSources " + (sourcePanelOpen ? "open" : "")}>
+      {!externalSources && <aside className={"calendarSources " + (sourcePanelOpen ? "open" : "")}>
         <div
           className="calendarSourcesResizeHandle"
           onPointerDown={beginSourcesResize}
@@ -1623,9 +1632,9 @@ export function CalendarView({ user }: { user: User }) {
           </div>
         ))}
         {!loadingAccounts && !accounts.length && <p className="muted">Henüz Google Takvim hesabı bağlı değil.</p>}
-      </aside>
+      </aside>}
 
-      {!sourcePanelOpen && (
+      {!externalSources && !sourcePanelOpen && (
         <button
           className="calendarSourcesCollapsedHandle"
           onClick={toggleSourcesPanel}
@@ -1639,7 +1648,7 @@ export function CalendarView({ user }: { user: User }) {
       <main className="calendarMain">
         <div className="calendarToolbar">
           <div className="calendarToolbarLeft">
-            <button className="calendarSourcesToggle" onClick={toggleSourcesPanel} title="Takvimleri göster/gizle">☷ <span>Takvimler</span></button>
+            {!externalSources && <button className="calendarSourcesToggle" onClick={toggleSourcesPanel} title="Takvimleri göster/gizle">☷ <span>Takvimler</span></button>}
             <button className="calendarToday" onClick={goToday}>Bugün</button>
             <button onClick={() => move(-1)}>‹</button>
             <button onClick={() => move(1)}>›</button>
