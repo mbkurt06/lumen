@@ -402,15 +402,29 @@ export function LibrarySettingsModal({
 
         <div className="settingRow">
           <span>Tesbih sayacı</span>
-          <button className="settingButton" onClick={() => update({...prefs,showCounter:!prefs.showCounter})}>
-            {prefs.showCounter ? "Göster" : "Gizli"}
+          <button
+            type="button"
+            className={"readerToolSwitch " + (prefs.showCounter ? "on" : "off")}
+            role="switch"
+            aria-checked={prefs.showCounter}
+            aria-label="Tesbih sayacını göster veya gizle"
+            onClick={() => update({...prefs,showCounter:!prefs.showCounter})}
+          >
+            <span />
           </button>
         </div>
 
         <div className="settingRow">
           <span>Play tuşu</span>
-          <button className="settingButton" onClick={() => update({...prefs,showPlay:!prefs.showPlay})}>
-            {prefs.showPlay ? "Göster" : "Gizli"}
+          <button
+            type="button"
+            className={"readerToolSwitch " + (prefs.showPlay ? "on" : "off")}
+            role="switch"
+            aria-checked={prefs.showPlay}
+            aria-label="Play tuşunu göster veya gizle"
+            onClick={() => update({...prefs,showPlay:!prefs.showPlay})}
+          >
+            <span />
           </button>
         </div>
 
