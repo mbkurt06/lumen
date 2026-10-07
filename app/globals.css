@@ -5819,7 +5819,7 @@ body.hideArabic .quranReaderRawDebugText{
    Do not inherit the user's previous Quran scale/weight while validating the source. */
 .quranWordSourceActive.quranExactWordFont{
   font-family:var(--quran-exact-font-family,"LumenExactMushaf"),"LumenExactMushaf",serif!important;
-  font-size:calc(26.6667px * var(--quran-fit-scale,1))!important;
+  font-size:calc(26.6667px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
   font-weight:400!important;
   font-style:normal!important;
   font-synthesis:none!important;
