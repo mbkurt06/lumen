@@ -308,7 +308,7 @@ body.dark{
 .legacyArabic{font-size:calc(32px * var(--font-scale))}
 .legacyTurkish{font-size:calc(32px * var(--font-scale))}
 .readerText{font-size:calc(20px * var(--font-scale))}
-body.hideArabic .legacyArabic,body.hideArabic [dir="rtl"]{display:none!important}
+body.hideArabic .legacyArabic{display:none!important}
 body.hideLatin .legacySegment{display:none!important}
 body.hideTurkish .legacyTurkish{display:none!important}
 
@@ -5803,4 +5803,13 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
   font-size:28px!important;
   font-weight:400!important;
   line-height:1.8!important;
+}
+
+
+/* Quran reader must stay visible even when the generic legacy Arabic field is hidden.
+   The old body.hideArabic [dir="rtl"] selector hid every RTL element, including .quranFlow. */
+body.hideArabic .quranFlow,
+body.hideArabic .quranFlow [dir="rtl"],
+body.hideArabic .quranReaderRawDebugText{
+  display:block!important;
 }
