@@ -2915,3 +2915,71 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
   .calendarEventChip span{font-size:9px}
   .calendarEditorDateRow{flex-wrap:wrap}
 }
+
+
+/* v0.5.1 — fullscreen/settings live inside the shared Ezber header */
+body:has(.v2SharedHeader) .persistentLibrarySettings{
+  display:none!important;
+}
+.legacyReadPage .fullscreenTasbihLauncher,
+.legacyApp .fullscreenTasbihLauncher{
+  display:none!important;
+}
+.v2HeaderToolButton{
+  flex:0 0 auto;
+  width:42px;
+  min-width:42px;
+  height:42px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel);
+  color:var(--text);
+  font-size:19px;
+  line-height:1;
+}
+.v2HeaderToolButton:hover{
+  background:color-mix(in srgb,var(--panel) 88%,var(--accent) 12%);
+}
+@media(max-width:800px){
+  :root{
+    --ezber-header-top:8px!important;
+  }
+  .legacyNestedPage.duaEzberIntegrated,
+  .legacyReadPage{
+    padding-top:8px!important;
+  }
+  .v2HeaderToolbar{
+    grid-template-columns:auto minmax(0,1fr)!important;
+  }
+  .v2HeaderGroup:last-child{
+    flex-wrap:nowrap!important;
+    justify-content:flex-end!important;
+  }
+  .v2HeaderToolButton{
+    width:36px;
+    min-width:36px;
+    height:36px;
+    border-radius:10px;
+    font-size:17px;
+  }
+}
+@media(max-width:480px){
+  .v2HeaderButton,
+  .v2HeaderPrimary{
+    padding-left:6px!important;
+    padding-right:6px!important;
+    font-size:10.5px!important;
+  }
+  .v2HeaderToolButton{
+    width:34px;
+    min-width:34px;
+    height:34px;
+    font-size:16px;
+  }
+  .v2HeaderGroup{
+    gap:3px!important;
+  }
+}
