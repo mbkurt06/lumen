@@ -1658,6 +1658,7 @@ export function ReaderView({
           onIncrement={incrementActive}
           onDecrement={decrementActive}
           onReset={resetActive}
+          positionKey={readerScope}
         />
       )}
 
