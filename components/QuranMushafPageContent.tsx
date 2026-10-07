@@ -84,6 +84,7 @@ export function QuranMushafPageContent({
   } | null>(null);
   const [pronunciations, setPronunciations] = useState<Record<string,string>>({});
 
+  const pageIdentity = `${page.source_key}:${page.word_page}:${page.updated_at || ""}`;
   const surahNumbers = useMemo(() => {
     const values = new Set<number>();
     for (const paragraph of page.rich_content?.paragraphs ?? []) {
@@ -92,8 +93,9 @@ export function QuranMushafPageContent({
         if (surahNo > 0) values.add(surahNo);
       }
     }
-    return Array.from(values);
-  }, [page]);
+    return Array.from(values).sort((a,b)=>a-b);
+  }, [pageIdentity]);
+  const surahKey = surahNumbers.join(",");
 
   useEffect(() => {
     let cancelled=false;
@@ -120,11 +122,17 @@ export function QuranMushafPageContent({
           if(surahNo>0 && ayahNo>0 && text) next[`${surahNo}:${ayahNo}`]=text;
         }
         if(Object.keys(next).length){
-          setPronunciations(prev=>({...prev,...next}));
+          setPronunciations(prev=>{
+            let changed=false;
+            for(const [key,value] of Object.entries(next)){
+              if(prev[key]!==value){changed=true;break;}
+            }
+            return changed ? {...prev,...next} : prev;
+          });
         }
       });
     return()=>{cancelled=true;};
-  },[page]);
+  },[pageIdentity]);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,10 +153,15 @@ export function QuranMushafPageContent({
           if (text) next[`${surahNo}:${ayahNo}`] = text;
         }
       }
-      setPronunciations(next);
+      setPronunciations(prev=>{
+        const prevKeys=Object.keys(prev);
+        const nextKeys=Object.keys(next);
+        if(prevKeys.length===nextKeys.length && nextKeys.every(key=>prev[key]===next[key])) return prev;
+        return next;
+      });
     });
     return () => { cancelled = true; };
-  }, [surahNumbers]);
+  }, [surahKey]);
 
   const fullAyahPronunciation = (surahNo?:number, ayahNo?:number) => {
     if (!surahNo || !ayahNo) return "";
