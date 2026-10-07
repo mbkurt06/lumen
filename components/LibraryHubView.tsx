@@ -116,7 +116,7 @@ export function LibraryHubView({
         </div>
       )}
 
-      {section === "ezber" && <DuaEzberExactEmbed />}
+      <DuaEzberExactEmbed active={section === "ezber"} />
 
       {section && section !== "ezber" && (
         <div className="libraryPlaceholder">
