@@ -1749,3 +1749,76 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
     border-radius:0!important;
   }
 }
+
+
+/* v0.4.2 — V2-style right controls + live settings dock */
+.persistentLibrarySettings,
+.fullscreenTasbihLauncher{
+  position:fixed!important;
+  top:18px!important;
+  width:42px!important;
+  height:42px!important;
+  border-radius:12px!important;
+  border:1px solid var(--border)!important;
+  background:var(--panel)!important;
+  color:var(--text)!important;
+  box-shadow:0 6px 20px #0002!important;
+  z-index:110!important;
+}
+.persistentLibrarySettings{
+  right:18px!important;
+}
+.fullscreenTasbihLauncher{
+  right:68px!important;
+}
+.librarySettingsBackdrop{
+  display:none!important;
+}
+.librarySettingsDock{
+  position:fixed;
+  top:68px;
+  right:18px;
+  z-index:130;
+  width:min(390px,calc(100vw - 36px));
+  pointer-events:none;
+}
+.librarySettingsDock .librarySettingsModal{
+  width:100%;
+  max-height:calc(100dvh - 86px);
+  overflow:auto;
+  pointer-events:auto;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+  color:var(--text);
+  box-shadow:0 18px 50px #0004;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.librarySettingsDock .settingRow{
+  min-height:54px;
+}
+@media(max-width:800px){
+  .persistentLibrarySettings,
+  .fullscreenTasbihLauncher{
+    top:8px!important;
+    width:42px!important;
+    height:42px!important;
+    border-radius:12px!important;
+  }
+  .persistentLibrarySettings{
+    right:8px!important;
+  }
+  .fullscreenTasbihLauncher{
+    right:58px!important;
+  }
+  .librarySettingsDock{
+    top:58px;
+    right:8px;
+    width:min(360px,calc(100vw - 16px));
+  }
+  .librarySettingsDock .librarySettingsModal{
+    max-height:calc(100dvh - 70px);
+  }
+}
