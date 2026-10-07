@@ -84,11 +84,17 @@ export function AppShell({
       .select("preferences")
       .maybeSingle()
       .then(({ data }) => {
-        const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
+        const serverPrefs = (data?.preferences ?? {}) as Record<string, unknown>;
+        let localQuran: Record<string, unknown> = {};
+        try {
+          localQuran = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
+        } catch {}
+        const prefs = { ...serverPrefs, ...localQuran };
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
         const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
         const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 300;
+        const quranStrokeThin = typeof prefs.quranStrokeThin === "number" ? prefs.quranStrokeThin : 0;
         const quranFontFamily = typeof prefs.quranFontFamily === "string" ? prefs.quranFontFamily : "Shaikh Hamdullah Mushaf";
         const quranPageTheme = typeof prefs.quranPageTheme === "string" ? prefs.quranPageTheme : "paper";
         document.documentElement.classList.toggle("pre-dark", theme === "dark");
@@ -97,7 +103,9 @@ export function AppShell({
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
         document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
         document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
+        document.documentElement.style.setProperty("--quran-stroke-thin", String(quranStrokeThin));
         document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(quranFontFamily));
+        document.body.dataset.quranThin = String(Math.max(0, Math.min(3, Math.round(quranStrokeThin))));
         document.body.dataset.quranPageTheme = quranPageTheme;
         document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
         document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
