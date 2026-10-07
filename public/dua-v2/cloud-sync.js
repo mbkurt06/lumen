@@ -200,6 +200,7 @@
       .map(x => {
         const meta = x.metadata || {};
         const segments = (nodesByDoc.get(x.id) || []).map(n => ({
+          dbNodeId: n.id,
           latin: n.text_content || "",
           arabic: n.secondary_text || "",
           turkish: n.translation || "",
@@ -210,6 +211,7 @@
         }));
         return {
           id: meta.legacy_id,
+          dbId: x.id,
           title: x.title,
           subtitle: x.subtitle || undefined,
           category: meta.category_key,
@@ -279,7 +281,146 @@
     };
   }
 
-  window.duaV2Db = { loadContent };
+
+  function parseJson(value, fallback = {}) {
+    try { return JSON.parse(value || "") || fallback; } catch { return fallback; }
+  }
+
+  function dayCount(startDate, endDate) {
+    if (!startDate || !endDate) return 10;
+    const a = new Date(startDate + "T00:00:00");
+    const b = new Date(endDate + "T00:00:00");
+    return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+  }
+
+  async function loadMainTodos(contentData) {
+    if (!auth) auth = authSession();
+    if (!auth) return [];
+
+    const rows = await request("todos?select=id,title,notes,related_library_item_id,related_content_node_id&order=created_at.asc");
+    const docsByDb = new Map((contentData?.duas || []).map(d => [d.dbId, d]));
+    const result = [];
+
+    for (const row of rows || []) {
+      const dua = docsByDb.get(row.related_library_item_id);
+      if (!dua) continue;
+
+      const notes = parseJson(row.notes, {});
+      const schedule = notes.schedule || {};
+      let segmentIndex = null;
+      if (row.related_content_node_id) {
+        const idx = (dua.segments || []).findIndex(s => s.dbNodeId === row.related_content_node_id);
+        if (idx >= 0) segmentIndex = idx;
+      }
+
+      result.push({
+        id: notes.legacyV2Id || ("db-" + row.id),
+        remoteId: row.id,
+        sourceType: "dua",
+        duaId: dua.id,
+        segmentIndex,
+        title: row.title || (segmentIndex == null ? dua.title : dua.title + " — Bölüm " + (segmentIndex + 1)),
+        scopeLabel: segmentIndex == null ? (dua.categoryTitle || "") : "Bölüm " + (segmentIndex + 1),
+        description: notes.description || "",
+        target: Math.max(1, Number(schedule.target || 1)),
+        schedule: {
+          mode: schedule.mode || "days",
+          startDate: schedule.startDate || new Date().toLocaleDateString("en-CA"),
+          endDate: schedule.endDate || null
+        },
+        history: schedule.history || {},
+        createdAt: notes.createdAt || null
+      });
+    }
+    return result;
+  }
+
+  async function syncMainTodos(todoList, contentData) {
+    if (!auth) auth = authSession();
+    if (!auth || !Array.isArray(todoList)) return;
+
+    const docs = contentData?.duas || [];
+    const byLegacy = new Map(docs.map(d => [d.id, d]));
+    const currentRows = await request("todos?select=id,notes,related_library_item_id&order=created_at.asc");
+    const existingByLegacy = new Map();
+    const managedRemoteIds = new Set();
+
+    for (const row of currentRows || []) {
+      const notes = parseJson(row.notes, {});
+      if (notes.legacyV2Id) existingByLegacy.set(notes.legacyV2Id, row);
+      if (docs.some(d => d.dbId === row.related_library_item_id)) managedRemoteIds.add(row.id);
+    }
+
+    const keptRemoteIds = new Set();
+    for (const todo of todoList) {
+      if (todo.sourceType === "listening") continue;
+      const dua = byLegacy.get(todo.duaId);
+      if (!dua?.dbId) continue;
+      const segIndex = Number.isInteger(todo.segmentIndex) ? todo.segmentIndex : null;
+      const seg = segIndex == null ? null : dua.segments?.[segIndex];
+      const startDate = todo.schedule?.startDate || new Date().toLocaleDateString("en-CA");
+      const endDate = todo.schedule?.endDate || null;
+      const notes = {
+        description: todo.description || "",
+        schedule: {
+          mode: todo.schedule?.mode || "days",
+          startDate,
+          endDate,
+          durationDays: todo.schedule?.mode === "days" ? dayCount(startDate, endDate) : null,
+          target: Math.max(1, Number(todo.target || 1)),
+          history: todo.history || {}
+        },
+        source: seg ? "segment" : "document",
+        legacyV2Id: todo.id,
+        createdAt: todo.createdAt || null
+      };
+      const payload = {
+        title: todo.title || (seg ? dua.title + " — Bölüm " + (segIndex + 1) : dua.title),
+        notes: JSON.stringify(notes),
+        due_at: startDate + "T00:00:00",
+        related_library_item_id: dua.dbId,
+        related_content_node_id: seg?.dbNodeId || null
+      };
+
+      const existing = todo.remoteId
+        ? { id: todo.remoteId }
+        : existingByLegacy.get(todo.id);
+
+      if (existing?.id) {
+        keptRemoteIds.add(existing.id);
+        todo.remoteId = existing.id;
+        await request("todos?id=eq." + encodeURIComponent(existing.id), {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        const created = await request("todos", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify(payload)
+        });
+        const row = Array.isArray(created) ? created[0] : null;
+        if (row?.id) {
+          keptRemoteIds.add(row.id);
+          todo.remoteId = row.id;
+        }
+      }
+    }
+
+    for (const remoteId of managedRemoteIds) {
+      if (keptRemoteIds.has(remoteId)) continue;
+      const stillPresent = todoList.some(t => t.remoteId === remoteId);
+      if (stillPresent) continue;
+      await request("todos?id=eq." + encodeURIComponent(remoteId), {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" }
+      });
+    }
+  }
+
+  window.duaV2Db = { loadContent, loadMainTodos, syncMainTodos };
+
 
   window.duaV2CloudReady = (async () => {
     try {
