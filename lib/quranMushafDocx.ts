@@ -278,10 +278,11 @@ async function readExactMushafFont() {
 }
 
 let exactFontLoadPromise: Promise<boolean> | null = null;
+let exactFontRegistered = false;
 
 export async function ensureExactMushafFont() {
   if (typeof window === "undefined" || typeof FontFace === "undefined") return false;
-  if (document.fonts.check(`16px "${EXACT_FONT_FAMILY}"`)) return true;
+  if (exactFontRegistered) return true;
   if (exactFontLoadPromise) return exactFontLoadPromise;
 
   exactFontLoadPromise = (async () => {
@@ -293,11 +294,13 @@ export async function ensureExactMushafFont() {
     try {
       const face = new FontFace(EXACT_FONT_FAMILY, `url("${url}")`, {
         style: "normal",
-        weight: "normal",
+        weight: "400",
         display: "block",
       });
       await face.load();
       document.fonts.add(face);
+      await document.fonts.ready;
+      exactFontRegistered = true;
       document.documentElement.style.setProperty("--quran-exact-font-family", JSON.stringify(EXACT_FONT_FAMILY));
       return true;
     } finally {
