@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
@@ -107,6 +108,7 @@ export function LibrarySettingsModal({
   scope: ReaderScope;
 }) {
   const [prefs, setPrefs] = useState<Prefs>(defaults);
+  const [prefsReady, setPrefsReady] = useState(false);
   const [mushafImporting, setMushafImporting] = useState(false);
   const [mushafImportProgress, setMushafImportProgress] = useState("");
   const [mushafImportPercent, setMushafImportPercent] = useState(0);
@@ -117,19 +119,35 @@ export function LibrarySettingsModal({
 
   useEffect(() => {
     if (!open) return;
+
+    setPrefsReady(false);
+    const localMirror = readLocalReaderPrefs();
+    const hasLocal = Object.keys(localMirror).length > 0;
+    if (hasLocal) {
+      rawPrefsRef.current = localMirror;
+      const next = readScopedPrefs(localMirror, scope);
+      setPrefs(next);
+      applyPrefs(next, scope);
+      setPrefsReady(true);
+    }
+
     supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
       const serverRaw = (data?.preferences ?? {}) as Record<string, unknown>;
-      let raw = serverRaw;
+      let quranLocal:Record<string,unknown> = {};
       if (scope === "quran") {
         try {
-          const local = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
-          raw = { ...serverRaw, ...local };
+          quranLocal = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
         } catch {}
       }
+      const raw = { ...serverRaw, ...quranLocal };
       rawPrefsRef.current = raw;
+      writeLocalReaderPrefs(raw);
       const next = readScopedPrefs(raw, scope);
       setPrefs(next);
       applyPrefs(next, scope);
+      setPrefsReady(true);
+    }).catch(() => {
+      if (!hasLocal) setPrefsReady(true);
     });
   }, [open, scope]);
 
@@ -167,6 +185,7 @@ export function LibrarySettingsModal({
       quranEasyRead: false,
     };
     rawPrefsRef.current = snapshot;
+    writeLocalReaderPrefs(snapshot);
 
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
@@ -215,6 +234,10 @@ export function LibrarySettingsModal({
           <button className="modalClose" onClick={onClose}>×</button>
         </div>
 
+        {!prefsReady ? (
+          <div className="settingsHydrating">Ayarlar yükleniyor…</div>
+        ) : (
+        <>
         {scope !== "quran" && scope !== "risale" && (
           <>
         <div className="settingRow">
@@ -427,6 +450,8 @@ export function LibrarySettingsModal({
             <span />
           </button>
         </div>
+        </>
+        )}
 
       </div>
     </aside>
