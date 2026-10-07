@@ -47,7 +47,6 @@ function RunContent({ run }: { run: QuranMushafRun }) {
       data-word-run-style={run.runStyle || undefined}
       data-word-font={run.font || undefined}
       lang={run.lang || undefined}
-      dir={run.rtl ? "rtl" : undefined}
     >
       {run.text}
     </span>
@@ -84,6 +83,7 @@ export function QuranMushafPageContent({
             key={paragraphIndex}
             className={"quranWordParagraph quranWordParagraph-" + style}
             data-word-style={style}
+            dir="rtl"
           >
             {groups.map((group, groupIndex) => {
               if (!group.nodeId) {
