@@ -8,10 +8,11 @@ import { LibraryHubView } from "@/components/LibraryHubView";
 import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
+import { DuaListeningEmbed } from "@/components/DuaListeningEmbed";
 import { supabase } from "@/lib/supabase/client";
 
 type Tab = "todos" | "library" | "settings";
-type LibraryMode = "hub" | "read" | "memorize";
+type LibraryMode = "hub" | "read" | "memorize" | "listening";
 
 export function AppShell({
   user,
@@ -268,7 +269,15 @@ export function AppShell({
               onOpenItem={openRead}
               initialSection={returnEzberRoot ? "ezber" : null}
               initialEzberRoot={returnEzberRoot}
+              onOpenListening={() => {
+                setReturnEzberRoot(null);
+                setLibraryMode("listening");
+              }}
             />
+          )}
+
+          {tab === "library" && libraryMode === "listening" && (
+            <DuaListeningEmbed onBack={() => setLibraryMode("hub")} />
           )}
 
           {tab === "library" && libraryMode === "read" && selectedItem && (
