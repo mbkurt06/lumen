@@ -98,6 +98,11 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
+    setRightPanelMode("todo");
+    setRightPanelMenuOpen(false);
+  }, [tab]);
+
+  useEffect(() => {
     if (!restored) return;
     if (localStorage.getItem("lumen-repair-todo-target-v1") === "done") return;
 
