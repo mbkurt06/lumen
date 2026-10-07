@@ -163,6 +163,9 @@ export function ReaderView({
   const [quranTodoChoices, setQuranTodoChoices] = useState<QuranTodoChoice[]>([]);
   const [quranActionFlash, setQuranActionFlash] = useState<"bookmark" | "todo" | "newTodo" | null>(null);
   const [quranActionMessage, setQuranActionMessage] = useState("");
+  const [quranDebugOpen, setQuranDebugOpen] = useState(false);
+  const [quranDebugBusy, setQuranDebugBusy] = useState(false);
+  const [quranDebugSnapshot, setQuranDebugSnapshot] = useState<Record<string, any> | null>(null);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
   const quranSwipeStartX = useRef<number | null>(null);
@@ -789,6 +792,148 @@ export function ReaderView({
     editPressTimer.current = null;
   }
 
+  function debugElement(el: HTMLElement | null) {
+    if (!el) return null;
+    const s = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    return {
+      tag: el.tagName,
+      className: el.className,
+      textLength: el.textContent?.length ?? 0,
+      textSample: (el.textContent || "").slice(0, 800),
+      childCount: el.childElementCount,
+      rect: { x:r.x, y:r.y, width:r.width, height:r.height, top:r.top, bottom:r.bottom },
+      box: {
+        clientWidth:el.clientWidth, clientHeight:el.clientHeight,
+        scrollWidth:el.scrollWidth, scrollHeight:el.scrollHeight,
+        offsetWidth:el.offsetWidth, offsetHeight:el.offsetHeight,
+      },
+      style: {
+        display:s.display, visibility:s.visibility, opacity:s.opacity,
+        color:s.color, backgroundColor:s.backgroundColor,
+        fontFamily:s.fontFamily, fontSize:s.fontSize, fontWeight:s.fontWeight,
+        lineHeight:s.lineHeight, whiteSpace:s.whiteSpace,
+        direction:s.direction, unicodeBidi:s.unicodeBidi,
+        overflow:s.overflow, overflowX:s.overflowX, overflowY:s.overflowY,
+        position:s.position, transform:s.transform,
+        clip:s.clip, clipPath:s.clipPath,
+        zIndex:s.zIndex,
+      },
+      inlineStyle: el.getAttribute("style"),
+    };
+  }
+
+  async function collectQuranDebug() {
+    if (!isQuranDocument) return;
+    setQuranDebugBusy(true);
+    try {
+      const requestedWordPage = quranPage ?? Number(itemMeta.start_page || 1);
+      const { data: dbPage, error: dbError } = await supabase
+        .from("quran_mushaf_pages")
+        .select("word_page,display_page,juz,surah_numbers,plain_text,rich_content,metadata,source_key,source_sha256")
+        .eq("source_key","istanbul_mushaf_docx")
+        .eq("word_page",requestedWordPage)
+        .maybeSingle();
+
+      const rawEl = document.querySelector("[data-quran-test-plain='true']") as HTMLElement | null;
+      const fonts = [
+        "LumenExactMushaf","Shaikh Hamdullah Mushaf","Noto Naskh Arabic",
+        "Geeza Pro","Traditional Arabic","Arial"
+      ];
+      const fontChecks:Record<string,boolean> = {};
+      for (const font of fonts) {
+        fontChecks[font] = document.fonts?.check(`24px "${font}"`) ?? false;
+      }
+
+      const snapshot = {
+        exportedAt:new Date().toISOString(),
+        href:window.location.href,
+        userAgent:navigator.userAgent,
+        viewport:{width:window.innerWidth,height:window.innerHeight,devicePixelRatio:window.devicePixelRatio},
+        item:{
+          id:item.id,title:item.title,kind:item.kind,metadata:itemMeta,
+          sourceType,isQuranSurah,isQuranJuzView,isQuranDocument,
+        },
+        readerState:{
+          quranPage,quranPageMin,quranPageMax,quranPageLoading,
+          nodesLength:nodes.length,
+          nodes:nodes.slice(0,8).map(node=>({
+            id:node.id,title:node.title,sort_order:node.sort_order,
+            secondaryLength:node.secondary_text?.length ?? 0,
+            secondarySample:(node.secondary_text || "").slice(0,240),
+            metadata:node.metadata,
+          })),
+          mushafStatePresent:!!quranMushafPage,
+          mushafState:quranMushafPage ? {
+            word_page:quranMushafPage.word_page,
+            display_page:quranMushafPage.display_page,
+            juz:quranMushafPage.juz,
+            surah_numbers:quranMushafPage.surah_numbers,
+            plainLength:quranMushafPage.plain_text?.length ?? 0,
+            plainSample:(quranMushafPage.plain_text || "").slice(0,1200),
+            metadata:quranMushafPage.metadata,
+            paragraphCount:quranMushafPage.rich_content?.paragraphs?.length ?? 0,
+          } : null,
+        },
+        directDatabase:{
+          requestedWordPage,
+          error:dbError?.message ?? null,
+          found:!!dbPage,
+          row:dbPage ? {
+            ...dbPage,
+            plain_text_length:dbPage.plain_text?.length ?? 0,
+            plain_text_sample:(dbPage.plain_text || "").slice(0,1600),
+            rich_content_summary:{
+              version:dbPage.rich_content?.version,
+              paragraphCount:dbPage.rich_content?.paragraphs?.length ?? 0,
+              firstRunTextLength:dbPage.rich_content?.paragraphs?.[0]?.runs?.[0]?.text?.length ?? 0,
+              firstRunTextSample:(dbPage.rich_content?.paragraphs?.[0]?.runs?.[0]?.text || "").slice(0,1000),
+            },
+            plain_text:undefined,
+            rich_content:undefined,
+          } : null,
+        },
+        dom:{
+          page:debugElement(quranPageRef.current),
+          flow:debugElement(quranFlowRef.current),
+          rawTest:debugElement(rawEl),
+          rawExists:!!rawEl,
+          flowInnerHTML:(quranFlowRef.current?.innerHTML || "").slice(0,5000),
+          bodyClass:document.body.className,
+          bodyDataset:{...document.body.dataset},
+          rootCssVars:{
+            quranFontScale:getComputedStyle(document.documentElement).getPropertyValue("--quran-font-scale"),
+            quranFitScale:quranFlowRef.current?.style.getPropertyValue("--quran-fit-scale") || "",
+            quranFontFamily:getComputedStyle(document.documentElement).getPropertyValue("--quran-font-family"),
+            quranExactFontFamily:getComputedStyle(document.documentElement).getPropertyValue("--quran-exact-font-family"),
+            quranFontWeight:getComputedStyle(document.documentElement).getPropertyValue("--quran-font-weight"),
+          },
+        },
+        fonts:fontChecks,
+        message,
+      };
+      setQuranDebugSnapshot(snapshot);
+    } catch (error) {
+      setQuranDebugSnapshot({
+        exportedAt:new Date().toISOString(),
+        fatalError:error instanceof Error ? {message:error.message,stack:error.stack} : String(error),
+      });
+    } finally {
+      setQuranDebugBusy(false);
+    }
+  }
+
+  function exportQuranDebug() {
+    if (!quranDebugSnapshot) return;
+    const blob = new Blob([JSON.stringify(quranDebugSnapshot,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quran-reader-debug-page-${quranPage ?? "unknown"}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div
       className="legacyReadPage"
@@ -1277,6 +1422,96 @@ export function ReaderView({
       )}
 
       {message && <div className="legacyMessage">{message}</div>}
+
+      {isQuranDocument && (
+        <button
+          type="button"
+          onClick={() => {
+            setQuranDebugOpen(true);
+            void collectQuranDebug();
+          }}
+          style={{
+            position:"fixed", right:18, bottom:18, zIndex:9998,
+            border:"1px solid #7d6952", borderRadius:999,
+            background:"#1f241f", color:"#fff", padding:"9px 13px",
+            fontSize:12, fontWeight:800, boxShadow:"0 6px 22px #0005", cursor:"pointer"
+          }}
+        >
+          🐞 Kur’an Debug
+        </button>
+      )}
+
+      {isQuranDocument && quranDebugOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position:"fixed", inset:0, zIndex:9999, background:"#0009",
+            display:"grid", placeItems:"center", padding:18
+          }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setQuranDebugOpen(false); }}
+        >
+          <div style={{
+            width:"min(1100px,96vw)", maxHeight:"92vh", overflow:"auto",
+            background:"#171a17", color:"#f5f2e9", border:"1px solid #555",
+            borderRadius:14, boxShadow:"0 18px 60px #0009", padding:16
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:8,position:"sticky",top:0,background:"#171a17",paddingBottom:10,zIndex:2}}>
+              <strong style={{fontSize:16}}>Kur’an Okuyucu Debug</strong>
+              <span style={{opacity:.65,fontSize:11}}>Sayfa {quranPage ?? "—"}</span>
+              <span style={{flex:1}} />
+              <button onClick={() => void collectQuranDebug()} disabled={quranDebugBusy}>
+                {quranDebugBusy ? "Toplanıyor…" : "Yeniden ölç"}
+              </button>
+              <button onClick={exportQuranDebug} disabled={!quranDebugSnapshot}>JSON dışa aktar</button>
+              <button onClick={() => setQuranDebugOpen(false)}>Kapat</button>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:12}}>
+              {[
+                ["DB kayıt", quranDebugSnapshot?.directDatabase?.found ? "VAR" : "YOK"],
+                ["DB text", String(quranDebugSnapshot?.directDatabase?.row?.plain_text_length ?? "—")],
+                ["State Mushaf", quranDebugSnapshot?.readerState?.mushafStatePresent ? "VAR" : "YOK"],
+                ["State text", String(quranDebugSnapshot?.readerState?.mushafState?.plainLength ?? "—")],
+                ["Flow text", String(quranDebugSnapshot?.dom?.flow?.textLength ?? "—")],
+                ["RAW element", quranDebugSnapshot?.dom?.rawExists ? "VAR" : "YOK"],
+                ["RAW text", String(quranDebugSnapshot?.dom?.rawTest?.textLength ?? "—")],
+                ["Flow height", String(quranDebugSnapshot?.dom?.flow?.rect?.height ?? "—")],
+              ].map(([label,value]) => (
+                <div key={label} style={{border:"1px solid #444",borderRadius:8,padding:9}}>
+                  <div style={{fontSize:10,opacity:.6}}>{label}</div>
+                  <b style={{fontSize:13}}>{value}</b>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={{margin:"12px 0 6px"}}>DB’den doğrudan gelen metin</h3>
+            <pre dir="rtl" style={{
+              whiteSpace:"pre-wrap",unicodeBidi:"plaintext",background:"#fff4c9",color:"#111",
+              borderRadius:8,padding:12,fontSize:22,lineHeight:1.7,maxHeight:240,overflow:"auto",
+              fontFamily:'Arial,"Geeza Pro","Noto Naskh Arabic",sans-serif'
+            }}>
+              {quranDebugSnapshot?.directDatabase?.row?.plain_text_sample || "(yok)"}
+            </pre>
+
+            <h3 style={{margin:"12px 0 6px"}}>Reader state içindeki metin</h3>
+            <pre dir="rtl" style={{
+              whiteSpace:"pre-wrap",unicodeBidi:"plaintext",background:"#f6f3ed",color:"#111",
+              borderRadius:8,padding:12,fontSize:22,lineHeight:1.7,maxHeight:220,overflow:"auto"
+            }}>
+              {quranDebugSnapshot?.readerState?.mushafState?.plainSample || "(yok)"}
+            </pre>
+
+            <h3 style={{margin:"12px 0 6px"}}>DOM / CSS / State özeti</h3>
+            <pre style={{
+              whiteSpace:"pre-wrap",background:"#0d0f0d",border:"1px solid #333",
+              borderRadius:8,padding:12,fontSize:11,lineHeight:1.5,maxHeight:420,overflow:"auto"
+            }}>
+              {JSON.stringify(quranDebugSnapshot,null,2)}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
