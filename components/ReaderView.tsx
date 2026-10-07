@@ -60,6 +60,10 @@ function localDateKey() {
   return `${y}-${m}-${day}`;
 }
 
+function toArabicIndic(value:number) {
+  return String(value).replace(/\d/g, digit => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
+}
+
 function occurs(meta: TodoMeta, key: string) {
   const s = meta.schedule;
   if (!s?.startDate) return true;
@@ -567,7 +571,7 @@ export function ReaderView({
                     }}
                   >
                     <span className="quranAyahText">{node.secondary_text}</span>
-                    <span className="quranAyahNo">{node.sort_order}</span>
+                    <span className="quranAyahNo" aria-label={`Ayet ${node.sort_order}`}>{toArabicIndic(node.sort_order)}</span>
                   </button>
                 );
               })}
