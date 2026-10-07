@@ -1259,3 +1259,51 @@ html.pre-dark body{
     font-size:11px!important;
   }
 }
+
+
+/* v0.2.0 — Dua Ezber integrated into Library */
+.ezberIntegratedTopbar{
+  margin-bottom:0;
+}
+.ezberIntegratedTopbar>div{
+  width:100%;
+}
+.duaEzberIntegrated{
+  padding-top:8px;
+}
+.duaEzberIntegrated .legacyHomeHead{
+  margin-bottom:30px;
+}
+.duaEzberIntegrated .legacyHomeHead h1{
+  margin:0;
+}
+.duaEzberIntegrated .legacyHomeMenu,
+.duaEzberIntegrated .legacyCategoryList{
+  width:min(980px,100%);
+}
+.duaEzberIntegrated .legacyHomeRow,
+.duaEzberIntegrated .legacyCategoryRow{
+  min-height:74px;
+  padding-left:14px;
+  padding-right:14px;
+}
+.duaEzberIntegrated .draggableWholeRow{
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.duaEzberIntegrated .draggableWholeRow.dragging{
+  cursor:grabbing;
+  opacity:.78;
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  box-shadow:0 8px 24px #0002;
+}
+@media(max-width:800px){
+  .duaEzberIntegrated{
+    padding-top:4px;
+  }
+  .duaEzberIntegrated .legacyHomeRow,
+  .duaEzberIntegrated .legacyCategoryRow{
+    min-height:64px;
+  }
+}
