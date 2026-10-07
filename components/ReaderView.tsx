@@ -7,7 +7,7 @@ import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
-import { loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
+import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 
 type Item = {
@@ -562,6 +562,13 @@ export function ReaderView({
       setQuranBookmarks(bookmarks.filter(bookmark => bookmark?.position?.nodeId && bookmark?.position?.page));
     })();
   }, [isQuranDocument, item.id]);
+
+  useEffect(() => {
+    if (!isQuranDocument || !quranMushafPage) return;
+    void ensureExactMushafFont().then(loaded => {
+      if (loaded) requestAnimationFrame(() => fitQuranTextToPage());
+    });
+  }, [isQuranDocument, quranMushafPage, fitQuranTextToPage]);
 
   useEffect(() => {
     if (!isQuranDocument) return;
