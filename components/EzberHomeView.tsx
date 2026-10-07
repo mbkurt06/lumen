@@ -63,6 +63,7 @@ export function EzberHomeView({
   const [message, setMessage] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [rootOrder, setRootOrder] = useState<string[]>([]);
+  const rootOrderRef = useRef<string[]>([]);
   const [todoSummaries, setTodoSummaries] = useState<TodoSummary[]>([]);
   const pressId = useRef<string | null>(null);
   const pressY = useRef(0);
@@ -108,7 +109,11 @@ export function EzberHomeView({
 
     const prefs = (prefData?.preferences ?? {}) as Record<string, unknown>;
     const saved = prefs.duaEzberMenuOrder;
-    if (Array.isArray(saved)) setRootOrder(saved.filter(x => typeof x === "string") as string[]);
+    if (Array.isArray(saved)) {
+      const ids = saved.filter(x => typeof x === "string") as string[];
+      rootOrderRef.current = ids;
+      setRootOrder(ids);
+    }
   }, [loadChildren]);
 
   useEffect(() => { loadRoot(); }, [loadRoot]);
@@ -155,8 +160,8 @@ export function EzberHomeView({
     });
   }, [rootChildren, rootOrder]);
 
-  async function saveRootOrder(next: EzberItem[]) {
-    const ids = next.map(item => item.id);
+  async function saveRootOrder(ids: string[]) {
+    rootOrderRef.current = ids;
     setRootOrder(ids);
 
     const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
@@ -176,7 +181,9 @@ export function EzberHomeView({
     if (from < 0 || to < 0) return;
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
-    setRootOrder(next.map(x => x.id));
+    const ids = next.map(x => x.id);
+    rootOrderRef.current = ids;
+    setRootOrder(ids);
   }
 
   function reorderChildren(overId: string) {
@@ -280,8 +287,8 @@ export function EzberHomeView({
             onPointerUp={async () => {
               const wasMoved = moved.current;
               await finish(currentRoot ? persistChildren : async () => {
-                const ordered = [...orderedRoots].sort((a, b) => rootOrder.indexOf(a.id) - rootOrder.indexOf(b.id));
-                await saveRootOrder(ordered.length ? ordered : orderedRoots);
+                const ids = rootOrderRef.current.length ? rootOrderRef.current : orderedRoots.map(x => x.id);
+                await saveRootOrder(ids);
               });
               if (!wasMoved) await openEntry(item);
             }}
