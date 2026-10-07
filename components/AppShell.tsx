@@ -13,6 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
@@ -109,11 +110,13 @@ export function AppShell({
       .maybeSingle()
       .then(({ data }) => {
         const serverPrefs = (data?.preferences ?? {}) as Record<string, unknown>;
+        const localMirror = readLocalReaderPrefs();
         let localQuran: Record<string, unknown> = {};
         try {
           localQuran = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
         } catch {}
-        const prefs = { ...serverPrefs, ...localQuran };
+        const prefs = { ...serverPrefs, ...localMirror, ...localQuran };
+        writeLocalReaderPrefs({ ...serverPrefs, ...localQuran });
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
         const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
@@ -146,9 +149,7 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
-      const cap = readerScope[0].toUpperCase() + readerScope.slice(1);
+    const apply=(prefs:Record<string,unknown>)=>{
       const fontScale = typeof prefs[readerScope + "FontScale"] === "number" ? Number(prefs[readerScope + "FontScale"]) : 1;
       const showArabic = typeof prefs[readerScope + "ShowArabic"] === "boolean" ? Boolean(prefs[readerScope + "ShowArabic"]) : true;
       const showLatin = typeof prefs[readerScope + "ShowLatin"] === "boolean" ? Boolean(prefs[readerScope + "ShowLatin"]) : true;
@@ -161,6 +162,15 @@ export function AppShell({
       if (readerScope === "quran") {
         document.body.classList.remove("hideArabic","hideLatin","hideTurkish");
       }
+    };
+
+    const local=readLocalReaderPrefs();
+    if(Object.keys(local).length) apply(local);
+
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+      const remote=(data?.preferences ?? {}) as Record<string, unknown>;
+      writeLocalReaderPrefs(remote);
+      apply(remote);
     });
   }, [readerScope]);
 
