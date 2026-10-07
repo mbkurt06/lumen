@@ -5747,8 +5747,11 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
 }
 
 
-/* v0.9.11 — exact locally cached Word Mushaf font */
-.quranWordSourceActive{
+/* v0.9.11 — exact locally cached Word Mushaf font
+   Only use the embedded Word font when the database row is an exact DOCX import.
+   Test/fallback text must use the normal Arabic font stack; otherwise a cached
+   embedded font can map extracted Unicode text to blank glyphs. */
+.quranExactWordFont{
   font-family:
     var(--quran-exact-font-family,"LumenExactMushaf"),
     "LumenExactMushaf",
@@ -5757,7 +5760,7 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
     serif!important;
   font-synthesis:none!important;
 }
-.quranWordSourceActive .quranWordRun{
+.quranExactWordFont .quranWordRun{
   font-family:inherit!important;
   font-synthesis:none!important;
 }
