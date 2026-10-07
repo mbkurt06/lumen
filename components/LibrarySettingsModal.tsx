@@ -14,6 +14,7 @@ type Prefs = {
   quranEasyRead: boolean;
   quranFontScale: number;
   quranFontWeight: number;
+  quranFontFamily: string;
   quranPageTheme: "paper" | "white" | "sepia" | "dark";
 };
 
@@ -28,6 +29,7 @@ const defaults: Prefs = {
   quranEasyRead: false,
   quranFontScale: 1,
   quranFontWeight: 300,
+  quranFontFamily: "Shaikh Hamdullah Mushaf",
   quranPageTheme: "paper",
 };
 
@@ -41,6 +43,7 @@ function applyPrefs(p: Prefs) {
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
+  document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
   document.body.classList.toggle("quranHideLatin", !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", !p.quranShowTranslation);
@@ -143,6 +146,28 @@ export function LibrarySettingsModal({
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
             <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
           </div>
+        </div>
+
+        <div className="settingRow">
+          <span>Kur’an yazı tipi</span>
+          <select
+            className="input quranFontSelect"
+            value={prefs.quranFontFamily}
+            onChange={e => update({...prefs,quranFontFamily:e.target.value})}
+          >
+            <option value="Shaikh Hamdullah Mushaf">Shaikh Hamdullah Mushaf</option>
+            <option value="Shaikh Hamdullah Book">Shaikh Hamdullah Book</option>
+            <option value="Shaikh Hamdullah Basic">Shaikh Hamdullah Basic</option>
+            <option value="Traditional Naskh">Traditional Naskh</option>
+            <option value="Traditional Arabic">Traditional Arabic</option>
+            <option value="AGA Arabesque Desktop">AGA Arabesque Desktop</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Arial">Arial</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Trebuchet MS">Trebuchet MS</option>
+            <option value="Calibri">Calibri</option>
+            <option value="Calibri Light">Calibri Light</option>
+          </select>
         </div>
 
         <div className="settingRow quranWeightSetting">
