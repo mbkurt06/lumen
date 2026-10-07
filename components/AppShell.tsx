@@ -62,6 +62,15 @@ export function AppShell({
         document.body.classList.toggle("hideLatin", prefs.showLatin === false);
         document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
+        window.dispatchEvent(new CustomEvent("lumen-library-prefs", {
+          detail: {
+            theme,
+            fontScale,
+            showArabic: prefs.showArabic !== false,
+            showLatin: prefs.showLatin !== false,
+            showTurkish: prefs.showTurkish === true,
+          }
+        }));
       });
   }, []);
 
