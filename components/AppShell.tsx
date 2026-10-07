@@ -42,8 +42,8 @@ export function AppShell({
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
 
   useEffect(() => {
-    void syncStaticContentInBackground();
-  }, []);
+    void syncStaticContentInBackground(user.id);
+  }, [user.id]);
 
   const readerScope: ReaderScope = useMemo(() => {
     const source = String((selectedItem?.metadata as any)?.source || (selectedItem?.metadata as any)?.catalog_source || "");
