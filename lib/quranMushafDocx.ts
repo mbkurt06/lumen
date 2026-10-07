@@ -144,34 +144,224 @@ async function sha256Hex(buffer: ArrayBuffer) {
   return Array.from(new Uint8Array(hash)).map(v => v.toString(16).padStart(2, "0")).join("");
 }
 
-async function fetchQuranNodeMap() {
-  const byVerse = new Map<string, string>();
-  const pageJuz = new Map<number, number>();
-  let from = 0;
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("content_nodes")
-      .select("id,metadata")
-      .eq("metadata->>source", "quran_seeded")
-      .range(from, from + 999);
+const SURAH_TITLES = [
+  "Fâtiha","Bakara","Âl-i İmrân","Nisâ","Mâide","En'âm","A'râf","Enfâl","Tevbe","Yûnus",
+  "Hûd","Yûsuf","Ra'd","İbrâhîm","Hicr","Nahl","İsrâ","Kehf","Meryem","Tâhâ",
+  "Enbiyâ","Hac","Mü'minûn","Nûr","Furkân","Şuarâ","Neml","Kasas","Ankebût","Rûm",
+  "Lokmân","Secde","Ahzâb","Sebe'","Fâtır","Yâsîn","Sâffât","Sâd","Zümer","Mü'min",
+  "Fussilet","Şûrâ","Zuhruf","Duhân","Câsiye","Ahkâf","Muhammed","Fetih","Hucurât","Kâf",
+  "Zâriyât","Tûr","Necm","Kamer","Rahmân","Vâkıa","Hadîd","Mücâdele","Haşr","Mümtehine",
+  "Saff","Cum'a","Münâfikûn","Tegâbün","Talâk","Tahrîm","Mülk","Kalem","Hâkka","Meâric",
+  "Nûh","Cin","Müzzemmil","Müddessir","Kıyâmet","İnsân","Mürselât","Nebe'","Nâziât","Abese",
+  "Tekvîr","İnfitâr","Mutaffifîn","İnşikâk","Bürûc","Târık","A'lâ","Gâşiye","Fecr","Beled",
+  "Şems","Leyl","Duhâ","İnşirâh","Tîn","Alak","Kadr","Beyyine","Zilzâl","Âdiyât",
+  "Kâria","Tekâsür","Asr","Hümeze","Fîl","Kureyş","Mâûn","Kevser","Kâfirûn","Nasr",
+  "Tebbet","İhlâs","Felak","Nâs"
+];
 
-    if (error) throw error;
-    const rows = data ?? [];
-    for (const row of rows) {
-      const m = (row.metadata ?? {}) as Record<string, unknown>;
-      const surah = Number(m.surah_no || 0);
-      const ayah = Number(m.ayah_no || 0);
-      const page = Number(m.page || 0);
-      const juz = Number(m.juz || 0);
-      if (surah && ayah) byVerse.set(`${surah}:${ayah}`, row.id);
-      if (page && juz && !pageJuz.has(page)) pageJuz.set(page, juz);
+const JUZ_STARTS: Array<[number,number]> = [
+  [1,1],[2,142],[2,253],[3,93],[4,24],[4,148],[5,82],[6,111],[7,88],[8,41],
+  [9,93],[11,6],[12,53],[15,1],[17,1],[18,75],[21,1],[23,1],[25,21],[27,56],
+  [29,46],[33,31],[36,28],[39,32],[41,47],[46,1],[51,31],[58,1],[67,1],[78,1]
+];
+
+function verseKey(surah:number, ayah:number) {
+  return surah * 1000 + ayah;
+}
+
+function juzFor(surah:number, ayah:number) {
+  const key = verseKey(surah,ayah);
+  let juz = 1;
+  for (let i=0;i<JUZ_STARTS.length;i+=1) {
+    const [s,a] = JUZ_STARTS[i];
+    if (verseKey(s,a) <= key) juz = i + 1;
+    else break;
+  }
+  return juz;
+}
+
+type VerseRecord = {
+  surahNo:number;
+  ayahNo:number;
+  page:number;
+  juz:number;
+  text:string;
+  nodeId:string;
+};
+
+async function rebuildQuranFromWord(
+  ownerId:string,
+  pages:MutablePage[],
+  savedTodos:Array<{id:string;notes:string|null}>,
+  savedPreferences:Record<string,any>
+) {
+  const verseMap = new Map<string,VerseRecord>();
+
+  for (const page of pages) {
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        const key = `${run.surahNo}:${run.ayahNo}`;
+        const existing = verseMap.get(key);
+        if (!existing) {
+          verseMap.set(key,{
+            surahNo:run.surahNo,
+            ayahNo:run.ayahNo,
+            page:page.wordPage,
+            juz:juzFor(run.surahNo,run.ayahNo),
+            text:run.marker ? "" : run.text,
+            nodeId:crypto.randomUUID(),
+          });
+        } else if (!run.marker) {
+          existing.text += run.text;
+          if (page.wordPage < existing.page) existing.page = page.wordPage;
+        }
+      }
     }
-    if (rows.length < 1000) break;
-    from += 1000;
   }
 
-  return { byVerse, pageJuz };
+  if (verseMap.size !== 6236) {
+    throw new Error(`Word belgesinden 6236 yerine ${verseMap.size} tekil ayet çıkarıldı.`);
+  }
+
+  const rootId = crypto.randomUUID();
+  const surahIds = new Map<number,string>();
+  for (let s=1;s<=114;s+=1) surahIds.set(s,crypto.randomUUID());
+
+  const verses = Array.from(verseMap.values()).sort((a,b)=>a.surahNo-b.surahNo||a.ayahNo-b.ayahNo);
+  const ranges = new Map<number,{startPage:number;endPage:number;startJuz:number;endJuz:number}>();
+  for (const verse of verses) {
+    const current = ranges.get(verse.surahNo);
+    if (!current) ranges.set(verse.surahNo,{startPage:verse.page,endPage:verse.page,startJuz:verse.juz,endJuz:verse.juz});
+    else {
+      current.startPage=Math.min(current.startPage,verse.page);
+      current.endPage=Math.max(current.endPage,verse.page);
+      current.startJuz=Math.min(current.startJuz,verse.juz);
+      current.endJuz=Math.max(current.endJuz,verse.juz);
+    }
+  }
+
+  const rootRow = {
+    id:rootId, owner_id:ownerId, parent_id:null, kind:"folder", title:"Kur’an-ı Kerim",
+    subtitle:"İstanbul Mushafı · Word kaynağı", sort_order:0,
+    metadata:{source:"quran_v1",entity:"root",fully_seeded:true,arabic_source:"istanbul_mushaf_docx"}
+  };
+
+  const surahRows = Array.from({length:114},(_,i)=>{
+    const surahNo=i+1;
+    const range=ranges.get(surahNo)!;
+    return {
+      id:surahIds.get(surahNo)!, owner_id:ownerId, parent_id:rootId, kind:"document",
+      title:SURAH_TITLES[i], subtitle:`${range.startPage-1}–${range.endPage-1}. sayfalar`, sort_order:surahNo,
+      metadata:{
+        source:"quran_seeded",catalog_source:"quran_v1",arabic_source:"istanbul_mushaf_docx",
+        surah_no:surahNo,start_page:range.startPage,end_page:range.endPage,
+        start_juz:range.startJuz,end_juz:range.endJuz,fully_seeded:true,page_scheme:"istanbul-docx-604"
+      }
+    };
+  });
+
+  const juzRows = Array.from({length:30},(_,i)=>{
+    const juzNo=i+1;
+    const inJuz=verses.filter(v=>v.juz===juzNo);
+    const startPage=Math.min(...inJuz.map(v=>v.page));
+    const endPage=Math.max(...inJuz.map(v=>v.page));
+    const first=inJuz[0];
+    return {
+      id:crypto.randomUUID(),owner_id:ownerId,parent_id:rootId,kind:"document",title:`${juzNo}. Cüz`,
+      subtitle:`${startPage-1}–${endPage-1}. sayfalar`,sort_order:1000+juzNo,
+      metadata:{
+        source:"quran_juz_view",catalog_source:"quran_v1",arabic_source:"istanbul_mushaf_docx",
+        juz_no:juzNo,start_surah:first.surahNo,start_ayah:first.ayahNo,start_page:startPage,end_page:endPage,fully_seeded:true
+      }
+    };
+  });
+
+  // Önce Word kaynaklı yeni yapı hazırlanır. Eski Kur’an ancak yeni yapı hazır olduğunda kaldırılır.
+  const {error:rootInsertError}=await supabase.from("library_items").insert(rootRow);
+  if (rootInsertError) throw rootInsertError;
+
+  for (let i=0;i<surahRows.length;i+=50) {
+    const {error}=await supabase.from("library_items").insert(surahRows.slice(i,i+50));
+    if (error) throw error;
+  }
+  const {error:juzInsertError}=await supabase.from("library_items").insert(juzRows);
+  if (juzInsertError) throw juzInsertError;
+
+  const nodeRows = verses.map(v=>({
+    id:v.nodeId,owner_id:ownerId,document_id:surahIds.get(v.surahNo)!,parent_id:null,kind:"segment",
+    sort_order:v.ayahNo,title:`${v.surahNo}:${v.ayahNo}`,text_content:null,secondary_text:v.text,translation:null,
+    metadata:{
+      source:"quran_seeded",arabic_source:"istanbul_mushaf_docx",surah_no:v.surahNo,ayah_no:v.ayahNo,
+      page:v.page,juz:v.juz,surah_title:SURAH_TITLES[v.surahNo-1],page_scheme:"istanbul-docx-604"
+    }
+  }));
+
+  for (let i=0;i<nodeRows.length;i+=250) {
+    const {error}=await supabase.from("content_nodes").insert(nodeRows.slice(i,i+250));
+    if (error) throw error;
+  }
+
+  for (const page of pages) {
+    page.juz = null;
+    for (const paragraph of page.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (!run.surahNo || !run.ayahNo) continue;
+        const verse=verseMap.get(`${run.surahNo}:${run.ayahNo}`);
+        if (verse) run.nodeId=verse.nodeId;
+        page.surahNumbers.add(run.surahNo);
+        if (!page.juz && verse) page.juz=verse.juz;
+      }
+    }
+  }
+
+  // Eski kökü ve varsa eski bağımsız Kur’an kayıtlarını kaldır.
+  const {data:oldRoots}=await supabase
+    .from("library_items").select("id")
+    .contains("metadata",{source:"quran_v1",entity:"root"})
+    .neq("id",rootId);
+  for (const old of oldRoots ?? []) {
+    const {error}=await supabase.from("library_items").delete().eq("id",old.id);
+    if (error) throw error;
+  }
+  await supabase.from("content_nodes").delete().eq("metadata->>source","quran_seeded").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+  await supabase.from("library_items").delete().eq("metadata->>source","quran_seeded").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+  await supabase.from("library_items").delete().eq("metadata->>source","quran_juz_view").neq("metadata->>arabic_source","istanbul_mushaf_docx");
+
+  const byKey=new Map(verses.map(v=>[`${v.surahNo}:${v.ayahNo}`,v]));
+
+  for (const todo of savedTodos) {
+    let meta:any={};
+    try { meta=JSON.parse(todo.notes||"{}"); } catch {}
+    const pos=meta?.quran?.position;
+    if (!pos?.surahNo || !pos?.ayahNo) continue;
+    const verse=byKey.get(`${pos.surahNo}:${pos.ayahNo}`);
+    if (!verse) continue;
+    const nextPos={...pos,nodeId:verse.nodeId,page:verse.page,juz:verse.juz,surahTitle:SURAH_TITLES[verse.surahNo-1],updatedAt:new Date().toISOString()};
+    await supabase.from("todos").update({
+      related_library_item_id:surahIds.get(verse.surahNo),
+      related_content_node_id:verse.nodeId,
+      notes:JSON.stringify({...meta,quran:{...meta.quran,tracking:true,position:nextPos}})
+    }).eq("id",todo.id);
+  }
+
+  const bookmarks=Array.isArray(savedPreferences.quranBookmarks)?savedPreferences.quranBookmarks:[];
+  const remapped=bookmarks.map((bookmark:any)=>{
+    const pos=bookmark?.position;
+    const verse=pos?.surahNo&&pos?.ayahNo?byKey.get(`${pos.surahNo}:${pos.ayahNo}`):null;
+    if (!verse) return bookmark;
+    return {...bookmark,position:{...pos,nodeId:verse.nodeId,page:verse.page,juz:verse.juz,surahTitle:SURAH_TITLES[verse.surahNo-1],updatedAt:new Date().toISOString()}};
+  });
+  if (remapped.length || savedPreferences.quranBookmarks) {
+    await supabase.from("user_preferences").upsert({
+      owner_id:ownerId,
+      preferences:{...savedPreferences,quranBookmarks:remapped,quranBookmark:null},
+      updated_at:new Date().toISOString()
+    },{onConflict:"owner_id"});
+  }
+
+  return {verseMap,rootId,surahIds};
 }
 
 export async function importQuranMushafDocx(
