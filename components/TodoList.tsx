@@ -100,6 +100,10 @@ type CalendarHoverEditor = {
   y: number;
 };
 
+function displayQuranPage(page:number | null | undefined) {
+  return Math.max(0, Number(page || 1) - 1);
+}
+
 function parseMeta(notes: string | null): TodoMeta {
   if (!notes) return {};
   try { return JSON.parse(notes) as TodoMeta; } catch { return { description: notes }; }
@@ -444,7 +448,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
             <strong>{todo.title}</strong>
             {meta.quran?.tracking && meta.quran.position && (
               <p className="todoQuranPosition">
-                🔖 Kaldığın yer: Sayfa {meta.quran.position.page || "—"}
+                🔖 Kaldığın yer: Sayfa {displayQuranPage(meta.quran.position.page)}
                 {meta.quran.position.juz ? ` · Cüz ${meta.quran.position.juz}` : ""}
                 {meta.quran.position.surahTitle ? ` · ${meta.quran.position.surahTitle}` : ""}
                 {meta.quran.position.ayahNo ? ` ${meta.quran.position.ayahNo}. ayet` : ""}
