@@ -270,9 +270,9 @@ export function LibrarySettingsModal({
             <span>İnce</span>
             <input
               type="range"
-              min={100}
-              max={700}
-              step={50}
+              min={1}
+              max={500}
+              step={25}
               value={prefs.quranFontWeight}
               onChange={e => update({...prefs,quranFontWeight:Number(e.target.value)})}
             />
@@ -311,13 +311,6 @@ export function LibrarySettingsModal({
           <span>Türkçe meal</span>
           <button className="settingButton" onClick={() => update({...prefs,quranShowTranslation:!prefs.quranShowTranslation})}>
             {prefs.quranShowTranslation ? "Açık" : "Gizli"}
-          </button>
-        </div>
-
-        <div className="settingRow">
-          <span>Kolay okunur yazım</span>
-          <button className="settingButton" onClick={() => update({...prefs,quranEasyRead:!prefs.quranEasyRead})}>
-            {prefs.quranEasyRead ? "Açık" : "Kapalı"}
           </button>
         </div>
 
