@@ -24,8 +24,12 @@ async function init(){
   data=baseData;ilmihalData=ilmihal;
   const existingSurahNos=new Set(data.duas.filter(d=>d.category==="Sûreler"&&Number.isInteger(d.surahNo)&&!SURAH_EXTRA_IDS.has(d.id)).map(d=>d.surahNo));
   for(const d of quranData.duas||[]){if(!existingSurahNos.has(d.surahNo))data.duas.push(d)}
+  ensureSurahExcerpt("bakara-255","Âyetel Kürsî (Bakara 255)",2,255,255);
+  ensureSurahExcerpt("ali-imran-190-200","Âl-i İmrân 190–200",3,190,200);
+  ensureSurahExcerpt("kehf-1-10","Kehf İlk 10 Âyet",18,1,10);
+  ensureSurahExcerpt("kehf-101-110","Kehf Son 10 Âyet",18,101,110);
   data.quranSource=quranData.source||null;
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=85").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=87").then(r=>r.update())
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
@@ -416,7 +420,28 @@ function ilmihalTopicList(){const out=[];ilmihalData.sections.forEach((sec,si)=>
 function moveIlmihal(step){const all=ilmihalTopicList(),i=all.findIndex(x=>x.key===state.ilmihalTopic),n=i+step;if(i>=0&&n>=0&&n<all.length)openIlmihal(all[n].key)}
 function updateIlmihalPager(topic){const pager=$("#ilmihalPager");if(!topic){pager.classList.add("hidden");return}const all=ilmihalTopicList(),i=all.findIndex(x=>x.key===topic);pager.classList.remove("hidden");$("#ilmihalPrevBtn").disabled=i<=0;$("#ilmihalNextBtn").disabled=i<0||i>=all.length-1}
 function openIlmihal(topic=null){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="ilmihal";state.ilmihalTopic=topic;$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#listeningView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#ilmihalView").classList.remove("hidden");const box=$("#ilmihalContent");updateIlmihalPager(topic);$("#ilmihalTopicsBtn").classList.toggle("hidden",!topic);if(topic){const [si,ti]=topic.split(":").map(Number),sec=ilmihalData.sections[si],item=sec?.topics?.[ti];$("#ilmihalTitle").textContent=item?.title||sec?.title||"İslam İlmihali";box.innerHTML='<article class="ilmihal-article">'+(item?.body||[]).map(p=>'<p>'+escapeHtml(p)+'</p>').join("")+(item?.list?'<ul>'+item.list.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ul>':"")+(item?.steps?'<ol>'+item.steps.map(x=>'<li>'+escapeHtml(x)+'</li>').join("")+'</ol>':"")+'<div class="ilmihal-source">'+escapeHtml(ilmihalData.source)+'</div></article>';}else{$("#ilmihalTitle").textContent=ilmihalData.title;box.innerHTML='<p class="ilmihal-intro">Temel ve ayrıntılı ilmihal konuları</p>'+ilmihalData.sections.map((sec,si)=>'<section class="ilmihal-section"><h3>'+escapeHtml(sec.title)+'</h3>'+sec.topics.map((t,ti)=>'<button class="library-card ilmihal-topic" data-topic="'+si+':'+ti+'"><strong>'+escapeHtml(t.title)+'</strong><span>›</span></button>').join("")+'</section>').join("");box.querySelectorAll(".ilmihal-topic").forEach(b=>b.onclick=()=>openIlmihal(b.dataset.topic));}save()}
-const SURAH_EXTRA_IDS=new Set(["bakara-285-286","fetih-27-29","hasr-20-24"]);
+const SURAH_EXTRA_IDS=new Set(["bakara-255","bakara-285-286","ali-imran-190-200","kehf-1-10","kehf-101-110","fetih-27-29","hasr-20-24"]);
+const FEATURED_SURAH_SHORTCUTS=[
+  {surahNo:78,label:"Nebe (Amme) Sûresi"},
+  {surahNo:36,label:"Yâsîn Sûresi"},
+  {surahNo:67,label:"Mülk (Tebâreke) Sûresi"},
+  {surahNo:55,label:"Rahmân Sûresi"},
+  {surahNo:56,label:"Vâkıa Sûresi"},
+  {surahNo:18,label:"Kehf Sûresi"},
+  {surahNo:48,label:"Fetih Sûresi"},
+  {surahNo:62,label:"Cuma Sûresi"}
+];
+function ensureSurahExcerpt(id,title,surahNo,startVerse,endVerse){
+  if(data.duas.some(d=>d.id===id))return;
+  const source=data.duas.find(d=>d.category==="Sûreler"&&d.surahNo===surahNo&&!SURAH_EXTRA_IDS.has(d.id));
+  if(!source?.segments?.length)return;
+  const segments=source.segments.filter((seg,i)=>{
+    const n=Number(seg?.verseNo||i+1);
+    return n>=startVerse&&n<=endVerse
+  }).map(seg=>({...seg}));
+  if(!segments.length)return;
+  data.duas.push({id,title,category:"Sûreler",surahNo,segments});
+}
 const HOME_ORDER_KEY="duaHomeMenuOrder";
 const LIBRARY_ORDERS_KEY="duaLibraryOrders";
 function homeMenuKey(el){return el.dataset.category?"cat:"+el.dataset.category:(el.id||el.textContent.trim())}
@@ -501,10 +526,17 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
       const d=data.duas.find(x=>x.category==="Sûreler"&&x.surahNo===row.surahNo&&!SURAH_EXTRA_IDS.has(x.id));
       appendCard(d,row.surahNo+". "+row.name,d?(d.segments.length+" bölüm"):"Metin eklenecek",d?"":"surah-placeholder")
     }
-    const extras=data.duas.filter(d=>d.category==="Sûreler"&&SURAH_EXTRA_IDS.has(d.id)).sort((x,y)=>(x.surahNo||999)-(y.surahNo||999));
-    if(extras.length){
+    const extras=data.duas.filter(d=>d.category==="Sûreler"&&SURAH_EXTRA_IDS.has(d.id));
+    const featured=FEATURED_SURAH_SHORTCUTS.map(item=>({
+      item,
+      dua:data.duas.find(d=>d.category==="Sûreler"&&d.surahNo===item.surahNo&&!SURAH_EXTRA_IDS.has(d.id))
+    })).filter(x=>x.dua);
+    if(featured.length||extras.length){
       const head=document.createElement("div");head.className="library-subheading";head.textContent="Ek okumalar";list.appendChild(head);
-      extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm"))
+      featured.forEach(({item,dua:d})=>appendCard(d,item.label,d.segments.length+" bölüm","surah-featured"));
+      const extraOrder=["bakara-255","bakara-285-286","ali-imran-190-200","kehf-1-10","kehf-101-110","fetih-27-29","hasr-20-24"];
+      extras.sort((a,b)=>extraOrder.indexOf(a.id)-extraOrder.indexOf(b.id));
+      extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm","surah-featured"))
     }
     const source=document.createElement("div");
     source.className="quran-source-note";
