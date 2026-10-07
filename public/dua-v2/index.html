@@ -19,7 +19,7 @@
     } catch {}
   </script>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=89">
+  <link rel="stylesheet" href="./styles.css?v=91">
 </head>
 <body>
   <main class="app">
@@ -34,18 +34,18 @@
 
     <section id="homeView" class="home-page hidden">
       <div class="home-head">
-        <h1>Dua Ezber</h1>
+        <h1></h1>
         <p>Bir bölüm seç</p>
       </div>
       <div class="home-menu">
-        <button id="homeTodoBtn" class="home-card home-card-todo"><strong>✓ Günlük Todo</strong><span id="homeTodoCount">0</span></button>
-        <button class="home-card category-link" data-category="Sûreler"><strong>Sûreler</strong><span>›</span></button>
-        <button class="home-card category-link" data-category="Namaz Duaları"><strong>Namaz Duaları</strong><span>›</span></button>
-        <button class="home-card category-link" data-category="Günlük Dualar"><strong>Günlük Dualar</strong><span>›</span></button>
-        <button class="home-card category-link" data-category="Tesbihat"><strong>Tesbihatlar</strong><span>›</span></button>
-        <button class="home-card category-link" data-category="Esmâü’l-Hüsnâ"><strong>Esmâü’l-Hüsnâ</strong><span>›</span></button>
-        <button id="homeListeningBtn" class="home-card"><strong>🎧 Dinleme</strong><span>›</span></button>
-        <button id="homeIlmihalBtn" class="home-card"><strong>İslam İlmihali</strong><span>›</span></button>
+        <button id="homeTodoBtn" class="home-card home-card-todo"><strong></strong><span id="homeTodoCount">0</span></button>
+        <button class="home-card category-link" data-category="surahs"><strong></strong><span>›</span></button>
+        <button class="home-card category-link" data-category="prayer_duas"><strong></strong><span>›</span></button>
+        <button class="home-card category-link" data-category="daily_duas"><strong></strong><span>›</span></button>
+        <button class="home-card category-link" data-category="tesbihat"><strong></strong><span>›</span></button>
+        <button class="home-card category-link" data-category="asma"><strong></strong><span>›</span></button>
+        <button id="homeListeningBtn" class="home-card"><strong></strong><span>›</span></button>
+        <button id="homeIlmihalBtn" class="home-card"><strong></strong><span>›</span></button>
       </div>
     </section>
 
@@ -155,7 +155,7 @@
     <section id="todoView" class="todo-page hidden">
       <div class="todo-page-head">
         <button id="todoMenuBtn" class="back-btn">‹ Menü</button>
-        <h2>Günlük Todo</h2>
+        <h2></h2>
         <span id="todoSummary" class="todo-summary">0 / 0</span>
       </div>
       <div class="todo-date-nav">
@@ -176,13 +176,13 @@
     </section>
 
     <section id="libraryView" class="library-page hidden">
-      <div class="library-page-head"><button id="backContentBtn" class="back-btn">‹ Menü</button><h2 id="libraryPageTitle">Sûreler</h2><span class="ilmihal-head-spacer" aria-hidden="true"></span></div>
+      <div class="library-page-head"><button id="backContentBtn" class="back-btn">‹ Menü</button><h2 id="libraryPageTitle"></h2><span class="ilmihal-head-spacer" aria-hidden="true"></span></div>
       <div id="libraryPageList"></div>
     </section>
     <section id="listeningView" class="listening-page hidden">
       <div class="listening-head">
         <button id="listeningMenuBtn" class="back-btn">‹ Menü</button>
-        <h2>Dinleme</h2>
+        <h2></h2>
         <span class="ilmihal-head-spacer" aria-hidden="true"></span>
       </div>
 
@@ -326,7 +326,7 @@
     <section id="ilmihalView" class="ilmihal-page hidden">
       <div class="ilmihal-page-head">
         <button id="ilmihalMenuBackBtn" class="back-btn">‹ Menü</button>
-        <h2 id="ilmihalTitle">İslam İlmihali</h2>
+        <h2 id="ilmihalTitle"></h2>
         <button id="ilmihalTopicsBtn" class="back-btn hidden">Konular</button>
       </div>
       <div id="ilmihalContent"></div>
@@ -409,11 +409,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=81"></script>
+  <script src="./cloud-sync.js?v=91"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=90";
+      script.src = "./app.js?v=91";
       document.body.appendChild(script);
     });
   </script>
