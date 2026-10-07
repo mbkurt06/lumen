@@ -24,7 +24,12 @@ type TodoMeta = {
     target?: number;
     history?: Record<string, { count?: number; completedAt?: string | null }>;
   };
-  source?: "document" | "segment";
+  source?: "document" | "segment" | "calendar";
+  calendar?: {
+    accountId?: string;
+    calendarId?: string;
+    eventId?: string;
+  };
 };
 
 function parseMeta(notes: string | null): TodoMeta {
@@ -135,6 +140,7 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
           <div className="todoMain">
             <strong>{todo.title}</strong>
             {meta.description && <p>{meta.description}</p>}
+            {meta.source === "calendar" && <span className="todoCalendarBadge">▦ Takvim</span>}
           </div>
           <div
             className={"todoTargetPill " + (done ? "done" : "")}
