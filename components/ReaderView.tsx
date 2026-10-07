@@ -77,6 +77,7 @@ function occurs(meta: TodoMeta, key: string) {
 export function ReaderView({
   item,
   onBack,
+  onMenu,
   onMemorize,
   initialFocusIndex = 0,
   onPreviousItem,
@@ -86,6 +87,7 @@ export function ReaderView({
 }: {
   item: Item;
   onBack?: () => void;
+  onMenu?: () => void;
   onMemorize?: (index?: number) => void;
   initialFocusIndex?: number;
   onPreviousItem?: () => void;
@@ -105,10 +107,23 @@ export function ReaderView({
   const [counterArmed, setCounterArmed] = useState(true);
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{ todo: TodoInfo; x: number; y: number } | null>(null);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
 
   const today = localDateKey();
+
+  useEffect(() => {
+    setHeaderCollapsed(localStorage.getItem("lumen-ezber-header-collapsed") === "1");
+  }, []);
+
+  function toggleHeader() {
+    setHeaderCollapsed(current => {
+      const next = !current;
+      localStorage.setItem("lumen-ezber-header-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
   const itemTarget = Number(item.metadata?.target || 0);
 
   const targetForIntrinsic = useCallback((node: Node) => {
@@ -363,15 +378,24 @@ export function ReaderView({
         }
       }}
     >
-      <div className="legacyReadToolbar">
-        <button className="legacyBack" onClick={() => leaveDocument(onBack)}>‹ Liste</button>
-        <div className="toolbar">
-          <button className="secondary" onClick={() => setDocumentTodoOpen(true)}>+ Todo</button>
-          <button className="primary" onClick={() => onMemorize?.(initialFocusIndex)}>Ezber yap</button>
+      <div className={"v2SharedHeader v2ReadHeader " + (headerCollapsed ? "collapsed" : "")}>
+        <div className="v2HeaderToolbar">
+          <div className="v2HeaderGroup">
+            <button className="v2HeaderButton" onClick={() => leaveDocument(onMenu)}>‹ Menü</button>
+            <button className="v2HeaderButton" onClick={() => leaveDocument(onBack)}>‹ Geri</button>
+          </div>
+          <div className="v2HeaderGroup">
+            <button className="v2HeaderButton" onClick={() => setDocumentTodoOpen(true)}>+ Todo</button>
+            <button className="v2HeaderPrimary" onClick={() => onMemorize?.(initialFocusIndex)}>Ezber yap</button>
+          </div>
         </div>
+        <div className="v2HeaderTitle">{item.title}</div>
+        {item.subtitle && <div className="v2HeaderInvocation">{item.subtitle}</div>}
+        <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
+          {headerCollapsed ? "▾" : "▴"}
+        </button>
       </div>
 
-      <div className="legacyReadTitle">{item.title}</div>
       {!!documentTodos.length && (
         <div className="documentTodoTargets">
           {documentTodos.filter(x => !x.done).map(info => (
@@ -389,10 +413,9 @@ export function ReaderView({
           ))}
         </div>
       )}
-      {item.subtitle && (
+      {itemTarget > 0 && (
         <div className="legacyInvocation inlineInvocationTarget">
-          <span>{item.subtitle}</span>
-          {itemTarget > 0 && <b>{itemTarget}</b>}
+          <b>{itemTarget}</b>
         </div>
       )}
 
