@@ -3510,3 +3510,76 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     top:154px;
   }
 }
+
+
+/* v0.6.3 — persistent calendar state + right calendar source drawer */
+.calendarPage.sourcesOpen{
+  grid-template-columns:minmax(0,1fr) 250px!important;
+}
+.calendarPage.sourcesClosed{
+  grid-template-columns:minmax(0,1fr) 0!important;
+}
+.calendarMain{
+  grid-column:1!important;
+  grid-row:1!important;
+}
+.calendarSources{
+  grid-column:2!important;
+  grid-row:1!important;
+  border-right:0!important;
+  border-left:1px solid var(--border)!important;
+  transition:opacity .18s ease,transform .2s ease,width .2s ease,padding .2s ease;
+}
+.calendarPage.sourcesClosed .calendarSources{
+  width:0!important;
+  min-width:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  border-left:0!important;
+  opacity:0;
+  overflow:hidden;
+  pointer-events:none;
+  transform:translateX(18px);
+}
+.calendarSourcesToggle{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  white-space:nowrap;
+}
+.calendarSourcesToggle span{
+  font-size:12px;
+  font-weight:700;
+}
+@media(max-width:1100px){
+  .calendarPage.sourcesOpen{
+    grid-template-columns:minmax(0,1fr) 220px!important;
+  }
+}
+@media(max-width:800px){
+  .calendarPage.sourcesOpen,
+  .calendarPage.sourcesClosed{
+    display:block!important;
+  }
+  .calendarSources{
+    left:auto!important;
+    right:0!important;
+    border-left:1px solid var(--border)!important;
+    border-right:0!important;
+    transform:translateX(105%)!important;
+  }
+  .calendarSources.open{
+    transform:translateX(0)!important;
+    opacity:1!important;
+    width:min(84vw,310px)!important;
+    padding:18px 14px 28px!important;
+    pointer-events:auto!important;
+  }
+  .calendarPage.sourcesClosed .calendarSources{
+    transform:translateX(105%)!important;
+  }
+  .calendarSourcesToggle span{
+    display:none;
+  }
+}
