@@ -33,10 +33,37 @@
       if (!key || !key.startsWith("sb-") || !key.endsWith("-auth-token")) continue;
       try {
         const value = JSON.parse(localStorage.getItem(key) || "null");
-        if (value?.access_token && value?.user?.id) return value;
+        if (value?.access_token && value?.user?.id) return {...value,__storageKey:key};
       } catch {}
     }
     return null;
+  }
+
+  async function refreshAuthSession() {
+    const current = auth || authSession();
+    if (!current?.refresh_token) return null;
+
+    const response = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ refresh_token: current.refresh_token })
+    });
+
+    if (!response.ok) return null;
+    const fresh = await response.json();
+    if (!fresh?.access_token || !fresh?.user?.id) return null;
+
+    const storageKey = current.__storageKey;
+    auth = {...fresh,__storageKey:storageKey};
+    if (storageKey) {
+      const persist = {...fresh};
+      delete persist.__storageKey;
+      localStorage.setItem(storageKey, JSON.stringify(persist));
+    }
+    return auth;
   }
 
   function snapshot() {
@@ -56,8 +83,10 @@
     }
   }
 
-  async function request(path, options = {}) {
+  async function request(path, options = {}, retried = false) {
+    if (!auth) auth = authSession();
     if (!auth) return null;
+
     const response = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
       ...options,
       headers: {
@@ -67,7 +96,16 @@
         ...(options.headers || {})
       }
     });
-    if (!response.ok) throw new Error(await response.text());
+
+    if (response.status === 401 && !retried) {
+      const fresh = await refreshAuthSession();
+      if (fresh) return request(path, options, true);
+    }
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error("Supabase REST " + response.status + ": " + body);
+    }
     const text = await response.text();
     return text ? JSON.parse(text) : null;
   }
@@ -75,6 +113,10 @@
   async function loadRemote() {
     auth = authSession();
     if (!auth) return;
+    const expiresAt = Number(auth.expires_at || 0);
+    if (expiresAt && expiresAt - Math.floor(Date.now()/1000) < 120) {
+      await refreshAuthSession();
+    }
     const rows = await request(
       TABLE + "?owner_id=eq." + encodeURIComponent(auth.user.id) + "&select=payload&limit=1"
     );
