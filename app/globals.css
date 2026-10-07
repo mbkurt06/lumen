@@ -1592,3 +1592,34 @@ html.pre-dark body{
     max-width:none!important;
   }
 }
+
+
+/* v0.3.0 — exact Dua V2 UI runs inside Library/Ezber */
+.exactV2EzberFrame{
+  width:100%;
+  height:calc(100dvh - 56px);
+  min-height:720px;
+  margin:0;
+  background:var(--bg);
+  overflow:hidden;
+}
+.exactV2EzberFrame iframe{
+  display:block;
+  width:100%;
+  height:100%;
+  border:0;
+  background:var(--bg);
+}
+body.exactV2EzberActive .persistentLibrarySettings{
+  display:none!important;
+}
+body.exactV2EzberActive .ezberIntegratedTopbar{
+  margin-bottom:0!important;
+  padding-bottom:0!important;
+}
+@media(max-width:800px){
+  .exactV2EzberFrame{
+    height:calc(100dvh - 52px);
+    min-height:0;
+  }
+}
