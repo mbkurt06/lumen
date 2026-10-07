@@ -103,6 +103,8 @@ export function MemorizationView({
   const [editMenu, setEditMenu] = useState<{todo: TodoInfo; x:number; y:number}|null>(null);
   const [message, setMessage] = useState("");
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [resolvedMeta, setResolvedMeta] = useState<Record<string, any>>((item?.metadata ?? {}) as Record<string, any>);
+  const [resolvedCategoryTitle, setResolvedCategoryTitle] = useState(categoryTitle);
 
   const counterDragging = useRef(false);
   const counterStart = useRef({x:0,y:0});
@@ -128,9 +130,41 @@ export function MemorizationView({
     });
   }
 
-  const itemMeta = (item?.metadata ?? {}) as Record<string, any>;
-  const isEsmaDetail = itemMeta.category_key === "asma";
+  const itemMeta = resolvedMeta;
+  const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || item?.subtitle || "");
+
+  useEffect(() => {
+    setResolvedMeta((item?.metadata ?? {}) as Record<string, any>);
+    setResolvedCategoryTitle(categoryTitle || "");
+    if (!item?.id) return;
+
+    let cancelled = false;
+    (async () => {
+      const { data: freshItem } = await supabase
+        .from("library_items")
+        .select("parent_id,metadata")
+        .eq("id", item.id)
+        .maybeSingle();
+
+      if (cancelled || !freshItem) return;
+      const freshMeta = (freshItem.metadata ?? {}) as Record<string, any>;
+      setResolvedMeta(freshMeta);
+
+      const esma = freshMeta.category_key === "asma" || String(freshMeta.legacy_id || "").startsWith("esma-");
+      if (!esma || !freshItem.parent_id) return;
+
+      const { data: parent } = await supabase
+        .from("library_items")
+        .select("title")
+        .eq("id", freshItem.parent_id)
+        .maybeSingle();
+
+      if (!cancelled && parent?.title) setResolvedCategoryTitle(parent.title);
+    })();
+
+    return () => { cancelled = true; };
+  }, [item?.id, categoryTitle]);
 
   const loadTodos = useCallback(async () => {
     if (!item) return;
@@ -394,7 +428,7 @@ export function MemorizationView({
           </div>
         </div>
         <div className="v2HeaderProgress">{nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}</div>
-        <div className="v2HeaderTitle">{isEsmaDetail && categoryTitle ? categoryTitle : item.title}</div>
+        <div className="v2HeaderTitle">{isEsmaDetail ? (resolvedCategoryTitle || categoryTitle || item.title) : item.title}</div>
         {!isEsmaDetail && invocation && <div className="v2HeaderInvocation">{invocation}</div>}
         <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
           {headerCollapsed ? "▾" : "▴"}
