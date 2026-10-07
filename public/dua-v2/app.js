@@ -21,7 +21,7 @@ async function init(){
   migrateLegacyViewState();
   buildHomeMenuFromDb();
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=95").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=96").then(r=>r.update())
 }
 function migrateLegacyViewState(){
   const map={
@@ -412,7 +412,7 @@ $("#tasbihMinusBtn").addEventListener("pointerdown",e=>{e.stopPropagation();minu
 $("#tasbihFullscreen").onclick=e=>{if(e.target.closest("#tasbihExitBtn,#tasbihMinusBtn,#tasbihFontControls"))return;incrementActiveCounter()};
 $("#settingsBtn").onclick=()=>$("#settingsDialog").showModal();
 $("#menuBtn").addEventListener("click",e=>{e.preventDefault();e.stopPropagation();openHome()});
-$("#homeTodoBtn").onclick=openTodo;
+if($("#homeTodoBtn"))$("#homeTodoBtn").onclick=openTodo;
 $("#todoMenuBtn").onclick=openHome;
 function hideDuaFloatingPlayer(){hideDuaCompactSettings();$("#duaListeningPanel")?.classList.add("hidden")}
 function openHome(){hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();state.currentView="home";state.ilmihalTopic=null;$("#homeView").classList.remove("hidden");$("#todoView").classList.add("hidden");$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");$("#libraryView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");$(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#progress").textContent="";updateHomeTodoCount();save()}
