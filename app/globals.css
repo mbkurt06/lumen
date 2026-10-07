@@ -5745,3 +5745,19 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
   font-size:10px;
   line-height:1.45;
 }
+
+
+/* v0.9.11 — exact locally cached Word Mushaf font */
+.quranWordSourceActive{
+  font-family:
+    var(--quran-exact-font-family,"LumenExactMushaf"),
+    "LumenExactMushaf",
+    var(--quran-font-family,"Shaikh Hamdullah Mushaf"),
+    "Shaikh Hamdullah Mushaf",
+    serif!important;
+  font-synthesis:none!important;
+}
+.quranWordSourceActive .quranWordRun{
+  font-family:inherit!important;
+  font-synthesis:none!important;
+}
