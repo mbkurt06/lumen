@@ -9,6 +9,10 @@ type Prefs = {
   showArabic: boolean;
   showLatin: boolean;
   showTurkish: boolean;
+  quranShowLatin: boolean;
+  quranShowTranslation: boolean;
+  quranEasyRead: boolean;
+  quranFontScale: number;
 };
 
 const defaults: Prefs = {
@@ -17,6 +21,10 @@ const defaults: Prefs = {
   showArabic: true,
   showLatin: true,
   showTurkish: false,
+  quranShowLatin: false,
+  quranShowTranslation: false,
+  quranEasyRead: false,
+  quranFontScale: 1,
 };
 
 function applyPrefs(p: Prefs) {
@@ -27,6 +35,10 @@ function applyPrefs(p: Prefs) {
   document.body.classList.toggle("hideLatin", !p.showLatin);
   document.body.classList.toggle("hideTurkish", !p.showTurkish);
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
+  document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
+  document.body.classList.toggle("quranHideLatin", !p.quranShowLatin);
+  document.body.classList.toggle("quranHideTranslation", !p.quranShowTranslation);
+  document.body.classList.toggle("quranEasyRead", p.quranEasyRead);
   window.dispatchEvent(new CustomEvent("lumen-library-prefs", { detail: p }));
 }
 
@@ -114,6 +126,38 @@ export function LibrarySettingsModal({
             <button onClick={() => update({...prefs,fontScale:1})}>A</button>
             <button onClick={() => update({...prefs,fontScale:Math.min(1.8,+(prefs.fontScale+.1).toFixed(1))})}>A+</button>
           </div>
+        </div>
+
+        <div className="settingSectionTitle">Kur’an görünümü</div>
+
+        <div className="settingRow">
+          <span>Kur’an yazı boyutu</span>
+          <div className="fontControls">
+            <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
+            <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
+            <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
+          </div>
+        </div>
+
+        <div className="settingRow">
+          <span>Latin harflerle okunuş</span>
+          <button className="settingButton" onClick={() => update({...prefs,quranShowLatin:!prefs.quranShowLatin})}>
+            {prefs.quranShowLatin ? "Açık" : "Gizli"}
+          </button>
+        </div>
+
+        <div className="settingRow">
+          <span>Türkçe meal</span>
+          <button className="settingButton" onClick={() => update({...prefs,quranShowTranslation:!prefs.quranShowTranslation})}>
+            {prefs.quranShowTranslation ? "Açık" : "Gizli"}
+          </button>
+        </div>
+
+        <div className="settingRow">
+          <span>Kolay okunur yazım</span>
+          <button className="settingButton" onClick={() => update({...prefs,quranEasyRead:!prefs.quranEasyRead})}>
+            {prefs.quranEasyRead ? "Açık" : "Kapalı"}
+          </button>
         </div>
 
         <div className="settingRow">
