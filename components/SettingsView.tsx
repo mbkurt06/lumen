@@ -27,7 +27,10 @@ export function SettingsView({
 
   useEffect(()=>{
     setAutoSync(localStorage.getItem(AUTO_SYNC_KEY)==="1");
-    void getMeta<string>("last_sync_at").then(setLastSync).catch(()=>{});
+    void getMeta<string>("last_sync_at").then(value=>{
+      setLastSync(value);
+      if(value) setSyncStatus("Güncel");
+    }).catch(()=>{});
 
     const onSync=(event:Event)=>{
       const detail=(event as CustomEvent<any>).detail ?? {};
@@ -45,7 +48,7 @@ export function SettingsView({
         setSyncStatus(`${names[detail.table] || "İçerikler"} indiriliyor${suffix}…`);
       }else if(detail.state==="ready"){
         setSyncing(false);
-        setSyncStatus("Tüm içerikler güncel");
+        setSyncStatus("Güncel");
         void getMeta<string>("last_sync_at").then(setLastSync).catch(()=>{});
       }else if(detail.state==="error"){
         setSyncing(false);
@@ -106,7 +109,7 @@ export function SettingsView({
         <div className="settingRow syncSettingRow">
           <div>
             <strong>Otomatik senkronizasyon</strong>
-            <div className="muted syncHint">Açıkken uygulama değişiklikleri 15 dakikada bir kontrol eder ve yenileri sessizce indirir.</div>
+            <div className="muted syncHint">Uygulama açılırken bir kez kontrol edilir. Otomatik açıkken ayrıca 15 dakikada bir değişiklik kontrolü yapılır.</div>
           </div>
           <button
             type="button"
