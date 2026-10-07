@@ -54,6 +54,7 @@ export function LibraryCatalogView({
 
   const source = section === "quran" ? "quran_v1" : "risale_v1";
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
+  const catalogStateKey = "lumen-catalog-state:" + section;
 
   const loadChildren = useCallback(async (parentId: string) => {
     const cached = await getCachedLibraryChildren(parentId).catch(() => []);
@@ -100,10 +101,24 @@ export function LibraryCatalogView({
     setMessage("");
     try {
       const rootItem = await loadRoot();
-      const children = await loadChildren(rootItem.id);
+      let restoredCurrent:CatalogItem = rootItem;
+      let restoredTrail:CatalogItem[] = [];
+      let restoredMode:"surah"|"juz" = "surah";
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(catalogStateKey) || "{}");
+        if (saved?.rootId === rootItem.id && saved?.current?.id) {
+          restoredCurrent = saved.current as CatalogItem;
+          restoredTrail = Array.isArray(saved.trail) ? saved.trail as CatalogItem[] : [];
+          restoredMode = saved.quranMode === "juz" ? "juz" : "surah";
+        }
+      } catch {}
+
+      const children = await loadChildren(restoredCurrent.id);
       setRoot(rootItem);
-      setCurrent(rootItem);
-      setTrail([]);
+      setCurrent(restoredCurrent);
+      setTrail(restoredTrail);
+      setQuranMode(restoredMode);
       setItems(children);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Kütüphane bölümü yüklenemedi.");
@@ -113,9 +128,21 @@ export function LibraryCatalogView({
     } finally {
       setLoading(false);
     }
-  }, [loadChildren, loadRoot]);
+  }, [loadChildren, loadRoot, catalogStateKey]);
 
   useEffect(() => { void bootstrap(); }, [bootstrap]);
+
+  useEffect(() => {
+    if (!root || !current || loading) return;
+    try {
+      localStorage.setItem(catalogStateKey, JSON.stringify({
+        rootId:root.id,
+        current,
+        trail,
+        quranMode,
+      }));
+    } catch {}
+  }, [catalogStateKey, root, current, trail, quranMode, loading]); // lumen-catalog-state-save
 
   useEffect(() => {
     if (section !== "quran") return;
