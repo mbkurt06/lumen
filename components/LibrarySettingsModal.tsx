@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
@@ -40,6 +40,7 @@ export function LibrarySettingsModal({
   onClose: () => void;
 }) {
   const [prefs, setPrefs] = useState<Prefs>(defaults);
+  const dockRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -50,6 +51,21 @@ export function LibrarySettingsModal({
       applyPrefs(next);
     });
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (dockRef.current?.contains(target)) return;
+      if (target.closest(".persistentLibrarySettings")) return;
+      onClose();
+    };
+
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open, onClose]);
 
   async function update(next: Prefs) {
     setPrefs(next);
@@ -74,7 +90,7 @@ export function LibrarySettingsModal({
   if (!open) return null;
 
   return (
-    <aside className="librarySettingsDock" aria-label="Okuma ayarları">
+    <aside ref={dockRef} className="librarySettingsDock" aria-label="Okuma ayarları">
       <div className="librarySettingsModal">
         <div className="modalHead">
           <strong>Okuma ayarları</strong>
