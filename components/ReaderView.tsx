@@ -118,6 +118,10 @@ export function ReaderView({
 
   const itemTarget = Number(item.metadata?.target || 0);
   const itemMeta = (item.metadata ?? {}) as Record<string, any>;
+  const sourceType = String(itemMeta.source || "");
+  const quranSurahNo = Number(itemMeta.surah_no || 0);
+  const isQuranDocument = sourceType === "quran_api" && quranSurahNo >= 1 && quranSurahNo <= 114;
+  const isRisaleExternal = sourceType === "risale_external";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || item.subtitle || "");
 
@@ -140,7 +144,7 @@ export function ReaderView({
   }, [item.id]);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("content_nodes")
       .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
       .eq("document_id", item.id)
@@ -151,7 +155,63 @@ export function ReaderView({
       return;
     }
 
-    const loaded = data ?? [];
+    let loaded = data ?? [];
+
+    if (!loaded.length && isQuranDocument) {
+      try {
+        setMessage("Sûre metni hazırlanıyor…");
+        const response = await fetch(`/api/library/quran/surah?number=${quranSurahNo}`);
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || "Sûre metni alınamadı.");
+
+        const rows = (json.ayahs || []).map((ayah: any) => ({
+          document_id: item.id,
+          kind: "verse",
+          title: `${quranSurahNo}:${Number(ayah.numberInSurah)}`,
+          text_content: null,
+          secondary_text: String(ayah.text || ""),
+          translation: String(ayah.translation || ""),
+          sort_order: Number(ayah.numberInSurah || 0),
+          metadata: {
+            source: "alquran.cloud",
+            arabic_edition: "quran-uthmani",
+            translation_edition: "tr.diyanet",
+            surah_no: quranSurahNo,
+            ayah_no: Number(ayah.numberInSurah || 0),
+            global_ayah_no: Number(ayah.number || 0),
+            juz: Number(ayah.juz || 0),
+            page: Number(ayah.page || 0),
+            hizb_quarter: Number(ayah.hizbQuarter || 0),
+            sajda: Boolean(ayah.sajda),
+          },
+        }));
+
+        if (rows.length) {
+          const { error: insertError } = await supabase.from("content_nodes").insert(rows);
+          if (insertError) {
+            const { data: existingAfterRace } = await supabase
+              .from("content_nodes")
+              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+              .eq("document_id", item.id)
+              .order("sort_order");
+            if (!existingAfterRace?.length) throw insertError;
+            loaded = existingAfterRace;
+          } else {
+            const { data: hydrated, error: hydrateError } = await supabase
+              .from("content_nodes")
+              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+              .eq("document_id", item.id)
+              .order("sort_order");
+            if (hydrateError) throw hydrateError;
+            loaded = hydrated ?? [];
+          }
+        }
+        setMessage("");
+      } catch (hydrateError) {
+        setMessage(hydrateError instanceof Error ? hydrateError.message : "Sûre metni alınamadı.");
+      }
+    }
+
     setNodes(loaded);
     setLocalCounts(getTransientCounts(item.id));
 
@@ -165,7 +225,7 @@ export function ReaderView({
     setActiveTodoId(null);
     scrollRestored.current = false;
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, quranSurahNo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -377,7 +437,7 @@ export function ReaderView({
         title={isEsmaDetail ? (categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}
-        showMemorize={true}
+        showMemorize={!isRisaleExternal || nodes.length > 0}
         onMenu={() => leaveDocument(onMenu)}
         onBack={() => leaveDocument(onBack)}
         onTodo={() => setDocumentTodoOpen(true)}
@@ -386,6 +446,30 @@ export function ReaderView({
         onFullscreen={() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))}
         onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
+
+      {isQuranDocument && (
+        <div className="readerSourceNote">
+          Kaynak: AlQuran Cloud Uthmânî metin · Diyanet İşleri Başkanlığı Türkçe meali
+        </div>
+      )}
+
+      {isRisaleExternal && !nodes.length && (
+        <div className="externalLibraryReader">
+          <div>
+            <strong>{item.title}</strong>
+            <p>
+              Bu eser için resmî Risale-i Nur kaynağına bağlı okuma bağlantısı kullanılıyor.
+              Üst menü, ayarlar ve TODO kontrolleri Lumen içinde kalır.
+            </p>
+          </div>
+          {itemMeta.source_url && (
+            <a href={String(itemMeta.source_url)} target="_blank" rel="noreferrer">
+              Resmî metni aç ↗
+            </a>
+          )}
+          {itemMeta.official_source && <small>{String(itemMeta.official_source)}</small>}
+        </div>
+      )}
 
       {isEsmaDetail && (
         <div className="v2EsmaIdentity v2EsmaReadIdentity">
@@ -501,7 +585,7 @@ export function ReaderView({
             </article>
           );
         })}
-        {!nodes.length && <p className="muted">Henüz içerik yok.</p>}
+        {!nodes.length && !isRisaleExternal && <p className="muted">{isQuranDocument ? "Sûre metni yükleniyor…" : "Henüz içerik yok."}</p>}
       </div>
 
       <nav className="contentPager">
