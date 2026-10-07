@@ -16,6 +16,10 @@ function meta(item: CatalogItem) {
   return (item.metadata ?? {}) as Record<string, any>;
 }
 
+function displayQuranPage(page:number | null | undefined) {
+  return Math.max(0, Number(page || 1) - 1);
+}
+
 export function LibraryCatalogView({
   section,
   user: _user,
@@ -34,14 +38,18 @@ export function LibraryCatalogView({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [quranMode, setQuranMode] = useState<"surah" | "juz">("surah");
-  const [quranBookmark, setQuranBookmark] = useState<{
-    nodeId?: string;
-    page?: number;
-    juz?: number;
-    surahTitle?: string;
-    surahNo?: number;
-    ayahNo?: number;
-  } | null>(null);
+  const [quranBookmarks, setQuranBookmarks] = useState<Array<{
+    id: string;
+    name: string;
+    position: {
+      nodeId?: string;
+      page?: number;
+      juz?: number;
+      surahTitle?: string;
+      surahNo?: number;
+      ayahNo?: number;
+    };
+  }>>([]);
 
   const source = section === "quran" ? "quran_v1" : "risale_v1";
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
@@ -102,18 +110,26 @@ export function LibraryCatalogView({
 
   useEffect(() => {
     if (section !== "quran") return;
-    const loadBookmark = async () => {
+    const loadBookmarks = async () => {
       const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-      const bookmark = ((data?.preferences ?? {}) as Record<string, any>).quranBookmark;
-      setQuranBookmark(bookmark?.page ? bookmark : null);
+      const preferences = (data?.preferences ?? {}) as Record<string, any>;
+      let bookmarks = Array.isArray(preferences.quranBookmarks) ? preferences.quranBookmarks : [];
+      if (!bookmarks.length && preferences.quranBookmark?.page) {
+        bookmarks = [{
+          id:"quran-bookmark-main",
+          name:"Kaldığım yer",
+          position:preferences.quranBookmark,
+        }];
+      }
+      setQuranBookmarks(bookmarks);
     };
-    void loadBookmark();
+    void loadBookmarks();
     const handle = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.page) setQuranBookmark(detail);
+      if (Array.isArray(detail)) setQuranBookmarks(detail);
     };
-    window.addEventListener("lumen-quran-bookmark-changed", handle);
-    return () => window.removeEventListener("lumen-quran-bookmark-changed", handle);
+    window.addEventListener("lumen-quran-bookmarks-changed", handle);
+    return () => window.removeEventListener("lumen-quran-bookmarks-changed", handle);
   }, [section]);
 
   async function open(item: CatalogItem) {
@@ -181,33 +197,41 @@ export function LibraryCatalogView({
 
       {section === "quran" && current?.id === root?.id && (
         <>
-          {quranBookmark && (
-            <button
-              className="quranBookmarkCard"
-              onClick={() => {
-                const surahItem = items.find(candidate =>
-                  String(meta(candidate).source || "") === "quran_seeded"
-                  && Number(meta(candidate).surah_no || 0) === Number(quranBookmark.surahNo || 0)
-                );
-                if (!surahItem || !quranBookmark.page) return;
-                onOpenItem(
-                  {
-                    ...surahItem,
-                    metadata: {
-                      ...(surahItem.metadata ?? {}),
-                      start_page: quranBookmark.page,
-                      initial_node_id: quranBookmark.nodeId || null,
-                    },
-                  },
-                  items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"),
-                  current
-                );
-              }}
-            >
-              <span>🔖 Kaldığın yer</span>
-              <strong>Sayfa {quranBookmark.page} · {quranBookmark.surahTitle || ""} {quranBookmark.ayahNo ? `${quranBookmark.ayahNo}. ayet` : ""}</strong>
-              <small>Buradan devam et ›</small>
-            </button>
+          {!!quranBookmarks.length && (
+            <div className="quranBookmarkCards">
+              {quranBookmarks.map(bookmark => (
+                <button
+                  key={bookmark.id}
+                  className="quranBookmarkCard"
+                  onClick={() => {
+                    const position = bookmark.position;
+                    const surahItem = items.find(candidate =>
+                      String(meta(candidate).source || "") === "quran_seeded"
+                      && Number(meta(candidate).surah_no || 0) === Number(position.surahNo || 0)
+                    );
+                    if (!surahItem || !position.page) return;
+                    onOpenItem(
+                      {
+                        ...surahItem,
+                        metadata: {
+                          ...(surahItem.metadata ?? {}),
+                          start_page: position.page,
+                          initial_node_id: position.nodeId || null,
+                        },
+                      },
+                      items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"),
+                      current
+                    );
+                  }}
+                >
+                  <span>🔖 {bookmark.name}</span>
+                  <strong>
+                    Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle || ""} {bookmark.position.ayahNo ? `${bookmark.position.ayahNo}. ayet` : ""}
+                  </strong>
+                  <small>Buradan devam et ›</small>
+                </button>
+              ))}
+            </div>
           )}
 
           <div className="quranCatalogTabs" role="tablist" aria-label="Kur’an görünümü">
@@ -216,8 +240,8 @@ export function LibraryCatalogView({
           </div>
           <div className="libraryCatalogSourceNote">
             {quranMode === "surah"
-              ? "114 sûre · standart 604 sayfalık Mushaf düzeni"
-              : "30 cüz · Diyanet uygulamasındaki standart Mushaf sayfa numaraları"}
+              ? "114 sûre · Fâtiha 0. sayfa · standart Mushaf düzeni"
+              : "30 cüz · Fâtiha 0. sayfa olacak şekilde Diyanet sayfa düzeni"}
           </div>
         </>
       )}
