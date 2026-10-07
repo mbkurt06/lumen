@@ -18,8 +18,50 @@ const segmentKey=i=>dua.id+":"+i;
 async function init(){
   const payload=await window.duaV2Db.loadContent();
   data=payload.data;ilmihalData=payload.ilmihalData;
+  migrateLegacyViewState();
+  buildHomeMenuFromDb();
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=92").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=93").then(r=>r.update())
+}
+function migrateLegacyViewState(){
+  const map={
+    "Sûreler":"surahs",
+    "Namaz Duaları":"prayer_duas",
+    "Günlük Dualar":"daily_duas",
+    "Tesbihat":"tesbihat",
+    "Esmâü’l-Hüsnâ":"asma"
+  };
+  if(state.libraryCategory&&map[state.libraryCategory])state.libraryCategory=map[state.libraryCategory];
+}
+function buildHomeMenuFromDb(){
+  const menu=document.querySelector(".home-menu");if(!menu)return;
+  const countText=$("#homeTodoCount")?.textContent||"0";
+  menu.innerHTML="";
+  for(const item of (data?.menu||[]).sort((a,b)=>Number(a.metadata?.sort_order||0)-Number(b.metadata?.sort_order||0))){
+    const b=document.createElement("button");
+    b.className="home-card"+(item.key==="todo"?" home-card-todo":"");
+    b.dataset.menuKey=item.key;
+    const strong=document.createElement("strong");
+    strong.textContent=item.title||"";
+    const span=document.createElement("span");
+    if(item.key==="todo"){span.id="homeTodoCount";span.textContent=countText}else span.textContent="›";
+    b.append(strong,span);
+    if(item.route==="category"){
+      b.classList.add("category-link");
+      b.dataset.category=item.key;
+      b.onclick=()=>openCategory(item.key);
+    }else if(item.route==="todo"){
+      b.id="homeTodoBtn";
+      b.onclick=openTodo;
+    }else if(item.route==="listening"){
+      b.id="homeListeningBtn";
+      b.onclick=openListening;
+    }else if(item.route==="ilmihal"){
+      b.id="homeIlmihalBtn";
+      b.onclick=()=>openIlmihal();
+    }
+    menu.appendChild(b);
+  }
 }
 function menuItem(key){return (data?.menu||[]).find(x=>x.key===key)||null}
 function categoryTitle(key){return menuItem(key)?.title||""}
@@ -479,9 +521,9 @@ $("#saveTodoBtn").onclick=()=>{
   else if(state.currentView==="listening")renderListeningAll();
 }
 function addTodoProgress(scope){const k=todayKey(),now=new Date().toISOString();todos.forEach(t=>{if(t.duaId!==dua.id||!todoOccursOn(t,k))return;if(scope==="dua"&&t.segmentIndex!=null)return;if(scope==="segment"&&t.segmentIndex!==index)return;t.history=t.history||{};const h=t.history[k]||(t.history[k]={count:0,completedAt:null});if(h.completedAt)return;h.count=(h.count||0)+1;if(h.count>=t.target)h.completedAt=now});saveTodos();updateHomeTodoCount();if(state.currentView==="todo")renderTodo()}
-$("#homeListeningBtn").onclick=openListening;
+if($("#homeListeningBtn"))$("#homeListeningBtn").onclick=openListening;
 $("#listeningMenuBtn").onclick=openHome;
-$("#homeIlmihalBtn").onclick=()=>openIlmihal();
+if($("#homeIlmihalBtn"))$("#homeIlmihalBtn").onclick=()=>openIlmihal();
 $("#ilmihalMenuBackBtn").onclick=openHome;
 $("#ilmihalTopicsBtn").onclick=()=>openIlmihal();
 $("#ilmihalPrevBtn").onclick=()=>moveIlmihal(-1);
@@ -714,7 +756,7 @@ function openDua(d){closeFullscreenTasbih();clearQuickCount();dua=d;index=0;stat
 function updateDuaPager(){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id);$("#duaPrevBtn").disabled=i<=0;$("#duaNextBtn").disabled=i<0||i>=items.length-1}
 function moveDua(step){const items=categoryItems(dua.category),i=items.findIndex(d=>d.id===dua.id),n=i+step;if(i>=0&&n>=0&&n<items.length)openDua(items[n])}
 $("#duaPrevBtn").onclick=()=>moveDua(-1);$("#duaNextBtn").onclick=()=>moveDua(1);
-document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategory(b.dataset.category));function openCategory(cat){
+function openCategory(cat){
   hideDuaFloatingPlayer();$("#fullscreenTasbihBtn").classList.add("hidden");closeFullscreenTasbih();clearQuickCount();$("#progress").textContent="";
   state.currentView="library";$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");
   state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");
@@ -1577,4 +1619,11 @@ document.querySelectorAll("[data-listen-edit-speed]").forEach(b=>b.onclick=()=>s
 $("#listeningManualSpeed").onchange=e=>setListeningSpeed(e.target.value);$("#listeningEditSpeed").onchange=e=>setListeningSpeed(e.target.value);
 $("#listeningSavePresetBtn").onclick=()=>openListeningPresetDialog(null);$("#listeningPresetDialogSave").onclick=saveListeningPresetDialog;
 
-addEventListener("resize",()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();requestAnimationFrame(()=>{syncDuaPlayerClearance();restoreCounter();const p=$("#duaListeningPanel");if(p?.classList.contains("player-collapsed"))restoreDuaCompactPosition();else restoreDuaListeningPanelPosition()})});init();
+addEventListener("resize",()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();requestAnimationFrame(()=>{syncDuaPlayerClearance();restoreCounter();const p=$("#duaListeningPanel");if(p?.classList.contains("player-collapsed"))restoreDuaCompactPosition();else restoreDuaListeningPanelPosition()})});
+init().catch(error=>{
+  console.error("Dua V2 init:",error);
+  const home=$("#homeView");if(home)home.classList.remove("hidden");
+  const title=$("#homeView .home-head h1");if(title)title.textContent="Veri yüklenemedi";
+  const note=$("#homeView .home-head p");if(note)note.textContent="Oturumu veya bağlantıyı kontrol edip sayfayı yenileyin.";
+  const menu=document.querySelector(".home-menu");if(menu)menu.innerHTML="";
+});
