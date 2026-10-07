@@ -80,14 +80,16 @@ export function LibraryHubView({
 
   return (
     <div className="libraryHubPage">
-      <div className={"libraryHubTopbar " + (section === "ezber" ? "ezberIntegratedTopbar" : "")}>
-        <div>
-          {section && (
-            <button className="legacyBack" onClick={() => setSection(null)}>‹ Kütüphane</button>
-          )}
-          {section !== "ezber" && <h1>{title}</h1>}
+      {section !== "ezber" && (
+        <div className="libraryHubTopbar">
+          <div>
+            {section && (
+              <button className="legacyBack" onClick={() => setSection(null)}>‹ Kütüphane</button>
+            )}
+            <h1>{title}</h1>
+          </div>
         </div>
-      </div>
+      )}
 
       {!section && (
         <div className="libraryHubList">
