@@ -135,6 +135,14 @@ export function CalendarView({ user }: { user: User }) {
   const [showWeekNumbers, setShowWeekNumbers] = useState(true);
   const [draggingEventKey, setDraggingEventKey] = useState<string | null>(null);
   const [monthDropDate, setMonthDropDate] = useState<string | null>(null);
+  const [calendarPrefsOpen, setCalendarPrefsOpen] = useState(false);
+  const [showWeekends, setShowWeekends] = useState(true);
+  const [weekDaysMode, setWeekDaysMode] = useState<5 | 7>(7);
+  const [dayStartHour, setDayStartHour] = useState(6);
+  const [dayEndHour, setDayEndHour] = useState(22);
+  const [hourDensity, setHourDensity] = useState<36 | 48 | 64>(48);
+  const [autoScrollNow, setAutoScrollNow] = useState(true);
+  const timeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -158,6 +166,12 @@ export function CalendarView({ user }: { user: User }) {
     if (typeof prefs.calendarShowWeekNumbers === "boolean") {
       setShowWeekNumbers(prefs.calendarShowWeekNumbers);
     }
+    if (typeof prefs.calendarShowWeekends === "boolean") setShowWeekends(prefs.calendarShowWeekends);
+    if (prefs.calendarWeekDaysMode === 5 || prefs.calendarWeekDaysMode === 7) setWeekDaysMode(prefs.calendarWeekDaysMode);
+    if (typeof prefs.calendarDayStartHour === "number") setDayStartHour(Math.max(0, Math.min(12, prefs.calendarDayStartHour)));
+    if (typeof prefs.calendarDayEndHour === "number") setDayEndHour(Math.max(12, Math.min(24, prefs.calendarDayEndHour)));
+    if (prefs.calendarHourDensity === 36 || prefs.calendarHourDensity === 48 || prefs.calendarHourDensity === 64) setHourDensity(prefs.calendarHourDensity);
+    if (typeof prefs.calendarAutoScrollNow === "boolean") setAutoScrollNow(prefs.calendarAutoScrollNow);
   }, []);
 
   const saveCalendarPrefs = useCallback(async (nextHidden: Set<string>, nextView = view) => {
@@ -183,6 +197,15 @@ export function CalendarView({ user }: { user: User }) {
         calendarMonthDensity: density,
         calendarShowWeekNumbers: weekNumbers,
       },
+    });
+  }, [user.id]);
+
+  const saveViewPrefs = useCallback(async (patch: Record<string, unknown>) => {
+    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+    const old = (data?.preferences ?? {}) as Record<string, unknown>;
+    await supabase.from("user_preferences").upsert({
+      owner_id: user.id,
+      preferences: { ...old, ...patch },
     });
   }, [user.id]);
 
@@ -769,24 +792,44 @@ export function CalendarView({ user }: { user: User }) {
   }
 
   function renderYear() {
+    const today = new Date();
     return (
       <div className="calendarYearGrid">
         {Array.from({ length: 12 }, (_, month) => {
           const monthDate = new Date(anchor.getFullYear(), month, 1);
           const start = startOfWeek(monthDate);
           const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
+          const monthEvents = events.filter(event => {
+            const e = eventStart(event);
+            return e && e.getFullYear() === anchor.getFullYear() && e.getMonth() === month;
+          });
+
           return (
             <div className="miniMonth" key={month}>
-              <button className="miniMonthTitle" onClick={() => { setAnchor(monthDate); setViewAndSave("month"); }}>{MONTHS[month]}</button>
-              <div className="miniWeekdays">{WEEKDAYS.map(d => <span key={d}>{d.slice(0,1)}</span>)}</div>
-              <div className="miniMonthGrid">
+              <div className="miniMonthTop">
+                <button className="miniMonthTitle" onClick={() => { setAnchor(monthDate); setViewAndSave("month"); }}>
+                  {MONTHS[month]}
+                </button>
+                {monthEvents.length > 0 && <span className="miniMonthCount">{monthEvents.length}</span>}
+              </div>
+              <div className="miniWeekdays">
+                {WEEKDAYS.map((d,i) => showWeekends || i < 5 ? <span key={d}>{d.slice(0,1)}</span> : null)}
+              </div>
+              <div className={"miniMonthGrid " + (!showWeekends ? "hideWeekends" : "")}>
                 {days.map(day => {
+                  const weekend = ((day.getDay()+6)%7) >= 5;
+                  if (!showWeekends && weekend) return null;
                   const count = eventsOn(day).length;
                   return (
                     <button
                       key={localDateKey(day)}
-                      className={(day.getMonth() === month ? "" : "outside ") + (sameDay(day, new Date()) ? "today" : "")}
+                      className={
+                        (day.getMonth() === month ? "" : "outside ") +
+                        (sameDay(day, today) ? "today " : "") +
+                        (count ? "hasEvents " : "")
+                      }
                       onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                      title={count ? `${count} etkinlik` : undefined}
                     >
                       <span>{day.getDate()}</span>
                       {count > 0 && <i>{count}</i>}
@@ -802,11 +845,27 @@ export function CalendarView({ user }: { user: User }) {
   }
 
   function renderTimeView(daysCount: number) {
-    const start = daysCount === 7 ? startOfWeek(anchor) : startOfDay(anchor);
-    const days = Array.from({ length: daysCount }, (_, i) => addDays(start, i));
-    const hourHeight = 48;
+    let start = daysCount === 7 ? startOfWeek(anchor) : startOfDay(anchor);
+    let days = Array.from({ length: daysCount }, (_, i) => addDays(start, i));
+
+    if (daysCount === 7 && weekDaysMode === 5) {
+      days = days.filter(day => ((day.getDay() + 6) % 7) < 5);
+    } else if (!showWeekends && daysCount !== 1) {
+      days = days.filter(day => ((day.getDay() + 6) % 7) < 5);
+    }
+
+    const hourHeight = hourDensity;
+    const firstHour = Math.max(0, dayStartHour);
+    const lastHour = Math.max(firstHour + 1, Math.min(24, dayEndHour));
+    const hours = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
+    const totalHeight = hours.length * hourHeight;
+    const now = new Date();
+    const nowMinutes = (now.getHours() - firstHour) * 60 + now.getMinutes();
+    const showNow = now.getHours() >= firstHour && now.getHours() < lastHour;
+    const nowTop = (nowMinutes / 60) * hourHeight;
+
     return (
-      <div className="calendarTimeView">
+      <div className="calendarTimeView" style={{ ["--calendar-days" as string]: String(days.length) }}>
         <div className="calendarTimeHeader">
           <div className="calendarTimeCorner" />
           {days.map(day => (
@@ -818,22 +877,22 @@ export function CalendarView({ user }: { user: User }) {
         </div>
         <div className="calendarAllDayRow">
           <div>Tüm gün</div>
-          {days.map(day => <div key={localDateKey(day)}>{eventsOn(day).filter(e => e.allDay).map(renderEventChip)}</div>)}
+          {days.map(day => <div key={localDateKey(day)}>{eventsOn(day).filter(e => e.allDay).map(event => renderEventChip(event, day))}</div>)}
         </div>
-        <div className="calendarTimeScroll">
+        <div className="calendarTimeScroll" ref={timeScrollRef}>
           <div className="calendarHourLabels">
-            {Array.from({ length:24 },(_,hour)=><div key={hour} style={{height:hourHeight}}>{String(hour).padStart(2,"0")}:00</div>)}
+            {hours.map(hour => <div key={hour} style={{height:hourHeight}}>{String(hour).padStart(2,"0")}:00</div>)}
           </div>
           <div className="calendarDayColumns">
             {days.map(day => (
               <div
-                className="calendarDayColumn"
+                className={"calendarDayColumn " + (sameDay(day, now) ? "today" : "")}
                 key={localDateKey(day)}
-                style={{ height: 24 * hourHeight }}
+                style={{ height: totalHeight, ["--hour-height" as string]: `${hourHeight}px` }}
                 onDoubleClick={event => {
                   const rect = event.currentTarget.getBoundingClientRect();
                   const y = event.clientY - rect.top;
-                  const hour = Math.max(0, Math.min(23, Math.floor(y / hourHeight)));
+                  const hour = Math.max(firstHour, Math.min(lastHour - 1, firstHour + Math.floor(y / hourHeight)));
                   const writable = visibleCalendars.find(c => c.accessRole === "owner" || c.accessRole === "writer");
                   if (!writable) return openNewEvent(day);
                   setDraft({
@@ -843,12 +902,18 @@ export function CalendarView({ user }: { user: User }) {
                   });
                 }}
               >
+                {sameDay(day, now) && showNow && (
+                  <div className="calendarNowLine" style={{ top: nowTop }}>
+                    <span>{now.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</span>
+                  </div>
+                )}
                 {eventsOn(day).filter(e => !e.allDay).map(event => {
                   const startDate = eventStart(event);
                   const endDate = eventEnd(event);
                   if (!startDate) return null;
-                  const startMinutes = startDate.getHours()*60+startDate.getMinutes();
+                  const startMinutes = (startDate.getHours()-firstHour)*60+startDate.getMinutes();
                   const duration = Math.max(30, endDate ? (endDate.getTime()-startDate.getTime())/60000 : 60);
+                  if (startMinutes > (lastHour-firstHour)*60 || startMinutes + duration < 0) return null;
                   const meta = calendarMeta(event);
                   return (
                     <button
@@ -857,12 +922,14 @@ export function CalendarView({ user }: { user: User }) {
                       style={{
                         top:(startMinutes/60)*hourHeight,
                         height:Math.max(24,(duration/60)*hourHeight),
-                        borderLeftColor:meta?.backgroundColor || undefined
+                        borderLeftColor:meta?.backgroundColor || undefined,
+                        ["--event-color" as string]: meta?.backgroundColor || "var(--accent)"
                       }}
                       onClick={() => openEditEvent(event)}
                     >
                       <strong>{event.summary}</strong>
                       <small>{timeLabel(event)}</small>
+                      {event.location && <small className="timedLocation">{event.location}</small>}
                     </button>
                   );
                 })}
@@ -939,6 +1006,18 @@ export function CalendarView({ user }: { user: User }) {
   }
 
   useEffect(() => {
+    if (!autoScrollNow) return;
+    if (view !== "day" && view !== "week" && view !== "3day") return;
+    if (!timeScrollRef.current) return;
+
+    const now = new Date();
+    if (now.getHours() < dayStartHour || now.getHours() >= dayEndHour) return;
+    const top = ((now.getHours() - dayStartHour) + now.getMinutes()/60) * hourDensity;
+    const target = Math.max(0, top - timeScrollRef.current.clientHeight * 0.35);
+    timeScrollRef.current.scrollTo({ top: target, behavior: "auto" });
+  }, [view, anchor, dayStartHour, dayEndHour, hourDensity, autoScrollNow, events.length]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
@@ -1006,6 +1085,7 @@ export function CalendarView({ user }: { user: User }) {
             <h1>{title}</h1>
           </div>
           <div className="calendarToolbarRight">
+            <button className="calendarPrefsButton" onClick={() => setCalendarPrefsOpen(open => !open)} title="Takvim görünüm ayarları">⚙</button>
             <button className="calendarCreate" onClick={() => openNewEvent()}>+ Etkinlik</button>
             <div className="calendarViewSwitch">
               {(["year","month","week","3day","day","list"] as ViewMode[]).map(mode => (
@@ -1033,6 +1113,72 @@ export function CalendarView({ user }: { user: User }) {
                 <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} />
               </div>
             )}
+          </div>
+        )}
+
+        {calendarPrefsOpen && (
+          <div className="calendarViewPrefs">
+            <div className="calendarViewPrefsHead">
+              <strong>Görünüm ayarları</strong>
+              <button onClick={() => setCalendarPrefsOpen(false)}>×</button>
+            </div>
+            <label>
+              <span>Hafta</span>
+              <select value={weekDaysMode} onChange={e => {
+                const value = Number(e.target.value) as 5 | 7;
+                setWeekDaysMode(value);
+                void saveViewPrefs({ calendarWeekDaysMode:value });
+              }}>
+                <option value={7}>7 gün</option>
+                <option value={5}>5 iş günü</option>
+              </select>
+            </label>
+            <label className="calendarPrefCheck">
+              <input type="checkbox" checked={showWeekends} onChange={e => {
+                setShowWeekends(e.target.checked);
+                void saveViewPrefs({ calendarShowWeekends:e.target.checked });
+              }}/>
+              <span>Hafta sonlarını göster</span>
+            </label>
+            <label>
+              <span>Gün başlangıcı</span>
+              <select value={dayStartHour} onChange={e => {
+                const value = Number(e.target.value);
+                setDayStartHour(value);
+                void saveViewPrefs({ calendarDayStartHour:value });
+              }}>
+                {Array.from({length:13},(_,i)=><option key={i} value={i}>{String(i).padStart(2,"0")}:00</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Gün bitişi</span>
+              <select value={dayEndHour} onChange={e => {
+                const value = Number(e.target.value);
+                setDayEndHour(value);
+                void saveViewPrefs({ calendarDayEndHour:value });
+              }}>
+                {Array.from({length:13},(_,i)=>i+12).map(i=><option key={i} value={i}>{String(i).padStart(2,"0")}:00</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Saat yoğunluğu</span>
+              <select value={hourDensity} onChange={e => {
+                const value = Number(e.target.value) as 36|48|64;
+                setHourDensity(value);
+                void saveViewPrefs({ calendarHourDensity:value });
+              }}>
+                <option value={36}>Kompakt</option>
+                <option value={48}>Normal</option>
+                <option value={64}>Geniş</option>
+              </select>
+            </label>
+            <label className="calendarPrefCheck">
+              <input type="checkbox" checked={autoScrollNow} onChange={e => {
+                setAutoScrollNow(e.target.checked);
+                void saveViewPrefs({ calendarAutoScrollNow:e.target.checked });
+              }}/>
+              <span>Gün/hafta görünümünü otomatik olarak şu ana getir</span>
+            </label>
           </div>
         )}
 
