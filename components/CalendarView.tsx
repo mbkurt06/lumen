@@ -868,20 +868,7 @@ export function CalendarView({ user }: { user: User }) {
         };
       }
 
-      eventPayload.reminders =
-      current.reminderMode === "default"
-        ? { useDefault:true }
-        : current.reminderMode === "none"
-          ? { useDefault:false, overrides:[] }
-          : {
-              useDefault:false,
-              overrides:[...new Set(current.reminderMinutes)]
-                .filter(minutes => Number.isFinite(minutes) && minutes >= 0)
-                .slice(0,5)
-                .map(minutes => ({method:"popup",minutes})),
-            };
-
-    const response = await fetch("/api/google-calendar/events", {
+      const response = await fetch("/api/google-calendar/events", {
         method: "PATCH",
         headers,
         body: JSON.stringify({
@@ -926,6 +913,19 @@ export function CalendarView({ user }: { user: User }) {
         end: { dateTime: end.toISOString() },
       };
     }
+
+    eventPayload.reminders =
+      current.reminderMode === "default"
+        ? { useDefault:true }
+        : current.reminderMode === "none"
+          ? { useDefault:false, overrides:[] }
+          : {
+              useDefault:false,
+              overrides:[...new Set(current.reminderMinutes)]
+                .filter(minutes => Number.isFinite(minutes) && minutes >= 0)
+                .slice(0,5)
+                .map(minutes => ({method:"popup",minutes})),
+            };
 
     const response = await fetch("/api/google-calendar/events", {
       method: current.id ? "PATCH" : "POST",
