@@ -474,7 +474,7 @@ export async function importQuranMushafDocx(
             piece.ayahNo = run.ayahNo;
           }
           pending.length = 0;
-        } else if (run.text) {
+        } else if (run.text && run.text.trim().length > 0) {
           pending.push(run);
         }
       }
@@ -484,9 +484,11 @@ export async function importQuranMushafDocx(
   }
   pushPage();
 
-  if (pending.length) {
-    throw new Error("Belgenin sonunda ayet numarasıyla kapanmayan metin bulundu.");
+  const remainingPendingText = pending.map(run => run.text).join("").trim();
+  if (remainingPendingText) {
+    throw new Error("Belgenin sonunda ayet numarasıyla kapanmayan metin bulundu: " + remainingPendingText.slice(0, 80));
   }
+  pending.length = 0;
 
   if (pages.length !== 604) {
     throw new Error(`Beklenen 604 sayfa yerine ${pages.length} sayfa bulundu.`);
