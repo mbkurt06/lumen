@@ -2459,3 +2459,96 @@ html.dark body{
 /* v86: prevent first-paint flashes before app state is restored */
 html.dark{color-scheme:dark}
 html:not(.dark){color-scheme:light}
+
+
+/* v88 — shared collapsible headers on all content/detail pages */
+.collapsible-page-header{
+  overflow:visible;
+}
+.page-header-collapse-btn,
+#readHeaderCollapseBtn{
+  position:absolute !important;
+  left:50% !important;
+  right:auto !important;
+  bottom:-11px !important;
+  transform:translateX(-50%);
+  width:30px !important;
+  min-width:30px !important;
+  height:22px !important;
+  min-height:22px !important;
+  padding:0 !important;
+  border-radius:0 0 10px 10px !important;
+  font-size:13px !important;
+  line-height:1 !important;
+  z-index:6;
+  box-shadow:0 3px 8px #0002;
+}
+.collapsible-page-header.collapsed{
+  min-height:24px !important;
+  height:24px !important;
+  padding:0 6px !important;
+}
+.collapsible-page-header.collapsed > :not(.page-header-collapse-btn):not(.read-toolbar){
+  display:none !important;
+}
+.collapsible-page-header.collapsed > .read-toolbar{
+  min-height:0 !important;
+  height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+.collapsible-page-header.collapsed > .read-toolbar > :not(:has(.page-header-collapse-btn)):not(:has(#readHeaderCollapseBtn)){
+  display:none !important;
+}
+.collapsible-page-header.collapsed .read-toolbar-group:first-child,
+.collapsible-page-header.collapsed #addDuaTodoBtn,
+.collapsible-page-header.collapsed #memorizeThisBtn,
+.collapsible-page-header.collapsed #memorizeHeaderTodoBtn,
+.collapsible-page-header.collapsed #memorizeHeaderModeBtn{
+  display:none !important;
+}
+.collapsible-page-header.collapsed .read-toolbar-group:last-child{
+  width:0 !important;
+  height:0 !important;
+  min-width:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+}
+body.page-headers-collapsed .memorize{
+  --memorize-fixed-height:34px;
+}
+body.page-headers-collapsed .library-page,
+body.page-headers-collapsed .todo-page,
+body.page-headers-collapsed .ilmihal-page{
+  --section-fixed-height:34px;
+}
+.listening-head{
+  position:relative;
+}
+.listening-head.collapsed{
+  margin-bottom:20px !important;
+}
+@media(max-width:520px){
+  .page-header-collapse-btn,
+  #readHeaderCollapseBtn{
+    width:28px !important;
+    min-width:28px !important;
+    height:20px !important;
+    min-height:20px !important;
+    bottom:-10px !important;
+    font-size:12px !important;
+  }
+  .collapsible-page-header.collapsed{
+    min-height:22px !important;
+    height:22px !important;
+    padding:0 4px !important;
+  }
+  body.page-headers-collapsed .memorize{
+    --memorize-fixed-height:32px;
+  }
+  body.page-headers-collapsed .library-page,
+  body.page-headers-collapsed .todo-page,
+  body.page-headers-collapsed .ilmihal-page{
+    --section-fixed-height:32px;
+  }
+}
