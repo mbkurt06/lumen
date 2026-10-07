@@ -32,6 +32,7 @@ type CalendarInfo = {
   summary: string;
   accessRole: string;
   backgroundColor: string | null;
+  defaultReminders?: Array<{ method: string; minutes: number }>;
 };
 
 type CalendarAccount = {
@@ -152,6 +153,19 @@ function plainCalendarText(value: string) {
     .trim();
 }
 
+function reminderMinuteLabel(minutes: number) {
+  if (minutes === 0) return "Etkinlik saatinde";
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return days === 1 ? "1 gün önce" : `${days} gün önce`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 saat önce" : `${hours} saat önce`;
+  }
+  return `${minutes} dk önce`;
+}
+
 function eventToDraft(event: CalendarEvent): EventDraft {
   const start = eventStart(event) || new Date();
   const end = eventEnd(event) || addDays(start, 0);
@@ -167,7 +181,7 @@ function eventToDraft(event: CalendarEvent): EventDraft {
     startTime: start.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false}),
     endTime: end.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false}),
     allDay: event.allDay,
-    description: event.description || "",
+    description: plainCalendarText(event.description || ""),
     location: event.location || "",
     reminderMode,
     reminderMinutes: overrides.sort((a,b)=>a-b),
@@ -548,36 +562,62 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       {label:"1 saat",minutes:60},
       {label:"1 gün",minutes:1440},
     ];
+    const selectedCalendar = calendarAccounts
+      .find(account=>account.id===draft.accountId)
+      ?.calendars.find(calendar=>calendar.id===draft.calendarId);
+    const defaults = selectedCalendar?.defaultReminders || [];
+    const defaultText = defaults.length
+      ? defaults.map(item=>reminderMinuteLabel(Number(item.minutes || 0))).join(" · ")
+      : "Bu takvimde varsayılan hatırlatma yok";
+
+    function choosePreset(minutes:number) {
+      const active=draft.reminderMode==="custom" && draft.reminderMinutes.includes(minutes);
+      if(active) {
+        const nextMinutes=draft.reminderMinutes.filter(value=>value!==minutes);
+        currentSet({
+          ...draft,
+          reminderMode:nextMinutes.length ? "custom" : "none",
+          reminderMinutes:nextMinutes,
+        });
+        return;
+      }
+      const base=draft.reminderMode==="custom" ? draft.reminderMinutes : [];
+      currentSet({
+        ...draft,
+        reminderMode:"custom",
+        reminderMinutes:[...base,minutes].filter((value,index,array)=>array.indexOf(value)===index).sort((a,b)=>a-b),
+      });
+    }
+
     return (
-      <div className="calendarReminderEditor compact">
-        <div className="calendarReminderHead">
-          <span>Hatırlatma</span>
-          <select value={draft.reminderMode} onChange={e=>currentSet({...draft,reminderMode:e.target.value as EventDraft["reminderMode"]})}>
-            <option value="default">Takvim varsayılanı</option>
-            <option value="none">Yok</option>
-            <option value="custom">Özel</option>
-          </select>
-        </div>
-        {draft.reminderMode === "custom" && (
-          <div className="calendarReminderPresets">
-            {presets.map(item => {
-              const active=draft.reminderMinutes.includes(item.minutes);
-              return (
-                <button
-                  type="button"
-                  key={item.minutes}
-                  className={active ? "active" : ""}
-                  onClick={() => currentSet({
-                    ...draft,
-                    reminderMinutes:active
-                      ? draft.reminderMinutes.filter(value=>value!==item.minutes)
-                      : [...draft.reminderMinutes,item.minutes].sort((a,b)=>a-b),
-                  })}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+      <div className="calendarReminderEditor calendarReminderButtons compact">
+        <div className="calendarReminderInline">
+          <span className="calendarReminderLabel">Hatırlatma</span>
+          <div className="calendarReminderChoiceRow">
+            <button
+              type="button"
+              className={draft.reminderMode==="default" ? "active" : ""}
+              onClick={()=>currentSet({...draft,reminderMode:"default",reminderMinutes:[]})}
+            >
+              Varsayılan
+            </button>
+            <button
+              type="button"
+              className={draft.reminderMode==="none" ? "active" : ""}
+              onClick={()=>currentSet({...draft,reminderMode:"none",reminderMinutes:[]})}
+            >
+              Yok
+            </button>
+            {presets.map(item=>(
+              <button
+                type="button"
+                key={item.minutes}
+                className={draft.reminderMode==="custom" && draft.reminderMinutes.includes(item.minutes) ? "active" : ""}
+                onClick={()=>choosePreset(item.minutes)}
+              >
+                {item.label}
+              </button>
+            ))}
             <input
               type="number"
               min={0}
@@ -587,13 +627,21 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
               onKeyDown={e=>{
                 if(e.key!=="Enter") return;
                 const value=Number(e.currentTarget.value);
-                if(Number.isFinite(value) && value>=0 && !draft.reminderMinutes.includes(value)) {
-                  currentSet({...draft,reminderMinutes:[...draft.reminderMinutes,value].sort((a,b)=>a-b)});
+                if(Number.isFinite(value) && value>=0) {
+                  const base=draft.reminderMode==="custom" ? draft.reminderMinutes : [];
+                  currentSet({
+                    ...draft,
+                    reminderMode:"custom",
+                    reminderMinutes:[...base,value].filter((item,index,array)=>array.indexOf(item)===index).sort((a,b)=>a-b),
+                  });
                   e.currentTarget.value="";
                 }
               }}
             />
           </div>
+        </div>
+        {draft.reminderMode==="default" && (
+          <div className="calendarReminderDefaultText">Varsayılan: {defaultText}</div>
         )}
       </div>
     );
@@ -623,7 +671,6 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
             <strong>{event.summary}</strong>
           </div>
           {event.location && <p className="calendarTodoLocation">⌖ {event.location}</p>}
-          {event.description && <p className="calendarTodoDescription">{plainCalendarText(event.description)}</p>}
           <span className="todoCalendarBadge">▦ {meta?.summary || "Takvim"}</span>
         </div>
       </article>
