@@ -75,13 +75,13 @@ export function RisaleBookView({
   useEffect(()=>setPage(current=>Math.min(current,pages.length-1)),[pages.length]);
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(event.key==="ArrowLeft" && page<pages.length-1){
-        event.preventDefault();
-        setPage(v=>Math.min(pages.length-1,v+1));
-      }
-      if(event.key==="ArrowRight" && page>0){
+      if(event.key==="ArrowLeft" && page>0){
         event.preventDefault();
         setPage(v=>Math.max(0,v-1));
+      }
+      if(event.key==="ArrowRight" && page<pages.length-1){
+        event.preventDefault();
+        setPage(v=>Math.min(pages.length-1,v+1));
       }
     };
     window.addEventListener("keydown",onKey);
@@ -93,12 +93,12 @@ export function RisaleBookView({
   return (
     <div className="risaleBookReader">
       <nav className="risalePagePager" aria-label="Risale sayfa geçişi">
-        <button disabled={page>=pages.length-1} onClick={()=>setPage(v=>Math.min(pages.length-1,v+1))}>
-          ‹ Sonraki sayfa
+        <button disabled={page<=0} onClick={()=>setPage(v=>Math.max(0,v-1))}>
+          ‹ Önceki sayfa
         </button>
         <span>{page+1} / {pages.length}</span>
-        <button disabled={page<=0} onClick={()=>setPage(v=>Math.max(0,v-1))}>
-          Önceki sayfa ›
+        <button disabled={page>=pages.length-1} onClick={()=>setPage(v=>Math.min(pages.length-1,v+1))}>
+          Sonraki sayfa ›
         </button>
       </nav>
 
