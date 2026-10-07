@@ -119,11 +119,10 @@ export function ReaderView({
   const itemTarget = Number(item.metadata?.target || 0);
   const itemMeta = (item.metadata ?? {}) as Record<string, any>;
   const sourceType = String(itemMeta.source || "");
-  const quranSurahNo = Number(itemMeta.surah_no || 0);
-  const isQuranDocument = sourceType === "quran_api" && quranSurahNo >= 1 && quranSurahNo <= 114;
-  const isRisaleExternal = sourceType === "risale_external";
+  const isQuranDocument = sourceType === "quran_seeded";
+  const isRisaleDocument = sourceType === "risale_seeded";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
-  const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleExternal) ? item.subtitle : "") || "");
+  const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
 
   const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
@@ -144,7 +143,9 @@ export function ReaderView({
   }, [item.id]);
 
   const load = useCallback(async () => {
-    let { data, error } = await supabase
+    setMessage("");
+
+    const { data, error } = await supabase
       .from("content_nodes")
       .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
       .eq("document_id", item.id)
@@ -152,138 +153,11 @@ export function ReaderView({
 
     if (error) {
       setMessage(error.message);
+      setNodes([]);
       return;
     }
 
-    let loaded = data ?? [];
-
-    if (!loaded.length && isQuranDocument) {
-      try {
-        setMessage("Sûre metni hazırlanıyor…");
-        const response = await fetch(`/api/library/quran/surah?number=${quranSurahNo}`);
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.error || "Sûre metni alınamadı.");
-
-        const rows = (json.ayahs || []).map((ayah: any) => ({
-          document_id: item.id,
-          kind: "verse",
-          title: `${quranSurahNo}:${Number(ayah.numberInSurah)}`,
-          text_content: null,
-          secondary_text: String(ayah.text || ""),
-          translation: String(ayah.translation || ""),
-          sort_order: Number(ayah.numberInSurah || 0),
-          metadata: {
-            source: "alquran.cloud",
-            arabic_edition: "quran-uthmani",
-            translation_edition: "tr.diyanet",
-            surah_no: quranSurahNo,
-            ayah_no: Number(ayah.numberInSurah || 0),
-            global_ayah_no: Number(ayah.number || 0),
-            juz: Number(ayah.juz || 0),
-            page: Number(ayah.page || 0),
-            hizb_quarter: Number(ayah.hizbQuarter || 0),
-            sajda: Boolean(ayah.sajda),
-          },
-        }));
-
-        if (rows.length) {
-          const { error: insertError } = await supabase.from("content_nodes").insert(rows);
-          if (insertError) {
-            const { data: existingAfterRace } = await supabase
-              .from("content_nodes")
-              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-              .eq("document_id", item.id)
-              .order("sort_order");
-            if (!existingAfterRace?.length) throw insertError;
-            loaded = existingAfterRace;
-          } else {
-            const { data: hydrated, error: hydrateError } = await supabase
-              .from("content_nodes")
-              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-              .eq("document_id", item.id)
-              .order("sort_order");
-            if (hydrateError) throw hydrateError;
-            loaded = hydrated ?? [];
-          }
-        }
-        setMessage("");
-      } catch (hydrateError) {
-        setMessage(hydrateError instanceof Error ? hydrateError.message : "Sûre metni alınamadı.");
-      }
-    }
-
-    if (!loaded.length && isRisaleExternal) {
-      try {
-        setMessage("Risale metni resmî kaynaktan hazırlanıyor…");
-        const params = new URLSearchParams({
-          title:item.title,
-          book:String(itemMeta.book_title || ""),
-          chapter:String(itemMeta.chapter_no || 0),
-        });
-        const controller = new AbortController();
-        const timeout = window.setTimeout(() => controller.abort(), 12000);
-        let response: Response;
-        try {
-          response = await fetch(`/api/library/risale/content?${params.toString()}`, { signal: controller.signal });
-        } finally {
-          window.clearTimeout(timeout);
-        }
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.error || "Risale metni alınamadı.");
-
-        const rows = (json.blocks || []).map((block:any,index:number) => ({
-          document_id:item.id,
-          kind:block.kind === "heading" ? "heading" : "paragraph",
-          title:block.kind === "heading" ? String(block.title || block.text || "") : null,
-          text_content:block.kind === "heading" ? null : String(block.text || ""),
-          secondary_text:null,
-          translation:null,
-          sort_order:index + 1,
-          metadata:{
-            source:"risale_diyanet_corpus",
-            official_source:String(json.sourceName || "Risale-i-Nur Diyanet Asıl Nüsha metin arşivi"),
-            source_url:String(json.sourceUrl || itemMeta.source_url || ""),
-            official_site:String(json.officialSource || "https://risaleinur.hizmetvakfi.org"),
-            license:String(json.license || "CC BY-ND 4.0"),
-            block_kind:String(block.kind || "paragraph"),
-          },
-        }));
-
-        if (rows.length) {
-          const {error:insertError}=await supabase.from("content_nodes").insert(rows);
-          if(insertError) {
-            const {data:existingAfterRace}=await supabase
-              .from("content_nodes")
-              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-              .eq("document_id",item.id)
-              .order("sort_order");
-            if(!existingAfterRace?.length) throw insertError;
-            loaded=existingAfterRace;
-          } else {
-            const {data:hydrated,error:hydrateError}=await supabase
-              .from("content_nodes")
-              .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-              .eq("document_id",item.id)
-              .order("sort_order");
-            if(hydrateError) throw hydrateError;
-            loaded=hydrated ?? [];
-          }
-        }
-
-        if (json.sourceUrl && json.sourceUrl !== itemMeta.source_url) {
-          await supabase.from("library_items").update({
-            metadata:{...itemMeta,source_url:String(json.sourceUrl),imported:true}
-          }).eq("id",item.id);
-        }
-        setMessage("");
-      } catch(importError) {
-        const text = importError instanceof DOMException && importError.name === "AbortError"
-          ? "Risale kaynağı zaman aşımına uğradı. Tekrar deneyin."
-          : importError instanceof Error ? importError.message : "Risale metni alınamadı.";
-        setMessage(text);
-      }
-    }
-
+    const loaded = data ?? [];
     setNodes(loaded);
     setLocalCounts(getTransientCounts(item.id));
 
@@ -296,8 +170,19 @@ export function ReaderView({
     setActiveNodeId(focused?.id ?? firstTargeted?.id ?? loaded[0]?.id ?? null);
     setActiveTodoId(null);
     scrollRestored.current = false;
+
+    if (!loaded.length) {
+      setMessage(
+        isQuranDocument
+          ? "Bu sûrenin veritabanı içeriği bulunamadı."
+          : isRisaleDocument
+            ? "Bu Risale bölümünün veritabanı içeriği bulunamadı."
+            : ""
+      );
+    }
+
     await loadTodos();
-  }, [item.id, item.title, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, quranSurahNo, isRisaleExternal, itemMeta.book_title, itemMeta.chapter_no, itemMeta.source_url]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -521,12 +406,12 @@ export function ReaderView({
 
       {isQuranDocument && (
         <div className="readerSourceNote">
-          Kaynak: AlQuran Cloud Uthmânî metin · Diyanet İşleri Başkanlığı Türkçe meali
+          Kaynak: Tanzil Uthmânî Kur’an metni · Diyanet İşleri Türkçe meali · içerik Lumen veritabanından okunur.
         </div>
       )}
-      {isRisaleExternal && nodes.length > 0 && (
+      {isRisaleDocument && nodes.length > 0 && (
         <div className="readerSourceNote">
-          Kaynak: Diyanet asıl nüsha Risale-i Nur metin arşivi · Hizmet Vakfı kaynağından derlenmiş · CC BY-ND 4.0 · İlk açılışta Lumen veritabanına kaydedilir.
+          Kaynak: Risale-i-Nur Diyanet Asıl Nüsha metin arşivi · CC BY-ND 4.0 · içerik Lumen veritabanından okunur.
         </div>
       )}
 
@@ -644,7 +529,7 @@ export function ReaderView({
             </article>
           );
         })}
-        {!nodes.length && <p className="muted">{isQuranDocument ? "Sûre metni yükleniyor…" : isRisaleExternal ? "Risale metni yükleniyor…" : "Henüz içerik yok."}</p>}
+        {!nodes.length && !message && <p className="muted">Henüz içerik yok.</p>}
       </div>
 
       <nav className="contentPager">
