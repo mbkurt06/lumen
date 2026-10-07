@@ -42,7 +42,26 @@ export function AppShell({
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
 
   useEffect(() => {
-    void syncStaticContentInBackground(user.id);
+    const AUTO_SYNC_KEY = "lumen-static-auto-sync";
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+      if (localStorage.getItem(AUTO_SYNC_KEY) !== "1") return;
+      void syncStaticContentInBackground(user.id);
+      timer = setInterval(() => {
+        void syncStaticContentInBackground(user.id);
+      }, 15 * 60 * 1000);
+    };
+
+    const onChanged = () => start();
+    start();
+    window.addEventListener("lumen-auto-sync-changed", onChanged);
+    return () => {
+      if (timer) clearInterval(timer);
+      window.removeEventListener("lumen-auto-sync-changed", onChanged);
+    };
   }, [user.id]);
 
   const readerScope: ReaderScope = useMemo(() => {
