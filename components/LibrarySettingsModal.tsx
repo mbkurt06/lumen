@@ -17,7 +17,6 @@ type Prefs = {
   quranEasyRead: boolean;
   quranFontScale: number;
   quranFontWeight: number;
-  quranStrokeThin: number;
   quranFontFamily: string;
   quranPageTheme: "paper" | "white" | "sepia" | "dark";
 };
@@ -33,7 +32,6 @@ const defaults: Prefs = {
   quranEasyRead: false,
   quranFontScale: 1,
   quranFontWeight: 300,
-  quranStrokeThin: 0,
   quranFontFamily: "Shaikh Hamdullah Mushaf",
   quranPageTheme: "paper",
 };
@@ -67,17 +65,14 @@ function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
-  document.documentElement.style.setProperty("--quran-stroke-thin", String(p.quranStrokeThin));
   document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
-  document.body.dataset.quranThin = String(Math.max(0, Math.min(3, Math.round(p.quranStrokeThin))));
   document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
   document.body.classList.remove("quranEasyRead");
   if (scope === "quran") {
     localStorage.setItem("lumen-quran-page-prefs", JSON.stringify({
       quranFontScale: p.quranFontScale,
-      quranStrokeThin: p.quranStrokeThin,
       quranPageTheme: p.quranPageTheme,
       quranFontFamily: p.quranFontFamily,
       quranShowLatin: p.quranShowLatin,
@@ -239,22 +234,6 @@ export function LibrarySettingsModal({
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
             <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
-          </div>
-        </div>
-
-        <div className="settingRow quranPrimarySetting quranThinSetting">
-          <span>Harfleri incelt</span>
-          <div className="quranThinControl">
-            <span>Normal</span>
-            <input
-              type="range"
-              min={0}
-              max={3}
-              step={1}
-              value={prefs.quranStrokeThin}
-              onChange={e => update({...prefs,quranStrokeThin:Number(e.target.value)})}
-            />
-            <span>Çok ince</span>
           </div>
         </div>
 
