@@ -14,6 +14,7 @@ type Prefs = {
   quranEasyRead: boolean;
   quranFontScale: number;
   quranFontWeight: number;
+  quranPageTheme: "paper" | "white" | "sepia" | "dark";
 };
 
 const defaults: Prefs = {
@@ -26,7 +27,8 @@ const defaults: Prefs = {
   quranShowTranslation: false,
   quranEasyRead: false,
   quranFontScale: 1,
-  quranFontWeight: 350,
+  quranFontWeight: 300,
+  quranPageTheme: "paper",
 };
 
 function applyPrefs(p: Prefs) {
@@ -39,6 +41,7 @@ function applyPrefs(p: Prefs) {
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
+  document.body.dataset.quranPageTheme = p.quranPageTheme;
   document.body.classList.toggle("quranHideLatin", !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", !p.quranShowTranslation);
   document.body.classList.toggle("quranEasyRead", p.quranEasyRead);
@@ -148,13 +151,33 @@ export function LibrarySettingsModal({
             <span>İnce</span>
             <input
               type="range"
-              min={200}
+              min={100}
               max={700}
               step={50}
               value={prefs.quranFontWeight}
               onChange={e => update({...prefs,quranFontWeight:Number(e.target.value)})}
             />
             <span>Kalın</span>
+          </div>
+        </div>
+
+        <div className="settingRow">
+          <span>Kur’an sayfa rengi</span>
+          <div className="quranThemeChoices">
+            {([
+              ["paper","Krem"],
+              ["white","Beyaz"],
+              ["sepia","Sarı"],
+              ["dark","Karanlık"],
+            ] as const).map(([value,label]) => (
+              <button
+                key={value}
+                className={"quranThemeChip " + (prefs.quranPageTheme === value ? "active" : "")}
+                onClick={() => update({...prefs,quranPageTheme:value})}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
