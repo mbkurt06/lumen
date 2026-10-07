@@ -76,6 +76,8 @@ export function AppShell({
         const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
+        const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
+        const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 350;
         document.documentElement.classList.toggle("pre-dark", theme === "dark");
         document.body.classList.toggle("dark", theme === "dark");
         localStorage.setItem("lumen-theme", theme);
@@ -83,6 +85,11 @@ export function AppShell({
         document.body.classList.toggle("hideLatin", prefs.showLatin === false);
         document.body.classList.toggle("hideTurkish", prefs.showTurkish !== true);
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
+        document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
+        document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
+        document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
+        document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
+        document.body.classList.toggle("quranEasyRead", prefs.quranEasyRead === true);
         window.dispatchEvent(new CustomEvent("lumen-library-prefs", {
           detail: {
             theme,
@@ -176,16 +183,51 @@ export function AppShell({
   async function openTodoSource(todo: {
     related_library_item_id: string | null;
     related_content_node_id: string | null;
+    notes?: string | null;
   }) {
     if (!todo.related_library_item_id) return;
 
-    const { data: item } = await supabase
+    let todoMeta: any = {};
+    try { todoMeta = JSON.parse(todo.notes || "{}"); } catch {}
+
+    let requestedNodeId = todoMeta?.quran?.position?.nodeId || todo.related_content_node_id || null;
+    let requestedPage = Number(todoMeta?.quran?.position?.page || 0) || null;
+
+    let { data: item } = await supabase
       .from("library_items")
       .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
       .eq("id", todo.related_library_item_id)
       .single();
 
     if (!item) return;
+
+    const itemSource = String((item.metadata as any)?.source || "");
+    if (itemSource.startsWith("quran") && requestedNodeId) {
+      const { data: targetNode } = await supabase
+        .from("content_nodes")
+        .select("id,document_id,metadata")
+        .eq("id", requestedNodeId)
+        .maybeSingle();
+
+      if (targetNode?.document_id) {
+        const { data: targetItem } = await supabase
+          .from("library_items")
+          .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+          .eq("id", targetNode.document_id)
+          .maybeSingle();
+
+        if (targetItem) {
+          item = {
+            ...targetItem,
+            metadata: {
+              ...(targetItem.metadata ?? {}),
+              start_page: requestedPage || Number((targetNode.metadata as any)?.page || 1),
+              initial_node_id: requestedNodeId,
+            },
+          };
+        }
+      }
+    }
 
     let parent: EzberItem | null = null;
     let list: EzberItem[] = [];
@@ -208,13 +250,13 @@ export function AppShell({
     }
 
     let segmentIndex = 0;
-    if (todo.related_content_node_id) {
+    if (requestedNodeId) {
       const { data: nodes } = await supabase
         .from("content_nodes")
         .select("id")
         .eq("document_id", item.id)
         .order("sort_order");
-      const idx = (nodes ?? []).findIndex(node => node.id === todo.related_content_node_id);
+      const idx = (nodes ?? []).findIndex(node => node.id === requestedNodeId);
       if (idx >= 0) segmentIndex = idx;
     }
 
