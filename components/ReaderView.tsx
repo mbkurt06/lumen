@@ -417,6 +417,34 @@ export function ReaderView({
     setBookTodoExistingOpen(false);
   }, []);
 
+  useEffect(() => {
+    if (!bookSelection) return;
+
+    const onOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (target?.closest(".bookSelectionPopover")) return;
+      if (target?.closest(".modalBackdrop")) return;
+
+      if (bookTodoMenuOpen || bookBookmarkMenuOpen) {
+        setBookTodoMenuOpen(false);
+        setBookTodoExistingOpen(false);
+        setBookBookmarkMenuOpen(false);
+        setBookBookmarkExistingOpen(false);
+        return;
+      }
+
+      clearBookSelection();
+    };
+
+    document.addEventListener("pointerdown", onOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", onOutsidePointerDown);
+  }, [
+    bookSelection,
+    bookTodoMenuOpen,
+    bookBookmarkMenuOpen,
+    clearBookSelection,
+  ]);
+
   const fitQuranTextToPage = useCallback(() => {
     if (!isQuranDocument) return;
     if (quranMushafPage && quranMushafPage.metadata?.exactWordCharacters !== true) return;
@@ -1303,7 +1331,6 @@ export function ReaderView({
             >
               🔖
             </button>
-            <button className="bookMiniAction iconOnly" title="Seçimi kaldır" aria-label="Seçimi kaldır" onClick={clearBookSelection}>×</button>
           </div>
 
           {bookTodoMenuOpen && (
