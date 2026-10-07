@@ -306,7 +306,7 @@ export function LibrarySettingsModal({
         </div>
 
         <div className="settingRow">
-          <span>Latin harflerle okunuş</span>
+          <span>Mouse ile Latin okunuş</span>
           <button className="settingButton" onClick={() => update({...prefs,quranShowLatin:!prefs.quranShowLatin})}>
             {prefs.quranShowLatin ? "Açık" : "Gizli"}
           </button>
