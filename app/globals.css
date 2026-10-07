@@ -5764,3 +5764,18 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
   font-family:inherit!important;
   font-synthesis:none!important;
 }
+
+
+/* Test/fallback Quran import: render raw Unicode without embedded Word font. */
+.quranFallbackPlainText{
+  direction:rtl;
+  unicode-bidi:plaintext;
+  white-space:pre-wrap;
+  color:var(--quran-page-fg,#171717)!important;
+  font-family:"Noto Naskh Arabic","Geeza Pro","Traditional Arabic",serif!important;
+  font-size:calc(26px * var(--quran-font-scale,1))!important;
+  line-height:1.9!important;
+  text-align:right!important;
+  font-weight:400!important;
+  font-synthesis:none!important;
+}
