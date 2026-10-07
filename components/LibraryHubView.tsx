@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
+import { LibraryCatalogView } from "@/components/LibraryCatalogView";
 
-type SectionKey = "ezber" | "risale" | "quran" | "he";
+export type SectionKey = "ezber" | "risale" | "quran" | "he";
 
 const defaultOrder: SectionKey[] = ["ezber", "risale", "quran", "he"];
 
@@ -21,14 +22,21 @@ export function LibraryHubView({
   initialSection = null,
   initialEzberRoot = null,
   onOpenListening,
+  onSectionChange,
 }: {
   user: User;
   onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
   initialSection?: SectionKey | null;
   initialEzberRoot?: EzberItem | null;
   onOpenListening?: () => void;
+  onSectionChange?: (section: SectionKey | null) => void;
 }) {
   const [section, setSection] = useState<SectionKey | null>(initialSection);
+
+  function changeSection(next: SectionKey | null) {
+    setSection(next);
+    onSectionChange?.(next);
+  }
   const [order, setOrder] = useState<SectionKey[]>(defaultOrder);
   const [dragKey, setDragKey] = useState<SectionKey | null>(null);
 
@@ -84,7 +92,7 @@ export function LibraryHubView({
         <div className="libraryHubTopbar">
           <div>
             {section && (
-              <button className="legacyBack" onClick={() => setSection(null)}>‹ Kütüphane</button>
+              <button className="legacyBack" onClick={() => changeSection(null)}>‹ Kütüphane</button>
             )}
             <h1>{title}</h1>
           </div>
@@ -108,7 +116,7 @@ export function LibraryHubView({
                 setDragKey(null);
                 saveOrder(order);
               }}
-              onClick={() => setSection(key)}
+              onClick={() => changeSection(key)}
             >
               <strong>{labels[key]}</strong>
               <span>›</span>
@@ -126,7 +134,16 @@ export function LibraryHubView({
         />
       </div>
 
-      {section && section !== "ezber" && (
+      {(section === "quran" || section === "risale") && (
+        <LibraryCatalogView
+          section={section}
+          user={user}
+          onOpenItem={onOpenItem}
+          onMenu={() => changeSection(null)}
+        />
+      )}
+
+      {section === "he" && (
         <div className="libraryPlaceholder">
           <h2>{labels[section]}</h2>
           <p>Bu bölümün içeriklerini birlikte toplu olarak ekleyeceğiz.</p>
