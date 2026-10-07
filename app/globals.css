@@ -5168,3 +5168,63 @@ body.quranEasyRead .quranFlow{
     width:96px;
   }
 }
+
+
+/* v0.9.4 — compact Quran pages and clearer verse actions */
+.quranPage{
+  min-height:0!important;
+  height:auto!important;
+  padding-bottom:18px!important;
+}
+.quranFlow{
+  min-height:0!important;
+}
+.quranSelectionBar{
+  border-color:color-mix(in srgb,var(--accent) 50%,var(--border));
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+}
+.quranSelectionBar .quranSelectionAction{
+  min-height:32px;
+  padding:6px 10px;
+  border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border))!important;
+  border-radius:999px!important;
+  background:color-mix(in srgb,var(--accent) 9%,var(--panel))!important;
+  color:var(--text)!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  opacity:1!important;
+  cursor:pointer!important;
+}
+.quranSelectionBar .quranSelectionAction:hover{
+  background:color-mix(in srgb,var(--accent) 18%,var(--panel))!important;
+}
+.quranSelectionBar .quranSelectionAction.primaryAction{
+  background:var(--accent)!important;
+  border-color:var(--accent)!important;
+  color:#fff!important;
+}
+.quranBookmarkJump{
+  border:0;
+  background:transparent;
+  color:var(--accent);
+  font:inherit;
+  font-weight:800;
+  cursor:pointer;
+  padding:0;
+}
+.quranBookmarkJump:hover{
+  text-decoration:underline;
+}
+.quranAyahInline.selected{
+  outline:1px solid color-mix(in srgb,var(--accent) 58%,transparent);
+  outline-offset:2px;
+}
+.quranPage:focus-within{
+  outline:none;
+}
+@media(max-width:800px){
+  .quranPage{
+    min-height:0!important;
+    height:auto!important;
+  }
+}
