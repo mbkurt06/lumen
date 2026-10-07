@@ -74,7 +74,7 @@ export function EzberSharedHeader({
           {showFullscreen && (
             <button
               className="v2HeaderToolButton"
-              onClick={onFullscreen}
+              onClick={onFullscreen || (() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih")))}
               aria-label="Tam ekran tesbih"
               title="Tam ekran tesbih"
             >
@@ -84,7 +84,7 @@ export function EzberSharedHeader({
           {showSettings && (
             <button
               className="v2HeaderToolButton"
-              onClick={onSettings}
+              onClick={onSettings || (() => window.dispatchEvent(new Event("lumen-open-library-settings")))}
               aria-label="Okuma ayarları"
               title="Okuma ayarları"
             >
