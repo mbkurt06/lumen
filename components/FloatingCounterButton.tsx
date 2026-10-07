@@ -9,6 +9,7 @@ export function FloatingCounterButton({
   onIncrement,
   onDecrement,
   onReset,
+  positionKey = "default",
 }: {
   title?: string;
   target?: number;
@@ -16,6 +17,7 @@ export function FloatingCounterButton({
   onIncrement?: () => void | Promise<void>;
   onDecrement?: () => void | Promise<void>;
   onReset?: () => void | Promise<void>;
+  positionKey?: string;
 }) {
   const controlled = typeof count === "number";
   const [localCount, setLocalCount] = useState(0);
@@ -34,14 +36,14 @@ export function FloatingCounterButton({
   const effectiveCount = controlled ? (count ?? 0) : localCount;
 
   useEffect(() => {
-    const savedPos = localStorage.getItem("lumen-counter-pos");
+    const savedPos = localStorage.getItem("lumen-counter-pos-" + positionKey);
     const savedCount = localStorage.getItem("lumen-read-counter");
     if (savedPos) {
       try { setPos(JSON.parse(savedPos)); } catch {}
     }
     if (!controlled && savedCount) setLocalCount(Number(savedCount) || 0);
     setPositionRestored(true);
-  }, [controlled]);
+  }, [controlled, positionKey]);
 
   useEffect(() => {
     if (!resetMenu) return;
@@ -137,7 +139,7 @@ export function FloatingCounterButton({
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
 
     if (dragging.current) {
-      if (pos) localStorage.setItem("lumen-counter-pos",JSON.stringify(pos));
+      if (pos) localStorage.setItem("lumen-counter-pos-" + positionKey,JSON.stringify(pos));
       return;
     }
 
