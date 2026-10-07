@@ -77,7 +77,8 @@ export function AppShell({
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
         const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
-        const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 350;
+        const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 300;
+        const quranPageTheme = typeof prefs.quranPageTheme === "string" ? prefs.quranPageTheme : "paper";
         document.documentElement.classList.toggle("pre-dark", theme === "dark");
         document.body.classList.toggle("dark", theme === "dark");
         localStorage.setItem("lumen-theme", theme);
@@ -87,6 +88,7 @@ export function AppShell({
         document.documentElement.style.setProperty("--font-scale", String(fontScale));
         document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
         document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
+        document.body.dataset.quranPageTheme = quranPageTheme;
         document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
         document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
         document.body.classList.toggle("quranEasyRead", prefs.quranEasyRead === true);
