@@ -14,6 +14,10 @@ export function EzberSharedHeader({
   onBack,
   onTodo,
   onMemorize,
+  showFullscreen = false,
+  showSettings = true,
+  onFullscreen,
+  onSettings,
 }: {
   title: string;
   invocation?: string | null;
@@ -27,6 +31,10 @@ export function EzberSharedHeader({
   onBack?: () => void;
   onTodo?: () => void;
   onMemorize?: () => void;
+  showFullscreen?: boolean;
+  showSettings?: boolean;
+  onFullscreen?: () => void;
+  onSettings?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -61,6 +69,26 @@ export function EzberSharedHeader({
           {showMemorize && (
             <button className={"v2HeaderPrimary " + (memorizeActive ? "active" : "")} onClick={onMemorize}>
               Ezber yap
+            </button>
+          )}
+          {showFullscreen && (
+            <button
+              className="v2HeaderToolButton"
+              onClick={onFullscreen}
+              aria-label="Tam ekran tesbih"
+              title="Tam ekran tesbih"
+            >
+              ⛶
+            </button>
+          )}
+          {showSettings && (
+            <button
+              className="v2HeaderToolButton"
+              onClick={onSettings}
+              aria-label="Okuma ayarları"
+              title="Okuma ayarları"
+            >
+              ⚙
             </button>
           )}
         </div>
