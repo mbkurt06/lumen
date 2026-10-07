@@ -11,6 +11,7 @@ type Props = {
   defaultTarget?: number;
   onSaved?: () => void | Promise<void>;
   editTodo?: { id: string; notes: string | null } | null;
+  extraMeta?: Record<string, unknown>;
 };
 
 export function TodoDialog({
@@ -22,6 +23,7 @@ export function TodoDialog({
   defaultTarget = 1,
   onSaved,
   editTodo = null,
+  extraMeta = {},
 }: Props) {
   const today = useMemo(() => {
     const d = new Date();
@@ -86,6 +88,7 @@ export function TodoDialog({
       title,
       notes: JSON.stringify({
         ...oldMeta,
+        ...extraMeta,
         description,
         schedule,
         source: contentNodeId ? "segment" : "document",
