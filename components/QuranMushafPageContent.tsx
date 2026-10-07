@@ -98,6 +98,22 @@ function pronunciationPieces(run: QuranMushafRun) {
   });
 }
 
+const FATIHA_AYAH_PRONUNCIATION = [
+  "",
+  "Bismillâhirrahmânirrahîm",
+  "Elhamdü lillâhi rabbil âlemîn",
+  "Errahmânirrahîm",
+  "Mâliki yevmiddîn",
+  "İyyâke na'büdü ve iyyâke neste'în",
+  "İhdinessırâtal müstakîm",
+  "Sırâtallezîne en'amte aleyhim gayril mağdûbi aleyhim ve leddâllîn",
+];
+
+function fullAyahPronunciation(surahNo?: number, ayahNo?: number) {
+  if (surahNo !== 1 || !ayahNo) return "";
+  return FATIHA_AYAH_PRONUNCIATION[ayahNo] || "";
+}
+
 function RunContent({ run }: { run: QuranMushafRun }) {
   return (
     <span
@@ -177,6 +193,17 @@ export function QuranMushafPageContent({
                   className={"quranWordAyah" + (selected ? " selected" : "")}
                   data-surah={group.surahNo}
                   data-ayah={group.ayahNo}
+                  onMouseEnter={event => {
+                    const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
+                    if (!text || document.body.classList.contains("quranHideLatin")) return;
+                    setPronunciationTooltip({ text, x: event.clientX, y: event.clientY - 18 });
+                  }}
+                  onMouseMove={event => {
+                    const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
+                    if (!text || document.body.classList.contains("quranHideLatin")) return;
+                    setPronunciationTooltip({ text, x: event.clientX, y: event.clientY - 18 });
+                  }}
+                  onMouseLeave={() => setPronunciationTooltip(null)}
                   onClick={event => {
                     event.stopPropagation();
                     onSelectNode(group.nodeId!);
