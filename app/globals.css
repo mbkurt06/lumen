@@ -6230,3 +6230,54 @@ body[data-risale-page-theme="dark"] .risaleBookPageFoot{
     padding:14px 2px 8px;
   }
 }
+
+
+/* Reader tool switches */
+.readerToolSwitch{
+  position:relative;
+  width:48px;
+  height:28px;
+  flex:0 0 48px;
+  padding:0;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:#b9b9b3;
+  cursor:pointer;
+  transition:background .16s ease,border-color .16s ease;
+}
+.readerToolSwitch>span{
+  position:absolute;
+  top:3px;
+  left:3px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 4px #0003;
+  transition:transform .16s ease;
+}
+.readerToolSwitch.on{
+  background:var(--accent);
+  border-color:var(--accent);
+}
+.readerToolSwitch.on>span{
+  transform:translateX(20px);
+}
+.readerToolSwitch.off{
+  background:#b9b9b3;
+}
+
+/* Quran counter gets a fresh, clearly visible default location.
+   Once dragged, its scoped inline position takes over. */
+body[data-reader-scope="quran"] .legacyCounter.readCounter:not([style*="left"]){
+  right:24px!important;
+  top:55%!important;
+  bottom:auto!important;
+}
+@media(max-width:800px){
+  body[data-reader-scope="quran"] .legacyCounter.readCounter:not([style*="left"]){
+    right:16px!important;
+    top:58%!important;
+    bottom:auto!important;
+  }
+}
