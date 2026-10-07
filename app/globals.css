@@ -5732,3 +5732,16 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
     align-items:stretch;
   }
 }
+
+
+.quranWordSourceWarning{
+  width:min(900px,calc(100% - 24px));
+  margin:8px auto 10px;
+  padding:9px 11px;
+  border:1px solid color-mix(in srgb,#c58b3a 48%,var(--border));
+  border-radius:10px;
+  background:color-mix(in srgb,#c58b3a 10%,var(--panel));
+  color:var(--text);
+  font-size:10px;
+  line-height:1.45;
+}
