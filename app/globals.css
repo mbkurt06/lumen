@@ -5779,3 +5779,28 @@ body[data-quran-page-theme="dark"] .quranWordAyah.selected{
   font-weight:400!important;
   font-synthesis:none!important;
 }
+
+
+/* Quran test import: deliberately bypass all Mushaf run/layout styling. */
+.quranReaderRawDebugText{
+  display:block!important;
+  position:static!important;
+  width:100%!important;
+  height:auto!important;
+  margin:0!important;
+  padding:12px!important;
+  overflow:visible!important;
+  opacity:1!important;
+  visibility:visible!important;
+  transform:none!important;
+  white-space:pre-wrap!important;
+  direction:rtl!important;
+  unicode-bidi:plaintext!important;
+  text-align:right!important;
+  color:#111!important;
+  background:#fff4c9!important;
+  font-family:Arial,"Geeza Pro","Noto Naskh Arabic",sans-serif!important;
+  font-size:28px!important;
+  font-weight:400!important;
+  line-height:1.8!important;
+}
