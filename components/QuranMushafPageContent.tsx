@@ -40,27 +40,63 @@ function runClass(run: QuranMushafRun) {
   return classes.join(" ");
 }
 
-const VERIFIED_LATIN: Record<string,string> = {
-  "1:1":"Bismillâhirrahmânirrahîm",
-  "1:2":"Elhamdü lillâhi rabbil âlemîn",
-  "1:3":"Errahmânirrahîm",
-  "1:4":"Mâliki yevmiddîn",
-  "1:5":"İyyâke na'büdü ve iyyâke neste'în",
-  "1:6":"İhdinessırâtal müstakîm",
-  "1:7":"Sırâtallezîne en'amte aleyhim gayril mağdûbi aleyhim ve leddâllîn",
+const FATIHA_WORD_PRONUNCIATION: Record<string,string> = {
+  "بسم":"Bismillâh",
+  "الله":"lillâhi",
+  "الرحمن":"er-Rahmân",
+  "الرحيم":"er-Rahîm",
+  "الحمد":"Elhamdü",
+  "لله":"lillâhi",
+  "رب":"rabbi",
+  "العالمين":"âlemîn",
+  "مالك":"mâliki",
+  "يوم":"yevmi",
+  "الدين":"d-dîn",
+  "اياك":"iyyâke",
+  "نعبد":"na'büdü",
+  "واياك":"ve iyyâke",
+  "نستعين":"neste'în",
+  "اهدنا":"ihdinâ",
+  "الصراط":"s-sırâta",
+  "المستقيم":"l-müstakîm",
+  "صراط":"sırâta",
+  "الذين":"llezîne",
+  "انعمت":"en'amte",
+  "عليهم":"aleyhim",
+  "غير":"gayri",
+  "المغضوب":"l-mağdûbi",
+  "ولا":"ve le",
+  "الضالين":"d-dâllîn",
 };
 
-function verifiedPronunciation(run: QuranMushafRun) {
-  if (!run.surahNo || !run.ayahNo) return "";
-  return VERIFIED_LATIN[`${run.surahNo}:${run.ayahNo}`] || "";
+function normalizeArabicToken(value:string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")
+    .replace(/[إأٱآ]/g,"ا")
+    .replace(/[ؤ]/g,"و")
+    .replace(/[ئ]/g,"ي")
+    .replace(/[ى]/g,"ي")
+    .replace(/[^ء-ي]/g,"");
+}
+
+function pronunciationPieces(run: QuranMushafRun) {
+  if (run.surahNo !== 1 || run.marker || run.runStyle === "mshfAyetNo" || run.runStyle === "mshfSureAd") {
+    return [{text:run.text}];
+  }
+
+  const tokens = run.text.match(/\s+|\S+/g) ?? [run.text];
+  return tokens.map(token => {
+    if (/^\s+$/.test(token)) return {text:token};
+    const normalized = normalizeArabicToken(token);
+    return {
+      text:token,
+      pronunciation:FATIHA_WORD_PRONUNCIATION[normalized] || undefined,
+    };
+  });
 }
 
 function RunContent({ run }: { run: QuranMushafRun }) {
-  const pronunciation =
-    !run.marker && run.runStyle !== "mshfAyetNo" && run.runStyle !== "mshfSureAd"
-      ? verifiedPronunciation(run)
-      : "";
-
   return (
     <span
       className={runClass(run)}
@@ -68,11 +104,15 @@ function RunContent({ run }: { run: QuranMushafRun }) {
       data-word-font={run.font || undefined}
       lang={run.lang || undefined}
     >
-      {pronunciation ? (
-        <span className="quranPronunciationChunk" data-pronunciation={pronunciation}>
-          {run.text}
+      {pronunciationPieces(run).map((piece,index) => piece.pronunciation ? (
+        <span
+          key={index}
+          className="quranPronunciationChunk"
+          data-pronunciation={piece.pronunciation}
+        >
+          {piece.text}
         </span>
-      ) : run.text}
+      ) : piece.text)}
     </span>
   );
 }
