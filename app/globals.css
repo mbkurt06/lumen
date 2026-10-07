@@ -4067,3 +4067,232 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     border-radius:0!important;
   }
 }
+
+
+/* v0.7.0 — calendar as automatic TODO + reminders + floating event editor */
+.calendarSourceItem{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:5px;
+}
+.calendarSourceItem>label{
+  min-width:0;
+}
+.calendarTodoSourceToggle{
+  min-width:42px;
+  padding:3px 6px!important;
+  border:1px solid var(--border)!important;
+  border-radius:7px!important;
+  background:transparent!important;
+  color:var(--muted)!important;
+  font-size:9px!important;
+  font-weight:800!important;
+}
+.calendarTodoSourceToggle.active{
+  background:color-mix(in srgb,var(--accent) 16%,var(--panel))!important;
+  color:var(--accent)!important;
+  border-color:color-mix(in srgb,var(--accent) 42%,var(--border))!important;
+}
+.calendarEventChip.completed,
+.calendarTimedEvent.completed,
+.agendaEvent.completed{
+  opacity:.58;
+}
+.calendarEventChip.completed span,
+.calendarTimedEvent.completed strong,
+.agendaEvent.completed strong{
+  text-decoration:line-through;
+}
+.calendarReminderEditor{
+  margin:8px 14px;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--bg) 48%,transparent);
+}
+.calendarReminderEditor.compact{
+  margin-top:6px;
+  margin-bottom:6px;
+}
+.calendarReminderHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  font-size:11px;
+  color:var(--muted);
+}
+.calendarReminderHead select{
+  min-width:0;
+  max-width:185px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--bg);
+  color:var(--text);
+  padding:5px 7px;
+}
+.calendarReminderPresets{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  margin-top:8px;
+}
+.calendarReminderPresets button{
+  padding:5px 7px!important;
+  min-height:28px!important;
+  border:1px solid var(--border)!important;
+  border-radius:8px!important;
+  background:var(--panel)!important;
+  color:var(--muted)!important;
+  font-size:10px!important;
+}
+.calendarReminderPresets button.active{
+  color:var(--text)!important;
+  border-color:var(--accent)!important;
+  background:color-mix(in srgb,var(--accent) 18%,var(--panel))!important;
+}
+.calendarReminderPresets input{
+  width:58px;
+  min-height:28px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--bg);
+  color:var(--text);
+  padding:4px 6px;
+  font-size:10px;
+}
+.calendarTodoDone{
+  border:1px solid var(--border)!important;
+  border-radius:8px!important;
+  background:var(--panel)!important;
+  color:var(--muted)!important;
+  padding:5px 8px!important;
+  font-size:10px!important;
+}
+.calendarTodoDone.active{
+  color:var(--accent)!important;
+  border-color:color-mix(in srgb,var(--accent) 50%,var(--border))!important;
+}
+.calendarAutoTodoHint{
+  margin-left:auto;
+  color:var(--muted);
+  font-size:9px;
+}
+.calendarFloatingEditor{
+  position:fixed;
+  z-index:130;
+  width:min(420px,calc(100vw - 24px));
+  max-height:calc(100vh - 20px);
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:color-mix(in srgb,var(--panel) 98%,transparent);
+  color:var(--text);
+  box-shadow:0 18px 48px #0007,0 4px 14px #0004;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  animation:calendarPreviewIn .12s ease-out;
+}
+.calendarFloatingEditor .calendarEditorHead{
+  padding:11px 14px 4px;
+}
+.calendarFloatingEditor .calendarTitleInput{
+  width:calc(100% - 28px);
+  margin:6px 14px 4px;
+  font-size:18px!important;
+  padding:8px!important;
+}
+.calendarAutoTodoNotice{
+  margin:8px 14px;
+  padding:7px 9px;
+  border-radius:8px;
+  background:color-mix(in srgb,var(--accent) 10%,transparent);
+  color:var(--muted);
+  font-size:10px;
+}
+.calendarFloatingEditor .calendarQuickActions{
+  position:sticky;
+  bottom:0;
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+  backdrop-filter:blur(12px);
+}
+@media(max-width:800px){
+  .calendarFloatingEditor{
+    left:8px!important;
+    right:8px!important;
+    bottom:8px!important;
+    top:auto!important;
+    width:auto!important;
+    max-height:min(78dvh,640px);
+  }
+}
+
+/* Daily TODO calendar-event cards */
+.calendarAutoTodo{
+  display:grid!important;
+  grid-template-columns:34px 74px minmax(0,1fr);
+  align-items:start;
+  gap:10px;
+  padding:11px 12px!important;
+}
+.calendarTodoCheck{
+  width:28px;
+  height:28px;
+  border:1px solid var(--border);
+  border-radius:50%;
+  background:transparent;
+  color:var(--accent);
+  font-weight:900;
+}
+.calendarTodoCheck.done{
+  background:color-mix(in srgb,var(--accent) 18%,var(--panel));
+  border-color:var(--accent);
+}
+.calendarTodoTime{
+  padding-top:5px;
+  color:var(--muted);
+  font-size:11px;
+  font-variant-numeric:tabular-nums;
+}
+.calendarTodoContent{
+  min-width:0;
+}
+.calendarTodoTitleLine{
+  display:flex;
+  align-items:center;
+  gap:7px;
+}
+.calendarTodoTitleLine strong{
+  overflow-wrap:anywhere;
+}
+.calendarTodoDot{
+  flex:0 0 auto;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--accent);
+}
+.calendarTodoLocation,
+.calendarTodoDescription{
+  margin:5px 0 0!important;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.calendarTodoDescription{
+  white-space:pre-wrap;
+}
+.calendarAutoTodo.done .calendarTodoContent strong{
+  text-decoration:line-through;
+  opacity:.65;
+}
+@media(max-width:620px){
+  .calendarAutoTodo{
+    grid-template-columns:30px 58px minmax(0,1fr);
+    gap:7px;
+  }
+  .calendarTodoTime{
+    font-size:10px;
+  }
+}
