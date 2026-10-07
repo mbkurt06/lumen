@@ -1557,9 +1557,14 @@ export function ReaderView({
         </div>
       ) : isRisaleDocument ? (
         <RisaleBookView
+          itemId={item.id}
           title={item.title}
           bookTitle={String(itemMeta.book_title || "")}
           nodes={nodes}
+          hasPreviousDocument={Boolean(hasPreviousItem)}
+          hasNextDocument={Boolean(hasNextItem)}
+          onPreviousDocument={onPreviousItem}
+          onNextDocument={onNextItem}
         />
       ) : (
       <div className="legacyReadContent">
