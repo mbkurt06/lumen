@@ -29,7 +29,7 @@ async function init(){
   ensureSurahExcerpt("kehf-1-10","Kehf İlk 10 Âyet",18,1,10);
   ensureSurahExcerpt("kehf-101-110","Kehf Son 10 Âyet",18,101,110);
   data.quranSource=quranData.source||null;
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();$("#readView .read-sticky-header")?.classList.toggle("collapsed",localStorage.getItem("readHeaderCollapsed")==="1");render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=87").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=88").then(r=>r.update())
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
@@ -70,22 +70,62 @@ function renderRead(){
   $("#readContent").querySelectorAll("[data-listen-dua-segment]").forEach(b=>b.onclick=e=>{e.stopPropagation();playDuaLinkedSection(Number(b.dataset.listenDuaSegment)+1)});
   updateDuaPager();updateCounterDisplay();updateTodoProgressDisplay();syncReadHeaderHeight();
 }
+function setupSharedHeaderCollapse(){
+  const selectors=[
+    ".read-sticky-header",
+    ".memorize-sticky-header",
+    ".library-page-head",
+    ".todo-page-head",
+    ".ilmihal-page-head",
+    ".listening-head"
+  ];
+  document.querySelectorAll(selectors.join(",")).forEach(head=>{
+    head.classList.add("collapsible-page-header");
+    let btn=head.querySelector(".page-header-collapse-btn");
+    if(!btn){
+      const existing=head.querySelector("#readHeaderCollapseBtn");
+      if(existing){
+        btn=existing;
+        btn.classList.add("page-header-collapse-btn");
+      }else{
+        btn=document.createElement("button");
+        btn.type="button";
+        btn.className="back-btn page-header-collapse-btn";
+        btn.setAttribute("aria-label","Üst menüyü gizle");
+        btn.title="Üst menüyü gizle";
+        btn.textContent="▴";
+        head.appendChild(btn);
+      }
+    }
+    btn.onclick=e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      setReadHeaderCollapsed(!document.body.classList.contains("page-headers-collapsed"));
+    };
+  });
+  setReadHeaderCollapsed(localStorage.getItem("readHeaderCollapsed")==="1",false);
+}
 function syncReadHeaderHeight(){requestAnimationFrame(()=>{const view=$("#readView"),head=view?.querySelector(".read-sticky-header");if(view&&head&&!view.classList.contains("hidden")){view.style.setProperty("--read-fixed-height",head.offsetHeight+"px");syncDuaPlayerClearance()}})}
 function setReadHeaderCollapsed(collapsed,savePref=true){
-  const head=$("#readView .read-sticky-header"),btn=$("#readHeaderCollapseBtn"),panel=$("#duaListeningPanel");if(!head||!btn)return;
+  const panel=$("#duaListeningPanel");
+  const readHead=$("#readView .read-sticky-header");
   const panelVisible=panel&&!panel.classList.contains("hidden");
   const oldPanelRect=panelVisible?panel.getBoundingClientRect():null;
+  const value=!!collapsed;
 
-  head.classList.toggle("collapsed",!!collapsed);
-  btn.textContent=collapsed?"▾":"▴";
-  btn.setAttribute("aria-label",collapsed?"Üst menüyü göster":"Üst menüyü gizle");
-  btn.title=collapsed?"Üst menüyü göster":"Üst menüyü gizle";
-  if(savePref)localStorage.setItem("readHeaderCollapsed",collapsed?"1":"0");
+  document.body.classList.toggle("page-headers-collapsed",value);
+  document.querySelectorAll(".collapsible-page-header").forEach(head=>head.classList.toggle("collapsed",value));
+  document.querySelectorAll(".page-header-collapse-btn,#readHeaderCollapseBtn").forEach(btn=>{
+    btn.textContent=value?"▾":"▴";
+    btn.setAttribute("aria-label",value?"Üst menüyü göster":"Üst menüyü gizle");
+    btn.title=value?"Üst menüyü göster":"Üst menüyü gizle";
+  });
+  if(savePref)localStorage.setItem("readHeaderCollapsed",value?"1":"0");
 
   syncReadHeaderHeight();
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    if(panelVisible&&oldPanelRect&&panel.classList.contains("player-collapsed")){
-      const safeTop=head.getBoundingClientRect().bottom+8;
+    if(panelVisible&&oldPanelRect&&panel.classList.contains("player-collapsed")&&readHead){
+      const safeTop=readHead.getBoundingClientRect().bottom+8;
       if(oldPanelRect.top<safeTop)moveDuaCompactPanel(oldPanelRect.left,safeTop,true);
     }else if(panelVisible&&!oldPanelRect){
       restoreDuaCompactPosition();
@@ -218,7 +258,7 @@ function endCompactPlayerHold(e){
 
 function syncGlobalHeaderHeight(){requestAnimationFrame(()=>{const head=document.querySelector(".global-header");if(head)document.documentElement.style.setProperty("--global-header-height",head.getBoundingClientRect().height+"px")})}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;"}[c]))}
-function applyMode(){state.currentView="dua";$("#fullscreenTasbihBtn").classList.remove("hidden");$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");$("#listeningView").classList.add("hidden");const read=state.settings.mode==="read";$("#memorizeView").classList.toggle("hidden",read);$("#memorizeView").classList.toggle("esma-detail",isEsmaNameDua()&&!read);$("#readView").classList.toggle("hidden",!read);$("#libraryView").classList.add("hidden");$(".navigation").classList.toggle("hidden",read);counter.classList.remove("hidden");counter.classList.toggle("selected-counter",isEsmaNameDua()&&!read);renderDuaListeningPanel();updateCounterDisplay();updateTodoProgressDisplay();requestAnimationFrame(()=>requestAnimationFrame(()=>{if(read)setReadHeaderCollapsed(localStorage.getItem("readHeaderCollapsed")==="1",false);setDuaPlayerCollapsed(true,false);restoreDuaCompactPosition();restoreCounter()}));save()}
+function applyMode(){state.currentView="dua";$("#fullscreenTasbihBtn").classList.remove("hidden");$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");$("#listeningView").classList.add("hidden");const read=state.settings.mode==="read";$("#memorizeView").classList.toggle("hidden",read);$("#memorizeView").classList.toggle("esma-detail",isEsmaNameDua()&&!read);$("#readView").classList.toggle("hidden",!read);$("#libraryView").classList.add("hidden");$(".navigation").classList.toggle("hidden",read);counter.classList.remove("hidden");counter.classList.toggle("selected-counter",isEsmaNameDua()&&!read);renderDuaListeningPanel();updateCounterDisplay();updateTodoProgressDisplay();requestAnimationFrame(()=>requestAnimationFrame(()=>{setReadHeaderCollapsed(localStorage.getItem("readHeaderCollapsed")==="1",false);setDuaPlayerCollapsed(true,false);restoreDuaCompactPosition();restoreCounter()}));save()}
 function moveEsmaName(step){
   const items=categoryItems("Esmâü’l-Hüsnâ").filter(isEsmaNameDua),i=items.findIndex(d=>d.id===dua.id),n=i+step;
   if(i<0||n<0||n>=items.length)return;
