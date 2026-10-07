@@ -79,6 +79,8 @@ function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
   document.body.dataset.risalePageTheme = p.risalePageTheme;
+  document.documentElement.dataset.preQuranPageTheme = p.quranPageTheme;
+  document.documentElement.dataset.preRisalePageTheme = p.risalePageTheme;
   document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
   document.body.classList.remove("quranEasyRead");
