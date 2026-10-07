@@ -40,7 +40,109 @@ function runClass(run: QuranMushafRun) {
   return classes.join(" ");
 }
 
+const ARABIC_MARK = /[\u064B-\u065F\u0670\u06D6-\u06ED]/;
+
+const baseLatin: Record<string,string> = {
+  "ا":"", "أ":"’", "إ":"’", "آ":"â", "ٱ":"",
+  "ب":"b", "ت":"t", "ث":"s̱", "ج":"c", "ح":"ḥ", "خ":"ḫ",
+  "د":"d", "ذ":"ẕ", "ر":"r", "ز":"z", "س":"s", "ش":"ş",
+  "ص":"ṣ", "ض":"ḍ", "ط":"ṭ", "ظ":"ẓ", "ع":"ʿ", "غ":"ġ",
+  "ف":"f", "ق":"ḳ", "ك":"k", "ک":"k", "ل":"l", "م":"m",
+  "ن":"n", "ه":"h", "ة":"h", "و":"v", "ي":"y", "ى":"â",
+  "ئ":"’", "ؤ":"’", "ء":"’", "ـ":""
+};
+
+function transliterateArabicWord(source:string) {
+  const chars = Array.from(source.normalize("NFD"));
+  let out = "";
+  for (let i=0; i<chars.length; i+=1) {
+    const ch = chars[i];
+    if (/\s/.test(ch)) { out += " "; continue; }
+    if (/[﴿﴾۞۩]/.test(ch)) continue;
+    if (ARABIC_MARK.test(ch)) continue;
+
+    const marks:string[] = [];
+    let j=i+1;
+    while (j<chars.length && ARABIC_MARK.test(chars[j])) {
+      marks.push(chars[j]);
+      j+=1;
+    }
+    i=j-1;
+
+    const hasFatha = marks.includes("\u064E");
+    const hasDamma = marks.includes("\u064F");
+    const hasKasra = marks.includes("\u0650");
+    const hasFathatan = marks.includes("\u064B");
+    const hasDammatan = marks.includes("\u064C");
+    const hasKasratan = marks.includes("\u064D");
+    const shadda = marks.includes("\u0651");
+    const daggerAlif = marks.includes("\u0670");
+
+    let base = baseLatin[ch];
+    if (base === undefined) {
+      if (/[-–—،؛؟.,:()]/.test(ch)) out += ch;
+      continue;
+    }
+
+    // Unmarked alif/waw/ya usually carry a long vowel in this fully-vocalized Mushaf.
+    if (ch === "ا" && marks.length === 0) base = "â";
+    else if (ch === "و" && marks.length === 0) base = "û";
+    else if (ch === "ي" && marks.length === 0) base = "î";
+    else if (ch === "ى" && marks.length === 0) base = "â";
+
+    if (shadda && base) base += base;
+
+    let vowel = "";
+    if (hasFathatan) vowel = "an";
+    else if (hasDammatan) vowel = "un";
+    else if (hasKasratan) vowel = "in";
+    else if (hasFatha) vowel = "a";
+    else if (hasDamma) vowel = "u";
+    else if (hasKasra) vowel = "i";
+    if (daggerAlif) vowel += "â";
+
+    out += base + vowel;
+  }
+
+  return out
+    .replace(/âa/g,"â")
+    .replace(/îi/g,"î")
+    .replace(/ûu/g,"û")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function pronunciationPieces(text:string) {
+  // Keep whitespace in the original document flow, but make hover targets
+  // small enough to follow the mouse naturally (up to three words).
+  const tokens = text.match(/\s+|\S+/g) ?? [text];
+  const pieces:{text:string; pronunciation?:string}[] = [];
+  let words:string[] = [];
+  let raw = "";
+
+  const flush = () => {
+    if (!raw) return;
+    const pronunciation = transliterateArabicWord(words.join(" "));
+    pieces.push({text:raw, pronunciation:pronunciation || undefined});
+    words = [];
+    raw = "";
+  };
+
+  for (const token of tokens) {
+    if (/^\s+$/.test(token)) {
+      raw += token;
+      continue;
+    }
+    if (words.length >= 3) flush();
+    raw += token;
+    words.push(token);
+  }
+  flush();
+  return pieces;
+}
+
 function RunContent({ run }: { run: QuranMushafRun }) {
+  const canPronounce = !run.marker && run.runStyle !== "mshfAyetNo" && run.runStyle !== "mshfSureAd";
   return (
     <span
       className={runClass(run)}
@@ -48,7 +150,17 @@ function RunContent({ run }: { run: QuranMushafRun }) {
       data-word-font={run.font || undefined}
       lang={run.lang || undefined}
     >
-      {run.text}
+      {canPronounce
+        ? pronunciationPieces(run.text).map((piece,index) => piece.pronunciation ? (
+            <span
+              key={index}
+              className="quranPronunciationChunk"
+              data-pronunciation={piece.pronunciation}
+            >
+              {piece.text}
+            </span>
+          ) : piece.text)
+        : run.text}
     </span>
   );
 }
