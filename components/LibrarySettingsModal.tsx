@@ -345,7 +345,7 @@ export function LibrarySettingsModal({
           <div className="fontControls">
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
-            <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
+            <button onClick={() => update({...prefs,quranFontScale:Math.min(2.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
           </div>
         </div>
 
