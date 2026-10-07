@@ -440,6 +440,21 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     return () => window.removeEventListener("lumen-calendar-sources-changed", refresh);
   }, [loadPreferences, loadAccounts]);
 
+  useEffect(() => {
+    const refreshEvents = () => void loadEvents();
+    const syncCompletion = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; completed?: boolean }>).detail;
+      if (!detail?.key || typeof detail.completed !== "boolean") return;
+      setCalendarCompletion(current => ({ ...current, [detail.key!]: detail.completed! }));
+    };
+    window.addEventListener("lumen-calendar-events-changed", refreshEvents);
+    window.addEventListener("lumen-calendar-completion-changed", syncCompletion);
+    return () => {
+      window.removeEventListener("lumen-calendar-events-changed", refreshEvents);
+      window.removeEventListener("lumen-calendar-completion-changed", syncCompletion);
+    };
+  }, [loadEvents]);
+
   async function connectGoogle() {
     if (googleConnecting) return;
     setGoogleConnecting(true);
@@ -506,7 +521,9 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       const next = new Set(current ?? defaultTodoCalendarKeys());
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      void saveViewPrefs({ calendarTodoEnabledKeys:[...next] });
+      void saveViewPrefs({ calendarTodoEnabledKeys:[...next] }).then(() => {
+        window.dispatchEvent(new CustomEvent("lumen-calendar-sources-changed"));
+      });
       return next;
     });
   }
@@ -540,7 +557,12 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     if (error) {
       setCalendarCompletion(current => ({...current,[key]:!next}));
       setMessage(error.message);
+      return;
     }
+
+    window.dispatchEvent(new CustomEvent("lumen-calendar-completion-changed", {
+      detail: { key, completed: next },
+    }));
   }
 
   function setViewAndSave(next: ViewMode) {
@@ -963,6 +985,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     try {
       await persistEventDraft(hoverDraft);
       await loadEvents();
+      window.dispatchEvent(new CustomEvent("lumen-calendar-events-changed"));
       setEventHover(null);
       setHoverDraft(null);
       setMessage("");
@@ -980,6 +1003,8 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       setDraft(null);
       setDraftPosition(null);
       await loadEvents();
+      window.dispatchEvent(new CustomEvent("lumen-calendar-events-changed"));
+      window.dispatchEvent(new CustomEvent("lumen-calendar-events-changed"));
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
