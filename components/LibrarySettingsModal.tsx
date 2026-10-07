@@ -179,6 +179,8 @@ export function LibrarySettingsModal({
           <button className="modalClose" onClick={onClose}>×</button>
         </div>
 
+        {scope !== "quran" && (
+          <>
         <div className="settingRow">
           <span>Gece modu</span>
           <button
@@ -198,12 +200,15 @@ export function LibrarySettingsModal({
           </div>
         </div>
 
+          </>
+        )}
+
         {scope === "quran" && (
           <>
-        <div className="settingSectionTitle">Kur’an görünümü</div>
+        <div className="settingSectionTitle">Kur’an sayfası</div>
 
         <div className="settingRow">
-          <span>Kur’an yazı boyutu</span>
+          <span>Yazı boyutu</span>
           <div className="fontControls">
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
