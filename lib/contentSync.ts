@@ -74,7 +74,7 @@ async function incrementalSync(table:StaticTable,local:Fingerprint,remote:Finger
 
 let syncPromise:Promise<void>|null=null;
 
-export function syncStaticContentInBackground(ownerId:string){
+export function syncStaticContentInBackground(ownerId:string, options:{forceFull?:boolean} = {}){
   if(typeof window==="undefined") return Promise.resolve();
   if(syncPromise) return syncPromise;
 
@@ -89,19 +89,34 @@ export function syncStaticContentInBackground(ownerId:string){
 
     window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{state:"checking"}}));
 
-    for(const table of TABLES){
+    for(let index=0; index<TABLES.length; index+=1){
+      const table=TABLES[index];
       const remote=await remoteFingerprint(table);
       const local=await getMeta<Fingerprint>(`fingerprint:${table}`);
 
-      if(!local){
-        window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{state:"downloading",table,firstSync:true}}));
+      if(options.forceFull || !local){
+        window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{
+          state:"downloading",
+          table,
+          firstSync:!local,
+          forceFull:options.forceFull===true,
+          tableIndex:index+1,
+          tableCount:TABLES.length
+        }}));
         await fullSync(table,remote);
         continue;
       }
 
       if(local.count===remote.count && local.maxUpdatedAt===remote.maxUpdatedAt) continue;
 
-      window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{state:"downloading",table,firstSync:false}}));
+      window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{
+        state:"downloading",
+        table,
+        firstSync:false,
+        forceFull:false,
+        tableIndex:index+1,
+        tableCount:TABLES.length
+      }}));
       await incrementalSync(table,local,remote);
     }
 
