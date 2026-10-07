@@ -19,6 +19,7 @@ type Prefs = {
   quranFontWeight: number;
   quranFontFamily: string;
   quranPageTheme: "paper" | "white" | "sepia" | "dark";
+  risalePageTheme: "paper" | "white" | "sepia" | "dark";
 };
 
 const defaults: Prefs = {
@@ -34,6 +35,7 @@ const defaults: Prefs = {
   quranFontWeight: 300,
   quranFontFamily: "Shaikh Hamdullah Mushaf",
   quranPageTheme: "paper",
+  risalePageTheme: "paper",
 };
 
 function scopeKey(scope: ReaderScope, key: "fontScale" | "showArabic" | "showLatin" | "showTurkish") {
@@ -67,6 +69,7 @@ function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
   document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
+  document.body.dataset.risalePageTheme = p.risalePageTheme;
   document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
   document.body.classList.remove("quranEasyRead");
@@ -200,7 +203,7 @@ export function LibrarySettingsModal({
           <button className="modalClose" onClick={onClose}>×</button>
         </div>
 
-        {scope !== "quran" && (
+        {scope !== "quran" && scope !== "risale" && (
           <>
         <div className="settingRow">
           <span>Gece modu</span>
@@ -221,6 +224,41 @@ export function LibrarySettingsModal({
           </div>
         </div>
 
+          </>
+        )}
+
+        {scope === "risale" && (
+          <>
+            <div className="settingSectionTitle">Risale-i Nur sayfası</div>
+
+            <div className="settingRow quranPrimarySetting">
+              <span>Yazı boyutu</span>
+              <div className="fontControls">
+                <button onClick={() => update({...prefs,fontScale:Math.max(.8,+(prefs.fontScale-.1).toFixed(1))})}>A−</button>
+                <button onClick={() => update({...prefs,fontScale:1})}>A</button>
+                <button onClick={() => update({...prefs,fontScale:Math.min(1.8,+(prefs.fontScale+.1).toFixed(1))})}>A+</button>
+              </div>
+            </div>
+
+            <div className="settingRow quranPrimarySetting">
+              <span>Sayfa arka planı</span>
+              <div className="quranThemeChoices">
+                {([
+                  ["paper","Krem"],
+                  ["white","Beyaz"],
+                  ["sepia","Sarı"],
+                  ["dark","Karanlık"],
+                ] as const).map(([value,label]) => (
+                  <button
+                    key={value}
+                    className={"quranThemeChip " + (prefs.risalePageTheme === value ? "active" : "")}
+                    onClick={() => update({...prefs,risalePageTheme:value})}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
@@ -323,7 +361,7 @@ export function LibrarySettingsModal({
           </>
         )}
 
-        {scope !== "quran" && (
+        {scope !== "quran" && scope !== "risale" && (
           <>
         <div className="settingRow">
           <span>Arapça</span>
