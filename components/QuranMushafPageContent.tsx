@@ -74,22 +74,6 @@ export function QuranMushafPageContent({
 
   return (
     <>
-      <svg className="quranTextFilterDefs" aria-hidden="true" width="0" height="0">
-        <defs>
-          <filter id="quranThin1" x="-20%" y="-20%" width="140%" height="140%">
-            <feMorphology in="SourceAlpha" operator="erode" radius="0.18" result="thinAlpha" />
-            <feComposite in="SourceGraphic" in2="thinAlpha" operator="in" />
-          </filter>
-          <filter id="quranThin2" x="-20%" y="-20%" width="140%" height="140%">
-            <feMorphology in="SourceAlpha" operator="erode" radius="0.32" result="thinAlpha" />
-            <feComposite in="SourceGraphic" in2="thinAlpha" operator="in" />
-          </filter>
-          <filter id="quranThin3" x="-20%" y="-20%" width="140%" height="140%">
-            <feMorphology in="SourceAlpha" operator="erode" radius="0.48" result="thinAlpha" />
-            <feComposite in="SourceGraphic" in2="thinAlpha" operator="in" />
-          </filter>
-        </defs>
-      </svg>
       {(page.rich_content?.paragraphs ?? []).map((paragraph, paragraphIndex) => {
         const groups = groupRuns(paragraph);
         const style = paragraph.style || "none";
