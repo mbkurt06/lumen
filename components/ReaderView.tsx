@@ -468,6 +468,18 @@ export function ReaderView({
     if (!page || !flow) return;
 
     flow.style.setProperty("--quran-fit-scale", "1");
+    const requestedScale = Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--quran-font-scale") || "1"
+    ) || 1;
+
+    // At large accessibility sizes, keep the user's requested size and let the
+    // page grow vertically instead of silently shrinking the text back down.
+    if (requestedScale > 1.8) {
+      page.dataset.largeQuranText = "1";
+      return;
+    }
+    delete page.dataset.largeQuranText;
+
     const styles = getComputedStyle(page);
     const bottomPadding = Number.parseFloat(styles.paddingBottom || "0") || 0;
     const available = Math.max(40, page.clientHeight - flow.offsetTop - bottomPadding);
