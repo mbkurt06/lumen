@@ -36,7 +36,21 @@ type Todo = {
 
 type TodoInfo = { todo: Todo; meta: TodoMeta; target: number; count: number; done: boolean };
 
+type QuranPosition = {
+  nodeId: string;
+  page: number;
+  juz: number;
+  surahTitle: string;
+  surahNo: number;
+  ayahNo: number;
+  updatedAt: string;
+};
+
 type TodoMeta = {
+  quran?: {
+    tracking?: boolean;
+    position?: QuranPosition;
+  };
   schedule?: {
     mode?: "single" | "range" | "days" | "forever";
     startDate?: string;
@@ -120,6 +134,8 @@ export function ReaderView({
   const [quranPageMin, setQuranPageMin] = useState(1);
   const [quranPageMax, setQuranPageMax] = useState(604);
   const [quranPageLoading, setQuranPageLoading] = useState(false);
+  const [quranBookmark, setQuranBookmark] = useState<QuranPosition | null>(null);
+  const [quranActionMessage, setQuranActionMessage] = useState("");
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
 
@@ -134,6 +150,82 @@ export function ReaderView({
   const isRisaleDocument = sourceType === "risale_seeded";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
+
+  const quranPositionFor = useCallback((node: Node | null): QuranPosition | null => {
+    if (!node) return null;
+    const m = (node.metadata ?? {}) as Record<string, any>;
+    const page = Number(m.page || quranPage || 0);
+    const ayahNo = Number(m.ayah_no || node.sort_order || 0);
+    const surahNo = Number(m.surah_no || 0);
+    if (!page || !ayahNo || !surahNo) return null;
+    return {
+      nodeId: node.id,
+      page,
+      juz: Number(m.juz || 0),
+      surahTitle: String(m.surah_title || item.title),
+      surahNo,
+      ayahNo,
+      updatedAt: new Date().toISOString(),
+    };
+  }, [item.title, quranPage]);
+
+  const saveQuranBookmark = useCallback(async (node: Node | null) => {
+    const position = quranPositionFor(node);
+    if (!position) return;
+    const { data, error } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+    if (error) {
+      setQuranActionMessage(error.message);
+      return;
+    }
+    const preferences = (data?.preferences ?? {}) as Record<string, unknown>;
+    const { error: saveError } = await supabase.from("user_preferences").upsert({
+      preferences: { ...preferences, quranBookmark: position },
+      updated_at: new Date().toISOString(),
+    });
+    if (saveError) {
+      setQuranActionMessage(saveError.message);
+      return;
+    }
+    setQuranBookmark(position);
+    setQuranActionMessage(`Ayracın kaydedildi: Sayfa ${position.page} · ${position.surahTitle} ${position.ayahNo}. ayet`);
+    window.dispatchEvent(new CustomEvent("lumen-quran-bookmark-changed", { detail: position }));
+  }, [quranPositionFor]);
+
+  const updateQuranTodosPosition = useCallback(async (node: Node | null) => {
+    const position = quranPositionFor(node);
+    if (!position) return;
+    const { data, error } = await supabase
+      .from("todos")
+      .select("id,notes")
+      .order("created_at", { ascending: true });
+    if (error) {
+      setQuranActionMessage(error.message);
+      return;
+    }
+
+    const updates = (data ?? []).flatMap(todo => {
+      let meta: TodoMeta = {};
+      try { meta = JSON.parse(todo.notes || "{}") as TodoMeta; } catch {}
+      if (!meta.quran?.tracking) return [];
+      return [{ id: todo.id, notes: JSON.stringify({ ...meta, quran: { ...meta.quran, tracking: true, position } }) }];
+    });
+
+    for (const update of updates) {
+      const { error: updateError } = await supabase.from("todos").update({ notes: update.notes }).eq("id", update.id);
+      if (updateError) {
+        setQuranActionMessage(updateError.message);
+        return;
+      }
+    }
+
+    await loadTodos();
+    window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
+    setQuranActionMessage(
+      updates.length
+        ? `${updates.length} Kur’an okuma Todo'sunda kaldığın yer güncellendi.`
+        : "Henüz Kur’an okuma Todo'su yok. + Todo ile oluşturabilirsin."
+    );
+  }, [quranPositionFor, loadTodos]);
 
   const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
@@ -265,6 +357,31 @@ export function ReaderView({
   }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!isQuranDocument) return;
+    void (async () => {
+      const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+      const bookmark = ((data?.preferences ?? {}) as Record<string, any>).quranBookmark as QuranPosition | undefined;
+      if (bookmark?.nodeId && bookmark?.page) setQuranBookmark(bookmark);
+    })();
+  }, [isQuranDocument, item.id]);
+
+  useEffect(() => {
+    if (!isQuranDocument) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" && quranPage && quranPage < quranPageMax) {
+        event.preventDefault();
+        void loadQuranPage(quranPage + 1);
+      }
+      if (event.key === "ArrowRight" && quranPage && quranPage > quranPageMin) {
+        event.preventDefault();
+        void loadQuranPage(quranPage - 1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isQuranDocument, quranPage, quranPageMin, quranPageMax, loadQuranPage]);
 
   function todosForNode(node: Node) {
     return todos
@@ -536,13 +653,15 @@ export function ReaderView({
                 <span>{selected.title || `Ayet ${selected.sort_order}`} seçili</span>
                 <button
                   onClick={() => setTodoTarget({
-                    title: selected.translation || selected.text_content || selected.title || item.title,
+                    title: "Kur’an okuma",
                     nodeId: selected.id,
-                    defaultTarget: targetForIntrinsic(selected) || 1,
+                    defaultTarget: 1,
                   })}
                 >
                   + Todo
                 </button>
+                <button className="secondary" onClick={() => void saveQuranBookmark(selected)}>🔖 Ayracı buraya koy</button>
+                <button className="secondary" onClick={() => void updateQuranTodosPosition(selected)}>Todo konumunu güncelle</button>
                 <button className="secondary" onClick={() => setQuranSelectedNodeId(null)}>Seçimi kaldır</button>
               </div>
             );
@@ -578,11 +697,20 @@ export function ReaderView({
             </div>
           </div>
 
-          <nav className="quranPagePager" aria-label="Kur’an sayfası">
-            <button disabled={!quranPage || quranPage <= quranPageMin || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage - 1)}>‹ Önceki sayfa</button>
+          <nav className="quranPagePager quranPagePagerRtl" aria-label="Kur’an sayfası">
+            <button disabled={!quranPage || quranPage >= quranPageMax || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage + 1)}>‹ Sonraki sayfa</button>
             <span>{quranPage ?? "—"} / 604</span>
-            <button disabled={!quranPage || quranPage >= quranPageMax || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage + 1)}>Sonraki sayfa ›</button>
+            <button disabled={!quranPage || quranPage <= quranPageMin || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage - 1)}>Önceki sayfa ›</button>
           </nav>
+
+          {(quranBookmark || quranActionMessage) && (
+            <div className="quranReadingStatus">
+              {quranBookmark && (
+                <span>🔖 Kaldığın yer: Sayfa {quranBookmark.page} · {quranBookmark.surahTitle} {quranBookmark.ayahNo}. ayet</span>
+              )}
+              {quranActionMessage && <small>{quranActionMessage}</small>}
+            </div>
+          )}
 
           <div className="quranSupplement quranLatinBlock">
             <h3>Latin harflerle okunuş</h3>
@@ -722,10 +850,16 @@ export function ReaderView({
         open={documentTodoOpen}
         onClose={() => setDocumentTodoOpen(false)}
         onSaved={loadTodos}
-        title={item.title}
+        title={isQuranDocument ? "Kur’an okuma" : item.title}
         defaultTarget={1}
         libraryItemId={item.id}
         contentNodeId={null}
+        extraMeta={isQuranDocument ? {
+          quran: {
+            tracking: true,
+            position: quranPositionFor(nodes.find(node => node.id === quranSelectedNodeId) ?? nodes[0] ?? null),
+          },
+        } : undefined}
       />
 
       <TodoDialog
@@ -736,6 +870,12 @@ export function ReaderView({
         defaultTarget={todoTarget?.defaultTarget || 1}
         libraryItemId={item.id}
         contentNodeId={todoTarget?.nodeId || null}
+        extraMeta={isQuranDocument ? {
+          quran: {
+            tracking: true,
+            position: quranPositionFor(nodes.find(node => node.id === (todoTarget?.nodeId || quranSelectedNodeId)) ?? nodes[0] ?? null),
+          },
+        } : undefined}
       />
 
       {editMenu && (
