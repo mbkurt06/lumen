@@ -17,6 +17,7 @@ type Prefs = {
   quranEasyRead: boolean;
   quranFontScale: number;
   quranFontWeight: number;
+  quranStrokeThin: number;
   quranFontFamily: string;
   quranPageTheme: "paper" | "white" | "sepia" | "dark";
 };
@@ -32,6 +33,7 @@ const defaults: Prefs = {
   quranEasyRead: false,
   quranFontScale: 1,
   quranFontWeight: 300,
+  quranStrokeThin: 0,
   quranFontFamily: "Shaikh Hamdullah Mushaf",
   quranPageTheme: "paper",
 };
@@ -65,11 +67,23 @@ function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
+  document.documentElement.style.setProperty("--quran-stroke-thin", String(p.quranStrokeThin));
   document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
+  document.body.dataset.quranThin = String(Math.max(0, Math.min(3, Math.round(p.quranStrokeThin))));
   document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
-  document.body.classList.toggle("quranEasyRead", scope === "quran" && p.quranEasyRead);
+  document.body.classList.remove("quranEasyRead");
+  if (scope === "quran") {
+    localStorage.setItem("lumen-quran-page-prefs", JSON.stringify({
+      quranFontScale: p.quranFontScale,
+      quranStrokeThin: p.quranStrokeThin,
+      quranPageTheme: p.quranPageTheme,
+      quranFontFamily: p.quranFontFamily,
+      quranShowLatin: p.quranShowLatin,
+      quranShowTranslation: p.quranShowTranslation,
+    }));
+  }
   window.dispatchEvent(new CustomEvent("lumen-library-prefs", { detail: { ...p, scope } }));
 }
 
@@ -90,11 +104,21 @@ export function LibrarySettingsModal({
   const [mushafImportPercent, setMushafImportPercent] = useState(0);
   const mushafFileRef = useRef<HTMLInputElement | null>(null);
   const dockRef = useRef<HTMLElement | null>(null);
+  const rawPrefsRef = useRef<Record<string, unknown>>({});
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     if (!open) return;
     supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const raw = (data?.preferences ?? {}) as Record<string, unknown>;
+      const serverRaw = (data?.preferences ?? {}) as Record<string, unknown>;
+      let raw = serverRaw;
+      if (scope === "quran") {
+        try {
+          const local = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
+          raw = { ...serverRaw, ...local };
+        } catch {}
+      }
+      rawPrefsRef.current = raw;
       const next = readScopedPrefs(raw, scope);
       setPrefs(next);
       applyPrefs(next, scope);
@@ -116,31 +140,33 @@ export function LibrarySettingsModal({
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [open, onClose]);
 
-  async function update(next: Prefs) {
+  function update(next: Prefs) {
     setPrefs(next);
     applyPrefs(next, scope);
 
-    const { data } = await supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle();
-
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
     const scoped = {
       [scopeKey(scope,"fontScale")]: next.fontScale,
       [scopeKey(scope,"showArabic")]: next.showArabic,
       [scopeKey(scope,"showLatin")]: next.showLatin,
       [scopeKey(scope,"showTurkish")]: next.showTurkish,
     };
+    const snapshot: Record<string, unknown> = {
+      ...rawPrefsRef.current,
+      ...next,
+      ...scoped,
+      quranEasyRead: false,
+    };
+    rawPrefsRef.current = snapshot;
 
-    await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: {
-        ...old,
-        ...next,
-        ...scoped,
-      },
-    });
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const { error } = await supabase.from("user_preferences").upsert({
+          owner_id: user.id,
+          preferences: snapshot,
+        });
+        if (error) console.error("Preferences could not be saved", error);
+      });
   }
 
   async function importMushafFile(file: File | null) {
@@ -207,12 +233,48 @@ export function LibrarySettingsModal({
           <>
         <div className="settingSectionTitle">Kur’an sayfası</div>
 
-        <div className="settingRow">
+        <div className="settingRow quranPrimarySetting">
           <span>Yazı boyutu</span>
           <div className="fontControls">
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
             <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
+          </div>
+        </div>
+
+        <div className="settingRow quranPrimarySetting quranThinSetting">
+          <span>Harfleri incelt</span>
+          <div className="quranThinControl">
+            <span>Normal</span>
+            <input
+              type="range"
+              min={0}
+              max={3}
+              step={1}
+              value={prefs.quranStrokeThin}
+              onChange={e => update({...prefs,quranStrokeThin:Number(e.target.value)})}
+            />
+            <span>Çok ince</span>
+          </div>
+        </div>
+
+        <div className="settingRow quranPrimarySetting">
+          <span>Sayfa arka planı</span>
+          <div className="quranThemeChoices">
+            {([
+              ["paper","Krem"],
+              ["white","Beyaz"],
+              ["sepia","Sarı"],
+              ["dark","Karanlık"],
+            ] as const).map(([value,label]) => (
+              <button
+                key={value}
+                className={"quranThemeChip " + (prefs.quranPageTheme === value ? "active" : "")}
+                onClick={() => update({...prefs,quranPageTheme:value})}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -262,42 +324,6 @@ export function LibrarySettingsModal({
             <option value="Calibri">Calibri</option>
             <option value="Calibri Light">Calibri Light</option>
           </select>
-        </div>
-
-        <div className="settingRow quranWeightSetting">
-          <span>Arapça yazı kalınlığı</span>
-          <div className="quranWeightControl">
-            <span>İnce</span>
-            <input
-              type="range"
-              min={1}
-              max={500}
-              step={25}
-              value={prefs.quranFontWeight}
-              onChange={e => update({...prefs,quranFontWeight:Number(e.target.value)})}
-            />
-            <span>Kalın</span>
-          </div>
-        </div>
-
-        <div className="settingRow">
-          <span>Kur’an sayfa rengi</span>
-          <div className="quranThemeChoices">
-            {([
-              ["paper","Krem"],
-              ["white","Beyaz"],
-              ["sepia","Sarı"],
-              ["dark","Karanlık"],
-            ] as const).map(([value,label]) => (
-              <button
-                key={value}
-                className={"quranThemeChip " + (prefs.quranPageTheme === value ? "active" : "")}
-                onClick={() => update({...prefs,quranPageTheme:value})}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="settingRow">
