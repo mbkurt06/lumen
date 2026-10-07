@@ -4,10 +4,7 @@ import JSZip from "jszip";
 import { supabase } from "@/lib/supabase/client";
 
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-const PR = "http://schemas.openxmlformats.org/package/2006/relationships";
 const SOURCE_KEY = "istanbul_mushaf_docx";
-const EXACT_FONT_FAMILY = "LumenExactMushaf";
 
 export type QuranMushafRun = {
   text: string;
@@ -147,122 +144,6 @@ async function sha256Hex(buffer: ArrayBuffer) {
   return Array.from(new Uint8Array(hash)).map(v => v.toString(16).padStart(2, "0")).join("");
 }
 
-function base64FromBytes(bytes: Uint8Array) {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-function bytesFromBase64(base64: string) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-function guidBytesLittleEndian(guid: string) {
-  const hex = guid.replace(/[{}-]/g, "");
-  if (hex.length !== 32) throw new Error("Word font anahtarı geçersiz.");
-  const raw = new Uint8Array(16);
-  for (let i = 0; i < 16; i += 1) raw[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  return new Uint8Array([
-    raw[3], raw[2], raw[1], raw[0],
-    raw[5], raw[4],
-    raw[7], raw[6],
-    raw[8], raw[9], raw[10], raw[11], raw[12], raw[13], raw[14], raw[15],
-  ]);
-}
-
-function deobfuscateOdttf(buffer: ArrayBuffer, fontKey: string) {
-  const bytes = new Uint8Array(buffer.slice(0));
-  const key = guidBytesLittleEndian(fontKey);
-  const limit = Math.min(32, bytes.length);
-  for (let i = 0; i < limit; i += 1) bytes[i] ^= key[i % 16];
-  return bytes;
-}
-
-async function extractExactEmbeddedMushafFont(zip: JSZip, fontTableXml?: string) {
-  if (!fontTableXml) return null;
-  const fontXml = new DOMParser().parseFromString(fontTableXml, "application/xml");
-  const relsText = await zip.file("word/_rels/fontTable.xml.rels")?.async("string");
-  if (!relsText) return null;
-  const relsXml = new DOMParser().parseFromString(relsText, "application/xml");
-
-  const fonts = Array.from(fontXml.getElementsByTagNameNS(W, "font"));
-  const preferred = fonts.find(font => (attr(font, "name") || "").trim() === "Shaikh Hamdullah Mushaf")
-    ?? fonts.find(font => /Hamdullah.*Mushaf/i.test(attr(font, "name") || ""));
-
-  if (!preferred) return null;
-
-  const fontName = (attr(preferred, "name") || "Shaikh Hamdullah Mushaf").trim();
-  const embed = Array.from(preferred.children).find(el =>
-    el.namespaceURI === W && ["embedRegular","embedBold","embedItalic","embedBoldItalic"].includes(el.localName)
-  );
-  if (!embed) return null;
-
-  const relId = embed.getAttributeNS(R, "id") || embed.getAttribute("r:id");
-  const fontKey = attr(embed, "fontKey");
-  if (!relId || !fontKey) return null;
-
-  const relationship = Array.from(relsXml.getElementsByTagNameNS(PR, "Relationship"))
-    .find(rel => rel.getAttribute("Id") === relId);
-  const target = relationship?.getAttribute("Target");
-  if (!target) return null;
-
-  const normalizedTarget = target.replace(/^\.\.\//, "");
-  const path = normalizedTarget.startsWith("word/") ? normalizedTarget : "word/" + normalizedTarget;
-  const file = zip.file(path);
-  if (!file) return null;
-
-  const obfuscated = await file.async("arraybuffer");
-  const decoded = deobfuscateOdttf(obfuscated, fontKey);
-
-  return {
-    fontName,
-    fontKey,
-    base64: base64FromBytes(decoded),
-    mime: "font/ttf",
-  };
-}
-
-let exactFontPromise: Promise<boolean> | null = null;
-
-export function ensureExactMushafFont() {
-  if (typeof window === "undefined" || typeof FontFace === "undefined") return Promise.resolve(false);
-  if (document.fonts.check(`16px "${EXACT_FONT_FAMILY}"`)) return Promise.resolve(true);
-  if (exactFontPromise) return exactFontPromise;
-
-  exactFontPromise = (async () => {
-    const { data, error } = await supabase
-      .from("quran_mushaf_sources")
-      .select("embedded_font_base64,embedded_font_mime")
-      .eq("source_key", SOURCE_KEY)
-      .maybeSingle();
-
-    if (error || !data?.embedded_font_base64) return false;
-
-    const bytes = bytesFromBase64(data.embedded_font_base64);
-    const blob = new Blob([bytes], { type: data.embedded_font_mime || "font/ttf" });
-    const url = URL.createObjectURL(blob);
-    try {
-      const face = new FontFace(EXACT_FONT_FAMILY, `url("${url}")`, { style: "normal", weight: "100 900" });
-      await face.load();
-      document.fonts.add(face);
-      document.documentElement.style.setProperty("--quran-exact-font-family", JSON.stringify(EXACT_FONT_FAMILY));
-      return true;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  })().finally(() => {
-    exactFontPromise = null;
-  });
-
-  return exactFontPromise;
-}
-
 async function fetchQuranNodeMap() {
   const byVerse = new Map<string, string>();
   const pageJuz = new Map<number, number>();
@@ -308,7 +189,6 @@ export async function importQuranMushafDocx(
   const documentXml = await zip.file("word/document.xml")?.async("string");
   const stylesXml = await zip.file("word/styles.xml")?.async("string");
   const fontTableXml = await zip.file("word/fontTable.xml")?.async("string");
-  const exactEmbeddedFont = await extractExactEmbeddedMushafFont(zip, fontTableXml);
   const settingsXml = await zip.file("word/settings.xml")?.async("string");
   const themeXml = await zip.file("word/theme/theme1.xml")?.async("string");
 
@@ -457,9 +337,7 @@ export async function importQuranMushafDocx(
     paragraphStyles: ["mshfKuranMetni", "mshfSureBal", "mshfBesmele"],
     characterStyles: ["mshfAyetNo", "mshfSureAd"],
     primaryFont: "Shaikh Hamdullah Mushaf",
-    exactBrowserFontFamily: EXACT_FONT_FAMILY,
-    embeddedFontPresentInSource: !!exactEmbeddedFont,
-    note: "Görünür karakterler, Word run sınırları, ayet numarası karakterleri, sayfa kırımları ve Word içindeki gömülü Mushaf fontu aynen korunmuştur.",
+    note: "Görünür karakterler, Word run sınırları, ayet numarası karakterleri, sayfa kırımları ve stil kimlikleri aynen korunmuştur.",
   };
 
   progress("Eski Word-Mushaf sayfa kayıtları temizleniyor…", 35);
@@ -482,10 +360,6 @@ export async function importQuranMushafDocx(
     font_table_xml: fontTableXml ?? null,
     settings_xml: settingsXml ?? null,
     theme_xml: themeXml ?? null,
-    embedded_font_name: exactEmbeddedFont?.fontName ?? null,
-    embedded_font_mime: exactEmbeddedFont?.mime ?? null,
-    embedded_font_base64: exactEmbeddedFont?.base64 ?? null,
-    embedded_font_key: exactEmbeddedFont?.fontKey ?? null,
     metadata: sourceMeta,
     updated_at: new Date().toISOString(),
   };
@@ -537,7 +411,6 @@ export async function importQuranMushafDocx(
     );
   }
 
-  if (exactEmbeddedFont) await ensureExactMushafFont();
   progress("Word Mushaf içe aktarma tamamlandı.", 100);
   window.dispatchEvent(new CustomEvent("lumen-quran-mushaf-imported", {
     detail: { sourceKey: SOURCE_KEY, sha256: fileSha256, pages: 604 },
