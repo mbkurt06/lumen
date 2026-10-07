@@ -2,6 +2,7 @@
 
 import JSZip from "jszip";
 import { supabase } from "@/lib/supabase/client";
+import { getCachedQuranMushafPage, putStaticRows } from "@/lib/localContentDb";
 
 const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -935,13 +936,17 @@ export async function importQuranMushafDocx(
 }
 
 export async function loadQuranMushafPage(wordPage: number): Promise<QuranMushafPage | null> {
+  const cached = await getCachedQuranMushafPage(SOURCE_KEY, wordPage).catch(() => null);
+  if (cached) return cached as QuranMushafPage;
+
   const { data, error } = await supabase
     .from("quran_mushaf_pages")
-    .select("word_page,display_page,surah_numbers,juz,plain_text,rich_content,metadata")
+    .select("id,source_key,word_page,display_page,surah_numbers,juz,plain_text,rich_content,source_sha256,metadata,created_at,updated_at")
     .eq("source_key", SOURCE_KEY)
     .eq("word_page", wordPage)
     .maybeSingle();
 
   if (error) throw error;
+  if (data) void putStaticRows("quran_mushaf_pages",[data]).catch(() => {});
   return data as QuranMushafPage | null;
 }
