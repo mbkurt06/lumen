@@ -120,7 +120,7 @@ function eventTime(event: CalendarEvent) {
   return to ? `${from}–${to}` : from;
 }
 
-export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | Promise<void> }) {
+export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: Todo) => void | Promise<void>; compact?: boolean }) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -376,7 +376,7 @@ export function TodoList({ onOpenTodo }: { onOpenTodo?: (todo: Todo) => void | P
   }
 
   return (
-    <section className="todoPage card" onPointerDown={e => { if (e.target === e.currentTarget) setEditMenu(null); }}>
+    <section className={"todoPage card " + (compact ? "todoPageCompact" : "")} onPointerDown={e => { if (e.target === e.currentTarget) setEditMenu(null); }}>
       <div className="todoPageHead">
         <h2>Günlük Todo</h2>
         <span>{completedCount} / {totalCount}</span>
