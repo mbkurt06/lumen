@@ -5878,3 +5878,59 @@ body.hideArabic .quranReaderRawDebugText{
 .librarySettingsModal .settingRow + .settingRow{
   margin-top:6px;
 }
+
+
+/* Quran pronunciation follows the mouse in small text chunks instead of using
+   a separate Latin-reading panel. The diacritics in the Latin cue mark tajwid-
+   relevant articulation: ṣ/ḍ/ṭ/ẓ/ḳ (heavy), s̱/ẕ (interdental), ḥ/ḫ/ġ/ʿ (makhraj). */
+.quranPronunciationChunk{
+  position:relative;
+  display:inline;
+  border-radius:.16em;
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+  transition:background .1s ease, box-shadow .1s ease;
+}
+body:not(.quranHideLatin) .quranPronunciationChunk:hover{
+  background:rgba(103,163,203,.20);
+  box-shadow:inset 0 0 0 1px rgba(63,113,145,.28);
+}
+body:not(.quranHideLatin) .quranPronunciationChunk:hover::after{
+  content:attr(data-pronunciation);
+  position:absolute;
+  left:50%;
+  bottom:calc(100% + .12em);
+  transform:translateX(-50%);
+  z-index:80;
+  width:max-content;
+  max-width:min(320px,70vw);
+  padding:3px 7px;
+  border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border));
+  border-radius:6px;
+  background:color-mix(in srgb,var(--quran-page-bg,#f6f3ed) 94%,white);
+  color:var(--quran-page-fg,#171717);
+  box-shadow:0 3px 10px #0000001f;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  font-size:10px!important;
+  font-weight:650!important;
+  line-height:1.15!important;
+  letter-spacing:.01em!important;
+  white-space:nowrap;
+  pointer-events:none;
+  direction:ltr;
+  unicode-bidi:isolate;
+}
+body.quranHideLatin .quranPronunciationChunk{
+  background:transparent!important;
+  box-shadow:none!important;
+}
+body[data-quran-page-theme="dark"]:not(.quranHideLatin) .quranPronunciationChunk:hover::after{
+  background:#242824;
+  color:#f4f1e8;
+  border-color:#596059;
+}
+@media (hover:none), (pointer:coarse){
+  body:not(.quranHideLatin) .quranPronunciationChunk:active{
+    background:rgba(103,163,203,.20);
+  }
+}
