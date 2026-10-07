@@ -2,6 +2,27 @@ const $=s=>document.querySelector(s);
 const EMBEDDED=new URLSearchParams(location.search).get("embedded")==="1";
 const FORCED_VIEW=new URLSearchParams(location.search).get("view")||"";
 if(EMBEDDED)document.body.classList.add("embedded-mode");
+function applySharedLibraryPrefs(prefs){
+  if(!prefs)return;
+  if(prefs.theme==="dark"||prefs.theme==="light")state.settings.dark=prefs.theme==="dark";
+  if(Number.isFinite(Number(prefs.fontScale)))state.settings.fontSize=Math.max(20,Math.min(52,Math.round(32*Number(prefs.fontScale))));
+  if(typeof prefs.showArabic==="boolean")state.settings.showArabic=prefs.showArabic;
+  if(typeof prefs.showLatin==="boolean")state.settings.showLatin=prefs.showLatin;
+  if(typeof prefs.showTurkish==="boolean")state.settings.showTurkish=prefs.showTurkish;
+  applySettings();
+  if(dua){render();renderRead()}
+  save();
+}
+function requestSharedPrefUpdate(patch){
+  if(!EMBEDDED)return false;
+  parent.postMessage({type:"lumen-update-library-prefs",patch},location.origin);
+  return true;
+}
+addEventListener("message",e=>{
+  if(e.origin!==location.origin)return;
+  if(e.data?.type==="lumen-library-prefs")applySharedLibraryPrefs(e.data.prefs);
+});
+
 const state=JSON.parse(localStorage.getItem("duaEzberState")||"{}");
 state.settings=Object.assign({dark:false,fontSize:32,showArabic:false,showLatin:true,showTurkish:false,showNotes:true,mode:"memorize"},state.settings||{});state.readCounts=state.readCounts||{};
 let data,dua,index=state.index||0;const counts=state.counts||{};
@@ -32,7 +53,11 @@ async function init(){
   if(EMBEDDED&&window.duaV2Db?.loadMainTodos){
     try{todos=await window.duaV2Db.loadMainTodos(data);localStorage.setItem("duaTodoState",JSON.stringify(todos))}catch(err){console.error("Todo load:",err)}
   }
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(FORCED_VIEW==="listening"){openListening()}else if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=99").then(r=>r.update())
+  if(EMBEDDED){
+    const sharedTheme=localStorage.getItem("lumen-theme");
+    if(sharedTheme==="dark"||sharedTheme==="light")state.settings.dark=sharedTheme==="dark";
+  }
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(FORCED_VIEW==="listening"){openListening()}else if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=100").then(r=>r.update())
 }
 function migrateLegacyViewState(){
   const map={
@@ -907,7 +932,11 @@ function openCategory(cat){
 };
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$("#"+b.dataset.close).close());
 if($("#resetBtn"))$("#resetBtn").onclick=()=>{if(state.settings.mode==="read"){state.readCounts[dua.id]=0;applyMode()}else{counts[key()]=0;render()}};
-$("#themeToggle").onclick=()=>{state.settings.dark=!state.settings.dark;applySettings();save()};
+$("#themeToggle").onclick=()=>{
+  const next=!state.settings.dark;
+  if(requestSharedPrefUpdate({theme:next?"dark":"light"}))return;
+  state.settings.dark=next;applySettings();save()
+};
 $("#restoreHiddenMenusBtn").onclick=()=>{
   localStorage.removeItem(HIDDEN_HOME_KEY);
   localStorage.removeItem(HIDDEN_LIBRARY_KEY);
@@ -915,13 +944,24 @@ $("#restoreHiddenMenusBtn").onclick=()=>{
   if(state.currentView==="library"&&state.libraryCategory)openCategory(state.libraryCategory);
   $("#settingsDialog").close();
 };
-function toggleTextMode(key){const on=["showArabic","showLatin","showTurkish"].filter(k=>state.settings[k]).length;if(state.settings[key]&&on===1)return;state.settings[key]=!state.settings[key];applySettings();renderRead();save()}
+function toggleTextMode(key){
+  const on=["showArabic","showLatin","showTurkish"].filter(k=>state.settings[k]).length;
+  if(state.settings[key]&&on===1)return;
+  const next=!state.settings[key];
+  const sharedKey={showArabic:"showArabic",showLatin:"showLatin",showTurkish:"showTurkish"}[key];
+  if(sharedKey&&requestSharedPrefUpdate({[sharedKey]:next}))return;
+  state.settings[key]=next;applySettings();renderRead();save()
+}
 $("#arabicToggle").onclick=()=>toggleTextMode("showArabic");
 $("#latinToggle").onclick=()=>toggleTextMode("showLatin");
 $("#turkishToggle").onclick=()=>toggleTextMode("showTurkish");
 $("#notesToggle").onclick=()=>{state.settings.showNotes=!state.settings.showNotes;applySettings();render();renderRead();save()};
 $("#fontDown").onclick=()=>setFont(state.settings.fontSize-3);$("#fontUp").onclick=()=>setFont(state.settings.fontSize+3);$("#fontReset").onclick=()=>setFont(32);
-function setFont(n){state.settings.fontSize=Math.max(20,Math.min(52,n));applySettings();save()}
+function setFont(n){
+  const next=Math.max(20,Math.min(52,n));
+  if(requestSharedPrefUpdate({fontScale:Number((next/32).toFixed(2))}))return;
+  state.settings.fontSize=next;applySettings();save()
+}
 const counter=$("#counter");let timer=null,dragging=false,startX=0,startY=0,offsetX=0,offsetY=0,counterResetShown=false,counterPointerActive=false,counterPointerId=null,pendingSmallReset=null;
 function hideCounterResetPopover(){
   const p=$("#counterResetPopover");if(!p)return;
