@@ -9,9 +9,10 @@ import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 import { DuaListeningEmbed } from "@/components/DuaListeningEmbed";
+import { CalendarView } from "@/components/CalendarView";
 import { supabase } from "@/lib/supabase/client";
 
-type Tab = "todos" | "library" | "settings";
+type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
 
 export function AppShell({
@@ -30,6 +31,7 @@ export function AppShell({
   const [returnEzberRoot, setReturnEzberRoot] = useState<EzberItem | null>(null);
   const [returnToEzber, setReturnToEzber] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     try {
@@ -43,6 +45,7 @@ export function AppShell({
         if (typeof state.initialSegmentIndex === "number") setInitialSegmentIndex(state.initialSegmentIndex);
         if (state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
         if (typeof state.returnToEzber === "boolean") setReturnToEzber(state.returnToEzber);
+        if (typeof state.sidebarOpen === "boolean") setSidebarOpen(state.sidebarOpen);
       }
     } catch {}
     setRestored(true);
@@ -134,8 +137,9 @@ export function AppShell({
       initialSegmentIndex,
       returnEzberRoot,
       returnToEzber,
+      sidebarOpen,
     }));
-  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber]);
+  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, sidebarOpen]);
 
   async function openTodoSource(todo: {
     related_library_item_id: string | null;
@@ -228,36 +232,51 @@ export function AppShell({
   if (!restored) return <div className="appRestoreBlank" />;
 
   return (
-    <div className="appShell">
+    <div className={"appShell " + (sidebarOpen ? "sidebarOpen" : "sidebarClosed")}>
+      {!sidebarOpen && (
+        <button className="sidebarReopen" onClick={() => setSidebarOpen(true)} aria-label="Menüyü aç" title="Menüyü aç">☰</button>
+      )}
+      {sidebarOpen && <button className="sidebarBackdrop" onClick={() => setSidebarOpen(false)} aria-label="Menüyü kapat" />}
+
       <aside className="sidebar">
-        <div className="brand">Lumen</div>
+        <div className="brandRow">
+          <div className="brand">Lumen</div>
+          <button className="sidebarCollapseButton" onClick={() => setSidebarOpen(false)} aria-label="Menüyü gizle" title="Menüyü gizle">☰</button>
+        </div>
 
         <nav className="nav">
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => setTab("todos")}
           >
-            TODO
+            <span className="navIcon">✓</span><span>TODO</span>
           </button>
 
           <button
             className={"navButton " + (tab === "library" ? "active" : "")}
             onClick={openLibraryHome}
           >
-            Kütüphane
+            <span className="navIcon">▤</span><span>Kütüphane</span>
+          </button>
+
+          <button
+            className={"navButton " + (tab === "calendar" ? "active" : "")}
+            onClick={() => setTab("calendar")}
+          >
+            <span className="navIcon">▦</span><span>Takvim</span>
           </button>
 
           <button
             className={"navButton " + (tab === "settings" ? "active" : "")}
             onClick={() => setTab("settings")}
           >
-            Ayarlar
+            <span className="navIcon">⚙</span><span>Ayarlar</span>
           </button>
         </nav>
       </aside>
 
       <main className="mainPane">
-        {tab !== "library" && (
+        {tab !== "library" && tab !== "calendar" && (
           <header className="topbar">
             <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>
             <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
@@ -331,6 +350,8 @@ export function AppShell({
               onBack={() => setLibraryMode("read")}
             />
           )}
+
+          {tab === "calendar" && <CalendarView user={user} />}
 
           {tab === "settings" && (
             <SettingsView user={user} onSignOut={onSignOut} />
