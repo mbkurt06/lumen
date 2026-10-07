@@ -741,7 +741,7 @@ export function ReaderView({
 
     if (isQuranDocument) {
       const startPage = Math.max(1, Number(itemMeta.start_page || 1));
-      const endPage = Math.min(604, Math.max(startPage, Number(itemMeta.end_page || startPage)));
+      const endPage = Math.min(605, Math.max(startPage, Number(itemMeta.end_page || startPage)));
       setQuranPageMin(startPage);
       setQuranPageMax(endPage);
 
