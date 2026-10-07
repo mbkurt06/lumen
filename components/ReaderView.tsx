@@ -9,6 +9,7 @@ import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
 import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
+import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 
 type Item = {
   id: string;
@@ -388,16 +389,24 @@ export function ReaderView({
   }, []);
 
   const fetchQuranPage = useCallback(async (page:number) => {
-    const cached = quranPageCache.current.get(page);
-    if (cached) return cached;
+    const memoryCached = quranPageCache.current.get(page);
+    if (memoryCached) return memoryCached;
+
+    const localCached = await getCachedQuranNodesByPage(page).catch(() => []);
+    if (localCached.length) {
+      const loaded = localCached as Node[];
+      quranPageCache.current.set(page, loaded);
+      return loaded;
+    }
 
     const { data, error } = await supabase
       .from("content_nodes")
-      .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+      .select("id,owner_id,document_id,parent_id,kind,title,text_content,secondary_text,translation,metadata,sort_order,created_at,updated_at")
       .eq("metadata->>source", "quran_seeded")
       .eq("metadata->>page", String(page));
 
     if (error) throw error;
+    if (data?.length) void putStaticRows("content_nodes",data).catch(() => {});
 
     const loaded = (data ?? []).sort((a,b) => {
       const am=(a.metadata ?? {}) as Record<string,any>;
@@ -513,19 +522,23 @@ export function ReaderView({
       return;
     }
 
-    const { data, error } = await supabase
-      .from("content_nodes")
-      .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-      .eq("document_id", item.id)
-      .order("sort_order");
+    let loaded = await getCachedContentByDocument(item.id).catch(() => []) as Node[];
+    if (!loaded.length) {
+      const { data, error } = await supabase
+        .from("content_nodes")
+        .select("id,owner_id,document_id,parent_id,kind,title,text_content,secondary_text,translation,metadata,sort_order,created_at,updated_at")
+        .eq("document_id", item.id)
+        .order("sort_order");
 
-    if (error) {
-      setMessage(error.message);
-      setNodes([]);
-      return;
+      if (error) {
+        setMessage(error.message);
+        setNodes([]);
+        return;
+      }
+
+      loaded = (data ?? []) as Node[];
+      if (data?.length) void putStaticRows("content_nodes",data).catch(() => {});
     }
-
-    const loaded = data ?? [];
     setNodes(loaded);
     setLocalCounts(getTransientCounts(item.id));
 
