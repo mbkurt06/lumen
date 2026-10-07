@@ -36,6 +36,7 @@ async function fetchRows(table:StaticTable,after:string|null){
       .from(table)
       .select("*")
       .order("updated_at",{ascending:true})
+      .order("id",{ascending:true})
       .range(from,from+PAGE_SIZE-1);
 
     if(after) query=query.gt("updated_at",after);
@@ -73,11 +74,19 @@ async function incrementalSync(table:StaticTable,local:Fingerprint,remote:Finger
 
 let syncPromise:Promise<void>|null=null;
 
-export function syncStaticContentInBackground(){
+export function syncStaticContentInBackground(ownerId:string){
   if(typeof window==="undefined") return Promise.resolve();
   if(syncPromise) return syncPromise;
 
   syncPromise=(async()=>{
+    const cachedOwner=await getMeta<string>("cache_owner_id");
+    if(cachedOwner && cachedOwner!==ownerId){
+      for(const table of TABLES) await clearStaticStore(table);
+      for(const table of TABLES) await setMeta(`fingerprint:${table}`,null);
+      await setMeta("initial_sync_complete",false);
+    }
+    await setMeta("cache_owner_id",ownerId);
+
     window.dispatchEvent(new CustomEvent("lumen-static-sync",{detail:{state:"checking"}}));
 
     for(const table of TABLES){
