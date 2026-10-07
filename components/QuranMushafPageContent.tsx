@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
+import { loadTurkishQuranTranscription } from "@/lib/quranTranscription";
 
 type RenderGroup = {
   nodeId?: string;
@@ -42,78 +43,6 @@ function runClass(run: QuranMushafRun) {
   return classes.join(" ");
 }
 
-const FATIHA_WORD_PRONUNCIATION: Record<string,string> = {
-  "بسم":"Bismillâh",
-  "الله":"lillâhi",
-  "الرحمن":"er-Rahmân",
-  "الرحيم":"er-Rahîm",
-  "الحمد":"Elhamdü",
-  "لله":"lillâhi",
-  "رب":"rabbi",
-  "العالمين":"l-âlemîn",
-  "مالك":"mâliki",
-  "يوم":"yevmi",
-  "الدين":"d-dîn",
-  "اياك":"iyyâke",
-  "نعبد":"na'büdü",
-  "واياك":"ve iyyâke",
-  "نستعين":"neste'în",
-  "اهدنا":"ihdinâ",
-  "الصراط":"s-sırâta",
-  "المستقيم":"l-müstakîm",
-  "صراط":"sırâta",
-  "الذين":"llezîne",
-  "انعمت":"en'amte",
-  "عليهم":"aleyhim",
-  "غير":"gayri",
-  "المغضوب":"l-mağdûbi",
-  "ولا":"ve le",
-  "الضالين":"d-dâllîn",
-};
-
-function normalizeArabicToken(value:string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")
-    .replace(/[إأٱآ]/g,"ا")
-    .replace(/[ؤ]/g,"و")
-    .replace(/[ئ]/g,"ي")
-    .replace(/[ى]/g,"ي")
-    .replace(/[^ء-ي]/g,"");
-}
-
-function pronunciationPieces(run: QuranMushafRun) {
-  if (run.surahNo !== 1 || run.marker || run.runStyle === "mshfAyetNo" || run.runStyle === "mshfSureAd") {
-    return [{text:run.text}];
-  }
-
-  const tokens = run.text.match(/\s+|\S+/g) ?? [run.text];
-  return tokens.map(token => {
-    if (/^\s+$/.test(token)) return {text:token};
-    const normalized = normalizeArabicToken(token);
-    return {
-      text:token,
-      pronunciation:FATIHA_WORD_PRONUNCIATION[normalized] || undefined,
-    };
-  });
-}
-
-const FATIHA_AYAH_PRONUNCIATION = [
-  "",
-  "Bismillâhirrahmânirrahîm",
-  "Elhamdü lillâhi rabbil âlemîn",
-  "Errahmânirrahîm",
-  "Mâliki yevmiddîn",
-  "İyyâke na'büdü ve iyyâke neste'în",
-  "İhdinessırâtal müstakîm",
-  "Sırâtallezîne en'amte aleyhim gayril mağdûbi aleyhim ve leddâllîn",
-];
-
-function fullAyahPronunciation(surahNo?: number, ayahNo?: number) {
-  if (surahNo !== 1 || !ayahNo) return "";
-  return FATIHA_AYAH_PRONUNCIATION[ayahNo] || "";
-}
-
 function RunContent({ run }: { run: QuranMushafRun }) {
   return (
     <span
@@ -122,15 +51,7 @@ function RunContent({ run }: { run: QuranMushafRun }) {
       data-word-font={run.font || undefined}
       lang={run.lang || undefined}
     >
-      {pronunciationPieces(run).map((piece,index) => piece.pronunciation ? (
-        <span
-          key={index}
-          className="quranPronunciationChunk"
-          data-pronunciation={piece.pronunciation}
-        >
-          {piece.text}
-        </span>
-      ) : piece.text)}
+      {run.text}
     </span>
   );
 }
@@ -150,6 +71,47 @@ export function QuranMushafPageContent({
     x: number;
     y: number;
   } | null>(null);
+  const [pronunciations, setPronunciations] = useState<Record<string,string>>({});
+
+  const surahNumbers = useMemo(() => {
+    const values = new Set<number>();
+    for (const paragraph of page.rich_content?.paragraphs ?? []) {
+      for (const run of paragraph.runs ?? []) {
+        const surahNo = Number(run.surahNo || 0);
+        if (surahNo > 0) values.add(surahNo);
+      }
+    }
+    return Array.from(values);
+  }, [page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      surahNumbers.map(async surahNo => {
+        try {
+          const rows = await loadTurkishQuranTranscription(surahNo);
+          return [surahNo, rows] as const;
+        } catch {
+          return [surahNo, {} as Record<number,string>] as const;
+        }
+      })
+    ).then(all => {
+      if (cancelled) return;
+      const next:Record<string,string> = {};
+      for (const [surahNo, rows] of all) {
+        for (const [ayahNo, text] of Object.entries(rows)) {
+          if (text) next[`${surahNo}:${ayahNo}`] = text;
+        }
+      }
+      setPronunciations(next);
+    });
+    return () => { cancelled = true; };
+  }, [surahNumbers]);
+
+  const fullAyahPronunciation = (surahNo?:number, ayahNo?:number) => {
+    if (!surahNo || !ayahNo) return "";
+    return pronunciations[`${surahNo}:${ayahNo}`] || "";
+  };
 
   if (!exactWordCharacters) {
     return (
