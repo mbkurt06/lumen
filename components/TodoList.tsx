@@ -16,6 +16,18 @@ type Todo = {
 
 type TodoMeta = {
   description?: string;
+  quran?: {
+    tracking?: boolean;
+    position?: {
+      nodeId?: string;
+      page?: number;
+      juz?: number;
+      surahTitle?: string;
+      surahNo?: number;
+      ayahNo?: number;
+      updatedAt?: string;
+    };
+  };
   schedule?: {
     mode?: "single" | "range" | "days" | "forever";
     startDate?: string;
@@ -430,6 +442,14 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
           {done && <div className="todoCompletedCheck">✓</div>}
           <div className="todoMain">
             <strong>{todo.title}</strong>
+            {meta.quran?.tracking && meta.quran.position && (
+              <p className="todoQuranPosition">
+                🔖 Kaldığın yer: Sayfa {meta.quran.position.page || "—"}
+                {meta.quran.position.juz ? ` · Cüz ${meta.quran.position.juz}` : ""}
+                {meta.quran.position.surahTitle ? ` · ${meta.quran.position.surahTitle}` : ""}
+                {meta.quran.position.ayahNo ? ` ${meta.quran.position.ayahNo}. ayet` : ""}
+              </p>
+            )}
             {meta.description && <p>{meta.description}</p>}
           </div>
           <div
