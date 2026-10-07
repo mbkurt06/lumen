@@ -160,6 +160,27 @@ export function CalendarView({ user }: { user: User }) {
     if (savedView === "year" || savedView === "month" || savedView === "week" || savedView === "3day" || savedView === "day" || savedView === "list") {
       setView(savedView);
     }
+
+    const savedListRange = prefs.calendarListRange;
+    if (
+      savedListRange === "day" ||
+      savedListRange === "week" ||
+      savedListRange === "month" ||
+      savedListRange === "year" ||
+      savedListRange === "remainingYear" ||
+      savedListRange === "custom"
+    ) {
+      setListRange(savedListRange);
+    }
+
+    if (typeof prefs.calendarAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(prefs.calendarAnchor)) {
+      const restoredAnchor = new Date(prefs.calendarAnchor + "T12:00:00");
+      if (!Number.isNaN(restoredAnchor.getTime())) setAnchor(restoredAnchor);
+    }
+
+    if (typeof prefs.calendarCustomStart === "string") setCustomStart(prefs.calendarCustomStart);
+    if (typeof prefs.calendarCustomEnd === "string") setCustomEnd(prefs.calendarCustomEnd);
+    if (typeof prefs.calendarSourcesOpen === "boolean") setSourcePanelOpen(prefs.calendarSourcesOpen);
     if (prefs.calendarMonthDensity === "compact" || prefs.calendarMonthDensity === "comfortable") {
       setMonthDensity(prefs.calendarMonthDensity);
     }
@@ -384,22 +405,40 @@ export function CalendarView({ user }: { user: User }) {
 
   function setViewAndSave(next: ViewMode) {
     setView(next);
+    let nextAnchor = anchor;
+
     if (next === "list" && listRange === "year") {
-      setAnchor(new Date());
+      nextAnchor = new Date();
+      setAnchor(nextAnchor);
       setYearlyAutoScrollPending(true);
     }
-    void saveCalendarPrefs(hiddenKeys, next);
+
+    void saveViewPrefs({
+      calendarView: next,
+      calendarListRange: listRange,
+      calendarAnchor: localDateKey(nextAnchor),
+    });
   }
 
   function setListRangeAndScroll(next: ListRange) {
     setListRange(next);
+    let nextAnchor = anchor;
+
     if (next === "year") {
-      setAnchor(new Date());
+      nextAnchor = new Date();
+      setAnchor(nextAnchor);
       setYearlyAutoScrollPending(true);
     } else if (next === "remainingYear") {
-      setAnchor(new Date());
+      nextAnchor = new Date();
+      setAnchor(nextAnchor);
       setYearlyAutoScrollPending(false);
     }
+
+    void saveViewPrefs({
+      calendarView: "list",
+      calendarListRange: next,
+      calendarAnchor: localDateKey(nextAnchor),
+    });
   }
 
   useEffect(() => {
@@ -416,15 +455,32 @@ export function CalendarView({ user }: { user: User }) {
   }, [yearlyAutoScrollPending, view, listRange, loadingEvents, events.length]);
 
   function move(delta: number) {
-    if (view === "year") setAnchor(new Date(anchor.getFullYear() + delta, anchor.getMonth(), 1));
-    else if (view === "month") setAnchor(addMonths(anchor, delta));
-    else if (view === "week") setAnchor(addDays(anchor, delta * 7));
-    else if (view === "3day") setAnchor(addDays(anchor, delta * 3));
-    else if (view === "day") setAnchor(addDays(anchor, delta));
+    let next: Date;
+    if (view === "year") next = new Date(anchor.getFullYear() + delta, anchor.getMonth(), 1);
+    else if (view === "month") next = addMonths(anchor, delta);
+    else if (view === "week") next = addDays(anchor, delta * 7);
+    else if (view === "3day") next = addDays(anchor, delta * 3);
+    else if (view === "day") next = addDays(anchor, delta);
     else {
       const step = listRange === "year" ? 365 : listRange === "remainingYear" ? 365 : listRange === "month" ? 31 : listRange === "week" ? 7 : 1;
-      setAnchor(addDays(anchor, delta * step));
+      next = addDays(anchor, delta * step);
     }
+    setAnchor(next);
+    void saveViewPrefs({ calendarAnchor: localDateKey(next) });
+  }
+
+  function goToday() {
+    const today = new Date();
+    setAnchor(today);
+    void saveViewPrefs({ calendarAnchor: localDateKey(today) });
+  }
+
+  function toggleSourcesPanel() {
+    setSourcePanelOpen(open => {
+      const next = !open;
+      void saveViewPrefs({ calendarSourcesOpen: next });
+      return next;
+    });
   }
 
   const title = useMemo(() => {
@@ -762,7 +818,7 @@ export function CalendarView({ user }: { user: User }) {
                       <div className="calendarCellHead">
                         <button
                           className="calendarDateNumber"
-                          onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                          onClick={() => { setAnchor(day); void saveViewPrefs({ calendarAnchor:localDateKey(day), calendarView:"day" }); setViewAndSave("day"); }}
                           title="Gün görünümünü aç"
                         >
                           {day.getDate()}
@@ -816,7 +872,7 @@ export function CalendarView({ user }: { user: User }) {
           return (
             <div className="miniMonth" key={month}>
               <div className="miniMonthTop">
-                <button className="miniMonthTitle" onClick={() => { setAnchor(monthDate); setViewAndSave("month"); }}>
+                <button className="miniMonthTitle" onClick={() => { setAnchor(monthDate); void saveViewPrefs({ calendarAnchor:localDateKey(monthDate), calendarView:"month" }); setViewAndSave("month"); }}>
                   {MONTHS[month]}
                 </button>
                 {monthEvents.length > 0 && <span className="miniMonthCount">{monthEvents.length}</span>}
@@ -1048,7 +1104,7 @@ export function CalendarView({ user }: { user: User }) {
       if (draft) return;
 
       const key = event.key.toLowerCase();
-      if (key === "t") setAnchor(new Date());
+      if (key === "t") goToday();
       else if (key === "m") setViewAndSave("month");
       else if (key === "w") setViewAndSave("week");
       else if (key === "d") setViewAndSave("day");
@@ -1065,11 +1121,11 @@ export function CalendarView({ user }: { user: User }) {
   }, [draft, view, anchor, hiddenKeys, listRange]);
 
   return (
-    <div className="calendarPage">
+    <div className={"calendarPage " + (sourcePanelOpen ? "sourcesOpen" : "sourcesClosed")}>
       <aside className={"calendarSources " + (sourcePanelOpen ? "open" : "")}>
         <div className="calendarSourcesHead">
           <strong>Takvimler</strong>
-          <button onClick={() => setSourcePanelOpen(false)}>×</button>
+          <button onClick={() => { setSourcePanelOpen(false); void saveViewPrefs({ calendarSourcesOpen:false }); }}>×</button>
         </div>
         <button className="calendarAddAccount" onClick={connectGoogle} disabled={googleConnecting}>
           {googleConnecting ? "Google açılıyor…" : "+ Google hesabı ekle"}
@@ -1102,8 +1158,8 @@ export function CalendarView({ user }: { user: User }) {
       <main className="calendarMain">
         <div className="calendarToolbar">
           <div className="calendarToolbarLeft">
-            <button className="calendarSourcesToggle" onClick={() => setSourcePanelOpen(open => !open)}>☰</button>
-            <button className="calendarToday" onClick={() => setAnchor(new Date())}>Bugün</button>
+            <button className="calendarSourcesToggle" onClick={toggleSourcesPanel} title="Takvimleri göster/gizle">☷ <span>Takvimler</span></button>
+            <button className="calendarToday" onClick={goToday}>Bugün</button>
             <button onClick={() => move(-1)}>‹</button>
             <button onClick={() => move(1)}>›</button>
             <h1>{title}</h1>
@@ -1132,9 +1188,9 @@ export function CalendarView({ user }: { user: User }) {
             </div>
             {listRange==="custom" && (
               <div className="calendarCustomDates">
-                <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} />
+                <input type="date" value={customStart} onChange={e=>{ setCustomStart(e.target.value); void saveViewPrefs({ calendarCustomStart:e.target.value }); }} />
                 <span>–</span>
-                <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} />
+                <input type="date" value={customEnd} onChange={e=>{ setCustomEnd(e.target.value); void saveViewPrefs({ calendarCustomEnd:e.target.value }); }} />
               </div>
             )}
           </div>
