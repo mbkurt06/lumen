@@ -43,6 +43,16 @@ function runClass(run: QuranMushafRun) {
   return classes.join(" ");
 }
 
+const FATIHA_PRONUNCIATION_FALLBACK: Record<number,string> = {
+  1:"Bismillâhirrahmânirrahîm",
+  2:"Elhamdü lillâhi rabbil âlemîn",
+  3:"Errahmânirrahîm",
+  4:"Mâliki yevmiddîn",
+  5:"İyyâke na'büdü ve iyyâke neste'în",
+  6:"İhdinessırâtal müstakîm",
+  7:"Sırâtallezîne en'amte aleyhim gayril mağdûbi aleyhim ve leddâllîn",
+};
+
 function RunContent({ run }: { run: QuranMushafRun }) {
   return (
     <span
@@ -110,7 +120,8 @@ export function QuranMushafPageContent({
 
   const fullAyahPronunciation = (surahNo?:number, ayahNo?:number) => {
     if (!surahNo || !ayahNo) return "";
-    return pronunciations[`${surahNo}:${ayahNo}`] || "";
+    return pronunciations[`${surahNo}:${ayahNo}`]
+      || (surahNo === 1 ? FATIHA_PRONUNCIATION_FALLBACK[ayahNo] || "" : "");
   };
 
   if (!exactWordCharacters) {
