@@ -928,13 +928,25 @@ export function ReaderView({
           {(quranBookmarks.length > 0 || quranActionMessage) && (
             <div className="quranReadingStatus">
               {quranBookmarks.map(bookmark => (
-                <button
-                  key={bookmark.id}
-                  className="quranBookmarkJump"
-                  onClick={() => void loadQuranPage(bookmark.position.page, bookmark.position.nodeId)}
-                >
-                  🔖 {bookmark.name}: Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle} {bookmark.position.ayahNo}. ayet
-                </button>
+                <div key={bookmark.id} className="quranBookmarkStatusItem">
+                  <button
+                    className="quranBookmarkJump"
+                    onClick={() => void loadQuranPage(bookmark.position.page, bookmark.position.nodeId)}
+                  >
+                    🔖 {bookmark.name}: Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle} {bookmark.position.ayahNo}. ayet
+                  </button>
+                  <button
+                    className="quranBookmarkTodoButton"
+                    onClick={() => setTodoTarget({
+                      title: bookmark.name || "Kur’an okuma",
+                      nodeId: bookmark.position.nodeId,
+                      defaultTarget: 1,
+                      quranPosition: bookmark.position,
+                    })}
+                  >
+                    + Todo
+                  </button>
+                </div>
               ))}
               {quranActionMessage && <small>{quranActionMessage}</small>}
             </div>
@@ -1101,7 +1113,8 @@ export function ReaderView({
         extraMeta={isQuranDocument ? {
           quran: {
             tracking: true,
-            position: quranPositionFor(nodes.find(node => node.id === (todoTarget?.nodeId || quranSelectedNodeId)) ?? nodes[0] ?? null),
+            position: todoTarget?.quranPosition
+              ?? quranPositionFor(nodes.find(node => node.id === (todoTarget?.nodeId || quranSelectedNodeId)) ?? nodes[0] ?? null),
           },
         } : undefined}
       />
