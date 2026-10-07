@@ -252,6 +252,13 @@ export function ReaderView({
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
 
   useEffect(() => {
+    setBookSelection(null);
+    setBookBookmarkMenuOpen(false);
+    setBookTodoMenuOpen(false);
+    setBookActionMessage("");
+  }, [item.id, readerScope]);
+
+  useEffect(() => {
     if (!isBookSelectionDocument) {
       setBookSelection(null);
       return;
@@ -263,10 +270,10 @@ export function ReaderView({
       if (!selection || selection.rangeCount === 0 || !text) return;
 
       const range = selection.getRangeAt(0);
-      const startElement = range.startContainer.nodeType === Node.ELEMENT_NODE
+      const startElement = range.startContainer.nodeType === window.Node.ELEMENT_NODE
         ? range.startContainer as Element
         : range.startContainer.parentElement;
-      const endElement = range.endContainer.nodeType === Node.ELEMENT_NODE
+      const endElement = range.endContainer.nodeType === window.Node.ELEMENT_NODE
         ? range.endContainer as Element
         : range.endContainer.parentElement;
       const reader = startElement?.closest(".legacyReadPage");
