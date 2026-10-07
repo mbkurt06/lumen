@@ -5834,3 +5834,17 @@ body.hideArabic .quranReaderRawDebugText{
   font-synthesis:none!important;
   font-feature-settings:inherit!important;
 }
+
+
+/* Keep DOCX run order intact. Individual RTL spans create bidi isolation and can
+   visually reorder ayahs; direction belongs to the whole Word paragraph. */
+.quranExactWordFont .quranWordParagraph{
+  direction:rtl!important;
+  unicode-bidi:embed!important;
+}
+.quranExactWordFont .quranWordRun,
+.quranExactWordFont .quranWordAyah,
+.quranExactWordFont .quranWordNonAyah{
+  direction:inherit!important;
+  unicode-bidi:normal!important;
+}
