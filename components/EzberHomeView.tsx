@@ -84,6 +84,7 @@ export function EzberHomeView({
   const [rootOrder, setRootOrder] = useState<string[]>([]);
   const rootOrderRef = useRef<string[]>([]);
   const [todoSummaries, setTodoSummaries] = useState<TodoSummary[]>([]);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const pressId = useRef<string | null>(null);
   const pressY = useRef(0);
   const moved = useRef(false);
@@ -136,6 +137,18 @@ export function EzberHomeView({
   }, [loadChildren]);
 
   useEffect(() => { loadRoot(); }, [loadRoot]);
+
+  useEffect(() => {
+    setHeaderCollapsed(localStorage.getItem("lumen-ezber-header-collapsed") === "1");
+  }, []);
+
+  function toggleHeader() {
+    setHeaderCollapsed(current => {
+      const next = !current;
+      localStorage.setItem("lumen-ezber-header-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!initialRoot) return;
@@ -350,13 +363,24 @@ export function EzberHomeView({
 
   return (
     <section className="legacyNestedPage duaEzberIntegrated">
-      <div className={currentRoot ? "legacyListHead" : "legacyHomeHead compact"}>
-        {currentRoot ? (
-          <button className="legacyBack v2MenuBack" onClick={goBack}>{trail.length ? "‹ Geri" : "‹ Menü"}</button>
-        ) : <span />}
-        <h1>{currentRoot?.title || duaRoot?.title || "Ezber"}</h1>
-        <span />
-      </div>
+      {currentRoot ? (
+        <div className={"v2SharedHeader v2ListHeader " + (headerCollapsed ? "collapsed" : "")}>
+          <div className="v2HeaderToolbar">
+            <div className="v2HeaderGroup">
+              <button className="v2HeaderButton" onClick={goBack}>{trail.length ? "‹ Geri" : "‹ Menü"}</button>
+            </div>
+            <div className="v2HeaderGroup" />
+          </div>
+          <div className="v2HeaderTitle">{currentRoot.title}</div>
+          <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
+            {headerCollapsed ? "▾" : "▴"}
+          </button>
+        </div>
+      ) : (
+        <div className="legacyHomeHead compact">
+          <h1>{duaRoot?.title || "Ezber"}</h1>
+        </div>
+      )}
 
       <div className={currentRoot ? "legacyCategoryList" : "legacyHomeMenu"}>
         {primaryRows.map(item => renderRow(item))}
