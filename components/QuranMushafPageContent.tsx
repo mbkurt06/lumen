@@ -63,6 +63,16 @@ export function QuranMushafPageContent({
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
 }) {
+  const exactWordCharacters = page.metadata?.exactWordCharacters === true;
+
+  if (!exactWordCharacters) {
+    return (
+      <div className="quranFallbackPlainText" dir="rtl">
+        {page.plain_text}
+      </div>
+    );
+  }
+
   return (
     <>
       {(page.rich_content?.paragraphs ?? []).map((paragraph, paragraphIndex) => {
