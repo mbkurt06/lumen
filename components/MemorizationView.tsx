@@ -414,6 +414,9 @@ export function MemorizationView({
         onMenu={onMenu}
         onBack={onBack}
         onTodo={() => setTodoOpen(true)}
+        showFullscreen={true}
+        onFullscreen={() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))}
+        onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
       <main
