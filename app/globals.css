@@ -4654,3 +4654,56 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     margin-top:12px;
   }
 }
+
+
+/* v0.8.5 — floating play/counter follow the global right TODO panel */
+.mainPane{
+  transition:padding-right .18s ease;
+}
+.floatingPlay,
+.legacyCounter.readCounter,
+.floatingPanel.compactPlaybackPanel,
+.counterResetPopover{
+  transition:
+    transform .18s ease,
+    opacity .12s ease,
+    visibility .12s ease;
+}
+.appShell.rightPanelOpen .floatingPlay,
+.appShell.rightPanelOpen .legacyCounter.readCounter,
+.appShell.rightPanelOpen .floatingPanel.compactPlaybackPanel,
+.appShell.rightPanelOpen .counterResetPopover{
+  transform:translateX(-360px);
+}
+.floatingPlay,
+.legacyCounter.readCounter{
+  z-index:101!important;
+}
+.floatingPanel.compactPlaybackPanel,
+.counterResetPopover{
+  z-index:102!important;
+}
+.fullscreenTasbihLauncher{
+  z-index:101!important;
+}
+.floatingControlRestoring{
+  visibility:hidden!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+@media(max-width:1100px) and (min-width:801px){
+  .appShell.rightPanelOpen .floatingPlay,
+  .appShell.rightPanelOpen .legacyCounter.readCounter,
+  .appShell.rightPanelOpen .floatingPanel.compactPlaybackPanel,
+  .appShell.rightPanelOpen .counterResetPopover{
+    transform:translateX(-320px);
+  }
+}
+@media(max-width:800px){
+  .appShell.rightPanelOpen .floatingPlay,
+  .appShell.rightPanelOpen .legacyCounter.readCounter,
+  .appShell.rightPanelOpen .floatingPanel.compactPlaybackPanel,
+  .appShell.rightPanelOpen .counterResetPopover{
+    transform:none;
+  }
+}
