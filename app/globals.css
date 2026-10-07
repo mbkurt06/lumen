@@ -6306,3 +6306,53 @@ body[data-reader-scope="quran"] .legacyCounter.readCounter[style]{
     bottom:120px!important;
   }
 }
+
+
+/* Pre-paint appearance: mirror the saved page themes on <html> before React mounts. */
+html[data-pre-quran-page-theme="paper"] .quranPage{
+  --quran-page-bg:#f6f3ed;
+  --quran-page-fg:#171717;
+  --quran-page-muted:#5b5750;
+  --quran-verse:#9b4b4d;
+}
+html[data-pre-quran-page-theme="white"] .quranPage{
+  --quran-page-bg:#fff;
+  --quran-page-fg:#111;
+  --quran-page-muted:#555;
+  --quran-verse:#9b4b4d;
+}
+html[data-pre-quran-page-theme="sepia"] .quranPage{
+  --quran-page-bg:#efe2b8;
+  --quran-page-fg:#211b12;
+  --quran-page-muted:#6c5b36;
+  --quran-verse:#8a4a3f;
+}
+html[data-pre-quran-page-theme="dark"] .quranPage{
+  --quran-page-bg:#171a17;
+  --quran-page-fg:#f1eee5;
+  --quran-page-muted:#aaa79f;
+  --quran-verse:#b88f81;
+  border-color:#30362f!important;
+}
+html[data-pre-risale-page-theme="paper"] .risaleBookPage{
+  --risale-page-bg:#f4e7b5;
+  --risale-page-fg:#211b13;
+}
+html[data-pre-risale-page-theme="white"] .risaleBookPage{
+  --risale-page-bg:#fff;
+  --risale-page-fg:#171717;
+}
+html[data-pre-risale-page-theme="sepia"] .risaleBookPage{
+  --risale-page-bg:#ead49b;
+  --risale-page-fg:#261d11;
+}
+html[data-pre-risale-page-theme="dark"] .risaleBookPage{
+  --risale-page-bg:#23251f;
+  --risale-page-fg:#f1ead8;
+  border-color:#ffffff18;
+}
+.settingsHydrating{
+  padding:18px 4px;
+  color:var(--muted);
+  font-size:11px;
+}
