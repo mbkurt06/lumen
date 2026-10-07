@@ -19,7 +19,7 @@
     } catch {}
   </script>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=91">
+  <link rel="stylesheet" href="./styles.css?v=92">
 </head>
 <body>
   <main class="app">
@@ -64,6 +64,10 @@
         <div id="memorizeTodoProgress" class="todo-inline-progress hidden"></div>
         <div id="title" class="title"></div>
         <div id="invocation" class="invocation hidden"></div>
+      </div>
+      <div id="esmaDetailContent" class="esma-detail-content hidden">
+        <div id="esmaNameTitle" class="esma-name-title"></div>
+        <div id="esmaInvocationText" class="esma-invocation-text"></div>
       </div>
       <div id="gestureNote" class="gesture-note hidden"></div><div id="arabic" class="arabic" dir="rtl"></div>
       <div class="memorize-segment-row">
@@ -409,11 +413,11 @@
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="./cloud-sync.js?v=91"></script>
+  <script src="./cloud-sync.js?v=92"></script>
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=91";
+      script.src = "./app.js?v=92";
       document.body.appendChild(script);
     });
   </script>
