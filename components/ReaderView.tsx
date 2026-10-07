@@ -165,6 +165,8 @@ export function ReaderView({
   const quranSwipeStartX = useRef<number | null>(null);
   const quranPageCache = useRef<Map<number, Node[]>>(new Map());
   const quranPageRequest = useRef(0);
+  const quranPageRef = useRef<HTMLDivElement | null>(null);
+  const quranFlowRef = useRef<HTMLDivElement | null>(null);
 
   const today = localDateKey();
 
@@ -177,6 +179,48 @@ export function ReaderView({
   const isRisaleDocument = sourceType === "risale_seeded";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
+
+  const fitQuranTextToPage = useCallback(() => {
+    if (!isQuranDocument) return;
+    const page = quranPageRef.current;
+    const flow = quranFlowRef.current;
+    if (!page || !flow) return;
+
+    flow.style.setProperty("--quran-fit-scale", "1");
+    const styles = getComputedStyle(page);
+    const bottomPadding = Number.parseFloat(styles.paddingBottom || "0") || 0;
+    const available = Math.max(40, page.clientHeight - flow.offsetTop - bottomPadding);
+
+    if (flow.scrollHeight <= available + 1) return;
+
+    let low = 0.45;
+    let high = 1;
+    for (let i = 0; i < 9; i += 1) {
+      const mid = (low + high) / 2;
+      flow.style.setProperty("--quran-fit-scale", String(mid));
+      // Reading scrollHeight forces layout, which is intentional for the short fitting loop.
+      if (flow.scrollHeight <= available + 1) low = mid;
+      else high = mid;
+    }
+    flow.style.setProperty("--quran-fit-scale", String(low));
+  }, [isQuranDocument]);
+
+  useEffect(() => {
+    if (!isQuranDocument) return;
+    let frame = requestAnimationFrame(() => fitQuranTextToPage());
+    const rerun = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => fitQuranTextToPage());
+    };
+    window.addEventListener("resize", rerun);
+    window.addEventListener("lumen-library-prefs", rerun as EventListener);
+    void document.fonts?.ready?.then(rerun);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", rerun);
+      window.removeEventListener("lumen-library-prefs", rerun as EventListener);
+    };
+  }, [isQuranDocument, quranPage, nodes, fitQuranTextToPage]);
 
   const quranPositionFor = useCallback((node: Node | null): QuranPosition | null => {
     if (!node) return null;
@@ -371,6 +415,8 @@ export function ReaderView({
 
       setNodes(loaded);
       setQuranPage(safePage);
+      setQuranBookmarkMenuOpen(false);
+      setQuranTodoMenuOpen(false);
       setQuranSelectedNodeId(null);
       setActiveNodeId(loaded[0]?.id ?? null);
       setActiveTodoId(null);
@@ -867,6 +913,7 @@ export function ReaderView({
           })()}
 
           <div
+            ref={quranPageRef}
             className={"quranPage " + (quranPageLoading ? "loading" : "")}
             onClick={() => setQuranSelectedNodeId(null)}
             onTouchStart={e => { quranSwipeStartX.current = e.touches[0]?.clientX ?? null; }}
@@ -884,7 +931,7 @@ export function ReaderView({
               <span>{quranPage ? `Sayfa ${displayQuranPage(quranPage)}` : ""}</span>
               <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.juz ? `Cüz ${(nodes[0]?.metadata as Record<string,any>).juz}` : "")}</span>
             </div>
-            <div className="quranFlow" dir="rtl">
+            <div ref={quranFlowRef} className="quranFlow" dir="rtl">
               {nodes.map((node, index) => {
                 const selected = quranSelectedNodeId === node.id;
                 return (
@@ -897,6 +944,8 @@ export function ReaderView({
                     data-reader-index={index}
                     onClick={e => {
                       e.stopPropagation();
+                      setQuranBookmarkMenuOpen(false);
+                      setQuranTodoMenuOpen(false);
                       setQuranSelectedNodeId(node.id);
                       setActiveNodeId(node.id);
                       setActiveDocumentTodoId(null);
@@ -906,6 +955,8 @@ export function ReaderView({
                     onKeyDown={e => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
+                        setQuranBookmarkMenuOpen(false);
+                        setQuranTodoMenuOpen(false);
                         setQuranSelectedNodeId(node.id);
                         setActiveNodeId(node.id);
                         setCounterArmed(true);
