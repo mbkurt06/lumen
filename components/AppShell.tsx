@@ -46,18 +46,22 @@ export function AppShell({
     const AUTO_SYNC_KEY = "lumen-static-auto-sync";
     let timer: ReturnType<typeof setInterval> | null = null;
 
-    const start = () => {
+    const start = (checkNow = false) => {
       if (timer) clearInterval(timer);
       timer = null;
+
+      // Supabase is authoritative: every app launch performs one cheap fingerprint
+      // check so changed static content reaches IndexedDB without a manual sync.
+      if (checkNow) void syncStaticContentInBackground(user.id);
+
       if (localStorage.getItem(AUTO_SYNC_KEY) !== "1") return;
-      void syncStaticContentInBackground(user.id);
       timer = setInterval(() => {
         void syncStaticContentInBackground(user.id);
       }, 15 * 60 * 1000);
     };
 
-    const onChanged = () => start();
-    start();
+    const onChanged = () => start(true);
+    start(true);
     window.addEventListener("lumen-auto-sync-changed", onChanged);
     return () => {
       if (timer) clearInterval(timer);
