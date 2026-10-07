@@ -111,6 +111,7 @@ export function ReaderView({
   const [counterArmed, setCounterArmed] = useState(true);
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{ todo: TodoInfo; x: number; y: number } | null>(null);
+  const [quranSelectedNodeId, setQuranSelectedNodeId] = useState<string | null>(null);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
 
@@ -445,6 +446,73 @@ export function ReaderView({
         </div>
       )}
 
+      {isQuranDocument ? (
+        <div className="quranReaderShell">
+          {quranSelectedNodeId && (() => {
+            const selected = nodes.find(node => node.id === quranSelectedNodeId);
+            if (!selected) return null;
+            return (
+              <div className="quranSelectionBar">
+                <span>{selected.title || `Ayet ${selected.sort_order}`} seçili</span>
+                <button
+                  onClick={() => setTodoTarget({
+                    title: selected.translation || selected.text_content || selected.title || item.title,
+                    nodeId: selected.id,
+                    defaultTarget: targetForIntrinsic(selected) || 1,
+                  })}
+                >
+                  + Todo
+                </button>
+                <button className="secondary" onClick={() => setQuranSelectedNodeId(null)}>Seçimi kaldır</button>
+              </div>
+            );
+          })()}
+
+          <div className="quranPage">
+            <div className="quranSurahTitle">{item.title}</div>
+            <div className="quranFlow" dir="rtl">
+              {nodes.map((node, index) => {
+                const selected = quranSelectedNodeId === node.id;
+                return (
+                  <button
+                    key={node.id}
+                    className={"quranAyahInline" + (selected ? " selected" : "")}
+                    data-reader-index={index}
+                    onClick={() => {
+                      setQuranSelectedNodeId(node.id);
+                      setActiveNodeId(node.id);
+                      setActiveDocumentTodoId(null);
+                      setActiveTodoId(null);
+                      setCounterArmed(true);
+                    }}
+                  >
+                    <span className="quranAyahText">{node.secondary_text}</span>
+                    <span className="quranAyahNo">{node.sort_order}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="quranSupplement quranLatinBlock">
+            <h3>Latin harflerle okunuş</h3>
+            {nodes.map(node => (
+              <p key={"latin-" + node.id}>
+                <b>{node.sort_order}.</b> {node.text_content}
+              </p>
+            ))}
+          </div>
+
+          <div className="quranSupplement quranTranslationBlock">
+            <h3>Türkçe meal</h3>
+            {nodes.map(node => (
+              <p key={"meal-" + node.id}>
+                <b>{node.sort_order}.</b> {node.translation}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : (
       <div className="legacyReadContent">
         {nodes.map((node, index) => {
           const todoInfos = todosForNode(node);
@@ -531,6 +599,7 @@ export function ReaderView({
         })}
         {!nodes.length && !message && <p className="muted">Henüz içerik yok.</p>}
       </div>
+      )}
 
       <nav className="contentPager">
         <button className="secondary" disabled={!hasPreviousItem} onClick={() => leaveDocument(onPreviousItem)}>‹ Önceki</button>
