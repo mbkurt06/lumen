@@ -287,7 +287,32 @@ export async function ensureExactMushafFont() {
   if (exactFontLoadPromise) return exactFontLoadPromise;
 
   exactFontLoadPromise = (async () => {
-    const buffer = await readExactMushafFont();
+    let buffer = await readExactMushafFont();
+
+    // The desktop that imported the DOCX already has the exact embedded font in
+    // IndexedDB, but a second device (iPad/iPhone) does not. Bootstrap the same
+    // official Word font once on that device, then keep it locally.
+    if (!buffer && navigator.onLine) {
+      try {
+        const response = await fetch("/api/quran-source", { cache: "force-cache" });
+        if (response.ok) {
+          const docxBuffer = await response.arrayBuffer();
+          const zip = await JSZip.loadAsync(docxBuffer);
+          const fontTableXml = await zip.file("word/fontTable.xml")?.async("string");
+          const exactFontBytes = await extractEmbeddedMushafFont(zip, fontTableXml);
+          if (exactFontBytes) {
+            await cacheExactMushafFont(exactFontBytes);
+            buffer = exactFontBytes.buffer.slice(
+              exactFontBytes.byteOffset,
+              exactFontBytes.byteOffset + exactFontBytes.byteLength,
+            ) as ArrayBuffer;
+          }
+        }
+      } catch (error) {
+        console.warn("Exact Mushaf font bootstrap failed", error);
+      }
+    }
+
     if (!buffer) return false;
 
     const blob = new Blob([buffer], { type: "font/ttf" });
