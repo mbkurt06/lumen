@@ -416,11 +416,8 @@ export function AppShell({
                   {rightPanelMenuOpen && (
                     <div className="rightPanelMenu">
                       <button onClick={() => { setRightPanelMode("todo"); setRightPanelMenuOpen(false); }}>✓ TODO</button>
-                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>▦ Takvimler ve hesaplar</button>
-                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); requestAnimationFrame(() => {
-                        const button=document.querySelector(".rightPanelPrimary") as HTMLButtonElement|null;
-                        button?.click();
-                      }); }}>＋ Google hesabı ekle</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>⚙ Takvim ayarları</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>＋ Takvim ekle</button>
                     </div>
                   )}
                 </div>
