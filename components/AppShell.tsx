@@ -43,6 +43,18 @@ export function AppShell({
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const secure = window.location.protocol === "https:"
+      || window.location.hostname === "localhost"
+      || window.location.hostname === "127.0.0.1";
+    if (!secure) return;
+
+    void navigator.serviceWorker.register("/sw.js").catch(error => {
+      console.warn("Service worker registration failed", error);
+    });
+  }, []);
+
+  useEffect(() => {
     const AUTO_SYNC_KEY = "lumen-static-auto-sync";
     let timer: ReturnType<typeof setInterval> | null = null;
 
