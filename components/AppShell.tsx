@@ -10,10 +10,12 @@ import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 import { DuaListeningEmbed } from "@/components/DuaListeningEmbed";
 import { CalendarView } from "@/components/CalendarView";
+import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
+type RightPanelMode = "todo" | "calendar";
 
 export function AppShell({
   user,
@@ -32,6 +34,9 @@ export function AppShell({
   const [returnToEzber, setReturnToEzber] = useState(false);
   const [restored, setRestored] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>("todo");
+  const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -50,6 +55,8 @@ export function AppShell({
           setSidebarOpen(state.sidebarOpen);
           restoredSidebar = true;
         }
+        if (typeof state.rightPanelOpen === "boolean") setRightPanelOpen(state.rightPanelOpen);
+        if (state.rightPanelMode === "todo" || state.rightPanelMode === "calendar") setRightPanelMode(state.rightPanelMode);
       }
       if (!restoredSidebar && window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
     } catch {
@@ -151,8 +158,10 @@ export function AppShell({
       returnEzberRoot,
       returnToEzber,
       sidebarOpen,
+      rightPanelOpen,
+      rightPanelMode,
     }));
-  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, sidebarOpen]);
+  }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, sidebarOpen, rightPanelOpen, rightPanelMode]);
 
   async function openTodoSource(todo: {
     related_library_item_id: string | null;
@@ -245,7 +254,7 @@ export function AppShell({
   if (!restored) return <div className="appRestoreBlank" />;
 
   return (
-    <div className={"appShell " + (sidebarOpen ? "sidebarOpen" : "sidebarClosed")}>
+    <div className={"appShell " + (sidebarOpen ? "sidebarOpen " : "sidebarClosed ") + (rightPanelOpen ? "rightPanelOpen" : "rightPanelClosed")}>
       {!sidebarOpen && (
         <button className="sidebarReopen" onClick={() => setSidebarOpen(true)} aria-label="Menüyü aç" title="Menüyü aç">☰</button>
       )}
@@ -364,13 +373,64 @@ export function AppShell({
             />
           )}
 
-          {tab === "calendar" && <CalendarView user={user} />}
+          {tab === "calendar" && <CalendarView user={user} externalSources />}
 
           {tab === "settings" && (
             <SettingsView user={user} onSignOut={onSignOut} />
           )}
         </div>
       </main>
+
+      <aside className={"globalRightPanel " + (rightPanelOpen ? "open" : "closed")}>
+        <button
+          className="globalRightPanelToggle"
+          onClick={() => setRightPanelOpen(open => !open)}
+          aria-label={rightPanelOpen ? "Sağ paneli gizle" : "Sağ paneli aç"}
+          title={rightPanelOpen ? "Sağ paneli gizle" : "Sağ paneli aç"}
+        >
+          {rightPanelOpen ? "›" : "‹"}
+        </button>
+
+        {rightPanelOpen && (
+          <>
+            <div className="globalRightPanelHead">
+              <div>
+                <strong>{rightPanelMode === "todo" ? "TODO" : "Takvim"}</strong>
+                <small>{rightPanelMode === "todo" ? "Günlük görevler ve etkinlikler" : "Takvim kaynakları"}</small>
+              </div>
+              {tab === "calendar" && (
+                <div className="rightPanelMenuWrap">
+                  <button
+                    className="rightPanelDots"
+                    onClick={() => setRightPanelMenuOpen(open => !open)}
+                    aria-label="Takvim paneli seçenekleri"
+                    title="Takvim paneli seçenekleri"
+                  >
+                    •••
+                  </button>
+                  {rightPanelMenuOpen && (
+                    <div className="rightPanelMenu">
+                      <button onClick={() => { setRightPanelMode("todo"); setRightPanelMenuOpen(false); }}>✓ TODO</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>▦ Takvimler ve hesaplar</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); requestAnimationFrame(() => {
+                        const button=document.querySelector(".rightPanelPrimary") as HTMLButtonElement|null;
+                        button?.click();
+                      }); }}>＋ Google hesabı ekle</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="globalRightPanelBody">
+              {rightPanelMode === "todo" || tab !== "calendar"
+                ? <TodoList compact onOpenTodo={openTodoSource} />
+                : <CalendarSidePanel user={user} />
+              }
+            </div>
+          </>
+        )}
+      </aside>
 
       <LibrarySettingsModal
         user={user}
