@@ -1913,3 +1913,57 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
     max-width:none!important;
   }
 }
+
+
+/* v0.4.6 — Ezber header has one fixed geometry and vertical position everywhere */
+:root{
+  --ezber-column-width:760px;
+  --ezber-header-top:18px;
+}
+.nativeEzberMount.active,
+.duaEzberIntegrated,
+.legacyReadPage,
+.legacyApp{
+  position:relative;
+}
+.v2SharedHeader,
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader,
+.v2SharedHeader.collapsed{
+  position:sticky!important;
+  top:var(--ezber-header-top)!important;
+  width:min(var(--ezber-column-width),calc(100vw - 36px))!important;
+  max-width:var(--ezber-column-width)!important;
+  margin-top:0!important;
+  margin-bottom:24px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+.duaEzberIntegrated{
+  padding-top:18px!important;
+}
+.legacyReadPage{
+  padding-top:18px!important;
+}
+.libraryHubPage:has(.nativeEzberMount.active){
+  padding-top:0!important;
+}
+@media(max-width:520px){
+  :root{
+    --ezber-header-top:8px;
+  }
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader,
+  .v2SharedHeader.collapsed{
+    width:calc(100vw - 20px)!important;
+    max-width:none!important;
+  }
+  .duaEzberIntegrated,
+  .legacyReadPage{
+    padding-top:8px!important;
+  }
+}
