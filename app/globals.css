@@ -1967,3 +1967,200 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
     padding-top:8px!important;
   }
 }
+
+
+/* v0.4.7 — one exact Ezber coordinate system + responsive top controls */
+:root{
+  --ezber-column-width:760px;
+  --ezber-header-top:18px;
+}
+
+/* The list page and the reader page must start from the exact same mainPane edges. */
+.legacyNestedPage.duaEzberIntegrated,
+.legacyReadPage{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  box-sizing:border-box!important;
+}
+
+/* One shared column for header, lists, reader and pager. */
+.v2SharedHeader,
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader,
+.v2SharedHeader.collapsed,
+.duaEzberIntegrated .legacyCategoryList,
+.duaEzberIntegrated .legacyHomeMenu,
+.legacyNestedPage .legacyCategoryList,
+.legacyNestedPage .legacyHomeMenu,
+.legacyReadContent,
+.contentPager{
+  width:min(var(--ezber-column-width),calc(100% - 36px))!important;
+  max-width:var(--ezber-column-width)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  box-sizing:border-box!important;
+}
+
+/* Header location is identical in lists, reader and memorize screens. */
+.v2SharedHeader,
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader,
+.v2SharedHeader.collapsed{
+  top:var(--ezber-header-top)!important;
+  margin-top:0!important;
+}
+
+/* Progress belongs to the shared header, not to viewport geometry. */
+.v2SharedHeader{
+  position:sticky!important;
+}
+.v2HeaderProgress{
+  position:absolute!important;
+  left:50%!important;
+  top:10px!important;
+  transform:translateX(-50%)!important;
+  z-index:2!important;
+}
+
+/* Desktop right controls stay in one horizontal row. */
+.persistentLibrarySettings,
+.fullscreenTasbihLauncher{
+  top:18px!important;
+}
+.persistentLibrarySettings{
+  right:18px!important;
+}
+.fullscreenTasbihLauncher{
+  right:68px!important;
+}
+
+/* Tablet / phone: reserve a dedicated row for fullscreen + settings. */
+@media(max-width:800px){
+  :root{
+    --ezber-header-top:62px;
+  }
+
+  .legacyNestedPage.duaEzberIntegrated,
+  .legacyReadPage{
+    padding-top:62px!important;
+    padding-left:0!important;
+    padding-right:0!important;
+  }
+
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader,
+  .v2SharedHeader.collapsed,
+  .duaEzberIntegrated .legacyCategoryList,
+  .duaEzberIntegrated .legacyHomeMenu,
+  .legacyNestedPage .legacyCategoryList,
+  .legacyNestedPage .legacyHomeMenu,
+  .legacyReadContent,
+  .contentPager{
+    width:calc(100% - 20px)!important;
+    max-width:none!important;
+  }
+
+  .persistentLibrarySettings,
+  .fullscreenTasbihLauncher{
+    position:fixed!important;
+    top:8px!important;
+    width:42px!important;
+    height:42px!important;
+    z-index:120!important;
+  }
+  .persistentLibrarySettings{
+    right:8px!important;
+  }
+  .fullscreenTasbihLauncher{
+    right:58px!important;
+  }
+
+  .librarySettingsDock{
+    top:58px!important;
+    right:8px!important;
+    width:min(360px,calc(100vw - 16px))!important;
+  }
+
+  .v2HeaderToolbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:6px!important;
+  }
+  .v2HeaderGroup{
+    min-width:0!important;
+    gap:5px!important;
+  }
+  .v2HeaderGroup:first-child{
+    justify-content:flex-start!important;
+  }
+  .v2HeaderGroup:last-child{
+    justify-content:flex-end!important;
+  }
+  .v2HeaderButton,
+  .v2HeaderPrimary{
+    min-height:38px!important;
+    padding:7px 9px!important;
+    font-size:12px!important;
+    border-radius:10px!important;
+  }
+  .v2HeaderTitle{
+    font-size:17px!important;
+    margin-top:6px!important;
+  }
+  .v2HeaderProgress{
+    top:8px!important;
+    font-size:11px!important;
+  }
+}
+
+/* Very narrow phones: compact labels, but keep every control accessible. */
+@media(max-width:420px){
+  :root{
+    --ezber-header-top:58px;
+  }
+
+  .legacyNestedPage.duaEzberIntegrated,
+  .legacyReadPage{
+    padding-top:58px!important;
+  }
+
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader,
+  .v2SharedHeader.collapsed{
+    width:calc(100% - 12px)!important;
+    padding:7px 6px 11px!important;
+  }
+  .v2HeaderToolbar{
+    gap:4px!important;
+  }
+  .v2HeaderGroup{
+    gap:3px!important;
+  }
+  .v2HeaderButton,
+  .v2HeaderPrimary{
+    min-height:36px!important;
+    padding:6px 7px!important;
+    font-size:11px!important;
+  }
+  .v2HeaderTitle{
+    font-size:16px!important;
+  }
+  .persistentLibrarySettings,
+  .fullscreenTasbihLauncher{
+    width:40px!important;
+    height:40px!important;
+  }
+  .fullscreenTasbihLauncher{
+    right:54px!important;
+  }
+}
