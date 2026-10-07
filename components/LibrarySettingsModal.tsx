@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 
 type Prefs = {
   theme: "light" | "dark";
@@ -61,6 +62,10 @@ export function LibrarySettingsModal({
   onClose: () => void;
 }) {
   const [prefs, setPrefs] = useState<Prefs>(defaults);
+  const [mushafImporting, setMushafImporting] = useState(false);
+  const [mushafImportProgress, setMushafImportProgress] = useState("");
+  const [mushafImportPercent, setMushafImportPercent] = useState(0);
+  const mushafFileRef = useRef<HTMLInputElement | null>(null);
   const dockRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -108,6 +113,26 @@ export function LibrarySettingsModal({
     });
   }
 
+  async function importMushafFile(file: File | null) {
+    if (!file || mushafImporting) return;
+    setMushafImporting(true);
+    setMushafImportProgress("Word Mushaf hazırlanıyor…");
+    setMushafImportPercent(0);
+    try {
+      await importQuranMushafDocx(file, user.id, (message, percent) => {
+        setMushafImportProgress(message);
+        setMushafImportPercent(percent);
+      });
+      setMushafImportProgress("604 sayfa ve 6236 ayet Word belgesinden birebir kaydedildi.");
+      setMushafImportPercent(100);
+    } catch (error) {
+      setMushafImportProgress(error instanceof Error ? error.message : "Word Mushaf içe aktarılamadı.");
+    } finally {
+      setMushafImporting(false);
+      if (mushafFileRef.current) mushafFileRef.current.value = "";
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -145,6 +170,32 @@ export function LibrarySettingsModal({
             <button onClick={() => update({...prefs,quranFontScale:Math.max(.8,+(prefs.quranFontScale-.1).toFixed(1))})}>A−</button>
             <button onClick={() => update({...prefs,quranFontScale:1})}>A</button>
             <button onClick={() => update({...prefs,quranFontScale:Math.min(1.8,+(prefs.quranFontScale+.1).toFixed(1))})}>A+</button>
+          </div>
+        </div>
+
+        <div className="settingRow quranDocxImportSetting">
+          <span>Word Mushaf kaynağı</span>
+          <div className="quranDocxImportControl">
+            <input
+              ref={mushafFileRef}
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              hidden
+              onChange={event => void importMushafFile(event.target.files?.[0] ?? null)}
+            />
+            <button
+              className="settingButton"
+              disabled={mushafImporting}
+              onClick={() => mushafFileRef.current?.click()}
+            >
+              {mushafImporting ? "İçe aktarılıyor…" : "DOCX'i birebir içe aktar"}
+            </button>
+            {!!mushafImportProgress && (
+              <div className="quranDocxImportStatus">
+                <span>{mushafImportProgress}</span>
+                <progress max={100} value={mushafImportPercent} />
+              </div>
+            )}
           </div>
         </div>
 
