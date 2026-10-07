@@ -1307,3 +1307,26 @@ html.pre-dark body{
     min-height:64px;
   }
 }
+
+
+/* v0.2.0 — embedded listening fills the Library workspace */
+.duaListeningEmbed{
+  width:100%;
+  height:100dvh;
+  min-height:720px;
+  background:var(--bg);
+}
+.duaListeningEmbed iframe{
+  display:block;
+  width:100%;
+  height:100%;
+  border:0;
+  background:var(--bg);
+}
+@media(max-width:800px){
+  .duaListeningEmbed{
+    height:calc(100dvh - 70px);
+    min-height:0;
+    padding-bottom:0;
+  }
+}
