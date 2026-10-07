@@ -347,8 +347,21 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   useEffect(() => {
     const refresh = () => void loadCalendarForDate(selectedDate);
     window.addEventListener("lumen-calendar-sources-changed", refresh);
-    return () => window.removeEventListener("lumen-calendar-sources-changed", refresh);
+    window.addEventListener("lumen-calendar-events-changed", refresh);
+    return () => {
+      window.removeEventListener("lumen-calendar-sources-changed", refresh);
+      window.removeEventListener("lumen-calendar-events-changed", refresh);
+    };
   }, [selectedDate, loadCalendarForDate]);
+  useEffect(() => {
+    const syncCompletion = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string; completed?: boolean }>).detail;
+      if (!detail?.key || typeof detail.completed !== "boolean") return;
+      setCalendarStates(current => ({ ...current, [detail.key!]: detail.completed! }));
+    };
+    window.addEventListener("lumen-calendar-completion-changed", syncCompletion);
+    return () => window.removeEventListener("lumen-calendar-completion-changed", syncCompletion);
+  }, []);
 
   useEffect(() => () => {
     if (hoverOpenTimer.current) clearTimeout(hoverOpenTimer.current);
@@ -415,7 +428,12 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     if (error) {
       setCalendarStates(current => ({...current,[stateKey]:!next}));
       setMessage(error.message);
+      return;
     }
+
+    window.dispatchEvent(new CustomEvent("lumen-calendar-completion-changed", {
+      detail: { key: stateKey, completed: next },
+    }));
   }
 
   function shift(days: number) {
@@ -579,6 +597,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       setCalendarHover(null);
       setCalendarDraft(null);
       await loadCalendarForDate(selectedDate);
+      window.dispatchEvent(new CustomEvent("lumen-calendar-events-changed"));
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
