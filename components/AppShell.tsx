@@ -267,7 +267,7 @@ export function AppShell({
         {tab === "library" && (
           <button
             className="persistentLibrarySettings"
-            onClick={() => setLibrarySettingsOpen(true)}
+            onClick={() => setLibrarySettingsOpen(open => !open)}
             aria-label="Kütüphane ayarları"
             title="Kütüphane ayarları"
           >
