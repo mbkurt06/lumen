@@ -6451,3 +6451,64 @@ html[data-pre-risale-page-theme="dark"] .risaleBookPage{
   padding:3px 7px;
   color:var(--muted);
 }
+
+
+/* Refined contextual selection menu */
+.bookSelectionMiniBar{
+  gap:2px!important;
+  padding:3px!important;
+  border-radius:999px!important;
+  background:color-mix(in srgb,var(--panel) 94%,transparent)!important;
+  border-color:color-mix(in srgb,var(--border) 74%,transparent)!important;
+  box-shadow:0 10px 28px #00000024!important;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.bookMiniAction{
+  min-height:29px!important;
+  border-radius:999px!important;
+  padding:4px 9px!important;
+  font-size:10px!important;
+  letter-spacing:.01em;
+}
+.bookMiniAction.primary{
+  padding-inline:11px!important;
+  background:var(--accent)!important;
+  color:#fff!important;
+  border-color:transparent!important;
+}
+.bookMiniAction.iconOnly{
+  width:29px!important;
+  height:29px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  font-size:13px!important;
+}
+.bookMiniChooser{
+  width:min(250px,calc(100vw - 24px))!important;
+  padding:6px!important;
+  gap:3px!important;
+  border-radius:13px!important;
+  background:color-mix(in srgb,var(--panel) 97%,transparent)!important;
+  box-shadow:0 14px 34px #0000002b!important;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.bookMiniChooser>button{
+  min-height:34px!important;
+  border:0!important;
+  border-radius:9px!important;
+  padding:7px 9px!important;
+  background:transparent!important;
+  font-size:10px!important;
+}
+.bookMiniChooser>button:hover{
+  background:color-mix(in srgb,var(--accent) 12%,var(--panel))!important;
+}
+.bookMiniChooser>button+button{
+  border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent)!important;
+}
+body:has(.modalBackdrop) .bookSelectionPopover{
+  display:none!important;
+}
