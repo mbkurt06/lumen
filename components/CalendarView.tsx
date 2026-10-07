@@ -17,6 +17,7 @@ type CalendarInfo = {
   foregroundColor: string | null;
   accessRole: string;
   timeZone: string | null;
+  defaultReminders?: Array<{ method: string; minutes: number }>;
 };
 
 type CalendarAccount = {
@@ -124,6 +125,34 @@ function timeLabel(event: CalendarEvent) {
 }
 function keyFor(accountId: string, calendarId: string) {
   return `${accountId}|${calendarId}`;
+}
+
+function plainCalendarText(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|div|ol|ul)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
+function reminderMinuteLabel(minutes: number) {
+  if (minutes === 0) return "Etkinlik saatinde";
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return days === 1 ? "1 gün önce" : `${days} gün önce`;
+  }
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return hours === 1 ? "1 saat önce" : `${hours} saat önce`;
+  }
+  return `${minutes} dk önce`;
 }
 
 export function CalendarView({ user, externalSources = false }: { user: User; externalSources?: boolean }) {
@@ -762,7 +791,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       startTime: event.allDay ? "09:00" : start.toTimeString().slice(0,5),
       endTime: event.allDay ? "10:00" : end.toTimeString().slice(0,5),
       allDay: event.allDay,
-      description: event.description,
+      description: plainCalendarText(event.description || ""),
       location: event.location,
       reminderMode: event.reminders?.useDefault === false
         ? ((event.reminders?.overrides?.length || 0) > 0 ? "custom" : "none")
@@ -1001,36 +1030,62 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       {label:"1 saat",minutes:60},
       {label:"1 gün",minutes:1440},
     ];
+    const selectedCalendar = flatCalendars.find(
+      calendar => calendar.accountId === current.accountId && calendar.id === current.calendarId
+    );
+    const defaults = selectedCalendar?.defaultReminders || [];
+    const defaultText = defaults.length
+      ? defaults.map(item => reminderMinuteLabel(Number(item.minutes || 0))).join(" · ")
+      : "Bu takvimde varsayılan hatırlatma yok";
+
+    function choosePreset(minutes:number) {
+      const active=current.reminderMode==="custom" && current.reminderMinutes.includes(minutes);
+      if(active) {
+        const nextMinutes=current.reminderMinutes.filter(value=>value!==minutes);
+        update({
+          ...current,
+          reminderMode:nextMinutes.length ? "custom" : "none",
+          reminderMinutes:nextMinutes,
+        });
+        return;
+      }
+      const base=current.reminderMode==="custom" ? current.reminderMinutes : [];
+      update({
+        ...current,
+        reminderMode:"custom",
+        reminderMinutes:[...base,minutes].filter((value,index,array)=>array.indexOf(value)===index).sort((a,b)=>a-b),
+      });
+    }
+
     return (
-      <div className={"calendarReminderEditor " + (compact ? "compact" : "")}>
-        <div className="calendarReminderHead">
-          <span>Hatırlatma</span>
-          <select value={current.reminderMode} onChange={e=>update({...current,reminderMode:e.target.value as EventDraft["reminderMode"]})}>
-            <option value="default">Takvim varsayılanı</option>
-            <option value="none">Yok</option>
-            <option value="custom">Özel</option>
-          </select>
-        </div>
-        {current.reminderMode === "custom" && (
-          <div className="calendarReminderPresets">
-            {presets.map(item => {
-              const active=current.reminderMinutes.includes(item.minutes);
-              return (
-                <button
-                  type="button"
-                  key={item.minutes}
-                  className={active ? "active" : ""}
-                  onClick={() => update({
-                    ...current,
-                    reminderMinutes:active
-                      ? current.reminderMinutes.filter(value=>value!==item.minutes)
-                      : [...current.reminderMinutes,item.minutes].sort((a,b)=>a-b),
-                  })}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
+      <div className={"calendarReminderEditor calendarReminderButtons " + (compact ? "compact" : "")}>
+        <div className="calendarReminderInline">
+          <span className="calendarReminderLabel">Hatırlatma</span>
+          <div className="calendarReminderChoiceRow">
+            <button
+              type="button"
+              className={current.reminderMode==="default" ? "active" : ""}
+              onClick={()=>update({...current,reminderMode:"default",reminderMinutes:[]})}
+            >
+              Varsayılan
+            </button>
+            <button
+              type="button"
+              className={current.reminderMode==="none" ? "active" : ""}
+              onClick={()=>update({...current,reminderMode:"none",reminderMinutes:[]})}
+            >
+              Yok
+            </button>
+            {presets.map(item => (
+              <button
+                type="button"
+                key={item.minutes}
+                className={current.reminderMode==="custom" && current.reminderMinutes.includes(item.minutes) ? "active" : ""}
+                onClick={()=>choosePreset(item.minutes)}
+              >
+                {item.label}
+              </button>
+            ))}
             <input
               type="number"
               min={0}
@@ -1040,13 +1095,21 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
               onKeyDown={e=>{
                 if(e.key!=="Enter") return;
                 const value=Number(e.currentTarget.value);
-                if(Number.isFinite(value) && value>=0 && !current.reminderMinutes.includes(value)) {
-                  update({...current,reminderMinutes:[...current.reminderMinutes,value].sort((a,b)=>a-b)});
+                if(Number.isFinite(value) && value>=0) {
+                  const base=current.reminderMode==="custom" ? current.reminderMinutes : [];
+                  update({
+                    ...current,
+                    reminderMode:"custom",
+                    reminderMinutes:[...base,value].filter((item,index,array)=>array.indexOf(item)===index).sort((a,b)=>a-b),
+                  });
                   e.currentTarget.value="";
                 }
               }}
             />
           </div>
+        </div>
+        {current.reminderMode==="default" && (
+          <div className="calendarReminderDefaultText">Varsayılan: {defaultText}</div>
         )}
       </div>
     );
