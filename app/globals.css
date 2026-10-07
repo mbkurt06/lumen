@@ -5071,3 +5071,100 @@ body.quranEasyRead .quranFlow{
     grid-template-columns:1fr 70px 1fr;
   }
 }
+
+
+/* v0.9.3 — Quran thin-script control, bookmark and reading-position TODOs */
+.quranFlow{
+  font-weight:var(--quran-font-weight,350);
+}
+body.quranEasyRead .quranFlow{
+  font-weight:var(--quran-font-weight,350);
+}
+.quranWeightControl{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:190px;
+}
+.quranWeightControl span{
+  color:var(--muted);
+  font-size:9px;
+}
+.quranWeightControl input[type="range"]{
+  width:120px;
+  accent-color:var(--accent);
+}
+.quranBookmarkCard{
+  width:min(760px,100%);
+  margin:10px auto 8px;
+  padding:12px 14px;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  border:1px solid color-mix(in srgb,var(--accent) 36%,var(--border));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--accent) 8%,var(--panel));
+  color:var(--text);
+  text-align:left;
+}
+.quranBookmarkCard>span{
+  color:var(--accent);
+  font-size:11px;
+  font-weight:850;
+}
+.quranBookmarkCard>strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.quranBookmarkCard>small{
+  color:var(--muted);
+}
+.quranReadingStatus{
+  width:min(900px,100%);
+  margin:10px auto 0;
+  padding:9px 11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:10px;
+}
+.quranReadingStatus small{
+  color:var(--accent);
+  font-weight:700;
+}
+.todoQuranPosition{
+  color:var(--accent)!important;
+  font-weight:650;
+}
+.quranPagePagerRtl{
+  direction:ltr;
+}
+.quranPagePagerRtl button:first-child{
+  text-align:left;
+}
+.quranPagePagerRtl button:last-child{
+  text-align:right;
+}
+@media(max-width:800px){
+  .quranBookmarkCard{
+    grid-template-columns:1fr;
+    gap:3px;
+  }
+  .quranBookmarkCard>small{
+    margin-top:2px;
+  }
+  .quranWeightControl{
+    min-width:0;
+  }
+  .quranWeightControl input[type="range"]{
+    width:96px;
+  }
+}
