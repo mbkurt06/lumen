@@ -3863,3 +3863,207 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
 @media(max-width:800px){
   .calendarEventPreview{display:none!important;}
 }
+
+
+/* v0.6.7 — fast event editor + calendar/TODO linking */
+.calendarEventQuickEditor{
+  overflow:visible!important;
+  max-height:none!important;
+  padding-bottom:0;
+}
+.calendarQuickTitle{
+  width:calc(100% - 28px);
+  margin:14px 14px 8px;
+  padding:7px 8px;
+  border:0;
+  border-bottom:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  font-size:17px;
+  font-weight:800;
+}
+.calendarQuickTitle:focus{
+  outline:none;
+  border-bottom-color:var(--accent);
+}
+.calendarQuickDateRow,
+.calendarQuickTimeRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 14px;
+}
+.calendarQuickDateRow input[type=date],
+.calendarQuickTimeRow input,
+.calendarQuickCalendar,
+.calendarQuickLocation,
+.calendarQuickDescription{
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--bg);
+  color:var(--text);
+  padding:7px 8px;
+}
+.calendarQuickDateRow input[type=date]{
+  flex:1;
+}
+.calendarQuickAllDay{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  color:var(--muted);
+  font-size:11px;
+  white-space:nowrap;
+}
+.calendarQuickTimeRow input{
+  flex:1;
+  min-width:0;
+}
+.calendarQuickCalendar,
+.calendarQuickLocation,
+.calendarQuickDescription{
+  display:block;
+  width:calc(100% - 28px);
+  margin:6px 14px;
+}
+.calendarQuickDescription{
+  resize:vertical;
+  min-height:62px;
+  max-height:120px;
+}
+.calendarQuickTodoRow{
+  display:flex;
+  align-items:center;
+  padding:6px 14px 8px;
+}
+.calendarQuickTodoRow button{
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:6px 9px;
+  background:var(--panel);
+  color:var(--text);
+  font-size:11px;
+}
+.calendarTodoLinked{
+  color:var(--accent);
+  font-size:11px;
+  font-weight:750;
+}
+.calendarTodoLinked.done{
+  color:var(--muted);
+  text-decoration:line-through;
+}
+.calendarQuickActions{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:10px 14px 12px;
+  border-top:1px solid var(--border);
+}
+.calendarQuickSource{
+  min-width:0;
+  flex:1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:var(--muted);
+  font-size:10px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.calendarQuickSource i{
+  flex:0 0 auto;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--preview-color,var(--accent));
+}
+.calendarQuickActions button{
+  min-height:32px;
+  padding:5px 10px;
+  border-radius:9px;
+}
+
+/* New/edit event as a practical right-side sheet instead of a center modal. */
+.calendarEditorBackdrop{
+  align-items:stretch!important;
+  justify-content:flex-end!important;
+  background:#0006!important;
+}
+.calendarEditorSheet{
+  width:min(440px,100vw)!important;
+  max-width:none!important;
+  height:100dvh!important;
+  max-height:none!important;
+  margin:0!important;
+  border-radius:16px 0 0 16px!important;
+  padding:18px!important;
+  overflow:auto!important;
+  animation:calendarEditorSlideIn .16s ease-out;
+}
+@keyframes calendarEditorSlideIn{
+  from{transform:translateX(24px);opacity:.7}
+  to{transform:translateX(0);opacity:1}
+}
+.calendarEditorSheet .calendarTitleInput{
+  font-size:24px!important;
+  padding:12px!important;
+}
+.calendarEditorSheet .calendarEditorActions{
+  position:sticky;
+  bottom:-18px;
+  margin:14px -18px -18px;
+  padding:12px 18px;
+  background:color-mix(in srgb,var(--panel) 97%,transparent);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(12px);
+}
+.calendarCreateTodoToggle{
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  margin-top:10px;
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+}
+.calendarCreateTodoToggle span{
+  display:grid;
+  gap:2px;
+}
+.calendarCreateTodoToggle small{
+  color:var(--muted);
+}
+.calendarEditorTodoButton,
+.calendarEditorTodoLinked{
+  margin-top:10px;
+  width:100%;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--panel);
+  color:var(--text);
+  text-align:left;
+}
+.calendarEditorTodoLinked{
+  color:var(--accent);
+  font-weight:700;
+}
+.todoCalendarBadge{
+  display:inline-flex;
+  width:max-content;
+  margin-top:5px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--accent) 14%,var(--panel));
+  color:var(--accent);
+  font-size:10px;
+  font-weight:750;
+}
+@media(max-width:800px){
+  .calendarEditorSheet{
+    width:100vw!important;
+    border-radius:0!important;
+  }
+}
