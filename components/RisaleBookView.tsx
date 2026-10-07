@@ -58,9 +58,21 @@ export function RisaleBookView({
   nodes:RisaleNode[];
 }){
   const [page,setPage]=useState(0);
-  const pages=useMemo(()=>paginate(nodes),[nodes]);
+  const [fontScale,setFontScale]=useState(1);
+  const pages=useMemo(()=>paginate(nodes,2250/Math.pow(fontScale,1.65)),[nodes,fontScale]);
 
   useEffect(()=>setPage(0),[title]);
+  useEffect(()=>{
+    const readScale=()=>{
+      const raw=getComputedStyle(document.documentElement).getPropertyValue("--font-scale");
+      const value=Number.parseFloat(raw);
+      setFontScale(Number.isFinite(value) && value>0 ? value : 1);
+    };
+    readScale();
+    window.addEventListener("lumen-library-prefs",readScale as EventListener);
+    return()=>window.removeEventListener("lumen-library-prefs",readScale as EventListener);
+  },[]);
+  useEffect(()=>setPage(current=>Math.min(current,pages.length-1)),[pages.length]);
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
       if(event.key==="ArrowLeft" && page<pages.length-1){
