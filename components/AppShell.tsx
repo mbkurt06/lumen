@@ -12,6 +12,7 @@ import { DuaListeningEmbed } from "@/components/DuaListeningEmbed";
 import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
+import { syncStaticContentInBackground } from "@/lib/contentSync";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
@@ -39,6 +40,10 @@ export function AppShell({
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>("todo");
   const [rightPanelMenuOpen, setRightPanelMenuOpen] = useState(false);
+
+  useEffect(() => {
+    void syncStaticContentInBackground();
+  }, []);
 
   const readerScope: ReaderScope = useMemo(() => {
     const source = String((selectedItem?.metadata as any)?.source || (selectedItem?.metadata as any)?.catalog_source || "");
