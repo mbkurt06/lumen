@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
+import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 
 type Item = {
@@ -102,7 +103,6 @@ export function MemorizationView({
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{todo: TodoInfo; x:number; y:number}|null>(null);
   const [message, setMessage] = useState("");
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [resolvedMeta, setResolvedMeta] = useState<Record<string, any>>((item?.metadata ?? {}) as Record<string, any>);
   const [resolvedCategoryTitle, setResolvedCategoryTitle] = useState(categoryTitle);
 
@@ -117,18 +117,6 @@ export function MemorizationView({
   const editTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const today = localDateKey();
-
-  useEffect(() => {
-    setHeaderCollapsed(localStorage.getItem("lumen-ezber-header-collapsed") === "1");
-  }, []);
-
-  function toggleHeader() {
-    setHeaderCollapsed(current => {
-      const next = !current;
-      localStorage.setItem("lumen-ezber-header-collapsed", next ? "1" : "0");
-      return next;
-    });
-  }
 
   const itemMeta = resolvedMeta;
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
@@ -416,24 +404,17 @@ export function MemorizationView({
         }
       }}
     >
-      <header className={"v2SharedHeader v2MemorizeHeader " + (headerCollapsed ? "collapsed" : "")}>
-        <div className="v2HeaderToolbar">
-          <div className="v2HeaderGroup">
-            <button className="v2HeaderButton" onClick={onMenu}>‹ Menü</button>
-            <button className="v2HeaderButton" onClick={onBack}>‹ Geri</button>
-          </div>
-          <div className="v2HeaderGroup">
-            <button className="v2HeaderButton" onClick={() => setTodoOpen(true)}>+ Todo</button>
-            <button className="v2HeaderPrimary" aria-current="page">Ezber yap</button>
-          </div>
-        </div>
-        <div className="v2HeaderProgress">{nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}</div>
-        <div className="v2HeaderTitle">{isEsmaDetail ? (resolvedCategoryTitle || categoryTitle || item.title) : item.title}</div>
-        {!isEsmaDetail && invocation && <div className="v2HeaderInvocation">{invocation}</div>}
-        <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
-          {headerCollapsed ? "▾" : "▴"}
-        </button>
-      </header>
+      <EzberSharedHeader
+        title={isEsmaDetail ? (resolvedCategoryTitle || categoryTitle || item.title) : item.title}
+        invocation={!isEsmaDetail ? invocation || null : null}
+        progress={nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}
+        showTodo={true}
+        showMemorize={true}
+        memorizeActive={true}
+        onMenu={onMenu}
+        onBack={onBack}
+        onTodo={() => setTodoOpen(true)}
+      />
 
       <main
         className={"legacyMemorize " + (isEsmaDetail ? "v2EsmaDetail" : "")}
