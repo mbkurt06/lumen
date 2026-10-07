@@ -6,6 +6,8 @@ import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
+import { loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 
 type Item = {
@@ -153,6 +155,7 @@ export function ReaderView({
   const [quranPageMin, setQuranPageMin] = useState(1);
   const [quranPageMax, setQuranPageMax] = useState(604);
   const [quranPageLoading, setQuranPageLoading] = useState(false);
+  const [quranMushafPage, setQuranMushafPage] = useState<QuranMushafPage | null>(null);
   const [quranBookmarks, setQuranBookmarks] = useState<QuranBookmark[]>([]);
   const [quranBookmarkMenuOpen, setQuranBookmarkMenuOpen] = useState(false);
   const [quranBookmarkName, setQuranBookmarkName] = useState("");
@@ -164,6 +167,7 @@ export function ReaderView({
   const scrollRestored = useRef(false);
   const quranSwipeStartX = useRef<number | null>(null);
   const quranPageCache = useRef<Map<number, Node[]>>(new Map());
+  const quranMushafPageCache = useRef<Map<number, QuranMushafPage | null>>(new Map());
   const quranPageRequest = useRef(0);
   const quranPageRef = useRef<HTMLDivElement | null>(null);
   const quranFlowRef = useRef<HTMLDivElement | null>(null);
@@ -402,6 +406,15 @@ export function ReaderView({
     return loaded;
   }, []);
 
+  const fetchQuranMushafPage = useCallback(async (page:number) => {
+    if (quranMushafPageCache.current.has(page)) {
+      return quranMushafPageCache.current.get(page) ?? null;
+    }
+    const loaded = await loadQuranMushafPage(page);
+    quranMushafPageCache.current.set(page, loaded);
+    return loaded;
+  }, []);
+
   const loadQuranPage = useCallback(async (page:number, focusNodeId:string | null = null) => {
     const safePage = Math.max(quranPageMin, Math.min(quranPageMax, page));
     const requestId = ++quranPageRequest.current;
@@ -410,10 +423,14 @@ export function ReaderView({
     setMessage("");
 
     try {
-      const loaded = await fetchQuranPage(safePage);
+      const [loaded, wordPage] = await Promise.all([
+        fetchQuranPage(safePage),
+        fetchQuranMushafPage(safePage).catch(() => null),
+      ]);
       if (requestId !== quranPageRequest.current) return;
 
       setNodes(loaded);
+      setQuranMushafPage(wordPage);
       setQuranPage(safePage);
       setQuranBookmarkMenuOpen(false);
       setQuranTodoMenuOpen(false);
@@ -431,8 +448,14 @@ export function ReaderView({
       }
 
       // Komşu sayfaları arka planda önbelleğe al; sonraki/önceki geçiş anlık olsun.
-      if (safePage < quranPageMax) void fetchQuranPage(safePage + 1).catch(() => {});
-      if (safePage > quranPageMin) void fetchQuranPage(safePage - 1).catch(() => {});
+      if (safePage < quranPageMax) {
+        void fetchQuranPage(safePage + 1).catch(() => {});
+        void fetchQuranMushafPage(safePage + 1).catch(() => {});
+      }
+      if (safePage > quranPageMin) {
+        void fetchQuranPage(safePage - 1).catch(() => {});
+        void fetchQuranMushafPage(safePage - 1).catch(() => {});
+      }
     } catch(error) {
       if (requestId !== quranPageRequest.current) return;
       setNodes([]);
@@ -440,7 +463,7 @@ export function ReaderView({
     } finally {
       if (requestId === quranPageRequest.current) setQuranPageLoading(false);
     }
-  }, [quranPageMin, quranPageMax, focusQuranNode, fetchQuranPage]);
+  }, [quranPageMin, quranPageMax, focusQuranNode, fetchQuranPage, fetchQuranMushafPage]);
 
   const load = useCallback(async () => {
     setMessage("");
@@ -452,8 +475,12 @@ export function ReaderView({
       setQuranPageMax(endPage);
 
       let loaded: Node[] = [];
+      let wordPage: QuranMushafPage | null = null;
       try {
-        loaded = await fetchQuranPage(startPage);
+        [loaded, wordPage] = await Promise.all([
+          fetchQuranPage(startPage),
+          fetchQuranMushafPage(startPage).catch(() => null),
+        ]);
       } catch(error) {
         setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
         setNodes([]);
@@ -461,6 +488,7 @@ export function ReaderView({
       }
 
       setNodes(loaded);
+      setQuranMushafPage(wordPage);
       setQuranPage(startPage);
       setQuranSelectedNodeId(null);
       setLocalCounts(getTransientCounts(item.id));
@@ -473,7 +501,10 @@ export function ReaderView({
       if (initialNodeId && loaded.some(node => node.id === initialNodeId)) {
         focusQuranNode(initialNodeId);
       }
-      if (startPage < endPage) void fetchQuranPage(startPage + 1).catch(() => {});
+      if (startPage < endPage) {
+        void fetchQuranPage(startPage + 1).catch(() => {});
+        void fetchQuranMushafPage(startPage + 1).catch(() => {});
+      }
       await loadTodos();
       return;
     }
@@ -509,7 +540,7 @@ export function ReaderView({
     }
 
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page, itemMeta.initial_node_id, focusQuranNode, fetchQuranPage]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page, itemMeta.initial_node_id, focusQuranNode, fetchQuranPage, fetchQuranMushafPage]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -931,42 +962,48 @@ export function ReaderView({
               <span>{quranPage ? `Sayfa ${displayQuranPage(quranPage)}` : ""}</span>
               <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.juz ? `Cüz ${(nodes[0]?.metadata as Record<string,any>).juz}` : "")}</span>
             </div>
-            <div ref={quranFlowRef} className="quranFlow" dir="rtl">
-              {nodes.map((node, index) => {
-                const selected = quranSelectedNodeId === node.id;
-                return (
-                  <span
-                    key={node.id}
-                    id={"quran-ayah-" + node.id}
-                    role="button"
-                    tabIndex={0}
-                    className={"quranAyahInline" + (selected ? " selected" : "")}
-                    data-reader-index={index}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setQuranBookmarkMenuOpen(false);
-                      setQuranTodoMenuOpen(false);
-                      setQuranSelectedNodeId(node.id);
-                      setActiveNodeId(node.id);
-                      setActiveDocumentTodoId(null);
-                      setActiveTodoId(null);
-                      setCounterArmed(true);
-                    }}
-                    onKeyDown={e => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
+            <div ref={quranFlowRef} className={"quranFlow" + (quranMushafPage ? " quranWordSourceActive" : "")} dir="rtl">
+              {quranMushafPage ? (
+                <QuranMushafPageContent
+                  page={quranMushafPage}
+                  selectedNodeId={quranSelectedNodeId}
+                  onSelectNode={nodeId => {
+                    setQuranBookmarkMenuOpen(false);
+                    setQuranTodoMenuOpen(false);
+                    setQuranSelectedNodeId(nodeId);
+                    setActiveNodeId(nodeId);
+                    setActiveDocumentTodoId(null);
+                    setActiveTodoId(null);
+                    setCounterArmed(true);
+                  }}
+                />
+              ) : (
+                nodes.map((node, index) => {
+                  const selected = quranSelectedNodeId === node.id;
+                  return (
+                    <span
+                      key={node.id}
+                      id={"quran-ayah-" + node.id}
+                      role="button"
+                      tabIndex={0}
+                      className={"quranAyahInline" + (selected ? " selected" : "")}
+                      data-reader-index={index}
+                      onClick={e => {
+                        e.stopPropagation();
                         setQuranBookmarkMenuOpen(false);
                         setQuranTodoMenuOpen(false);
                         setQuranSelectedNodeId(node.id);
                         setActiveNodeId(node.id);
+                        setActiveDocumentTodoId(null);
+                        setActiveTodoId(null);
                         setCounterArmed(true);
-                      }
-                    }}
-                  >
-                    <span className="quranAyahText">{node.secondary_text}</span><span className="quranAyahNo" aria-label={`Ayet ${node.sort_order}`}>{toArabicIndic(node.sort_order)}</span>{" "}
-                  </span>
-                );
-              })}
+                      }}
+                    >
+                      <span className="quranAyahText">{node.secondary_text}</span><span className="quranAyahNo" aria-label={`Ayet ${node.sort_order}`}>{toArabicIndic(node.sort_order)}</span>{" "}
+                    </span>
+                  );
+                })
+              )}
             </div>
           </div>
 
