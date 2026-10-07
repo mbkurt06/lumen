@@ -56,6 +56,12 @@ type EventDraft = {
   location: string;
 };
 
+type EventHoverPreview = {
+  event: CalendarEvent;
+  x: number;
+  y: number;
+};
+
 const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 
@@ -145,6 +151,9 @@ export function CalendarView({ user }: { user: User }) {
   const [hourDensity, setHourDensity] = useState<36 | 48 | 64>(48);
   const [autoScrollNow, setAutoScrollNow] = useState(true);
   const timeScrollRef = useRef<HTMLDivElement | null>(null);
+  const [eventHover, setEventHover] = useState<EventHoverPreview | null>(null);
+  const hoverOpenTimerRef = useRef<number | null>(null);
+  const hoverCloseTimerRef = useRef<number | null>(null);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -556,6 +565,88 @@ export function CalendarView({ user }: { user: User }) {
     return flatCalendars.find(calendar => calendar.key === event.calendarKey);
   }
 
+  function cancelHoverOpen() {
+    if (hoverOpenTimerRef.current !== null) {
+      window.clearTimeout(hoverOpenTimerRef.current);
+      hoverOpenTimerRef.current = null;
+    }
+  }
+
+  function cancelHoverClose() {
+    if (hoverCloseTimerRef.current !== null) {
+      window.clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+  }
+
+  function scheduleEventHover(event: CalendarEvent, target: HTMLElement) {
+    if (window.matchMedia("(hover: none)").matches) return;
+    cancelHoverOpen();
+    cancelHoverClose();
+
+    const rect = target.getBoundingClientRect();
+    const cardWidth = Math.min(360, window.innerWidth - 24);
+    const cardHeight = 280;
+    const gap = 10;
+
+    let x = rect.right + gap;
+    if (x + cardWidth > window.innerWidth - 12) x = rect.left - cardWidth - gap;
+    x = Math.max(12, Math.min(x, window.innerWidth - cardWidth - 12));
+
+    let y = rect.top;
+    if (y + cardHeight > window.innerHeight - 12) y = window.innerHeight - cardHeight - 12;
+    y = Math.max(12, y);
+
+    hoverOpenTimerRef.current = window.setTimeout(() => {
+      setEventHover({ event, x, y });
+      hoverOpenTimerRef.current = null;
+    }, 180);
+  }
+
+  function scheduleHoverClose() {
+    cancelHoverOpen();
+    cancelHoverClose();
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      setEventHover(null);
+      hoverCloseTimerRef.current = null;
+    }, 140);
+  }
+
+  function keepHoverOpen() {
+    cancelHoverClose();
+  }
+
+  function formatHoverDate(event: CalendarEvent) {
+    const start = eventStart(event);
+    const end = eventEnd(event);
+    if (!start) return "";
+
+    if (event.allDay) {
+      const effectiveEnd = end ? addDays(startOfDay(end), -1) : start;
+      if (effectiveEnd && !sameDay(start, effectiveEnd)) {
+        return `${start.toLocaleDateString("tr-TR",{weekday:"short",day:"numeric",month:"long"})} – ${effectiveEnd.toLocaleDateString("tr-TR",{weekday:"short",day:"numeric",month:"long",year:"numeric"})} · Tüm gün`;
+      }
+      return `${start.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})} · Tüm gün`;
+    }
+
+    const date = start.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    const startTime = start.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+    const endTime = end?.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+    return `${date} · ${startTime}${endTime ? "–"+endTime : ""}`;
+  }
+
+  function formatHoverDuration(event: CalendarEvent) {
+    if (event.allDay) return "";
+    const start = eventStart(event);
+    const end = eventEnd(event);
+    if (!start || !end) return "";
+    const minutes = Math.max(0, Math.round((end.getTime()-start.getTime())/60000));
+    if (minutes < 60) return `${minutes} dk`;
+    const hours = Math.floor(minutes/60);
+    const rest = minutes%60;
+    return rest ? `${hours} sa ${rest} dk` : `${hours} sa`;
+  }
+
   function openNewEvent(date = anchor) {
     const writable = visibleCalendars.find(calendar => calendar.accessRole === "owner" || calendar.accessRole === "writer");
     if (!writable) {
@@ -733,7 +824,11 @@ export function CalendarView({ user }: { user: User }) {
           (!endsHere ? "continuesAfter " : "") +
           (draggingEventKey === key ? "dragging" : "")
         }
-        onClick={ev => { ev.stopPropagation(); openEditEvent(event); }}
+        onClick={ev => { ev.stopPropagation(); setEventHover(null); openEditEvent(event); }}
+        onMouseEnter={ev => scheduleEventHover(event, ev.currentTarget)}
+        onMouseLeave={scheduleHoverClose}
+        onFocus={ev => scheduleEventHover(event, ev.currentTarget)}
+        onBlur={scheduleHoverClose}
         title={event.summary}
         draggable
         onDragStart={ev => {
@@ -1021,7 +1116,11 @@ export function CalendarView({ user }: { user: User }) {
                         borderLeftColor:meta?.backgroundColor || undefined,
                         ["--event-color" as string]: meta?.backgroundColor || "var(--accent)"
                       }}
-                      onClick={() => openEditEvent(event)}
+                      onClick={() => { setEventHover(null); openEditEvent(event); }}
+                      onMouseEnter={ev => scheduleEventHover(event, ev.currentTarget)}
+                      onMouseLeave={scheduleHoverClose}
+                      onFocus={ev => scheduleEventHover(event, ev.currentTarget)}
+                      onBlur={scheduleHoverClose}
                     >
                       <strong>{event.summary}</strong>
                       <small>{timeLabel(event)}</small>
@@ -1092,7 +1191,15 @@ export function CalendarView({ user }: { user: User }) {
                 {list.map(event => {
                   const meta=calendarMeta(event);
                   return (
-                    <button className="agendaEvent" key={event.calendarKey+":"+event.id} onClick={()=>openEditEvent(event)}>
+                    <button
+                      className="agendaEvent"
+                      key={event.calendarKey+":"+event.id}
+                      onClick={()=>{ setEventHover(null); openEditEvent(event); }}
+                      onMouseEnter={ev => scheduleEventHover(event, ev.currentTarget)}
+                      onMouseLeave={scheduleHoverClose}
+                      onFocus={ev => scheduleEventHover(event, ev.currentTarget)}
+                      onBlur={scheduleHoverClose}
+                    >
                       <span className="agendaTime">{timeLabel(event)}</span>
                       <span className="agendaDot" style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
                       <span className="agendaMain"><strong>{event.summary}</strong>{event.location&&<small>{event.location}</small>}</span>
@@ -1117,6 +1224,13 @@ export function CalendarView({ user }: { user: User }) {
   }
 
   useEffect(() => {
+    return () => {
+      cancelHoverOpen();
+      cancelHoverClose();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!autoScrollNow) return;
     if (view !== "day" && view !== "week" && view !== "3day") return;
     if (!timeScrollRef.current) return;
@@ -1132,6 +1246,11 @@ export function CalendarView({ user }: { user: User }) {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (event.key === "Escape" && eventHover) {
+        setEventHover(null);
+        event.preventDefault();
+        return;
+      }
       if (draft) return;
 
       const key = event.key.toLowerCase();
@@ -1332,6 +1451,46 @@ export function CalendarView({ user }: { user: User }) {
           {view==="list" && renderList()}
         </div>
       </main>
+
+      {eventHover && (() => {
+        const event = eventHover.event;
+        const meta = calendarMeta(event);
+        const duration = formatHoverDuration(event);
+        return (
+          <div
+            className="calendarEventPreview"
+            style={{ left:eventHover.x, top:eventHover.y, ["--preview-color" as string]:meta?.backgroundColor || "var(--accent)" }}
+            onMouseEnter={keepHoverOpen}
+            onMouseLeave={scheduleHoverClose}
+            role="dialog"
+            aria-label={event.summary + " etkinlik ayrıntıları"}
+          >
+            <div className="calendarEventPreviewAccent" />
+            <div className="calendarEventPreviewHead">
+              <div>
+                <strong>{event.summary}</strong>
+                <span>{formatHoverDate(event)}</span>
+              </div>
+              <span
+                className="calendarPreviewCalendarDot"
+                style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}
+              />
+            </div>
+
+            {duration && <div className="calendarEventPreviewRow"><span>◷</span><span>{duration}</span></div>}
+            {event.location && <div className="calendarEventPreviewRow"><span>⌖</span><span>{event.location}</span></div>}
+            {event.description && <div className="calendarEventPreviewDescription">{event.description}</div>}
+
+            <div className="calendarEventPreviewFooter">
+              <span>
+                <i style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
+                {meta?.summary || "Takvim"}
+              </span>
+              <span>Düzenlemek için etkinliğe tıkla</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {draft && (
         <div className="calendarEditorBackdrop" onMouseDown={()=>setDraft(null)}>
