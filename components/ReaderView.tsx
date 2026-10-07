@@ -335,25 +335,39 @@ export function ReaderView({
     });
   }, []);
 
+  const fetchQuranPage = useCallback(async (page:number) => {
+    const cached = quranPageCache.current.get(page);
+    if (cached) return cached;
+
+    const { data, error } = await supabase
+      .from("content_nodes")
+      .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+      .eq("metadata->>source", "quran_seeded")
+      .eq("metadata->>page", String(page));
+
+    if (error) throw error;
+
+    const loaded = (data ?? []).sort((a,b) => {
+      const am=(a.metadata ?? {}) as Record<string,any>;
+      const bm=(b.metadata ?? {}) as Record<string,any>;
+      return Number(am.surah_no || 0) - Number(bm.surah_no || 0)
+        || Number(am.ayah_no || a.sort_order || 0) - Number(bm.ayah_no || b.sort_order || 0);
+    }) as Node[];
+
+    quranPageCache.current.set(page, loaded);
+    return loaded;
+  }, []);
+
   const loadQuranPage = useCallback(async (page:number, focusNodeId:string | null = null) => {
     const safePage = Math.max(quranPageMin, Math.min(quranPageMax, page));
-    setQuranPageLoading(true);
+    const requestId = ++quranPageRequest.current;
+    const cached = quranPageCache.current.has(safePage);
+    if (!cached) setQuranPageLoading(true);
     setMessage("");
+
     try {
-      const { data, error } = await supabase
-        .from("content_nodes")
-        .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-        .eq("metadata->>source", "quran_seeded")
-        .eq("metadata->>page", String(safePage));
-
-      if (error) throw error;
-
-      const loaded = (data ?? []).sort((a,b) => {
-        const am=(a.metadata ?? {}) as Record<string,any>;
-        const bm=(b.metadata ?? {}) as Record<string,any>;
-        return Number(am.surah_no || 0) - Number(bm.surah_no || 0)
-          || Number(am.ayah_no || a.sort_order || 0) - Number(bm.ayah_no || b.sort_order || 0);
-      });
+      const loaded = await fetchQuranPage(safePage);
+      if (requestId !== quranPageRequest.current) return;
 
       setNodes(loaded);
       setQuranPage(safePage);
@@ -363,18 +377,24 @@ export function ReaderView({
       setActiveDocumentTodoId(null);
       setCounterArmed(false);
       scrollRestored.current = true;
+
       if (focusNodeId && loaded.some(node => node.id === focusNodeId)) {
         focusQuranNode(focusNodeId);
       } else {
-        window.scrollTo({top:0,behavior:"smooth"});
+        window.scrollTo({top:0,behavior:"auto"});
       }
+
+      // Komşu sayfaları arka planda önbelleğe al; sonraki/önceki geçiş anlık olsun.
+      if (safePage < quranPageMax) void fetchQuranPage(safePage + 1).catch(() => {});
+      if (safePage > quranPageMin) void fetchQuranPage(safePage - 1).catch(() => {});
     } catch(error) {
+      if (requestId !== quranPageRequest.current) return;
       setNodes([]);
       setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
     } finally {
-      setQuranPageLoading(false);
+      if (requestId === quranPageRequest.current) setQuranPageLoading(false);
     }
-  }, [quranPageMin, quranPageMax, focusQuranNode]);
+  }, [quranPageMin, quranPageMax, focusQuranNode, fetchQuranPage]);
 
   const load = useCallback(async () => {
     setMessage("");
@@ -385,24 +405,14 @@ export function ReaderView({
       setQuranPageMin(startPage);
       setQuranPageMax(endPage);
 
-      const { data, error } = await supabase
-        .from("content_nodes")
-        .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
-        .eq("metadata->>source", "quran_seeded")
-        .eq("metadata->>page", String(startPage));
-
-      if (error) {
-        setMessage(error.message);
+      let loaded: Node[] = [];
+      try {
+        loaded = await fetchQuranPage(startPage);
+      } catch(error) {
+        setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
         setNodes([]);
         return;
       }
-
-      const loaded = (data ?? []).sort((a,b) => {
-        const am=(a.metadata ?? {}) as Record<string,any>;
-        const bm=(b.metadata ?? {}) as Record<string,any>;
-        return Number(am.surah_no || 0) - Number(bm.surah_no || 0)
-          || Number(am.ayah_no || a.sort_order || 0) - Number(bm.ayah_no || b.sort_order || 0);
-      });
 
       setNodes(loaded);
       setQuranPage(startPage);
@@ -417,6 +427,7 @@ export function ReaderView({
       if (initialNodeId && loaded.some(node => node.id === initialNodeId)) {
         focusQuranNode(initialNodeId);
       }
+      if (startPage < endPage) void fetchQuranPage(startPage + 1).catch(() => {});
       await loadTodos();
       return;
     }
@@ -452,7 +463,7 @@ export function ReaderView({
     }
 
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page, itemMeta.initial_node_id, focusQuranNode]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page, itemMeta.initial_node_id, focusQuranNode, fetchQuranPage]);
 
   useEffect(() => { load(); }, [load]);
 
