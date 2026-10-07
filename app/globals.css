@@ -1872,3 +1872,44 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
     font-size:17px!important;
   }
 }
+
+
+/* v0.4.5 — one viewport-based Ezber column at every depth */
+:root{
+  --ezber-column-width:760px;
+}
+.v2SharedHeader,
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader,
+.v2SharedHeader.collapsed{
+  width:min(var(--ezber-column-width),calc(100vw - 36px))!important;
+  max-width:var(--ezber-column-width)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.duaEzberIntegrated .legacyCategoryList,
+.duaEzberIntegrated .legacyHomeMenu,
+.legacyNestedPage .legacyCategoryList,
+.legacyNestedPage .legacyHomeMenu,
+.legacyReadContent{
+  width:min(var(--ezber-column-width),calc(100vw - 36px))!important;
+  max-width:var(--ezber-column-width)!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+@media(max-width:520px){
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader,
+  .v2SharedHeader.collapsed,
+  .duaEzberIntegrated .legacyCategoryList,
+  .duaEzberIntegrated .legacyHomeMenu,
+  .legacyNestedPage .legacyCategoryList,
+  .legacyNestedPage .legacyHomeMenu,
+  .legacyReadContent{
+    width:calc(100vw - 20px)!important;
+    max-width:none!important;
+  }
+}
