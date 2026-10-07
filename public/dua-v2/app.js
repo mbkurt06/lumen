@@ -1,4 +1,7 @@
 const $=s=>document.querySelector(s);
+const EMBEDDED=new URLSearchParams(location.search).get("embedded")==="1";
+const FORCED_VIEW=new URLSearchParams(location.search).get("view")||"";
+if(EMBEDDED)document.body.classList.add("embedded-mode");
 const state=JSON.parse(localStorage.getItem("duaEzberState")||"{}");
 state.settings=Object.assign({dark:false,fontSize:32,showArabic:false,showLatin:true,showTurkish:false,showNotes:true,mode:"memorize"},state.settings||{});state.readCounts=state.readCounts||{};
 let data,dua,index=state.index||0;const counts=state.counts||{};
@@ -21,7 +24,7 @@ async function init(){
   migrateLegacyViewState();
   buildHomeMenuFromDb();
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=96").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(FORCED_VIEW==="listening"){openListening()}else if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=97").then(r=>r.update())
 }
 function migrateLegacyViewState(){
   const map={
@@ -522,7 +525,7 @@ $("#saveTodoBtn").onclick=()=>{
 }
 function addTodoProgress(scope){const k=todayKey(),now=new Date().toISOString();todos.forEach(t=>{if(t.duaId!==dua.id||!todoOccursOn(t,k))return;if(scope==="dua"&&t.segmentIndex!=null)return;if(scope==="segment"&&t.segmentIndex!==index)return;t.history=t.history||{};const h=t.history[k]||(t.history[k]={count:0,completedAt:null});if(h.completedAt)return;h.count=(h.count||0)+1;if(h.count>=t.target)h.completedAt=now});saveTodos();updateHomeTodoCount();if(state.currentView==="todo")renderTodo()}
 if($("#homeListeningBtn"))$("#homeListeningBtn").onclick=openListening;
-$("#listeningMenuBtn").onclick=openHome;
+$("#listeningMenuBtn").onclick=()=>{if(EMBEDDED){parent.postMessage({type:"lumen-dua-listening-back"},"*");return}openHome()};
 if($("#homeIlmihalBtn"))$("#homeIlmihalBtn").onclick=()=>openIlmihal();
 $("#ilmihalMenuBackBtn").onclick=openHome;
 $("#ilmihalTopicsBtn").onclick=()=>openIlmihal();
