@@ -196,12 +196,18 @@ export function QuranMushafPageContent({
                   onMouseEnter={event => {
                     const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
                     if (!text || document.body.classList.contains("quranHideLatin")) return;
-                    setPronunciationTooltip({ text, x: event.clientX, y: event.clientY - 18 });
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = Math.max(190, Math.min(window.innerWidth - 190, event.clientX));
+                    const y = Math.max(12, rect.top - 8);
+                    setPronunciationTooltip({ text, x, y });
                   }}
                   onMouseMove={event => {
                     const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
                     if (!text || document.body.classList.contains("quranHideLatin")) return;
-                    setPronunciationTooltip({ text, x: event.clientX, y: event.clientY - 18 });
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const x = Math.max(190, Math.min(window.innerWidth - 190, event.clientX));
+                    const y = Math.max(12, rect.top - 8);
+                    setPronunciationTooltip({ text, x, y });
                   }}
                   onMouseLeave={() => setPronunciationTooltip(null)}
                   onClick={event => {
