@@ -4578,3 +4578,79 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     left:66px;
   }
 }
+
+
+/* v0.8.0 — populated Quran/Risale library sections */
+.libraryCatalogPage{
+  padding-top:12px;
+}
+.libraryCatalogSourceNote,
+.readerSourceNote{
+  width:min(760px,100%);
+  margin:10px auto 14px;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--panel) 82%,transparent);
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.libraryCatalogRow{
+  cursor:pointer;
+}
+.libraryCatalogRow .categoryRowRight{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.libraryCatalogRow .categoryRowRight b{
+  color:var(--muted);
+  font-size:24px;
+  font-weight:400;
+}
+.externalLibraryReader{
+  width:min(760px,calc(100% - 24px));
+  margin:18px auto 8px;
+  padding:18px;
+  display:grid;
+  gap:12px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--panel);
+}
+.externalLibraryReader strong{
+  font-size:20px;
+}
+.externalLibraryReader p{
+  margin:6px 0 0;
+  color:var(--muted);
+  line-height:1.55;
+}
+.externalLibraryReader a{
+  width:max-content;
+  max-width:100%;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--accent);
+  color:#fff;
+  text-decoration:none;
+  font-weight:700;
+}
+.externalLibraryReader small{
+  color:var(--muted);
+}
+.legacyReadItem .legacyArabic{
+  overflow-wrap:anywhere;
+}
+@media(max-width:800px){
+  .libraryCatalogSourceNote,
+  .readerSourceNote{
+    margin-top:8px;
+  }
+  .externalLibraryReader{
+    width:calc(100% - 16px);
+    margin-top:12px;
+  }
+}
