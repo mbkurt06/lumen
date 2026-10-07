@@ -1569,3 +1569,26 @@ html.pre-dark body{
 .memorizeTodoButton{
   display:none!important;
 }
+
+
+/* v0.2.4 — keep the shared Ezber menu bar the same width on every depth */
+.v2SharedHeader{
+  width:min(1040px,calc(100vw - 48px))!important;
+  max-width:1040px!important;
+  box-sizing:border-box;
+}
+.v2ReadHeader,
+.v2MemorizeHeader,
+.v2ListHeader{
+  width:min(1040px,calc(100vw - 48px))!important;
+  max-width:1040px!important;
+}
+@media(max-width:800px){
+  .v2SharedHeader,
+  .v2ReadHeader,
+  .v2MemorizeHeader,
+  .v2ListHeader{
+    width:calc(100vw - 16px)!important;
+    max-width:none!important;
+  }
+}
