@@ -390,7 +390,9 @@ export function ReaderView({
           </div>
         </div>
         <div className="v2HeaderTitle">{item.title}</div>
-        {item.subtitle && <div className="v2HeaderInvocation">{item.subtitle}</div>}
+        {String(item.metadata?.invocation || item.subtitle || "") && (
+          <div className="v2HeaderInvocation">{String(item.metadata?.invocation || item.subtitle || "")}</div>
+        )}
         <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
           {headerCollapsed ? "▾" : "▴"}
         </button>
