@@ -234,6 +234,11 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
 
   useEffect(() => { void loadTodos(); }, [loadTodos]);
   useEffect(() => { void loadCalendarForDate(selectedDate); }, [selectedDate, loadCalendarForDate]);
+  useEffect(() => {
+    const refresh = () => void loadCalendarForDate(selectedDate);
+    window.addEventListener("lumen-calendar-sources-changed", refresh);
+    return () => window.removeEventListener("lumen-calendar-sources-changed", refresh);
+  }, [selectedDate, loadCalendarForDate]);
 
   const regularVisible = useMemo(
     () => todos.filter(todo => parseMeta(todo.notes).source !== "calendar" && occurs(parseMeta(todo.notes), selectedDate)),
