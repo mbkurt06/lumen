@@ -19,7 +19,7 @@
     } catch {}
   </script>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=88">
+  <link rel="stylesheet" href="./styles.css?v=89">
 </head>
 <body>
   <main class="app">
@@ -405,6 +405,7 @@
     <div class="setting-row"><span>Latin harfleri</span><button id="latinToggle" class="setting-btn">Açık</button></div>
     <div class="setting-row"><span>Türkçe anlam</span><button id="turkishToggle" class="setting-btn">Gizli</button></div>
     <div class="setting-row"><span>Açıklamalar</span><button id="notesToggle" class="setting-btn">Açık</button></div>
+    <div class="setting-row"><span>Gizlenen menüler</span><button id="restoreHiddenMenusBtn" class="setting-btn">Tümünü geri getir</button></div>
   </dialog>
 
   <script src="https://www.youtube.com/iframe_api"></script>
@@ -412,7 +413,7 @@
   <script>
     window.duaV2CloudReady.finally(() => {
       const script = document.createElement("script");
-      script.src = "./app.js?v=88";
+      script.src = "./app.js?v=89";
       document.body.appendChild(script);
     });
   </script>
