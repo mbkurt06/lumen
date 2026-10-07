@@ -1330,3 +1330,223 @@ html.pre-dark body{
     padding-bottom:0;
   }
 }
+
+
+/* v0.2.1 — V2 visual/interaction layer ported into main Ezber */
+.v2SharedHeader{
+  position:sticky;
+  top:0;
+  z-index:58;
+  width:min(1160px,calc(100% - 24px));
+  margin:0 auto 30px;
+  padding:14px 18px 20px;
+  border:1px solid var(--border);
+  border-radius:22px;
+  background:color-mix(in srgb,var(--bg) 97%,transparent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  box-shadow:0 12px 30px #0001;
+}
+.v2HeaderToolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.v2HeaderGroup{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:48px;
+}
+.v2HeaderButton,
+.v2HeaderPrimary{
+  min-height:48px;
+  border-radius:14px;
+  padding:0 18px;
+  border:1px solid var(--border);
+  font-size:17px;
+  font-weight:750;
+  white-space:nowrap;
+}
+.v2HeaderButton{
+  background:var(--panel);
+  color:var(--text);
+}
+.v2HeaderPrimary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.v2HeaderTitle{
+  margin:13px auto 0;
+  text-align:center;
+  font-size:24px;
+  line-height:1.2;
+  font-weight:800;
+}
+.v2HeaderInvocation{
+  margin:10px auto 0;
+  text-align:center;
+  max-width:900px;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(22px,3vw,34px);
+  line-height:1.4;
+  color:var(--accent);
+}
+.v2HeaderProgress{
+  position:fixed;
+  left:50%;
+  top:10px;
+  transform:translateX(-50%);
+  z-index:2;
+  color:var(--muted);
+  font-size:14px;
+  font-weight:650;
+  pointer-events:none;
+}
+.v2HeaderCollapse{
+  position:absolute;
+  left:50%;
+  bottom:-18px;
+  transform:translateX(-50%);
+  width:44px;
+  height:34px;
+  border:1px solid var(--border);
+  border-radius:0 0 12px 12px;
+  background:var(--panel);
+  color:var(--text);
+  font-weight:800;
+  z-index:3;
+}
+.v2SharedHeader.collapsed{
+  min-height:18px;
+  height:18px;
+  padding:0;
+  margin-bottom:28px;
+  border-radius:0;
+  border-left:0;
+  border-right:0;
+  border-top:0;
+  box-shadow:none;
+  background:var(--bg);
+}
+.v2SharedHeader.collapsed .v2HeaderToolbar,
+.v2SharedHeader.collapsed .v2HeaderTitle,
+.v2SharedHeader.collapsed .v2HeaderInvocation,
+.v2SharedHeader.collapsed .v2HeaderProgress{
+  display:none!important;
+}
+.v2SharedHeader.collapsed .v2HeaderCollapse{
+  bottom:-17px;
+}
+.v2ListHeader{
+  margin-top:4px;
+}
+.duaEzberIntegrated .legacyCategoryList{
+  width:min(1160px,calc(100% - 24px));
+}
+.duaEzberIntegrated .legacyCategoryRow{
+  min-height:78px;
+  padding:0 18px;
+}
+.duaEzberIntegrated .legacyCategoryRow strong{
+  font-size:20px;
+}
+.ezberRowMain{
+  min-width:0;
+}
+.ezberRowCount{
+  color:var(--muted);
+  font-size:15px;
+  font-weight:650;
+  white-space:nowrap;
+}
+.ezberSubheading{
+  padding:28px 18px 12px;
+  border-bottom:1px solid var(--border);
+  color:var(--muted);
+  font-size:14px;
+  font-weight:800;
+  text-transform:none;
+}
+.v2ReadHeader{
+  top:0;
+}
+.legacyReadPage{
+  padding-top:18px!important;
+}
+.legacyReadPage .documentTodoTargets{
+  margin-top:-14px;
+}
+.v2MemorizeHeader{
+  top:0;
+}
+.legacyApp{
+  display:block!important;
+}
+.legacyMemorize{
+  min-height:calc(100dvh - 210px);
+}
+.v2EsmaDetail{
+  justify-content:flex-start!important;
+  padding-top:30px!important;
+}
+.v2EsmaIdentity{
+  text-align:center;
+  margin:8px auto 24px;
+}
+.v2EsmaName{
+  color:var(--muted);
+  font-size:clamp(28px,4vw,42px);
+  line-height:1.15;
+  font-weight:800;
+  margin-bottom:12px;
+}
+.v2EsmaInvocation{
+  font-family:Georgia,"Times New Roman",serif;
+  color:var(--accent);
+  font-size:clamp(46px,7vw,74px);
+  line-height:1.08;
+  font-weight:700;
+}
+@media(max-width:800px){
+  .v2SharedHeader{
+    width:calc(100% - 16px);
+    margin-bottom:24px;
+    padding:8px 8px 16px;
+    border-radius:16px;
+  }
+  .v2HeaderGroup{gap:5px;min-height:42px}
+  .v2HeaderButton,.v2HeaderPrimary{
+    min-height:40px;
+    padding:0 10px;
+    border-radius:11px;
+    font-size:13px;
+  }
+  .v2HeaderTitle{
+    margin-top:8px;
+    font-size:19px;
+  }
+  .v2HeaderInvocation{
+    font-size:clamp(20px,6vw,28px);
+  }
+  .v2HeaderProgress{
+    top:4px;
+    font-size:12px;
+  }
+  .duaEzberIntegrated .legacyCategoryList{
+    width:calc(100% - 8px);
+  }
+  .duaEzberIntegrated .legacyCategoryRow{
+    min-height:66px;
+    padding:0 8px;
+  }
+  .duaEzberIntegrated .legacyCategoryRow strong{
+    font-size:17px;
+  }
+  .ezberRowCount{font-size:13px}
+  .legacyReadPage{
+    padding-top:8px!important;
+  }
+}
