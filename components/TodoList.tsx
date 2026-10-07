@@ -52,6 +52,10 @@ type CalendarEvent = {
   end: string | null;
   allDay: boolean;
   status: string;
+  reminders?: {
+    useDefault?: boolean;
+    overrides?: Array<{ method: "popup"; minutes: number }>;
+  };
 };
 
 type CalendarState = {
@@ -60,6 +64,27 @@ type CalendarState = {
   event_id: string;
   occurrence_date: string;
   is_completed: boolean;
+};
+
+type EventDraft = {
+  id: string;
+  accountId: string;
+  calendarId: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  allDay: boolean;
+  description: string;
+  location: string;
+  reminderMode: "default" | "none" | "custom";
+  reminderMinutes: number[];
+};
+
+type CalendarHoverEditor = {
+  event: CalendarEvent;
+  x: number;
+  y: number;
 };
 
 function parseMeta(notes: string | null): TodoMeta {
@@ -106,6 +131,49 @@ function eventEnd(event: CalendarEvent) {
   return new Date(event.end + (event.allDay && !event.end.includes("T") ? "T00:00:00" : ""));
 }
 
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function plainCalendarText(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|li|div|ol|ul)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
+function eventToDraft(event: CalendarEvent): EventDraft {
+  const start = eventStart(event) || new Date();
+  const end = eventEnd(event) || addDays(start, 0);
+  const overrides = event.reminders?.overrides?.map(item => item.minutes).filter(Number.isFinite) ?? [];
+  const reminderMode: EventDraft["reminderMode"] =
+    event.reminders?.useDefault === false ? (overrides.length ? "custom" : "none") : "default";
+  return {
+    id: event.id,
+    accountId: event.accountId,
+    calendarId: event.calendarId,
+    title: event.summary,
+    date: dateKey(start),
+    startTime: start.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false}),
+    endTime: end.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false}),
+    allDay: event.allDay,
+    description: event.description || "",
+    location: event.location || "",
+    reminderMode,
+    reminderMinutes: overrides.sort((a,b)=>a-b),
+  };
+}
+
 function eventStateKey(event: CalendarEvent, occurrenceDate: string) {
   return `${event.accountId}|${event.calendarId}|${event.id}|${occurrenceDate}`;
 }
@@ -126,7 +194,13 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarStates, setCalendarStates] = useState<Record<string, boolean>>({});
   const [calendarNames, setCalendarNames] = useState<Record<string,{summary:string;color:string|null}>>({});
+  const [calendarAccounts, setCalendarAccounts] = useState<CalendarAccount[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
+  const [calendarHover, setCalendarHover] = useState<CalendarHoverEditor | null>(null);
+  const [calendarDraft, setCalendarDraft] = useState<EventDraft | null>(null);
+  const [calendarSaving, setCalendarSaving] = useState(false);
+  const hoverOpenTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [message, setMessage] = useState("Yükleniyor...");
   const [editMenu, setEditMenu] = useState<{todo:Todo;x:number;y:number}|null>(null);
   const [editTodo, setEditTodo] = useState<Todo | null>(null);
@@ -164,6 +238,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       if (!accountsResponse.ok) throw new Error(accountsJson.error || "Takvimler alınamadı.");
 
       const accounts = (accountsJson.accounts || []) as CalendarAccount[];
+      setCalendarAccounts(accounts);
       const flat = accounts.flatMap(account => account.calendars.map(calendar => ({
         ...calendar,
         accountId: account.id,
@@ -239,6 +314,11 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     window.addEventListener("lumen-calendar-sources-changed", refresh);
     return () => window.removeEventListener("lumen-calendar-sources-changed", refresh);
   }, [selectedDate, loadCalendarForDate]);
+
+  useEffect(() => () => {
+    if (hoverOpenTimer.current) clearTimeout(hoverOpenTimer.current);
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+  }, []);
 
   const regularVisible = useMemo(
     () => todos.filter(todo => parseMeta(todo.notes).source !== "calendar" && occurs(parseMeta(todo.notes), selectedDate)),
@@ -346,11 +426,189 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     );
   }
 
+
+  function cancelCalendarHoverOpen() {
+    if (hoverOpenTimer.current) clearTimeout(hoverOpenTimer.current);
+    hoverOpenTimer.current = null;
+  }
+
+  function cancelCalendarHoverClose() {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    hoverCloseTimer.current = null;
+  }
+
+  function scheduleCalendarHover(event: CalendarEvent, target: HTMLElement) {
+    if (window.matchMedia("(hover: none)").matches) return;
+    cancelCalendarHoverOpen();
+    cancelCalendarHoverClose();
+
+    const rect = target.getBoundingClientRect();
+    const width = Math.min(360, window.innerWidth - 24);
+    const estimatedHeight = 390;
+    const gap = 10;
+    let x = rect.left - width - gap;
+    if (x < 12) x = rect.right + gap;
+    x = Math.max(12, Math.min(x, window.innerWidth - width - 12));
+    let y = rect.top;
+    if (y + estimatedHeight > window.innerHeight - 12) y = window.innerHeight - estimatedHeight - 12;
+    y = Math.max(12, y);
+
+    hoverOpenTimer.current = setTimeout(() => {
+      setCalendarHover({event,x,y});
+      setCalendarDraft(eventToDraft(event));
+      hoverOpenTimer.current = null;
+    }, 180);
+  }
+
+  function scheduleCalendarHoverClose() {
+    cancelCalendarHoverOpen();
+    cancelCalendarHoverClose();
+    hoverCloseTimer.current = setTimeout(() => {
+      setCalendarHover(null);
+      setCalendarDraft(null);
+      hoverCloseTimer.current = null;
+    }, 160);
+  }
+
+  function keepCalendarHoverOpen() {
+    cancelCalendarHoverClose();
+  }
+
+  async function persistCalendarDraft(current: EventDraft) {
+    if (!current.title.trim()) throw new Error("Başlık gerekli.");
+    const headers = await authHeaders();
+    let eventPayload: Record<string, unknown>;
+
+    if (current.allDay) {
+      const nextDay = addDays(new Date(current.date + "T00:00:00"), 1);
+      eventPayload = {
+        summary: current.title.trim(),
+        description: current.description,
+        location: current.location,
+        start: {date: current.date},
+        end: {date: dateKey(nextDay)},
+      };
+    } else {
+      const start = new Date(`${current.date}T${current.startTime}:00`);
+      const end = new Date(`${current.date}T${current.endTime}:00`);
+      if (end <= start) end.setDate(end.getDate() + 1);
+      eventPayload = {
+        summary: current.title.trim(),
+        description: current.description,
+        location: current.location,
+        start: {dateTime: start.toISOString()},
+        end: {dateTime: end.toISOString()},
+      };
+    }
+
+    eventPayload.reminders =
+      current.reminderMode === "default"
+        ? {useDefault:true}
+        : current.reminderMode === "none"
+          ? {useDefault:false,overrides:[]}
+          : {
+              useDefault:false,
+              overrides:current.reminderMinutes.map(minutes => ({method:"popup",minutes})),
+            };
+
+    const response = await fetch("/api/google-calendar/events", {
+      method:"PATCH",
+      headers,
+      body:JSON.stringify({
+        accountId:current.accountId,
+        calendarId:current.calendarId,
+        eventId:current.id,
+        event:eventPayload,
+      }),
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || "Etkinlik kaydedilemedi.");
+  }
+
+  async function saveCalendarHover() {
+    if (!calendarDraft) return;
+    setCalendarSaving(true);
+    try {
+      await persistCalendarDraft(calendarDraft);
+      setCalendarHover(null);
+      setCalendarDraft(null);
+      await loadCalendarForDate(selectedDate);
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
+    } finally {
+      setCalendarSaving(false);
+    }
+  }
+
+  function ReminderEditor({draft,currentSet}:{draft:EventDraft;currentSet:(next:EventDraft)=>void}) {
+    const presets = [
+      {label:"10 dk",minutes:10},
+      {label:"30 dk",minutes:30},
+      {label:"1 saat",minutes:60},
+      {label:"1 gün",minutes:1440},
+    ];
+    return (
+      <div className="calendarReminderEditor compact">
+        <div className="calendarReminderHead">
+          <span>Hatırlatma</span>
+          <select value={draft.reminderMode} onChange={e=>currentSet({...draft,reminderMode:e.target.value as EventDraft["reminderMode"]})}>
+            <option value="default">Takvim varsayılanı</option>
+            <option value="none">Yok</option>
+            <option value="custom">Özel</option>
+          </select>
+        </div>
+        {draft.reminderMode === "custom" && (
+          <div className="calendarReminderPresets">
+            {presets.map(item => {
+              const active=draft.reminderMinutes.includes(item.minutes);
+              return (
+                <button
+                  type="button"
+                  key={item.minutes}
+                  className={active ? "active" : ""}
+                  onClick={() => currentSet({
+                    ...draft,
+                    reminderMinutes:active
+                      ? draft.reminderMinutes.filter(value=>value!==item.minutes)
+                      : [...draft.reminderMinutes,item.minutes].sort((a,b)=>a-b),
+                  })}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+            <input
+              type="number"
+              min={0}
+              step={5}
+              placeholder="dk"
+              title="Özel dakika"
+              onKeyDown={e=>{
+                if(e.key!=="Enter") return;
+                const value=Number(e.currentTarget.value);
+                if(Number.isFinite(value) && value>=0 && !draft.reminderMinutes.includes(value)) {
+                  currentSet({...draft,reminderMinutes:[...draft.reminderMinutes,value].sort((a,b)=>a-b)});
+                  e.currentTarget.value="";
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderCalendarEvent(event: CalendarEvent) {
     const done = Boolean(calendarStates[eventStateKey(event,selectedDate)]);
     const meta = calendarNames[event.calendarKey];
     return (
-      <article className={"todoCard calendarAutoTodo " + (done ? "done" : "")} key={"cal:"+eventStateKey(event,selectedDate)}>
+      <article
+        className={"todoCard calendarAutoTodo " + (done ? "done" : "")}
+        key={"cal:"+eventStateKey(event,selectedDate)}
+        onMouseEnter={e=>scheduleCalendarHover(event,e.currentTarget)}
+        onMouseLeave={scheduleCalendarHoverClose}
+      >
         <button
           className={"calendarTodoCheck " + (done ? "done" : "")}
           onClick={() => void toggleCalendarDone(event)}
@@ -365,7 +623,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
             <strong>{event.summary}</strong>
           </div>
           {event.location && <p className="calendarTodoLocation">⌖ {event.location}</p>}
-          {event.description && <p className="calendarTodoDescription">{event.description}</p>}
+          {event.description && <p className="calendarTodoDescription">{plainCalendarText(event.description)}</p>}
           <span className="todoCalendarBadge">▦ {meta?.summary || "Takvim"}</span>
         </div>
       </article>
@@ -412,6 +670,87 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
           {!calendarCompleted.length && !regularCompleted.length && <div className="todoEmpty">Henüz tamamlanan görev yok.</div>}
         </div>
       </div>
+
+
+      {calendarHover && calendarDraft && (
+        <div
+          className="calendarEventPreview calendarEventQuickEditor todoCalendarHoverEditor"
+          style={{left:calendarHover.x,top:calendarHover.y,["--preview-color" as string]:calendarNames[calendarHover.event.calendarKey]?.color || "var(--accent)"}}
+          onMouseEnter={keepCalendarHoverOpen}
+          onMouseLeave={scheduleCalendarHoverClose}
+          role="dialog"
+          aria-label={calendarHover.event.summary + " etkinlik ayrıntıları"}
+        >
+          <div className="calendarEventPreviewAccent"/>
+          <input
+            className="calendarQuickTitle"
+            value={calendarDraft.title}
+            onChange={e=>setCalendarDraft({...calendarDraft,title:e.target.value})}
+            onFocus={keepCalendarHoverOpen}
+            aria-label="Etkinlik başlığı"
+          />
+          <div className="calendarQuickDateRow">
+            <input type="date" value={calendarDraft.date} onChange={e=>setCalendarDraft({...calendarDraft,date:e.target.value})}/>
+            <label className="calendarQuickAllDay">
+              <input type="checkbox" checked={calendarDraft.allDay} onChange={e=>setCalendarDraft({...calendarDraft,allDay:e.target.checked})}/>
+              Tüm gün
+            </label>
+          </div>
+          {!calendarDraft.allDay && (
+            <div className="calendarQuickTimeRow">
+              <input type="time" value={calendarDraft.startTime} onChange={e=>setCalendarDraft({...calendarDraft,startTime:e.target.value})}/>
+              <span>–</span>
+              <input type="time" value={calendarDraft.endTime} onChange={e=>setCalendarDraft({...calendarDraft,endTime:e.target.value})}/>
+            </div>
+          )}
+          <select
+            className="calendarQuickCalendar"
+            value={calendarDraft.accountId+"|"+calendarDraft.calendarId}
+            onChange={e=>{
+              const split=e.target.value.indexOf("|");
+              setCalendarDraft({...calendarDraft,accountId:e.target.value.slice(0,split),calendarId:e.target.value.slice(split+1)});
+            }}
+          >
+            {calendarAccounts.flatMap(account=>account.calendars
+              .filter(calendar=>calendar.accessRole==="owner"||calendar.accessRole==="writer")
+              .map(calendar=><option key={account.id+"|"+calendar.id} value={account.id+"|"+calendar.id}>{account.email} · {calendar.summary}</option>)
+            )}
+          </select>
+          <input
+            className="calendarQuickLocation"
+            placeholder="Konum"
+            value={calendarDraft.location}
+            onChange={e=>setCalendarDraft({...calendarDraft,location:e.target.value})}
+          />
+          <textarea
+            className="calendarQuickDescription"
+            placeholder="Açıklama"
+            rows={3}
+            value={calendarDraft.description}
+            onChange={e=>setCalendarDraft({...calendarDraft,description:e.target.value})}
+          />
+          <ReminderEditor draft={calendarDraft} currentSet={setCalendarDraft}/>
+          <div className="calendarQuickTodoRow">
+            <button
+              className={calendarStates[eventStateKey(calendarHover.event,selectedDate)] ? "calendarTodoDone active" : "calendarTodoDone"}
+              onClick={()=>void toggleCalendarDone(calendarHover.event)}
+            >
+              {calendarStates[eventStateKey(calendarHover.event,selectedDate)] ? "✓ Tamamlandı" : "○ Tamamlandı olarak işaretle"}
+            </button>
+            <span className="calendarAutoTodoHint">TODO'da otomatik görünür</span>
+          </div>
+          <div className="calendarQuickActions">
+            <span className="calendarQuickSource">
+              <i style={calendarNames[calendarHover.event.calendarKey]?.color?{backgroundColor:calendarNames[calendarHover.event.calendarKey]?.color || undefined}:undefined}/>
+              {calendarNames[calendarHover.event.calendarKey]?.summary || "Takvim"}
+            </span>
+            <button className="secondary" onClick={()=>{setCalendarHover(null);setCalendarDraft(null);}}>Kapat</button>
+            <button className="primary" disabled={calendarSaving || !calendarDraft.title.trim()} onClick={()=>void saveCalendarHover()}>
+              {calendarSaving ? "Kaydediliyor…" : "Kaydet"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {editMenu && (
         <button
