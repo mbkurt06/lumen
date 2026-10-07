@@ -5934,3 +5934,58 @@ body[data-quran-page-theme="dark"]:not(.quranHideLatin) .quranPronunciationChunk
     background:rgba(103,163,203,.20);
   }
 }
+
+
+/* Quran pronunciation v2: ayah-level hover. Disable old word-level chunks. */
+.quranPronunciationChunk{
+  position:static!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.quranPronunciationChunk::after{
+  content:none!important;
+  display:none!important;
+}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"]{
+  position:relative;
+}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"]:hover{
+  background:rgba(103,163,203,.14)!important;
+  box-shadow:inset 0 0 0 1px rgba(63,113,145,.22)!important;
+}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"]:hover::after{
+  position:absolute;
+  left:50%;
+  bottom:calc(100% + .3em);
+  transform:translateX(-50%);
+  z-index:95;
+  width:max-content;
+  max-width:min(820px,86vw);
+  padding:8px 12px;
+  border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));
+  border-radius:9px;
+  background:color-mix(in srgb,var(--quran-page-bg,#f6f3ed) 96%,white);
+  color:var(--quran-page-fg,#171717);
+  box-shadow:0 5px 18px #00000026;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  font-size:17px!important;
+  font-weight:700!important;
+  line-height:1.35!important;
+  white-space:normal;
+  text-align:center;
+  direction:ltr;
+  unicode-bidi:isolate;
+  pointer-events:none;
+}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="1"]:hover::after{content:"Bismillâhirrahmânirrahîm";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="2"]:hover::after{content:"Elhamdü lillâhi rabbil âlemîn";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="3"]:hover::after{content:"Errahmânirrahîm";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="4"]:hover::after{content:"Mâliki yevmiddîn";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="5"]:hover::after{content:"İyyâke na'büdü ve iyyâke neste'în";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="6"]:hover::after{content:"İhdinessırâtal müstakîm";}
+body:not(.quranHideLatin) .quranWordAyah[data-surah="1"][data-ayah="7"]:hover::after{content:"Sırâtallezîne en'amte aleyhim gayril mağdûbi aleyhim ve leddâllîn";}
+body[data-quran-page-theme="dark"]:not(.quranHideLatin) .quranWordAyah[data-surah="1"]:hover::after{
+  background:#242824;
+  color:#f4f1e8;
+  border-color:#596059;
+}
