@@ -21,7 +21,7 @@ async function init(){
   migrateLegacyViewState();
   buildHomeMenuFromDb();
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=93").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=95").then(r=>r.update())
 }
 function migrateLegacyViewState(){
   const map={
@@ -646,19 +646,33 @@ function wrapSwipeRows(container,selector,keyFn,onHide){
     };
   });
 }
-function homeMenuKey(el){return el.dataset.category?"cat:"+el.dataset.category:(el.id||el.textContent.trim())}
+function homeMenuKey(el){
+  return el?.dataset?.menuKey || (el?.dataset?.category ? "cat:"+el.dataset.category : (el?.id||el?.textContent?.trim()||""))
+}
 function applyHomeMenuOrder(){
   const menu=document.querySelector(".home-menu");if(!menu)return;
   let order=[];try{order=JSON.parse(localStorage.getItem(HOME_ORDER_KEY)||"[]")}catch{}
-  const items=[...menu.querySelectorAll(".home-card")],byKey=new Map(items.map(el=>[homeMenuKey(el),el]));
-  const move=el=>menu.appendChild(el.closest(".swipe-row")||el);
-  for(const key of order){const el=byKey.get(key);if(el){move(el);byKey.delete(key)}}
-  for(const el of items){if(byKey.has(homeMenuKey(el)))move(el)}
+  if(!Array.isArray(order)||!order.length)return;
+
+  const entries=[...menu.children].map(el=>{
+    const card=el.classList?.contains("swipe-row")?el.querySelector(".home-card"):el;
+    const key=el.classList?.contains("swipe-row")?(el.dataset.menuKey||homeMenuKey(card)):homeMenuKey(card);
+    return {el,key};
+  }).filter(x=>x.key);
+  const byKey=new Map(entries.map(x=>[x.key,x.el]));
+  for(const key of order){
+    const el=byKey.get(key);
+    if(el){menu.appendChild(el);byKey.delete(key)}
+  }
+  for(const {el,key} of entries)if(byKey.has(key)){menu.appendChild(el);byKey.delete(key)}
 }
 function saveHomeMenuOrder(){
   const menu=document.querySelector(".home-menu");if(!menu)return;
-  const cards=[...menu.querySelectorAll(":scope > .swipe-row > .home-card, :scope > .home-card")];
-  localStorage.setItem(HOME_ORDER_KEY,JSON.stringify(cards.map(homeMenuKey)))
+  const keys=[...menu.children].map(row=>{
+    if(row.classList?.contains("swipe-row"))return row.dataset.menuKey||homeMenuKey(row.querySelector(".home-card"));
+    return homeMenuKey(row);
+  }).filter(Boolean);
+  localStorage.setItem(HOME_ORDER_KEY,JSON.stringify(keys));
 }
 function libraryOrders(){try{return JSON.parse(localStorage.getItem(LIBRARY_ORDERS_KEY)||"{}")||{}}catch{return{}}}
 function saveLibraryOrder(cat,list){
@@ -667,7 +681,7 @@ function saveLibraryOrder(cat,list){
 }
 function saveLibraryMenuOrder(cat,list){
   const all=libraryOrders();
-  all[cat]=[...list.querySelectorAll(":scope > .swipe-row")].map(row=>row.dataset.menuKey).filter(Boolean);
+  all[cat]=[...list.children].filter(row=>row.classList?.contains("swipe-row")).map(row=>row.dataset.menuKey).filter(Boolean);
   localStorage.setItem(LIBRARY_ORDERS_KEY,JSON.stringify(all));
 }
 function applyLibraryMenuOrder(cat,list){
@@ -696,36 +710,107 @@ function bindLongPressReorder(container,selector,onSave){
   container.querySelectorAll(selector).forEach(item=>{
     if(item.dataset.reorderBound==="1")return;
     item.dataset.reorderBound="1";
-    let timer=null,dragging=false,pointerId=null,startX=0,startY=0;
-    item.addEventListener("click",e=>{if(item.dataset.suppressClick==="1"){e.preventDefault();e.stopImmediatePropagation();item.dataset.suppressClick="0"}},true);
+
+    let timer=null,dragging=false,pointerId=null,startX=0,startY=0,lastY=0,raf=0;
+
+    const stopAutoScroll=()=>{
+      if(raf){cancelAnimationFrame(raf);raf=0}
+    };
+    const autoScroll=()=>{
+      if(!dragging)return;
+      const edge=90;
+      const y=lastY;
+      let dy=0;
+      if(y<edge)dy=-Math.max(4,(edge-y)*0.16);
+      else if(y>innerHeight-edge)dy=Math.max(4,(y-(innerHeight-edge))*0.16);
+      if(dy)window.scrollBy(0,dy);
+      raf=requestAnimationFrame(autoScroll);
+    };
+    const beginDrag=()=>{
+      timer=null;
+      dragging=true;
+      item.classList.remove("swipe-open");
+      const main=item.querySelector(".swipe-main");
+      if(main)main.style.transform="";
+      item.classList.add("reorder-dragging","reorder-ready");
+      document.body.classList.add("menu-reorder-active");
+      try{item.setPointerCapture(pointerId)}catch{}
+      stopAutoScroll();
+      raf=requestAnimationFrame(autoScroll);
+    };
+
+    item.addEventListener("click",e=>{
+      if(item.dataset.suppressClick==="1"){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        item.dataset.suppressClick="0";
+      }
+    },true);
+
     item.addEventListener("pointerdown",e=>{
       if(e.button!=null&&e.button!==0)return;
-      pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;dragging=false;
-      timer=setTimeout(()=>{timer=null;dragging=true;item.classList.add("reorder-dragging","reorder-ready");try{item.setPointerCapture(pointerId)}catch{}},550)
+      if(e.target.closest(".swipe-delete-action"))return;
+      pointerId=e.pointerId;
+      startX=e.clientX;startY=e.clientY;lastY=e.clientY;
+      dragging=false;
+      clearTimeout(timer);
+      timer=setTimeout(beginDrag,420);
     });
+
     item.addEventListener("pointermove",e=>{
       if(e.pointerId!==pointerId)return;
-      if(timer&&Math.hypot(e.clientX-startX,e.clientY-startY)>8){clearTimeout(timer);timer=null}
+      lastY=e.clientY;
+      if(timer){
+        const dx=Math.abs(e.clientX-startX),dy=Math.abs(e.clientY-startY);
+        // Horizontal gesture belongs to swipe-to-hide. Small vertical jitter is tolerated.
+        if(dx>12 || dy>12){clearTimeout(timer);timer=null}
+      }
       if(!dragging)return;
+
       e.preventDefault();
-      const hit=document.elementFromPoint(e.clientX,e.clientY)?.closest(selector);
-      if(!hit||hit===item||hit.parentElement!==container)return;
-      const r=hit.getBoundingClientRect();
-      if(e.clientY<r.top+r.height/2)container.insertBefore(item,hit);else container.insertBefore(item,hit.nextSibling)
+      const rows=[...container.querySelectorAll(":scope > "+selector)].filter(x=>x!==item&&!x.classList.contains("menu-item-hidden"));
+      let target=null;
+      for(const row of rows){
+        const r=row.getBoundingClientRect();
+        if(e.clientY>=r.top&&e.clientY<=r.bottom){target=row;break}
+      }
+      if(!target){
+        const above=rows.filter(row=>row.getBoundingClientRect().bottom<e.clientY).pop();
+        const below=rows.find(row=>row.getBoundingClientRect().top>e.clientY);
+        target=below||above||null;
+      }
+      if(!target)return;
+
+      const r=target.getBoundingClientRect();
+      if(e.clientY<r.top+r.height/2){
+        if(item.nextElementSibling!==target)container.insertBefore(item,target);
+      }else{
+        if(target.nextElementSibling!==item)container.insertBefore(item,target.nextSibling);
+      }
     });
+
     const finish=e=>{
-      if(e.pointerId!==pointerId)return;
+      if(pointerId==null||e.pointerId!==pointerId)return;
       if(timer){clearTimeout(timer);timer=null}
-      if(dragging){dragging=false;item.classList.remove("reorder-dragging","reorder-ready");item.dataset.suppressClick="1";onSave?.();setTimeout(()=>{item.dataset.suppressClick="0"},120)}
+      stopAutoScroll();
+      if(dragging){
+        dragging=false;
+        item.classList.remove("reorder-dragging","reorder-ready");
+        document.body.classList.remove("menu-reorder-active");
+        item.dataset.suppressClick="1";
+        onSave?.();
+        setTimeout(()=>{item.dataset.suppressClick="0"},220);
+      }
       try{if(item.hasPointerCapture?.(pointerId))item.releasePointerCapture(pointerId)}catch{}
-      pointerId=null
+      pointerId=null;
     };
-    item.addEventListener("pointerup",finish);item.addEventListener("pointercancel",finish)
+    item.addEventListener("pointerup",finish);
+    item.addEventListener("pointercancel",finish);
   })
 }
 function setupHomeMenuInteractions(){
-  applyHomeMenuOrder();
   const menu=document.querySelector(".home-menu");if(!menu)return;
+  applyHomeMenuOrder();
   wrapSwipeRows(menu,".home-card",homeMenuKey,(key,row,item,label)=>{
     setHomeItemHidden(key,true);
     row.classList.add("menu-item-hidden");
@@ -735,8 +820,9 @@ function setupHomeMenuInteractions(){
       item.style.transform="";
     });
   });
+  applyHomeMenuOrder();
   const hidden=hiddenHomeItems();
-  menu.querySelectorAll(".swipe-row").forEach(row=>row.classList.toggle("menu-item-hidden",hidden.has(row.dataset.menuKey)));
+  menu.querySelectorAll(":scope > .swipe-row").forEach(row=>row.classList.toggle("menu-item-hidden",hidden.has(row.dataset.menuKey)));
   bindLongPressReorder(menu,".swipe-row",saveHomeMenuOrder);
 }
 function libraryItemOrderKey(d){
