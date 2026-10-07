@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 
 export type EzberItem = {
   id: string;
@@ -84,7 +85,6 @@ export function EzberHomeView({
   const [rootOrder, setRootOrder] = useState<string[]>([]);
   const rootOrderRef = useRef<string[]>([]);
   const [todoSummaries, setTodoSummaries] = useState<TodoSummary[]>([]);
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const pressId = useRef<string | null>(null);
   const pressY = useRef(0);
   const moved = useRef(false);
@@ -137,18 +137,6 @@ export function EzberHomeView({
   }, [loadChildren]);
 
   useEffect(() => { loadRoot(); }, [loadRoot]);
-
-  useEffect(() => {
-    setHeaderCollapsed(localStorage.getItem("lumen-ezber-header-collapsed") === "1");
-  }, []);
-
-  function toggleHeader() {
-    setHeaderCollapsed(current => {
-      const next = !current;
-      localStorage.setItem("lumen-ezber-header-collapsed", next ? "1" : "0");
-      return next;
-    });
-  }
 
   useEffect(() => {
     if (!initialRoot) return;
@@ -364,18 +352,18 @@ export function EzberHomeView({
   return (
     <section className="legacyNestedPage duaEzberIntegrated">
       {currentRoot ? (
-        <div className={"v2SharedHeader v2ListHeader " + (headerCollapsed ? "collapsed" : "")}>
-          <div className="v2HeaderToolbar">
-            <div className="v2HeaderGroup">
-              <button className="v2HeaderButton" onClick={goBack}>{trail.length ? "‹ Geri" : "‹ Menü"}</button>
-            </div>
-            <div className="v2HeaderGroup" />
-          </div>
-          <div className="v2HeaderTitle">{currentRoot.title}</div>
-          <button className="v2HeaderCollapse" onClick={toggleHeader} aria-label={headerCollapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}>
-            {headerCollapsed ? "▾" : "▴"}
-          </button>
-        </div>
+        <EzberSharedHeader
+          title={currentRoot.title}
+          showMenu={true}
+          showBack={trail.length > 0}
+          onMenu={() => {
+            setCurrentRoot(null);
+            setTrail([]);
+            setChildren([]);
+            setMessage("");
+          }}
+          onBack={goBack}
+        />
       ) : (
         <div className="legacyHomeHead compact">
           <h1>{duaRoot?.title || "Ezber"}</h1>
