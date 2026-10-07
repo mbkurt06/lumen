@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function FullscreenTasbih({
   title,
@@ -15,6 +15,12 @@ export function FullscreenTasbih({
   onDecrement?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const openTasbih = () => setOpen(true);
+    window.addEventListener("lumen-open-fullscreen-tasbih", openTasbih);
+    return () => window.removeEventListener("lumen-open-fullscreen-tasbih", openTasbih);
+  }, []);
 
   return (
     <>
