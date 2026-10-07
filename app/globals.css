@@ -1822,3 +1822,53 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
     max-height:calc(100dvh - 70px);
   }
 }
+
+
+/* v0.4.3 — keep Ezber list pages as compact as the V2 detail pages */
+.duaEzberIntegrated .legacyCategoryList,
+.duaEzberIntegrated .legacyHomeMenu,
+.legacyNestedPage .legacyCategoryList,
+.legacyNestedPage .legacyHomeMenu{
+  width:min(760px,calc(100% - 36px))!important;
+  max-width:760px!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.duaEzberIntegrated .legacyCategoryRow,
+.duaEzberIntegrated .legacyHomeRow{
+  min-height:68px!important;
+  padding-left:10px!important;
+  padding-right:10px!important;
+}
+.duaEzberIntegrated .legacyCategoryRow strong,
+.duaEzberIntegrated .legacyHomeRow strong{
+  font-size:18px!important;
+}
+.duaEzberIntegrated .ezberSubheading{
+  width:100%!important;
+  padding-left:10px!important;
+  padding-right:10px!important;
+}
+.duaEzberIntegrated{
+  padding-left:18px!important;
+  padding-right:18px!important;
+}
+@media(max-width:800px){
+  .duaEzberIntegrated .legacyCategoryList,
+  .duaEzberIntegrated .legacyHomeMenu,
+  .legacyNestedPage .legacyCategoryList,
+  .legacyNestedPage .legacyHomeMenu{
+    width:calc(100% - 20px)!important;
+    max-width:none!important;
+  }
+  .duaEzberIntegrated .legacyCategoryRow,
+  .duaEzberIntegrated .legacyHomeRow{
+    min-height:62px!important;
+    padding-left:8px!important;
+    padding-right:8px!important;
+  }
+  .duaEzberIntegrated .legacyCategoryRow strong,
+  .duaEzberIntegrated .legacyHomeRow strong{
+    font-size:17px!important;
+  }
+}
