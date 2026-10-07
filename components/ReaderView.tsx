@@ -646,6 +646,7 @@ export function ReaderView({
       setNodes(loaded);
       setQuranMushafPage(wordPage);
       setQuranPage(safePage);
+      try { localStorage.setItem("lumen-quran-page:" + item.id, String(safePage)); } catch {}
       setQuranBookmarkMenuOpen(false);
       setQuranTodoMenuOpen(false);
       setQuranSelectedNodeId(null);
@@ -688,12 +689,21 @@ export function ReaderView({
       setQuranPageMin(startPage);
       setQuranPageMax(endPage);
 
+      let initialPage = startPage;
+      const explicitNode = String(itemMeta.initial_node_id || "");
+      if (!explicitNode) {
+        try {
+          const savedPage = Number(localStorage.getItem("lumen-quran-page:" + item.id) || 0);
+          if (savedPage >= startPage && savedPage <= endPage) initialPage = savedPage;
+        } catch {}
+      }
+
       let loaded: Node[] = [];
       let wordPage: QuranMushafPage | null = null;
       try {
         [loaded, wordPage] = await Promise.all([
-          fetchQuranPage(startPage),
-          fetchQuranMushafPage(startPage).catch(() => null),
+          fetchQuranPage(initialPage),
+          fetchQuranMushafPage(initialPage).catch(() => null),
         ]);
       } catch(error) {
         setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
@@ -703,7 +713,8 @@ export function ReaderView({
 
       setNodes(loaded);
       setQuranMushafPage(wordPage);
-      setQuranPage(startPage);
+      setQuranPage(initialPage);
+      try { localStorage.setItem("lumen-quran-page:" + item.id, String(initialPage)); } catch {}
       setQuranSelectedNodeId(null);
       setLocalCounts(getTransientCounts(item.id));
       setActiveNodeId(loaded[0]?.id ?? null);
@@ -715,9 +726,9 @@ export function ReaderView({
       if (initialNodeId && loaded.some(node => node.id === initialNodeId)) {
         focusQuranNode(initialNodeId);
       }
-      if (startPage < endPage) {
-        void fetchQuranPage(startPage + 1).catch(() => {});
-        void fetchQuranMushafPage(startPage + 1).catch(() => {});
+      if (initialPage < endPage) {
+        void fetchQuranPage(initialPage + 1).catch(() => {});
+        void fetchQuranMushafPage(initialPage + 1).catch(() => {});
       }
       await loadTodos();
       return;
