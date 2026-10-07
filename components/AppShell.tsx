@@ -231,6 +231,21 @@ export function AppShell({
       }
     }
 
+    const resolvedSource = String((item.metadata as any)?.source || "");
+    if (resolvedSource.startsWith("quran")) {
+      // Kur’an Todo'sunda üst klasör/kardeş/bölüm index sorgularını bekleme.
+      // Reader zaten sayfayı ve seçili ayeti metadata üzerinden doğrudan açıyor.
+      setSelectedItem(item);
+      setReturnLibrarySection("quran");
+      setReturnEzberRoot(null);
+      setReturnToEzber(false);
+      setSiblings([]);
+      setInitialSegmentIndex(0);
+      setLibraryMode("read");
+      setTab("library");
+      return;
+    }
+
     let parent: EzberItem | null = null;
     let list: EzberItem[] = [];
 
