@@ -36,6 +36,7 @@ export function AppShell({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("lumen-app-state");
+      let restoredSidebar = false;
       if (saved) {
         const state = JSON.parse(saved);
         if (state.tab) setTab(state.tab);
@@ -45,9 +46,15 @@ export function AppShell({
         if (typeof state.initialSegmentIndex === "number") setInitialSegmentIndex(state.initialSegmentIndex);
         if (state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
         if (typeof state.returnToEzber === "boolean") setReturnToEzber(state.returnToEzber);
-        if (typeof state.sidebarOpen === "boolean") setSidebarOpen(state.sidebarOpen);
+        if (typeof state.sidebarOpen === "boolean") {
+          setSidebarOpen(state.sidebarOpen);
+          restoredSidebar = true;
+        }
       }
-    } catch {}
+      if (!restoredSidebar && window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
+    } catch {
+      if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
+    }
     setRestored(true);
 
     supabase
@@ -247,28 +254,28 @@ export function AppShell({
         <nav className="nav">
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
-            onClick={() => setTab("todos")}
+            onClick={() => { setTab("todos"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
             <span className="navIcon">✓</span><span>TODO</span>
           </button>
 
           <button
             className={"navButton " + (tab === "library" ? "active" : "")}
-            onClick={openLibraryHome}
+            onClick={() => { openLibraryHome(); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
             <span className="navIcon">▤</span><span>Kütüphane</span>
           </button>
 
           <button
             className={"navButton " + (tab === "calendar" ? "active" : "")}
-            onClick={() => setTab("calendar")}
+            onClick={() => { setTab("calendar"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
             <span className="navIcon">▦</span><span>Takvim</span>
           </button>
 
           <button
             className={"navButton " + (tab === "settings" ? "active" : "")}
-            onClick={() => setTab("settings")}
+            onClick={() => { setTab("settings"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
             <span className="navIcon">⚙</span><span>Ayarlar</span>
           </button>
