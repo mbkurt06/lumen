@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
-import { loadTurkishQuranTranscription } from "@/lib/quranTranscription";
+import { loadTurkishQuranAyahTranscription, loadTurkishQuranTranscription } from "@/lib/quranTranscription";
 
 type RenderGroup = {
   nodeId?: string;
@@ -167,8 +167,7 @@ export function QuranMushafPageContent({
                   data-surah={group.surahNo}
                   data-ayah={group.ayahNo}
                   onMouseEnter={event => {
-                    const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
-                    if (!text || document.body.classList.contains("quranHideLatin")) return;
+                    if (document.body.classList.contains("quranHideLatin")) return;
                     const rects = Array.from(event.currentTarget.getClientRects());
                     const lineRect =
                       rects.find(rect => event.clientY >= rect.top && event.clientY <= rect.bottom) ??
@@ -178,11 +177,27 @@ export function QuranMushafPageContent({
                       );
                     const x = Math.max(190, Math.min(window.innerWidth - 190, event.clientX));
                     const y = Math.max(12, (lineRect?.top ?? event.clientY) - 4);
-                    setPronunciationTooltip({ text, x, y });
+                    const immediate = fullAyahPronunciation(group.surahNo, group.ayahNo);
+                    if (immediate) {
+                      setPronunciationTooltip({ text: immediate, x, y });
+                      return;
+                    }
+                    if (group.surahNo && group.ayahNo) {
+                      void loadTurkishQuranAyahTranscription(group.surahNo, group.ayahNo)
+                        .then(text => {
+                          if (!text) return;
+                          setPronunciations(prev => ({
+                            ...prev,
+                            [`${group.surahNo}:${group.ayahNo}`]: text,
+                          }));
+                          setPronunciationTooltip({ text, x, y });
+                        });
+                    }
                   }}
                   onMouseMove={event => {
                     const text = fullAyahPronunciation(group.surahNo, group.ayahNo);
-                    if (!text || document.body.classList.contains("quranHideLatin")) return;
+                    if (document.body.classList.contains("quranHideLatin")) return;
+                    if (!text) return;
                     const rects = Array.from(event.currentTarget.getClientRects());
                     const lineRect =
                       rects.find(rect => event.clientY >= rect.top && event.clientY <= rect.bottom) ??
