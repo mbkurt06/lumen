@@ -550,6 +550,17 @@ export function ReaderView({
 
   useEffect(() => {
     if (!isQuranDocument) return;
+    const refreshImportedMushaf = () => {
+      quranPageCache.current.clear();
+      quranMushafPageCache.current.clear();
+      void loadQuranPage(quranPage || Math.max(1, Number(itemMeta.start_page || 1)));
+    };
+    window.addEventListener("lumen-quran-mushaf-imported", refreshImportedMushaf);
+    return () => window.removeEventListener("lumen-quran-mushaf-imported", refreshImportedMushaf);
+  }, [isQuranDocument, quranPage, itemMeta.start_page, loadQuranPage]);
+
+  useEffect(() => {
+    if (!isQuranDocument) return;
     void (async () => {
       const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
       const preferences = (data?.preferences ?? {}) as Record<string, any>;
