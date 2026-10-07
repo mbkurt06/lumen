@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
 
 type RenderGroup = {
@@ -127,6 +129,11 @@ export function QuranMushafPageContent({
   onSelectNode: (nodeId: string) => void;
 }) {
   const exactWordCharacters = page.metadata?.exactWordCharacters === true;
+  const [pronunciationTooltip, setPronunciationTooltip] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   if (!exactWordCharacters) {
     return (
@@ -190,6 +197,20 @@ export function QuranMushafPageContent({
           </div>
         );
       })}
+      {pronunciationTooltip && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="quranPronunciationTooltip"
+              style={{
+                left: pronunciationTooltip.x,
+                top: pronunciationTooltip.y,
+              }}
+            >
+              {pronunciationTooltip.text}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
