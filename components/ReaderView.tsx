@@ -1456,6 +1456,7 @@ export function ReaderView({
                       role="button"
                       tabIndex={0}
                       className={"quranAyahInline" + (selected ? " selected" : "")}
+                      data-node-id={node.id}
                       data-reader-index={index}
                       onClick={e => {
                         e.stopPropagation();
