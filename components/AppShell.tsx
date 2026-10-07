@@ -101,7 +101,7 @@ export function AppShell({
         document.body.dataset.quranPageTheme = quranPageTheme;
         document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
         document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
-        document.body.classList.toggle("quranEasyRead", prefs.quranEasyRead === true);
+        document.body.classList.remove("quranEasyRead");
         window.dispatchEvent(new CustomEvent("lumen-library-prefs", {
           detail: {
             theme,
