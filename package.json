@@ -1,6 +1,6 @@
 {
   "name": "lumen",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3100",
@@ -11,7 +11,8 @@
     "@supabase/supabase-js": "^2.57.4",
     "next": "^15.5.4",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
