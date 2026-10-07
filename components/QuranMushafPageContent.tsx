@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
 import { loadTurkishQuranAyahTranscription, loadTurkishQuranTranscription } from "@/lib/quranTranscription";
@@ -71,10 +71,12 @@ export function QuranMushafPageContent({
   page,
   selectedNodeId,
   onSelectNode,
+  onOpenActions,
 }: {
   page: QuranMushafPage;
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
+  onOpenActions?: (args:{nodeId:string;text:string;x:number;y:number}) => void;
 }) {
   const exactWordCharacters = page.metadata?.exactWordCharacters === true;
   const [pronunciationTooltip, setPronunciationTooltip] = useState<{
@@ -83,6 +85,17 @@ export function QuranMushafPageContent({
     y: number;
   } | null>(null);
   const [pronunciations, setPronunciations] = useState<Record<string,string>>({});
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStart = useRef<{x:number;y:number}|null>(null);
+  const longPressTriggered = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+    longPressStart.current = null;
+  };
+
+  useEffect(() => () => clearLongPress(), []);
 
   const pageIdentity = `${page.source_key}:${page.word_page}:${page.updated_at || ""}`;
   const surahNumbers = useMemo(() => {
@@ -256,8 +269,56 @@ export function QuranMushafPageContent({
                     setPronunciationTooltip({ text, x, y });
                   }}
                   onMouseLeave={() => setPronunciationTooltip(null)}
+                  onPointerDown={event => {
+                    if ((event.pointerType !== "touch" && event.pointerType !== "pen") || !onOpenActions) return;
+                    longPressTriggered.current = false;
+                    longPressStart.current = {x:event.clientX,y:event.clientY};
+                    clearLongPress();
+                    longPressStart.current = {x:event.clientX,y:event.clientY};
+                    const target = event.currentTarget;
+                    const text = group.runs.filter(run => !run.marker).map(run => run.text).join("").trim();
+                    longPressTimer.current = setTimeout(() => {
+                      longPressTriggered.current = true;
+                      window.getSelection()?.removeAllRanges();
+                      const rect = target.getBoundingClientRect();
+                      onOpenActions({
+                        nodeId:group.nodeId!,
+                        text,
+                        x:Math.max(110,Math.min(window.innerWidth - 110,event.clientX || rect.left + rect.width/2)),
+                        y:Math.max(52,rect.top - 8),
+                      });
+                      clearLongPress();
+                    }, 520);
+                  }}
+                  onPointerMove={event => {
+                    if (!longPressTimer.current || !longPressStart.current) return;
+                    const dx=Math.abs(event.clientX-longPressStart.current.x);
+                    const dy=Math.abs(event.clientY-longPressStart.current.y);
+                    if (dx>10 || dy>10) clearLongPress();
+                  }}
+                  onPointerUp={() => clearLongPress()}
+                  onPointerCancel={() => clearLongPress()}
+                  onContextMenu={event => {
+                    if (event.pointerType === "touch" || event.pointerType === "pen") event.preventDefault();
+                  }}
                   onClick={event => {
                     event.stopPropagation();
+                    const text = group.runs.filter(run => !run.marker).map(run => run.text).join("").trim();
+                    if (onOpenActions && (event.metaKey || event.ctrlKey)) {
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      onOpenActions({
+                        nodeId:group.nodeId!,
+                        text,
+                        x:Math.max(110,Math.min(window.innerWidth - 110,event.clientX || rect.left + rect.width/2)),
+                        y:Math.max(52,rect.top - 8),
+                      });
+                      return;
+                    }
+                    if (longPressTriggered.current) {
+                      longPressTriggered.current = false;
+                      return;
+                    }
                     onSelectNode(group.nodeId!);
                   }}
                   onKeyDown={event => {
