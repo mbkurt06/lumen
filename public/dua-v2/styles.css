@@ -2724,3 +2724,18 @@ body.menu-reorder-active{
   user-select:none !important;
   -webkit-user-select:none !important;
 }
+
+
+/* v97 — listening embedded in main Library/Ezber */
+body.embedded-mode #listeningView{
+  padding-top:8px;
+}
+body.embedded-mode .listening-todo-row{
+  display:none!important;
+}
+body.embedded-mode .global-header{
+  display:none!important;
+}
+body.embedded-mode{
+  --global-header-height:0px;
+}
