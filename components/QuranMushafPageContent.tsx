@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
 import { loadTurkishQuranAyahTranscription, loadTurkishQuranTranscription } from "@/lib/quranTranscription";
+import { supabase } from "@/lib/supabase/client";
 
 type RenderGroup = {
   nodeId?: string;
@@ -93,6 +94,37 @@ export function QuranMushafPageContent({
     }
     return Array.from(values);
   }, [page]);
+
+  useEffect(() => {
+    let cancelled=false;
+    const nodeIds=Array.from(new Set(
+      (page.rich_content?.paragraphs ?? [])
+        .flatMap(paragraph=>paragraph.runs ?? [])
+        .map(run=>run.nodeId)
+        .filter((value): value is string => Boolean(value))
+    ));
+    if(!nodeIds.length) return;
+
+    void supabase
+      .from("content_nodes")
+      .select("id,metadata")
+      .in("id",nodeIds)
+      .then(({data})=>{
+        if(cancelled || !data?.length) return;
+        const next:Record<string,string>={};
+        for(const row of data){
+          const meta=(row.metadata ?? {}) as Record<string,unknown>;
+          const surahNo=Number(meta.surah_no || 0);
+          const ayahNo=Number(meta.ayah_no || 0);
+          const text=String(meta.transcription_tr || "").trim();
+          if(surahNo>0 && ayahNo>0 && text) next[`${surahNo}:${ayahNo}`]=text;
+        }
+        if(Object.keys(next).length){
+          setPronunciations(prev=>({...prev,...next}));
+        }
+      });
+    return()=>{cancelled=true;};
+  },[page]);
 
   useEffect(() => {
     let cancelled = false;
