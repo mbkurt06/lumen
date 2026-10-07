@@ -498,26 +498,24 @@ export async function importQuranMushafDocx(
     throw new Error(`Beklenen 6236 ayet numarası yerine ${ayahMarkerCount} ayet numarası bulundu.`);
   }
 
-  progress("Ayet kimlikleri mevcut Kur’an veritabanıyla eşleştiriliyor…", 28);
-  const { byVerse, pageJuz } = await fetchQuranNodeMap();
+  progress("Mevcut Kur’an Todo ve ayraç konumları korunuyor…", 24);
+  const [{data:todoRows},{data:prefRow}] = await Promise.all([
+    supabase.from("todos").select("id,notes"),
+    supabase.from("user_preferences").select("preferences").maybeSingle(),
+  ]);
+  const savedTodos = (todoRows ?? []).filter(todo => {
+    try { return !!JSON.parse(todo.notes || "{}")?.quran?.tracking; }
+    catch { return false; }
+  });
+  const savedPreferences = (prefRow?.preferences ?? {}) as Record<string,any>;
 
-  let unmatched = 0;
+  progress("Kur’an veritabanı Word Mushafından yeniden oluşturuluyor…", 28);
+  await rebuildQuranFromWord(ownerId,pages,savedTodos,savedPreferences);
+
   for (const page of pages) {
-    page.juz = pageJuz.get(page.wordPage) ?? null;
     for (const paragraph of page.paragraphs) {
-      for (const run of paragraph.runs) {
-        if (!run.surahNo || !run.ayahNo) continue;
-        const nodeId = byVerse.get(`${run.surahNo}:${run.ayahNo}`);
-        if (nodeId) run.nodeId = nodeId;
-        else unmatched += 1;
-        page.surahNumbers.add(run.surahNo);
-        delete run._pending;
-      }
+      for (const run of paragraph.runs) delete run._pending;
     }
-  }
-
-  if (unmatched) {
-    throw new Error(`${unmatched} Word metin parçası mevcut ayet kayıtlarıyla eşleşmedi.`);
   }
 
   const sourceMeta = {
