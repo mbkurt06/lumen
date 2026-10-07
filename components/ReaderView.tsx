@@ -11,6 +11,7 @@ import { RisaleBookView } from "@/components/RisaleBookView";
 import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
+import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Item = {
   id: string;
@@ -185,8 +186,8 @@ export function ReaderView({
   const [quranDebugOpen, setQuranDebugOpen] = useState(false);
   const [quranDebugBusy, setQuranDebugBusy] = useState(false);
   const [quranDebugSnapshot, setQuranDebugSnapshot] = useState<Record<string, any> | null>(null);
-  const [showCounterControl, setShowCounterControl] = useState(true);
-  const [showPlayControl, setShowPlayControl] = useState(true);
+  const [showCounterControl, setShowCounterControl] = useState<boolean | null>(null);
+  const [showPlayControl, setShowPlayControl] = useState<boolean | null>(null);
   const [bookSelection, setBookSelection] = useState<BookSelection | null>(null);
   const [bookBookmarks, setBookBookmarks] = useState<BookBookmark[]>([]);
   const [bookBookmarkMenuOpen, setBookBookmarkMenuOpen] = useState(false);
@@ -209,23 +210,29 @@ export function ReaderView({
     let cancelled = false;
 
     const apply = (preferences: Record<string, unknown>) => {
-      const counterKey = readerScope + "ShowCounter";
-      const playKey = readerScope + "ShowPlay";
-      if (!cancelled) {
-        setShowCounterControl(
-          typeof preferences[counterKey] === "boolean" ? Boolean(preferences[counterKey]) : true
-        );
-        setShowPlayControl(
-          typeof preferences[playKey] === "boolean" ? Boolean(preferences[playKey]) : true
-        );
-      }
+      if (cancelled) return;
+      setShowCounterControl(scopedBoolean(preferences, readerScope, "ShowCounter", true));
+      setShowPlayControl(scopedBoolean(preferences, readerScope, "ShowPlay", true));
     };
+
+    const local = readLocalReaderPrefs();
+    if (Object.keys(local).length) apply(local);
 
     void supabase
       .from("user_preferences")
       .select("preferences")
       .maybeSingle()
-      .then(({ data }) => apply((data?.preferences ?? {}) as Record<string, unknown>));
+      .then(({ data }) => {
+        const remote=(data?.preferences ?? {}) as Record<string, unknown>;
+        writeLocalReaderPrefs(remote);
+        apply(remote);
+      })
+      .catch(() => {
+        if (!Object.keys(local).length && !cancelled) {
+          setShowCounterControl(false);
+          setShowPlayControl(false);
+        }
+      });
 
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
@@ -1663,9 +1670,9 @@ export function ReaderView({
         </nav>
       )}
 
-      {showPlayControl && <FloatingPlaybackButton />}
+      {showPlayControl === true && <FloatingPlaybackButton />}
 
-      {showCounterControl && (
+      {showCounterControl === true && (
         <FloatingCounterButton
           key={item.id}
           title={activeTitle}
