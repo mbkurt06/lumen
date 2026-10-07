@@ -292,6 +292,11 @@ export function AppShell({
               item={selectedItem}
               initialFocusIndex={initialSegmentIndex}
               onBack={() => setLibraryMode("hub")}
+              onMenu={() => {
+                setReturnEzberRoot(null);
+                setReturnToEzber(true);
+                setLibraryMode("hub");
+              }}
               onMemorize={(index = 0) => {
                 setInitialSegmentIndex(index);
                 setLibraryMode("memorize");
@@ -307,6 +312,12 @@ export function AppShell({
             <MemorizationView
               item={selectedItem}
               initialIndex={initialSegmentIndex}
+              categoryTitle={returnEzberRoot?.title || ""}
+              onMenu={() => {
+                setReturnEzberRoot(null);
+                setReturnToEzber(true);
+                setLibraryMode("hub");
+              }}
               onBack={() => setLibraryMode("read")}
             />
           )}
