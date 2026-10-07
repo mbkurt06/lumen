@@ -81,6 +81,7 @@ export function ReaderView({
   onBack,
   onMenu,
   onMemorize,
+  categoryTitle = "",
   initialFocusIndex = 0,
   onPreviousItem,
   onNextItem,
@@ -91,6 +92,7 @@ export function ReaderView({
   onBack?: () => void;
   onMenu?: () => void;
   onMemorize?: (index?: number) => void;
+  categoryTitle?: string;
   initialFocusIndex?: number;
   onPreviousItem?: () => void;
   onNextItem?: () => void;
@@ -115,6 +117,9 @@ export function ReaderView({
   const today = localDateKey();
 
   const itemTarget = Number(item.metadata?.target || 0);
+  const itemMeta = (item.metadata ?? {}) as Record<string, any>;
+  const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
+  const invocation = String(itemMeta.invocation || item.subtitle || "");
 
   const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
@@ -369,8 +374,8 @@ export function ReaderView({
       }}
     >
       <EzberSharedHeader
-        title={item.title}
-        invocation={String(item.metadata?.invocation || item.subtitle || "") || null}
+        title={isEsmaDetail ? (categoryTitle || item.title) : item.title}
+        invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}
         showMemorize={true}
         onMenu={() => leaveDocument(onMenu)}
@@ -378,6 +383,13 @@ export function ReaderView({
         onTodo={() => setDocumentTodoOpen(true)}
         onMemorize={() => onMemorize?.(initialFocusIndex)}
       />
+
+      {isEsmaDetail && (
+        <div className="v2EsmaIdentity v2EsmaReadIdentity">
+          <div className="v2EsmaName">{item.title}</div>
+          {invocation && <div className="v2EsmaInvocation">{invocation}</div>}
+        </div>
+      )}
 
       {!!documentTodos.length && (
         <div className="documentTodoTargets">
