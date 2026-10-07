@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#315b4d",
+};
 
 export const metadata: Metadata = {
   title: "Lumen",
   description: "Kur’an, dua, Risale-i Nur ve kişisel okuma/ezber uygulaması",
   manifest: "/manifest.webmanifest",
-  themeColor: "#315b4d",
   appleWebApp: {
     capable: true,
     title: "Lumen",
