@@ -1,14 +1,11 @@
 {
   "name": "lumen",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
-    "start": "next start",
-    "import:legacy": "node scripts/import-legacy.mjs",
-    "cleanup:tesbihat": "node scripts/cleanup-tesbihat.mjs",
-    "sync:tesbihat-pdf": "node scripts/sync-tesbihat-pdf.mjs"
+    "start": "next start"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
