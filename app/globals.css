@@ -6094,3 +6094,10 @@ body[data-quran-page-theme="dark"] .quranPronunciationTooltip{
   padding:8px 0 2px;
   font-size:10px;
 }
+
+
+/* Tighten the pronunciation bubble and keep it visually close to the hovered line. */
+.quranPronunciationTooltip{
+  padding:5px 9px!important;
+  border-radius:8px!important;
+}
