@@ -29,7 +29,7 @@ async function init(){
   ensureSurahExcerpt("kehf-1-10","Kehf İlk 10 Âyet",18,1,10);
   ensureSurahExcerpt("kehf-101-110","Kehf Son 10 Âyet",18,101,110);
   data.quranSource=quranData.source||null;
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuReorder();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=88").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=89").then(r=>r.update())
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="Esmâü’l-Hüsnâ"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
@@ -484,22 +484,163 @@ function ensureSurahExcerpt(id,title,surahNo,startVerse,endVerse){
 }
 const HOME_ORDER_KEY="duaHomeMenuOrder";
 const LIBRARY_ORDERS_KEY="duaLibraryOrders";
+const HIDDEN_HOME_KEY="duaHiddenHomeMenuItems";
+const HIDDEN_LIBRARY_KEY="duaHiddenLibraryItems";
+
+function readJsonStorage(key,fallback){
+  try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback))}catch{return fallback}
+}
+function hiddenHomeItems(){return new Set(readJsonStorage(HIDDEN_HOME_KEY,[]))}
+function hiddenLibraryItems(){return readJsonStorage(HIDDEN_LIBRARY_KEY,{})||{}}
+function saveHiddenHome(set){localStorage.setItem(HIDDEN_HOME_KEY,JSON.stringify([...set]))}
+function saveHiddenLibrary(obj){localStorage.setItem(HIDDEN_LIBRARY_KEY,JSON.stringify(obj))}
+function isLibraryItemHidden(cat,key){return (hiddenLibraryItems()[cat]||[]).includes(key)}
+function setHomeItemHidden(key,hidden){
+  const set=hiddenHomeItems();
+  if(hidden)set.add(key);else set.delete(key);
+  saveHiddenHome(set);
+}
+function setLibraryItemHidden(cat,key,hidden){
+  const all=hiddenLibraryItems(),set=new Set(all[cat]||[]);
+  if(hidden)set.add(key);else set.delete(key);
+  all[cat]=[...set];
+  saveHiddenLibrary(all);
+}
+function closeOtherSwipeRows(except=null){
+  document.querySelectorAll(".swipe-row.swipe-open").forEach(row=>{
+    if(row===except)return;
+    row.classList.remove("swipe-open");
+    const item=row.querySelector(".swipe-main");
+    if(item)item.style.transform="";
+  });
+}
+function showMenuUndo(label,undo){
+  let bar=$("#menuUndoBar");
+  if(!bar){
+    bar=document.createElement("div");
+    bar.id="menuUndoBar";
+    bar.className="menu-undo-bar";
+    document.body.appendChild(bar);
+  }
+  clearTimeout(showMenuUndo.timer);
+  bar.innerHTML='<span>'+escapeHtml(label)+' gizlendi</span><button type="button">Geri al</button>';
+  bar.classList.add("show");
+  bar.querySelector("button").onclick=()=>{bar.classList.remove("show");undo?.()};
+  showMenuUndo.timer=setTimeout(()=>bar.classList.remove("show"),4500);
+}
+function wrapSwipeRows(container,selector,keyFn,onHide){
+  if(!container)return;
+  [...container.querySelectorAll(selector)].forEach(item=>{
+    if(item.closest(".swipe-row"))return;
+    const key=String(keyFn(item)||"");
+    if(!key)return;
+    const row=document.createElement("div");
+    row.className="swipe-row";
+    row.dataset.menuKey=key;
+    const label=item.querySelector("strong")?.textContent?.trim()||item.textContent.trim();
+    item.parentNode.insertBefore(row,item);
+    row.appendChild(item);
+    item.classList.add("swipe-main");
+
+    const del=document.createElement("button");
+    del.type="button";
+    del.className="swipe-delete-action";
+    del.setAttribute("aria-label",label+" menüden gizle");
+    del.innerHTML='<span aria-hidden="true">🗑</span>';
+    row.appendChild(del);
+
+    let pointer=null,startX=0,startY=0,swiping=false,moved=false;
+    item.addEventListener("pointerdown",e=>{
+      if(e.button!=null&&e.button!==0)return;
+      pointer=e.pointerId;startX=e.clientX;startY=e.clientY;swiping=false;moved=false;
+      closeOtherSwipeRows(row);
+    });
+    item.addEventListener("pointermove",e=>{
+      if(e.pointerId!==pointer)return;
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      if(!swiping&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.25)swiping=true;
+      if(!swiping)return;
+      moved=true;
+      e.preventDefault();
+      const x=Math.max(-78,Math.min(0,dx));
+      item.style.transform="translateX("+x+"px)";
+    });
+    const finish=e=>{
+      if(e.pointerId!==pointer)return;
+      const dx=e.clientX-startX;
+      if(swiping&&dx<-38){
+        row.classList.add("swipe-open");
+        item.style.transform="translateX(-78px)";
+      }else{
+        row.classList.remove("swipe-open");
+        item.style.transform="";
+      }
+      if(moved){
+        item.dataset.suppressClick="1";
+        setTimeout(()=>item.dataset.suppressClick="0",160);
+      }
+      pointer=null;swiping=false;moved=false;
+    };
+    item.addEventListener("pointerup",finish);
+    item.addEventListener("pointercancel",e=>{
+      if(e.pointerId!==pointer)return;
+      row.classList.remove("swipe-open");item.style.transform="";
+      pointer=null;swiping=false;moved=false;
+    });
+    item.addEventListener("click",e=>{
+      if(item.dataset.suppressClick==="1"){e.preventDefault();e.stopImmediatePropagation()}
+    },true);
+    del.onclick=e=>{
+      e.preventDefault();e.stopPropagation();
+      onHide(key,row,item,label);
+    };
+  });
+}
 function homeMenuKey(el){return el.dataset.category?"cat:"+el.dataset.category:(el.id||el.textContent.trim())}
 function applyHomeMenuOrder(){
   const menu=document.querySelector(".home-menu");if(!menu)return;
   let order=[];try{order=JSON.parse(localStorage.getItem(HOME_ORDER_KEY)||"[]")}catch{}
   const items=[...menu.querySelectorAll(".home-card")],byKey=new Map(items.map(el=>[homeMenuKey(el),el]));
-  for(const key of order){const el=byKey.get(key);if(el){menu.appendChild(el);byKey.delete(key)}}
-  for(const el of items){if(byKey.has(homeMenuKey(el)))menu.appendChild(el)}
+  const move=el=>menu.appendChild(el.closest(".swipe-row")||el);
+  for(const key of order){const el=byKey.get(key);if(el){move(el);byKey.delete(key)}}
+  for(const el of items){if(byKey.has(homeMenuKey(el)))move(el)}
 }
 function saveHomeMenuOrder(){
-  const menu=document.querySelector(".home-menu");if(menu)localStorage.setItem(HOME_ORDER_KEY,JSON.stringify([...menu.querySelectorAll(".home-card")].map(homeMenuKey)))
+  const menu=document.querySelector(".home-menu");if(!menu)return;
+  const cards=[...menu.querySelectorAll(":scope > .swipe-row > .home-card, :scope > .home-card")];
+  localStorage.setItem(HOME_ORDER_KEY,JSON.stringify(cards.map(homeMenuKey)))
 }
 function libraryOrders(){try{return JSON.parse(localStorage.getItem(LIBRARY_ORDERS_KEY)||"{}")||{}}catch{return{}}}
 function saveLibraryOrder(cat,list){
   const all=libraryOrders();all[cat]=[...list.querySelectorAll(".library-card[data-dua-id]")].map(el=>el.dataset.duaId);
   localStorage.setItem(LIBRARY_ORDERS_KEY,JSON.stringify(all))
 }
+function saveLibraryMenuOrder(cat,list){
+  const all=libraryOrders();
+  all[cat]=[...list.querySelectorAll(":scope > .swipe-row")].map(row=>row.dataset.menuKey).filter(Boolean);
+  localStorage.setItem(LIBRARY_ORDERS_KEY,JSON.stringify(all));
+}
+function applyLibraryMenuOrder(cat,list){
+  const order=libraryOrders()[cat]||[],rank=new Map(order.map((key,i)=>[key,i]));
+  const rows=[...list.querySelectorAll(":scope > .swipe-row")];
+  rows.sort((a,b)=>(rank.has(a.dataset.menuKey)?rank.get(a.dataset.menuKey):999999)-(rank.has(b.dataset.menuKey)?rank.get(b.dataset.menuKey):999999));
+  rows.forEach(row=>list.appendChild(row));
+}
+function setupLibraryMenuInteractions(cat,list){
+  wrapSwipeRows(list,'.library-card[data-dua-id]',el=>el.dataset.menuKey||el.dataset.duaId,(key,row,item,label)=>{
+    setLibraryItemHidden(cat,key,true);
+    row.classList.add("menu-item-hidden");
+    showMenuUndo(label,()=>{
+      setLibraryItemHidden(cat,key,false);
+      row.classList.remove("menu-item-hidden","swipe-open");
+      item.style.transform="";
+    });
+  });
+  applyLibraryMenuOrder(cat,list);
+  list.querySelectorAll(":scope > .swipe-row").forEach(row=>row.classList.toggle("menu-item-hidden",isLibraryItemHidden(cat,row.dataset.menuKey)));
+  bindLongPressReorder(list,'.swipe-row',()=>saveLibraryMenuOrder(cat,list));
+}
+
 function bindLongPressReorder(container,selector,onSave){
   if(!container)return;
   container.querySelectorAll(selector).forEach(item=>{
@@ -532,7 +673,22 @@ function bindLongPressReorder(container,selector,onSave){
     item.addEventListener("pointerup",finish);item.addEventListener("pointercancel",finish)
   })
 }
-function setupHomeMenuReorder(){applyHomeMenuOrder();bindLongPressReorder(document.querySelector(".home-menu"),".home-card",saveHomeMenuOrder)}
+function setupHomeMenuInteractions(){
+  applyHomeMenuOrder();
+  const menu=document.querySelector(".home-menu");if(!menu)return;
+  wrapSwipeRows(menu,".home-card",homeMenuKey,(key,row,item,label)=>{
+    setHomeItemHidden(key,true);
+    row.classList.add("menu-item-hidden");
+    showMenuUndo(label,()=>{
+      setHomeItemHidden(key,false);
+      row.classList.remove("menu-item-hidden","swipe-open");
+      item.style.transform="";
+    });
+  });
+  const hidden=hiddenHomeItems();
+  menu.querySelectorAll(".swipe-row").forEach(row=>row.classList.toggle("menu-item-hidden",hidden.has(row.dataset.menuKey)));
+  bindLongPressReorder(menu,".swipe-row",saveHomeMenuOrder);
+}
 function applyLibraryOrder(cat,items){
   if(cat==="Sûreler")return items;
   const order=libraryOrders()[cat]||[],rank=new Map(order.map((id,i)=>[id,i]));
@@ -553,9 +709,9 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
   state.libraryCategory=cat;$("#listeningView").classList.add("hidden");$("#memorizeView").classList.add("hidden");$("#readView").classList.add("hidden");
   $(".navigation").classList.add("hidden");counter.classList.add("hidden");$("#libraryView").classList.remove("hidden");$("#libraryPageTitle").textContent=cat;
   const list=$("#libraryPageList");list.innerHTML="";
-  const appendCard=(d,label,meta,extraClass="")=>{
+  const appendCard=(d,label,meta,extraClass="",menuKey=null)=>{
     const b=document.createElement("button");b.className=("library-card "+extraClass).trim();
-    if(d)b.dataset.duaId=d.id;
+    if(d){b.dataset.duaId=d.id;b.dataset.menuKey=menuKey||d.id;}
     b.innerHTML="<strong>"+escapeHtml(label)+"</strong><span>"+escapeHtml(meta)+"</span>";
     if(d)b.onclick=()=>openDua(d);else b.disabled=true;
     list.appendChild(b);return b
@@ -564,7 +720,7 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
     const catalog=Array.isArray(data.surahCatalog)?data.surahCatalog:[];
     for(const row of catalog){
       const d=data.duas.find(x=>x.category==="Sûreler"&&x.surahNo===row.surahNo&&!SURAH_EXTRA_IDS.has(x.id));
-      appendCard(d,row.surahNo+". "+row.name,d?(d.segments.length+" bölüm"):"Metin eklenecek",d?"":"surah-placeholder")
+      appendCard(d,row.surahNo+". "+row.name,d?(d.segments.length+" bölüm"):"Metin eklenecek",d?"":"surah-placeholder","surah:"+row.surahNo)
     }
     const extras=data.duas.filter(d=>d.category==="Sûreler"&&SURAH_EXTRA_IDS.has(d.id));
     const featured=FEATURED_SURAH_SHORTCUTS.map(item=>({
@@ -573,10 +729,10 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
     })).filter(x=>x.dua);
     if(featured.length||extras.length){
       const head=document.createElement("div");head.className="library-subheading";head.textContent="Ek okumalar";list.appendChild(head);
-      featured.forEach(({item,dua:d})=>appendCard(d,item.label,d.segments.length+" bölüm","surah-featured"));
+      featured.forEach(({item,dua:d})=>appendCard(d,item.label,d.segments.length+" bölüm","surah-featured","featured:"+d.id));
       const extraOrder=["bakara-255","bakara-285-286","ali-imran-190-200","kehf-1-10","kehf-101-110","fetih-27-29","hasr-20-24"];
       extras.sort((a,b)=>extraOrder.indexOf(a.id)-extraOrder.indexOf(b.id));
-      extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm","surah-featured"))
+      extras.forEach(d=>appendCard(d,d.title,d.segments.length+" bölüm","surah-featured","extra:"+d.id))
     }
     const source=document.createElement("div");
     source.className="quran-source-note";
@@ -584,8 +740,8 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
     list.appendChild(source);
   }else{
     categoryItems(cat).forEach(d=>appendCard(d,d.title,d.target?d.target+" tekrar":d.segments.length+" bölüm"));
-    bindLongPressReorder(list,'.library-card[data-dua-id]',()=>saveLibraryOrder(cat,list))
   }
+  setupLibraryMenuInteractions(cat,list);
   save()
 }$("#backContentBtn").onclick=openHome;$("#readMenuBtn").onclick=openHome;$("#backLibraryBtn").onclick=()=>openCategory(dua.category);$("#memorizeMenuBtn").onclick=openHome;$("#memorizeThisBtn").onclick=()=>{clearQuickCount();state.settings.mode="memorize";index=0;render();applyMode()};$("#memorizeHeaderModeBtn").onclick=()=>{};$("#memorizeHeaderBackBtn").onclick=()=>{
   if(isEsmaNameDua()){openCategory("Esmâü’l-Hüsnâ");return}
@@ -604,6 +760,13 @@ document.querySelectorAll(".category-link").forEach(b=>b.onclick=()=>openCategor
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$("#"+b.dataset.close).close());
 if($("#resetBtn"))$("#resetBtn").onclick=()=>{if(state.settings.mode==="read"){state.readCounts[dua.id]=0;applyMode()}else{counts[key()]=0;render()}};
 $("#themeToggle").onclick=()=>{state.settings.dark=!state.settings.dark;applySettings();save()};
+$("#restoreHiddenMenusBtn").onclick=()=>{
+  localStorage.removeItem(HIDDEN_HOME_KEY);
+  localStorage.removeItem(HIDDEN_LIBRARY_KEY);
+  document.querySelectorAll(".menu-item-hidden").forEach(el=>el.classList.remove("menu-item-hidden"));
+  if(state.currentView==="library"&&state.libraryCategory)openCategory(state.libraryCategory);
+  $("#settingsDialog").close();
+};
 function toggleTextMode(key){const on=["showArabic","showLatin","showTurkish"].filter(k=>state.settings[k]).length;if(state.settings[key]&&on===1)return;state.settings[key]=!state.settings[key];applySettings();renderRead();save()}
 $("#arabicToggle").onclick=()=>toggleTextMode("showArabic");
 $("#latinToggle").onclick=()=>toggleTextMode("showLatin");
