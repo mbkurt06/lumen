@@ -34,6 +34,14 @@ export function LibraryCatalogView({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [quranMode, setQuranMode] = useState<"surah" | "juz">("surah");
+  const [quranBookmark, setQuranBookmark] = useState<{
+    nodeId?: string;
+    page?: number;
+    juz?: number;
+    surahTitle?: string;
+    surahNo?: number;
+    ayahNo?: number;
+  } | null>(null);
 
   const source = section === "quran" ? "quran_v1" : "risale_v1";
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
@@ -91,6 +99,22 @@ export function LibraryCatalogView({
   }, [loadChildren, loadRoot]);
 
   useEffect(() => { void bootstrap(); }, [bootstrap]);
+
+  useEffect(() => {
+    if (section !== "quran") return;
+    const loadBookmark = async () => {
+      const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+      const bookmark = ((data?.preferences ?? {}) as Record<string, any>).quranBookmark;
+      setQuranBookmark(bookmark?.page ? bookmark : null);
+    };
+    void loadBookmark();
+    const handle = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.page) setQuranBookmark(detail);
+    };
+    window.addEventListener("lumen-quran-bookmark-changed", handle);
+    return () => window.removeEventListener("lumen-quran-bookmark-changed", handle);
+  }, [section]);
 
   async function open(item: CatalogItem) {
     if (item.kind === "document") {
@@ -157,6 +181,34 @@ export function LibraryCatalogView({
 
       {section === "quran" && current?.id === root?.id && (
         <>
+          {quranBookmark && (
+            <button
+              className="quranBookmarkCard"
+              onClick={() => {
+                const surahItem = items.find(candidate =>
+                  String(meta(candidate).source || "") === "quran_seeded"
+                  && Number(meta(candidate).surah_no || 0) === Number(quranBookmark.surahNo || 0)
+                );
+                if (!surahItem || !quranBookmark.page) return;
+                onOpenItem(
+                  {
+                    ...surahItem,
+                    metadata: {
+                      ...(surahItem.metadata ?? {}),
+                      start_page: quranBookmark.page,
+                    },
+                  },
+                  items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"),
+                  current
+                );
+              }}
+            >
+              <span>🔖 Kaldığın yer</span>
+              <strong>Sayfa {quranBookmark.page} · {quranBookmark.surahTitle || ""} {quranBookmark.ayahNo ? `${quranBookmark.ayahNo}. ayet` : ""}</strong>
+              <small>Buradan devam et ›</small>
+            </button>
+          )}
+
           <div className="quranCatalogTabs" role="tablist" aria-label="Kur’an görünümü">
             <button className={quranMode === "surah" ? "active" : ""} onClick={() => setQuranMode("surah")}>Sûreler</button>
             <button className={quranMode === "juz" ? "active" : ""} onClick={() => setQuranMode("juz")}>Cüzler</button>
