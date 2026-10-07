@@ -134,6 +134,8 @@ export function AppShell({
         document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(quranFontFamily));
         document.body.dataset.quranPageTheme = quranPageTheme;
         document.body.dataset.risalePageTheme = risalePageTheme;
+        document.documentElement.dataset.preQuranPageTheme = quranPageTheme;
+        document.documentElement.dataset.preRisalePageTheme = risalePageTheme;
         document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
         document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
         document.body.classList.remove("quranEasyRead");
