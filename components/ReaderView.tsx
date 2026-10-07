@@ -1341,10 +1341,11 @@ export function ReaderView({
                     onClick={() => {
                       setBookTodoMenuOpen(false);
                       setBookTodoExistingOpen(false);
+                      const selectedNode = nodes.find(node => node.id === bookSelection.nodeId);
                       setTodoTarget({
                         title:bookSelection.text || item.title,
                         nodeId:bookSelection.nodeId || undefined,
-                        defaultTarget:1,
+                        defaultTarget:selectedNode ? (targetForIntrinsic(selectedNode) || 1) : 1,
                       });
                     }}
                   >
@@ -1393,108 +1394,6 @@ export function ReaderView({
 
       {isQuranDocument ? (
         <div className="quranReaderShell">
-          {quranSelectedNodeId && (() => {
-            const selected = nodes.find(node => node.id === quranSelectedNodeId);
-            if (!selected) return null;
-            return (
-              <div className="quranSelectionWrap">
-                <div className="quranSelectionBar">
-                  <span>{selected.title || `Ayet ${selected.sort_order}`} seçili</span>
-                  <button
-                    className={"quranSelectionAction primaryAction " + (quranActionFlash === "newTodo" ? "pressed" : "")}
-                    onClick={() => {
-                      flashQuranAction("newTodo");
-                      setTodoTarget({
-                        title: "Kur’an okuma",
-                        nodeId: selected.id,
-                        defaultTarget: 1,
-                      });
-                    }}
-                  >
-                    + Todo
-                  </button>
-                  <button
-                    className={"quranSelectionAction " + ((quranBookmarkMenuOpen || quranActionFlash === "bookmark") ? "pressed" : "")}
-                    onClick={() => {
-                      setQuranTodoMenuOpen(false);
-                      setQuranBookmarkMenuOpen(open => !open);
-                    }}
-                  >
-                    🔖 Ayraç
-                  </button>
-                  <button
-                    className={"quranSelectionAction " + ((quranTodoMenuOpen || quranActionFlash === "todo") ? "pressed" : "")}
-                    onClick={() => {
-                      setQuranBookmarkMenuOpen(false);
-                      void loadQuranTodoChoices();
-                    }}
-                  >
-                    Todo konumunu güncelle
-                  </button>
-                  <button className="quranSelectionAction" onClick={() => setQuranSelectedNodeId(null)}>Seçimi kaldır</button>
-                </div>
-
-                {quranBookmarkMenuOpen && (
-                  <div className="quranActionChooser">
-                    <strong>Ayraç seç veya yeni ayraç oluştur</strong>
-                    {!!quranBookmarks.length && (
-                      <div className="quranActionChoiceList">
-                        {quranBookmarks.map(bookmark => (
-                          <button key={bookmark.id} onClick={() => void saveQuranBookmark(selected,{id:bookmark.id})}>
-                            <b>{bookmark.name}</b>
-                            <small>
-                              Şu an: Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle} {bookmark.position.ayahNo}. ayet
-                            </small>
-                            <span>Buraya güncelle</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div className="quranNewBookmarkRow">
-                      <input
-                        value={quranBookmarkName}
-                        onChange={e => setQuranBookmarkName(e.target.value)}
-                        placeholder="Yeni ayraç adı (örn. Kendi hatmim)"
-                      />
-                      <button
-                        disabled={!quranBookmarkName.trim()}
-                        onClick={() => void saveQuranBookmark(selected,{name:quranBookmarkName})}
-                      >
-                        Yeni ayraç ekle
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {quranTodoMenuOpen && (
-                  <div className="quranActionChooser">
-                    <strong>Hangi Kur’an Todo'su güncellensin?</strong>
-                    {quranTodoChoices.length ? (
-                      <div className="quranActionChoiceList">
-                        {quranTodoChoices.map(todo => (
-                          <button key={todo.id} onClick={() => void updateQuranTodoPosition(todo,selected)}>
-                            <b>{todo.title}</b>
-                            <small className="quranTodoChoiceMeta">
-                              {todo.description && <span className="quranTodoChoiceDescription">{todo.description}</span>}
-                              <span>
-                                {todo.position
-                                  ? `Şu an: Sayfa ${displayQuranPage(todo.position.page)} · ${todo.position.surahTitle} ${todo.position.ayahNo}. ayet`
-                                  : "Henüz konum yok"}
-                              </span>
-                            </small>
-                            <span>Bu Todo'yu güncelle</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="muted">Kur’an takibi olan Todo bulunamadı.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           <div
             ref={quranPageRef}
             className={"quranPage " + (quranMushafPage ? "quranWordPage " : "") + (quranPageLoading ? "loading" : "")}
@@ -1631,92 +1530,108 @@ export function ReaderView({
           onNextDocument={onNextItem}
         />
       ) : (
-      <div className="legacyReadContent">
-        {nodes.map((node, index) => {
-          const todoInfos = todosForNode(node);
-          const activeTodoInfos = todoInfos.filter(info => !info.done);
-          const intrinsicTarget = targetForIntrinsic(node);
-          const intrinsicCount = localCounts[node.id] ?? 0;
-          const intrinsicDone = intrinsicTarget > 0 && intrinsicCount >= intrinsicTarget;
-          const active = activeNodeId === node.id;
+      <div className={"legacyReadContent unifiedBookReader " + (readerScope === "ezber" ? "ezberBookReader" : "heBookReader")}>
+        <section className="unifiedBookPage">
+          <header className="unifiedBookPageHead">
+            <strong>{item.title}</strong>
+            <span>{categoryTitle || (readerScope === "ezber" ? "Ezber" : "Kitap")}</span>
+          </header>
 
-          return (
-            <article
-              className={"legacyReadItem clickableReadItem " + (active ? "counterActiveItem" : "")}
-              key={node.id}
-              data-node-id={node.id}
-              data-reader-index={index}
-              onClick={() => onMemorize?.(index)}
-            >
-              <button
-                className="segmentTodoButton segmentTodoTopLeft"
-                onClick={e => {
-                  e.stopPropagation();
-                  setTodoTarget({
-                    title: node.text_content || node.title || item.title,
-                    nodeId: node.id,
-                    defaultTarget: targetForIntrinsic(node) || 1,
-                  });
-                }}
-              >
-                + Todo
-              </button>
+          <div className="unifiedBookPageBody">
+            {nodes.map((node, index) => {
+              const todoInfos = todosForNode(node);
+              const activeTodoInfos = todoInfos.filter(info => !info.done);
+              const intrinsicTarget = targetForIntrinsic(node);
+              const intrinsicCount = localCounts[node.id] ?? 0;
+              const intrinsicDone = intrinsicTarget > 0 && intrinsicCount >= intrinsicTarget;
+              const active = activeNodeId === node.id;
+              const note = String((node.metadata as Record<string,unknown> | null)?.note || "");
+              const isInstruction = Boolean((node.metadata as Record<string,unknown> | null)?.instruction);
 
-              <div className="segmentTargetGroup">
-                {Object.values(activeTodoInfos.reduce((groups, info) => {
-                  const key = info.target + "/" + info.count;
-                  (groups[key] ||= []).push(info);
-                  return groups;
-                }, {} as Record<string, typeof activeTodoInfos>)).map(group => {
-                  const info = group[0];
-                  const selected = active && group.some(x => x.todo.id === activeTodoId);
-                  return (
-                    <button
-                      key={info.todo.id}
-                      className={"segmentTargetButton todoTarget " + (selected ? " active" : "")}
-                      onPointerDown={e => startTodoEditPress(info, e)}
-                      onPointerUp={endTodoEditPress}
-                      onPointerCancel={endTodoEditPress}
-                      onContextMenu={e => e.preventDefault()}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setActiveNodeId(node.id);
-                        setActiveDocumentTodoId(null);
-                        setActiveTodoId(info.todo.id);
-                        setCounterArmed(true);
-                      }}
-                    >
-                      {info.target}/{info.count}
-                      {group.length > 1 && <span className="targetMultiplicity">{group.length}</span>}
-                    </button>
-                  );
-                })}
+              return (
+                <article
+                  className={
+                    "unifiedBookBlock "
+                    + (note ? "unifiedBookSectionStart " : "")
+                    + (isInstruction ? "unifiedBookInstructionBlock " : "")
+                    + (active ? "counterActiveItem" : "")
+                  }
+                  key={node.id}
+                  data-node-id={node.id}
+                  data-reader-index={index}
+                >
+                  {note && <div className="unifiedBookSectionNote">{note}</div>}
+                  {node.title && <h3>{node.title}</h3>}
 
-                {!activeTodoInfos.length && intrinsicTarget > 0 && (
-                  <button
-                    className={"segmentTargetButton " + (intrinsicDone ? "done" : "") + (active && !activeTodoId ? " active" : "")}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setActiveNodeId(node.id);
-                      setActiveDocumentTodoId(null);
-                      setActiveTodoId(null);
-                      setCounterArmed(true);
-                    }}
-                  >
-                    {intrinsicTarget}/{intrinsicCount}
-                  </button>
-                )}
-              </div>
+                  <div className="unifiedBookBlockContent">
+                    <div className="unifiedBookText">
+                      {node.secondary_text && <div className="legacyArabic unifiedBookArabic" dir="rtl">{node.secondary_text}</div>}
+                      {node.text_content && (
+                        <div className={isInstruction ? "legacyInstruction unifiedBookInstruction" : "legacySegment unifiedBookLatin"}>
+                          {node.text_content}
+                        </div>
+                      )}
+                      {node.translation && <div className="legacyTurkish unifiedBookTurkish">{node.translation}</div>}
+                    </div>
 
-              <div className="legacyReadItemNumber">{index + 1}</div>
-              {node.title && <h3>{node.title}</h3>}
-              {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
-              {node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
-              {node.translation && <div className="legacyTurkish">{node.translation}</div>}
-            </article>
-          );
-        })}
-        {!nodes.length && !message && <p className="muted">Henüz içerik yok.</p>}
+                    {(activeTodoInfos.length > 0 || intrinsicTarget > 0) && (
+                      <div className="unifiedBookCounters">
+                        {Object.values(activeTodoInfos.reduce((groups, info) => {
+                          const key = info.target + "/" + info.count;
+                          (groups[key] ||= []).push(info);
+                          return groups;
+                        }, {} as Record<string, typeof activeTodoInfos>)).map(group => {
+                          const info = group[0];
+                          const selected = active && group.some(x => x.todo.id === activeTodoId);
+                          return (
+                            <button
+                              key={info.todo.id}
+                              className={"segmentTargetButton todoTarget " + (selected ? " active" : "")}
+                              onPointerDown={e => startTodoEditPress(info, e)}
+                              onPointerUp={endTodoEditPress}
+                              onPointerCancel={endTodoEditPress}
+                              onContextMenu={e => e.preventDefault()}
+                              onClick={e => {
+                                e.stopPropagation();
+                                setActiveNodeId(node.id);
+                                setActiveDocumentTodoId(null);
+                                setActiveTodoId(info.todo.id);
+                                setCounterArmed(true);
+                              }}
+                            >
+                              {info.target}/{info.count}
+                              {group.length > 1 && <span className="targetMultiplicity">{group.length}</span>}
+                            </button>
+                          );
+                        })}
+
+                        {!activeTodoInfos.length && intrinsicTarget > 0 && (
+                          <button
+                            className={"segmentTargetButton " + (intrinsicDone ? "done" : "") + (active && !activeTodoId ? " active" : "")}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setActiveNodeId(node.id);
+                              setActiveDocumentTodoId(null);
+                              setActiveTodoId(null);
+                              setCounterArmed(true);
+                            }}
+                          >
+                            {intrinsicTarget}/{intrinsicCount}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {!nodes.length && !message && <p className="muted">Henüz içerik yok.</p>}
+          </div>
+
+          <footer className="unifiedBookPageFoot">
+            <span>{item.title}</span>
+          </footer>
+        </section>
       </div>
       )}
 
