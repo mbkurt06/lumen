@@ -1,15 +1,8 @@
 "use client";
 
-type ApiVerse = {
-  verse_number?: number;
-  transcription?: string | null;
-};
-
 type ApiSurahResponse = {
-  data?: {
-    zero?: ApiVerse | null;
-    verses?: ApiVerse[];
-  };
+  surah?: number;
+  verses?: Record<string,string>;
 };
 
 const memory = new Map<number, Record<number,string>>();
@@ -45,7 +38,7 @@ export async function loadTurkishQuranTranscription(surahNo:number):Promise<Reco
   if(active) return active;
 
   const request=(async()=>{
-    const response=await fetch(`https://api.acikkuran.com/surah/${surahNo}`,{
+    const response=await fetch(`/api/quran-transcription/${surahNo}`,{
       headers:{Accept:"application/json"},
       cache:"force-cache",
     });
@@ -53,16 +46,10 @@ export async function loadTurkishQuranTranscription(surahNo:number):Promise<Reco
     const payload=await response.json() as ApiSurahResponse;
     const result:Record<number,string>={};
 
-    const verses=payload.data?.verses ?? [];
-    for(const verse of verses){
-      const no=Number(verse.verse_number || 0);
-      const text=clean(String(verse.transcription || ""));
+    for(const [ayahNo,value] of Object.entries(payload.verses ?? {})){
+      const no=Number(ayahNo);
+      const text=clean(String(value || ""));
       if(no>0 && text) result[no]=text;
-    }
-
-    // Fâtiha API cevabında besmele bazı sürümlerde zero alanında gelebiliyor.
-    if(surahNo===1 && payload.data?.zero?.transcription && !result[1]){
-      result[1]=clean(payload.data.zero.transcription);
     }
 
     memory.set(surahNo,result);
