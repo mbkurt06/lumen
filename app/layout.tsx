@@ -1,5 +1,18 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Lumen",
+  description: "Kur’an, dua, Risale-i Nur ve kişisel okuma/ezber uygulaması",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#315b4d",
+  appleWebApp: {
+    capable: true,
+    title: "Lumen",
+    statusBarStyle: "default",
+  },
+};
 
 const themeScript = `
 try {
