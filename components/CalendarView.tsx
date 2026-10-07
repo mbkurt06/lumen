@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
-type ListRange = "day" | "week" | "month" | "year" | "custom";
+type ListRange = "day" | "week" | "month" | "year" | "remainingYear" | "custom";
 type MonthDensity = "comfortable" | "compact";
 
 type CalendarInfo = {
@@ -295,6 +295,11 @@ export function CalendarView({ user }: { user: User }) {
       const start = startOfYear(anchor);
       return { start, end: new Date(anchor.getFullYear() + 1, 0, 1) };
     }
+    if (listRange === "remainingYear") {
+      const today = startOfDay(new Date());
+      const targetYear = today.getFullYear();
+      return { start: today, end: new Date(targetYear + 1, 0, 1) };
+    }
     const start = startOfMonth(anchor);
     return { start, end: addMonths(start, 1) };
   }, [anchor, view, listRange, customStart, customEnd]);
@@ -391,6 +396,9 @@ export function CalendarView({ user }: { user: User }) {
     if (next === "year") {
       setAnchor(new Date());
       setYearlyAutoScrollPending(true);
+    } else if (next === "remainingYear") {
+      setAnchor(new Date());
+      setYearlyAutoScrollPending(false);
     }
   }
 
@@ -414,7 +422,7 @@ export function CalendarView({ user }: { user: User }) {
     else if (view === "3day") setAnchor(addDays(anchor, delta * 3));
     else if (view === "day") setAnchor(addDays(anchor, delta));
     else {
-      const step = listRange === "year" ? 365 : listRange === "month" ? 31 : listRange === "week" ? 7 : 1;
+      const step = listRange === "year" ? 365 : listRange === "remainingYear" ? 365 : listRange === "month" ? 31 : listRange === "week" ? 7 : 1;
       setAnchor(addDays(anchor, delta * step));
     }
   }
@@ -432,6 +440,7 @@ export function CalendarView({ user }: { user: User }) {
       const end = addDays(start, 6);
       return `${start.toLocaleDateString("tr-TR", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}`;
     }
+    if (view === "list" && listRange === "remainingYear") return "Bugünden yıl sonuna";
     return "Etkinlik listesi";
   }, [anchor, view]);
 
@@ -955,17 +964,23 @@ export function CalendarView({ user }: { user: User }) {
     const entries = [...grouped.entries()];
     const today = startOfDay(new Date());
     let todayAnchorInserted = false;
+    let lastMonthKey = "";
 
     return (
       <div className="calendarAgenda">
         {entries.map(([key,list]) => {
           const date = new Date(key+"T00:00:00");
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;
+          const showMonthDivider =
+            (listRange === "year" || listRange === "remainingYear") &&
+            monthKey !== lastMonthKey;
+
+          if (showMonthDivider) lastMonthKey = monthKey;
+
           const shouldPlaceTodayAnchor =
             view === "list" &&
             listRange === "year" &&
-            !yearlyAutoScrollPending ? false :
-            view === "list" &&
-            listRange === "year" &&
+            yearlyAutoScrollPending &&
             !todayAnchorInserted &&
             date >= today;
 
@@ -973,11 +988,18 @@ export function CalendarView({ user }: { user: User }) {
 
           return (
             <div key={key}>
+              {showMonthDivider && (
+                <div className="calendarMonthDivider">
+                  <strong>{date.toLocaleDateString("tr-TR",{month:"long",year:"numeric"})}</strong>
+                </div>
+              )}
+
               {shouldPlaceTodayAnchor && (
                 <div ref={yearlyTodayRef} className="calendarTodayAnchor">
                   <span>Bugün</span>
                 </div>
               )}
+
               <section>
                 <h3>{date.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</h3>
                 {list.map(event => {
@@ -995,11 +1017,13 @@ export function CalendarView({ user }: { user: User }) {
             </div>
           );
         })}
+
         {view === "list" && listRange === "year" && !todayAnchorInserted && (
           <div ref={yearlyTodayRef} className="calendarTodayAnchor">
             <span>Bugün</span>
           </div>
         )}
+
         {!events.length && !loadingEvents && <div className="calendarEmpty">Bu aralıkta etkinlik yok.</div>}
       </div>
     );
@@ -1100,9 +1124,9 @@ export function CalendarView({ user }: { user: User }) {
         {view === "list" && (
           <div className="calendarListControls">
             <div>
-              {(["day","week","month","year","custom"] as ListRange[]).map(mode => (
+              {(["day","week","month","year","remainingYear","custom"] as ListRange[]).map(mode => (
                 <button key={mode} className={listRange===mode?"active":""} onClick={()=>setListRangeAndScroll(mode)}>
-                  {{day:"Günlük",week:"Haftalık",month:"Aylık",year:"Yıllık",custom:"Tarih aralığı"}[mode]}
+                  {{day:"Günlük",week:"Haftalık",month:"Aylık",year:"Tüm yıl",remainingYear:"Bugünden yıl sonuna",custom:"Tarih aralığı"}[mode]}
                 </button>
               ))}
             </div>
