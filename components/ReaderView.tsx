@@ -1239,15 +1239,6 @@ export function ReaderView({
             </div>
           )}
 
-          <div className="quranSupplement quranLatinBlock">
-            <h3>Latin harflerle okunuş</h3>
-            {nodes.map(node => (
-              <p key={"latin-" + node.id}>
-                <b>{node.sort_order}.</b> {node.text_content}
-              </p>
-            ))}
-          </div>
-
           <div className="quranSupplement quranTranslationBlock">
             <h3>Türkçe meal</h3>
             {nodes.map(node => (
