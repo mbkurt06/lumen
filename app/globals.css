@@ -5813,3 +5813,24 @@ body.hideArabic .quranFlow [dir="rtl"],
 body.hideArabic .quranReaderRawDebugText{
   display:block!important;
 }
+
+
+/* Exact DOCX rendering: use the embedded Word font at Word's native 20pt size.
+   Do not inherit the user's previous Quran scale/weight while validating the source. */
+.quranWordSourceActive.quranExactWordFont{
+  font-family:var(--quran-exact-font-family,"LumenExactMushaf"),"LumenExactMushaf",serif!important;
+  font-size:calc(26.6667px * var(--quran-fit-scale,1))!important;
+  font-weight:400!important;
+  font-style:normal!important;
+  font-synthesis:none!important;
+  font-feature-settings:"ccmp" 1,"rlig" 1,"liga" 1,"calt" 1,"mark" 1,"mkmk" 1!important;
+  line-height:1.72!important;
+}
+.quranWordSourceActive.quranExactWordFont .quranWordRun{
+  font-family:inherit!important;
+  font-size:inherit!important;
+  font-weight:400!important;
+  font-style:normal!important;
+  font-synthesis:none!important;
+  font-feature-settings:inherit!important;
+}
