@@ -54,6 +54,7 @@ type EventDraft = {
   allDay: boolean;
   description: string;
   location: string;
+  createTodo?: boolean;
 };
 
 type EventHoverPreview = {
@@ -152,8 +153,12 @@ export function CalendarView({ user }: { user: User }) {
   const [autoScrollNow, setAutoScrollNow] = useState(true);
   const timeScrollRef = useRef<HTMLDivElement | null>(null);
   const [eventHover, setEventHover] = useState<EventHoverPreview | null>(null);
+  const [hoverDraft, setHoverDraft] = useState<EventDraft | null>(null);
+  const [calendarTodoLinks, setCalendarTodoLinks] = useState<Record<string,{id:string;completed:boolean}>>({});
+  const [hoverSaving, setHoverSaving] = useState(false);
   const hoverOpenTimerRef = useRef<number | null>(null);
   const hoverCloseTimerRef = useRef<number | null>(null);
+  const eventPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -260,9 +265,29 @@ export function CalendarView({ user }: { user: User }) {
     }
   }, [authHeaders]);
 
+  const loadCalendarTodoLinks = useCallback(async () => {
+    const { data } = await supabase.from("todos").select("id,notes,is_completed");
+    const links: Record<string,{id:string;completed:boolean}> = {};
+    for (const row of data || []) {
+      if (!row.notes) continue;
+      try {
+        const meta = JSON.parse(row.notes);
+        const ref = meta?.calendar;
+        if (ref?.accountId && ref?.calendarId && ref?.eventId) {
+          links[`${ref.accountId}|${ref.calendarId}|${ref.eventId}`] = {
+            id: row.id,
+            completed: Boolean(row.is_completed),
+          };
+        }
+      } catch {}
+    }
+    setCalendarTodoLinks(links);
+  }, []);
+
   useEffect(() => {
     void loadPreferences();
     void loadAccounts();
+    void loadCalendarTodoLinks();
 
     const params = new URLSearchParams(location.search);
     if (params.get("calendar") === "connected") {
@@ -599,6 +624,7 @@ export function CalendarView({ user }: { user: User }) {
 
     hoverOpenTimerRef.current = window.setTimeout(() => {
       setEventHover({ event, x, y });
+      setHoverDraft(eventToDraft(event));
       hoverOpenTimerRef.current = null;
     }, 180);
   }
@@ -608,6 +634,7 @@ export function CalendarView({ user }: { user: User }) {
     cancelHoverClose();
     hoverCloseTimerRef.current = window.setTimeout(() => {
       setEventHover(null);
+      setHoverDraft(null);
       hoverCloseTimerRef.current = null;
     }, 140);
   }
@@ -647,6 +674,27 @@ export function CalendarView({ user }: { user: User }) {
     return rest ? `${hours} sa ${rest} dk` : `${hours} sa`;
   }
 
+  function calendarEventLinkKey(event: Pick<CalendarEvent,"accountId"|"calendarId"|"id">) {
+    return `${event.accountId}|${event.calendarId}|${event.id}`;
+  }
+
+  function eventToDraft(event: CalendarEvent): EventDraft {
+    const start = eventStart(event) || new Date();
+    const end = eventEnd(event) || addDays(start, 0);
+    return {
+      id: event.id,
+      accountId: event.accountId,
+      calendarId: event.calendarId,
+      title: event.summary,
+      date: localDateKey(start),
+      startTime: event.allDay ? "09:00" : start.toTimeString().slice(0,5),
+      endTime: event.allDay ? "10:00" : end.toTimeString().slice(0,5),
+      allDay: event.allDay,
+      description: event.description,
+      location: event.location,
+    };
+  }
+
   function openNewEvent(date = anchor) {
     const writable = visibleCalendars.find(calendar => calendar.accessRole === "owner" || calendar.accessRole === "writer");
     if (!writable) {
@@ -663,24 +711,14 @@ export function CalendarView({ user }: { user: User }) {
       allDay: false,
       description: "",
       location: "",
+      createTodo: false,
     });
   }
 
   function openEditEvent(event: CalendarEvent) {
-    const start = eventStart(event) || new Date();
-    const end = eventEnd(event) || addDays(start, 0);
-    setDraft({
-      id: event.id,
-      accountId: event.accountId,
-      calendarId: event.calendarId,
-      title: event.summary,
-      date: localDateKey(start),
-      startTime: event.allDay ? "09:00" : start.toTimeString().slice(0,5),
-      endTime: event.allDay ? "10:00" : end.toTimeString().slice(0,5),
-      allDay: event.allDay,
-      description: event.description,
-      location: event.location,
-    });
+    setEventHover(null);
+    setHoverDraft(null);
+    setDraft(eventToDraft(event));
   }
 
   async function moveEventToDate(event: CalendarEvent, date: Date) {
@@ -737,48 +775,122 @@ export function CalendarView({ user }: { user: User }) {
     }
   }
 
-  async function saveEvent() {
-    if (!draft || !draft.title.trim()) return;
-    try {
-      const headers = await authHeaders();
-      let eventPayload: any;
-      if (draft.allDay) {
-        const nextDay = addDays(new Date(draft.date + "T00:00:00"), 1);
-        eventPayload = {
-          summary: draft.title.trim(),
-          description: draft.description,
-          location: draft.location,
-          start: { date: draft.date },
-          end: { date: localDateKey(nextDay) },
-        };
-      } else {
-        const start = new Date(`${draft.date}T${draft.startTime}:00`);
-        const end = new Date(`${draft.date}T${draft.endTime}:00`);
-        if (end <= start) end.setDate(end.getDate() + 1);
-        eventPayload = {
-          summary: draft.title.trim(),
-          description: draft.description,
-          location: draft.location,
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
-        };
-      }
+  async function persistEventDraft(current: EventDraft) {
+    if (!current.title.trim()) throw new Error("Başlık gerekli.");
+    const headers = await authHeaders();
+    let eventPayload: any;
 
-      const method = draft.id ? "PATCH" : "POST";
-      const response = await fetch("/api/google-calendar/events", {
-        method,
-        headers,
-        body: JSON.stringify({
-          accountId: draft.accountId,
-          calendarId: draft.calendarId,
-          eventId: draft.id,
-          event: eventPayload,
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Etkinlik kaydedilemedi.");
+    if (current.allDay) {
+      const nextDay = addDays(new Date(current.date + "T00:00:00"), 1);
+      eventPayload = {
+        summary: current.title.trim(),
+        description: current.description,
+        location: current.location,
+        start: { date: current.date },
+        end: { date: localDateKey(nextDay) },
+      };
+    } else {
+      const start = new Date(`${current.date}T${current.startTime}:00`);
+      const end = new Date(`${current.date}T${current.endTime}:00`);
+      if (end <= start) end.setDate(end.getDate() + 1);
+      eventPayload = {
+        summary: current.title.trim(),
+        description: current.description,
+        location: current.location,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      };
+    }
+
+    const response = await fetch("/api/google-calendar/events", {
+      method: current.id ? "PATCH" : "POST",
+      headers,
+      body: JSON.stringify({
+        accountId: current.accountId,
+        calendarId: current.calendarId,
+        eventId: current.id,
+        event: eventPayload,
+      }),
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || "Etkinlik kaydedilemedi.");
+    return json.event;
+  }
+
+  async function createTodoForCalendarEvent(event: {id:string}, current: EventDraft) {
+    const key = `${current.accountId}|${current.calendarId}|${event.id}`;
+    if (calendarTodoLinks[key]) return;
+
+    const notes = {
+      description: current.description || "",
+      schedule: {
+        mode: "single",
+        startDate: current.date,
+        endDate: null,
+        durationDays: null,
+        target: 1,
+        history: {},
+      },
+      source: "calendar",
+      calendar: {
+        accountId: current.accountId,
+        calendarId: current.calendarId,
+        eventId: event.id,
+      },
+    };
+
+    const dueTime = current.allDay ? "09:00:00" : `${current.startTime}:00`;
+    const { data, error } = await supabase
+      .from("todos")
+      .insert({
+        title: current.title.trim(),
+        notes: JSON.stringify(notes),
+        due_at: `${current.date}T${dueTime}`,
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+    setCalendarTodoLinks(old => ({...old,[key]:{id:data.id,completed:false}}));
+  }
+
+  async function createTodoFromHoveredEvent() {
+    if (!eventHover || !hoverDraft) return;
+    try {
+      await createTodoForCalendarEvent(eventHover.event, hoverDraft);
+      setMessage("Etkinlik TODO listesine bağlandı.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "TODO oluşturulamadı.");
+    }
+  }
+
+  async function saveHoverEvent() {
+    if (!hoverDraft || !eventHover) return;
+    setHoverSaving(true);
+    try {
+      const saved = await persistEventDraft(hoverDraft);
+      if (hoverDraft.createTodo) await createTodoForCalendarEvent(saved, hoverDraft);
+      await loadEvents();
+      await loadCalendarTodoLinks();
+      setEventHover(null);
+      setHoverDraft(null);
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
+    } finally {
+      setHoverSaving(false);
+    }
+  }
+
+  async function saveEvent() {
+    if (!draft) return;
+    try {
+      const saved = await persistEventDraft(draft);
+      if (draft.createTodo) await createTodoForCalendarEvent(saved, draft);
       setDraft(null);
       await loadEvents();
+      await loadCalendarTodoLinks();
+      setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Etkinlik kaydedilemedi.");
     }
@@ -1224,6 +1336,18 @@ export function CalendarView({ user }: { user: User }) {
   }
 
   useEffect(() => {
+    if (!eventHover || !eventPreviewRef.current) return;
+    const rect = eventPreviewRef.current.getBoundingClientRect();
+    let nextX = eventHover.x;
+    let nextY = eventHover.y;
+    if (rect.bottom > window.innerHeight - 10) nextY = Math.max(10, window.innerHeight - rect.height - 10);
+    if (rect.right > window.innerWidth - 10) nextX = Math.max(10, window.innerWidth - rect.width - 10);
+    if (nextX !== eventHover.x || nextY !== eventHover.y) {
+      setEventHover({...eventHover,x:nextX,y:nextY});
+    }
+  }, [eventHover?.event.id]);
+
+  useEffect(() => {
     return () => {
       cancelHoverOpen();
       cancelHoverClose();
@@ -1452,13 +1576,15 @@ export function CalendarView({ user }: { user: User }) {
         </div>
       </main>
 
-      {eventHover && (() => {
+      {eventHover && hoverDraft && (() => {
         const event = eventHover.event;
         const meta = calendarMeta(event);
-        const duration = formatHoverDuration(event);
+        const linkedTodo = calendarTodoLinks[calendarEventLinkKey(event)];
+
         return (
           <div
-            className="calendarEventPreview"
+            ref={eventPreviewRef}
+            className="calendarEventPreview calendarEventQuickEditor"
             style={{ left:eventHover.x, top:eventHover.y, ["--preview-color" as string]:meta?.backgroundColor || "var(--accent)" }}
             onMouseEnter={keepHoverOpen}
             onMouseLeave={scheduleHoverClose}
@@ -1466,27 +1592,78 @@ export function CalendarView({ user }: { user: User }) {
             aria-label={event.summary + " etkinlik ayrıntıları"}
           >
             <div className="calendarEventPreviewAccent" />
-            <div className="calendarEventPreviewHead">
-              <div>
-                <strong>{event.summary}</strong>
-                <span>{formatHoverDate(event)}</span>
-              </div>
-              <span
-                className="calendarPreviewCalendarDot"
-                style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}
-              />
+
+            <input
+              className="calendarQuickTitle"
+              value={hoverDraft.title}
+              onChange={e=>setHoverDraft({...hoverDraft,title:e.target.value})}
+              onFocus={keepHoverOpen}
+              aria-label="Etkinlik başlığı"
+            />
+
+            <div className="calendarQuickDateRow">
+              <input type="date" value={hoverDraft.date} onChange={e=>setHoverDraft({...hoverDraft,date:e.target.value})}/>
+              <label className="calendarQuickAllDay">
+                <input type="checkbox" checked={hoverDraft.allDay} onChange={e=>setHoverDraft({...hoverDraft,allDay:e.target.checked})}/>
+                Tüm gün
+              </label>
             </div>
 
-            {duration && <div className="calendarEventPreviewRow"><span>◷</span><span>{duration}</span></div>}
-            {event.location && <div className="calendarEventPreviewRow"><span>⌖</span><span>{event.location}</span></div>}
-            {event.description && <div className="calendarEventPreviewDescription">{event.description}</div>}
+            {!hoverDraft.allDay && (
+              <div className="calendarQuickTimeRow">
+                <input type="time" value={hoverDraft.startTime} onChange={e=>setHoverDraft({...hoverDraft,startTime:e.target.value})}/>
+                <span>–</span>
+                <input type="time" value={hoverDraft.endTime} onChange={e=>setHoverDraft({...hoverDraft,endTime:e.target.value})}/>
+              </div>
+            )}
 
-            <div className="calendarEventPreviewFooter">
-              <span>
+            <select
+              className="calendarQuickCalendar"
+              value={keyFor(hoverDraft.accountId,hoverDraft.calendarId)}
+              onChange={e=>{
+                const split=e.target.value.indexOf("|");
+                setHoverDraft({...hoverDraft,accountId:e.target.value.slice(0,split),calendarId:e.target.value.slice(split+1)});
+              }}
+            >
+              {flatCalendars.filter(c=>c.accessRole==="owner"||c.accessRole==="writer").map(c=>
+                <option key={c.key} value={c.key}>{c.accountEmail} · {c.summary}</option>
+              )}
+            </select>
+
+            <input
+              className="calendarQuickLocation"
+              placeholder="Konum"
+              value={hoverDraft.location}
+              onChange={e=>setHoverDraft({...hoverDraft,location:e.target.value})}
+            />
+
+            <textarea
+              className="calendarQuickDescription"
+              placeholder="Açıklama"
+              rows={3}
+              value={hoverDraft.description}
+              onChange={e=>setHoverDraft({...hoverDraft,description:e.target.value})}
+            />
+
+            <div className="calendarQuickTodoRow">
+              {linkedTodo ? (
+                <span className={"calendarTodoLinked " + (linkedTodo.completed ? "done" : "")}>
+                  {linkedTodo.completed ? "✓ TODO tamamlandı" : "✓ TODO bağlı"}
+                </span>
+              ) : (
+                <button onClick={()=>void createTodoFromHoveredEvent()}>＋ TODO oluştur</button>
+              )}
+            </div>
+
+            <div className="calendarQuickActions">
+              <span className="calendarQuickSource">
                 <i style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
                 {meta?.summary || "Takvim"}
               </span>
-              <span>Düzenlemek için etkinliğe tıkla</span>
+              <button className="secondary" onClick={()=>{setEventHover(null);setHoverDraft(null);}}>Kapat</button>
+              <button className="primary" disabled={hoverSaving || !hoverDraft.title.trim()} onClick={()=>void saveHoverEvent()}>
+                {hoverSaving ? "Kaydediliyor…" : "Kaydet"}
+              </button>
             </div>
           </div>
         );
@@ -1494,7 +1671,7 @@ export function CalendarView({ user }: { user: User }) {
 
       {draft && (
         <div className="calendarEditorBackdrop" onMouseDown={()=>setDraft(null)}>
-          <div className="calendarEditor" onMouseDown={e=>e.stopPropagation()}>
+          <div className="calendarEditor calendarEditorSheet" onMouseDown={e=>e.stopPropagation()}>
             <div className="calendarEditorHead">
               <strong>{draft.id ? "Etkinliği düzenle" : "Yeni etkinlik"}</strong>
               <button onClick={()=>setDraft(null)}>×</button>
@@ -1519,6 +1696,24 @@ export function CalendarView({ user }: { user: User }) {
             </div>
             <input placeholder="Konum" value={draft.location} onChange={e=>setDraft({...draft,location:e.target.value})}/>
             <textarea placeholder="Açıklama" rows={4} value={draft.description} onChange={e=>setDraft({...draft,description:e.target.value})}/>
+            {!draft.id && (
+              <label className="calendarCreateTodoToggle">
+                <input type="checkbox" checked={Boolean(draft.createTodo)} onChange={e=>setDraft({...draft,createTodo:e.target.checked})}/>
+                <span><strong>TODO'ya da ekle</strong><small>Aynı tarih için bağlı bir görev oluşturur.</small></span>
+              </label>
+            )}
+            {draft.id && calendarTodoLinks[`${draft.accountId}|${draft.calendarId}|${draft.id}`] ? (
+              <div className="calendarEditorTodoLinked">✓ Bu etkinlik TODO listesine bağlı</div>
+            ) : draft.id ? (
+              <button className="calendarEditorTodoButton" onClick={async()=>{
+                try {
+                  await createTodoForCalendarEvent({id:draft.id!},draft);
+                  setMessage("Etkinlik TODO listesine bağlandı.");
+                } catch(error) {
+                  setMessage(error instanceof Error ? error.message : "TODO oluşturulamadı.");
+                }
+              }}>＋ TODO oluştur</button>
+            ) : null}
             <div className="calendarEditorActions">
               {draft.id && <button className="danger" onClick={()=>void deleteEvent()}>Sil</button>}
               <span/>
