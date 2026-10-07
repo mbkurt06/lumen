@@ -218,14 +218,13 @@ export function ReaderView({
       }
     }
 
-    await loadTodos();
     window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
     setQuranActionMessage(
       updates.length
         ? `${updates.length} Kur’an okuma Todo'sunda kaldığın yer güncellendi.`
         : "Henüz Kur’an okuma Todo'su yok. + Todo ile oluşturabilirsin."
     );
-  }, [quranPositionFor, loadTodos]);
+  }, [quranPositionFor]);
 
   const targetForIntrinsic = useCallback((node: Node) => {
     const own = Number(node.metadata?.target || 0);
