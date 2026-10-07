@@ -382,6 +382,9 @@ export function ReaderView({
         onBack={() => leaveDocument(onBack)}
         onTodo={() => setDocumentTodoOpen(true)}
         onMemorize={() => onMemorize?.(initialFocusIndex)}
+        showFullscreen={true}
+        onFullscreen={() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))}
+        onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
       {isEsmaDetail && (
