@@ -2552,3 +2552,101 @@ body.page-headers-collapsed .ilmihal-page{
     --section-fixed-height:32px;
   }
 }
+
+
+/* v89 — reorder + swipe-to-hide menus */
+.swipe-row{
+  position:relative;
+  overflow:hidden;
+  width:100%;
+  min-width:0;
+  border-bottom:1px solid var(--border);
+  background:#9f312c;
+  touch-action:pan-y;
+}
+.swipe-row > .swipe-main{
+  position:relative;
+  z-index:2;
+  width:100%;
+  border-bottom:0 !important;
+  background:var(--bg);
+  transition:transform .18s ease;
+  touch-action:pan-y;
+}
+.home-menu .swipe-row > .home-card{
+  margin:0;
+}
+.swipe-delete-action{
+  position:absolute;
+  z-index:1;
+  right:0;
+  top:0;
+  bottom:0;
+  width:78px;
+  border:0;
+  background:#9f312c;
+  color:#fff;
+  font-size:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.swipe-row.swipe-open > .swipe-main{
+  transform:translateX(-78px);
+}
+.swipe-row.menu-item-hidden{
+  display:none !important;
+}
+.swipe-row.reorder-ready{
+  overflow:visible;
+  z-index:30;
+}
+.swipe-row.reorder-ready > .swipe-main{
+  transform:none !important;
+}
+.swipe-row.reorder-dragging{
+  opacity:.9;
+  box-shadow:0 12px 30px #0005;
+}
+.menu-undo-bar{
+  position:fixed;
+  left:50%;
+  bottom:max(22px,env(safe-area-inset-bottom));
+  transform:translate(-50%,18px);
+  z-index:1500;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  min-width:min(420px,calc(100vw - 28px));
+  max-width:calc(100vw - 28px);
+  padding:12px 14px;
+  border-radius:14px;
+  background:#2a2d29;
+  color:#fff;
+  box-shadow:0 10px 30px #0006;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .18s ease,transform .18s ease;
+}
+.menu-undo-bar.show{
+  opacity:1;
+  transform:translate(-50%,0);
+  pointer-events:auto;
+}
+.menu-undo-bar span{
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.menu-undo-bar button{
+  border:0;
+  background:transparent;
+  color:#b9dccd;
+  font-weight:800;
+  padding:6px 4px;
+}
+body.dark .swipe-row > .swipe-main{
+  background:var(--bg);
+}
