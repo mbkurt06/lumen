@@ -33,6 +33,12 @@ export async function GET(request: Request) {
             foregroundColor: cal.foregroundColor || null,
             accessRole: cal.accessRole || "reader",
             timeZone: cal.timeZone || null,
+            defaultReminders: Array.isArray(cal.defaultReminders)
+              ? cal.defaultReminders.map((item: any) => ({
+                  method: item.method || "popup",
+                  minutes: Number(item.minutes || 0),
+                }))
+              : [],
           })),
         });
       } catch (error) {
