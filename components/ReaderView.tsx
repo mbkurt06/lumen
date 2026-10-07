@@ -920,9 +920,9 @@ export function ReaderView({
           </div>
 
           <nav className="quranPagePager quranPagePagerRtl" aria-label="Kur’an sayfası">
-            <button disabled={!quranPage || quranPage >= quranPageMax || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage + 1)}>‹ Sonraki sayfa</button>
+            <button disabled={!quranPage || quranPage >= quranPageMax} onClick={() => quranPage && void loadQuranPage(quranPage + 1)}>‹ Sonraki sayfa</button>
             <span>{quranPage ? displayQuranPage(quranPage) : "—"} / 603</span>
-            <button disabled={!quranPage || quranPage <= quranPageMin || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage - 1)}>Önceki sayfa ›</button>
+            <button disabled={!quranPage || quranPage <= quranPageMin} onClick={() => quranPage && void loadQuranPage(quranPage - 1)}>Önceki sayfa ›</button>
           </nav>
 
           {(quranBookmarks.length > 0 || quranActionMessage) && (
