@@ -126,7 +126,13 @@ export function LibrarySettingsModal({
       setMushafImportProgress("604 sayfa ve 6236 ayet Word belgesinden birebir kaydedildi.");
       setMushafImportPercent(100);
     } catch (error) {
-      setMushafImportProgress(error instanceof Error ? error.message : "Word Mushaf içe aktarılamadı.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : (error && typeof error === "object" && "message" in error)
+            ? String((error as {message?:unknown}).message || "Word Mushaf içe aktarılamadı.")
+            : String(error || "Word Mushaf içe aktarılamadı.");
+      setMushafImportProgress(message);
     } finally {
       setMushafImporting(false);
       if (mushafFileRef.current) mushafFileRef.current.value = "";
