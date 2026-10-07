@@ -120,6 +120,7 @@ export function CalendarView({ user }: { user: User }) {
   const [message, setMessage] = useState("");
   const [sourcePanelOpen, setSourcePanelOpen] = useState(true);
   const [draft, setDraft] = useState<EventDraft | null>(null);
+  const [googleConnecting, setGoogleConnecting] = useState(false);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -272,14 +273,24 @@ export function CalendarView({ user }: { user: User }) {
   }, [loadingAccounts, loadEvents]);
 
   async function connectGoogle() {
+    if (googleConnecting) return;
+    setGoogleConnecting(true);
+    setMessage("");
     try {
       const headers = await authHeaders();
       const response = await fetch("/api/google-calendar/connect", { method: "POST", headers });
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Google hesabı bağlantısı başlatılamadı.");
-      location.href = json.url;
+      if (!response.ok) {
+        if (json.code === "GOOGLE_CALENDAR_NOT_CONFIGURED") {
+          throw new Error("Google Takvim bağlantısı henüz yapılandırılmamış. Ayarlar → Google Takvim bölümündeki OAuth bilgilerini tamamlayın.");
+        }
+        throw new Error(json.error || "Google hesabı bağlantısı başlatılamadı.");
+      }
+      if (!json.url) throw new Error("Google yetkilendirme adresi oluşturulamadı.");
+      window.location.assign(json.url);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Google hesabı bağlantısı başlatılamadı.");
+      setGoogleConnecting(false);
     }
   }
 
@@ -654,7 +665,9 @@ export function CalendarView({ user }: { user: User }) {
           <strong>Takvimler</strong>
           <button onClick={() => setSourcePanelOpen(false)}>×</button>
         </div>
-        <button className="calendarAddAccount" onClick={connectGoogle}>+ Google hesabı ekle</button>
+        <button className="calendarAddAccount" onClick={connectGoogle} disabled={googleConnecting}>
+          {googleConnecting ? "Google açılıyor…" : "+ Google hesabı ekle"}
+        </button>
         {loadingAccounts && <p className="muted">Hesaplar yükleniyor…</p>}
         {accounts.map(account => (
           <div className="calendarAccount" key={account.id}>
