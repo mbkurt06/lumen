@@ -4707,3 +4707,178 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
     transform:none;
   }
 }
+
+
+/* v0.9.1 — Quran mushaf-style continuous reader */
+.quranReaderShell{
+  width:min(920px,calc(100% - 24px));
+  margin:14px auto 24px;
+}
+.quranSelectionBar{
+  position:sticky;
+  top:8px;
+  z-index:20;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  width:max-content;
+  max-width:calc(100% - 16px);
+  margin:0 auto 10px;
+  padding:7px 9px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--panel) 96%,transparent);
+  box-shadow:0 8px 24px #0003;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.quranSelectionBar span{
+  color:var(--muted);
+  font-size:11px;
+}
+.quranSelectionBar button{
+  min-height:30px;
+  padding:5px 9px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--accent);
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+}
+.quranSelectionBar button.secondary{
+  background:var(--panel);
+  color:var(--muted);
+}
+.quranPage{
+  padding:28px clamp(18px,4vw,46px) 34px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--panel) 96%,var(--bg));
+  box-shadow:0 12px 34px #0002;
+}
+.quranSurahTitle{
+  margin:0 0 20px;
+  text-align:center;
+  color:var(--text);
+  font-size:clamp(22px,2.2vw,32px);
+  font-weight:850;
+}
+.quranFlow{
+  text-align:justify;
+  text-align-last:center;
+  font-family:"Amiri Quran","Amiri","Noto Naskh Arabic","Geeza Pro",serif;
+  font-size:calc(clamp(30px,3.1vw,46px) * var(--quran-font-scale,1));
+  line-height:2.05;
+  word-spacing:.12em;
+  color:var(--text);
+}
+.quranAyahInline{
+  display:inline;
+  margin:0;
+  padding:2px 4px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  line-height:inherit;
+  cursor:pointer;
+  white-space:normal;
+}
+.quranAyahInline:hover{
+  background:color-mix(in srgb,var(--accent) 9%,transparent);
+}
+.quranAyahInline.selected{
+  background:color-mix(in srgb,var(--accent) 18%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent);
+}
+.quranAyahText{
+  unicode-bidi:isolate;
+}
+.quranAyahNo{
+  display:inline-grid;
+  place-items:center;
+  min-width:1.9em;
+  height:1.9em;
+  margin:0 .22em;
+  padding:0 .26em;
+  border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border));
+  border-radius:50%;
+  color:var(--accent);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:.38em;
+  font-weight:800;
+  vertical-align:middle;
+  direction:ltr;
+}
+.quranSupplement{
+  margin-top:14px;
+  padding:18px 20px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--panel);
+}
+.quranSupplement h3{
+  margin:0 0 12px;
+  font-size:16px;
+}
+.quranSupplement p{
+  margin:0;
+  padding:8px 0;
+  border-bottom:1px solid color-mix(in srgb,var(--border) 75%,transparent);
+  line-height:1.65;
+  font-size:calc(14px * var(--font-scale,1));
+}
+.quranSupplement p:last-child{
+  border-bottom:0;
+}
+.quranSupplement b{
+  color:var(--accent);
+  margin-right:5px;
+}
+body.quranHideLatin .quranLatinBlock{
+  display:none!important;
+}
+body.quranHideTranslation .quranTranslationBlock{
+  display:none!important;
+}
+body.quranEasyRead .quranFlow{
+  font-family:"Noto Naskh Arabic","Geeza Pro","Arial",sans-serif;
+  line-height:2.25;
+  word-spacing:.2em;
+  letter-spacing:.01em;
+}
+body.quranEasyRead .quranPage{
+  max-width:820px;
+  margin-inline:auto;
+}
+.settingSectionTitle{
+  margin:12px 0 4px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+@media(max-width:800px){
+  .quranReaderShell{
+    width:calc(100% - 12px);
+    margin-top:8px;
+  }
+  .quranPage{
+    padding:20px 12px 26px;
+    border-radius:12px;
+  }
+  .quranFlow{
+    font-size:calc(clamp(28px,8vw,38px) * var(--quran-font-scale,1));
+    line-height:1.95;
+  }
+  .quranSelectionBar{
+    top:6px;
+  }
+}
