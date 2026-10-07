@@ -20,6 +20,7 @@ export function FloatingCounterButton({
   const controlled = typeof count === "number";
   const [localCount, setLocalCount] = useState(0);
   const [pos, setPos] = useState<{x:number;y:number}|null>(null);
+  const [positionRestored, setPositionRestored] = useState(false);
   const [resetMenu, setResetMenu] = useState(false);
   const pressed = useRef(false);
   const dragging = useRef(false);
@@ -39,6 +40,7 @@ export function FloatingCounterButton({
       try { setPos(JSON.parse(savedPos)); } catch {}
     }
     if (!controlled && savedCount) setLocalCount(Number(savedCount) || 0);
+    setPositionRestored(true);
   }, [controlled]);
 
   useEffect(() => {
@@ -53,10 +55,17 @@ export function FloatingCounterButton({
     return () => document.removeEventListener("pointerdown", close);
   }, [resetMenu]);
 
+  function rightPanelOffset() {
+    const shell = document.querySelector(".appShell");
+    if (!shell?.classList.contains("rightPanelOpen") || window.innerWidth <= 800) return 0;
+    return window.innerWidth <= 1100 ? 320 : 360;
+  }
+
   function clamp(next:{x:number;y:number}) {
     const size = 78;
+    const panelOffset = rightPanelOffset();
     return {
-      x: Math.min(Math.max(8,next.x),window.innerWidth-size-8),
+      x: Math.min(Math.max(8 + panelOffset,next.x),window.innerWidth-size-8),
       y: Math.min(Math.max(8,next.y),window.innerHeight-size-8),
     };
   }
@@ -101,7 +110,7 @@ export function FloatingCounterButton({
     e.currentTarget.setPointerCapture(e.pointerId);
     start.current = {x:e.clientX,y:e.clientY};
     const rect = e.currentTarget.getBoundingClientRect();
-    origin.current = {x:rect.left,y:rect.top};
+    origin.current = {x:rect.left + rightPanelOffset(),y:rect.top};
 
     timer.current = setTimeout(() => {
       if (!dragging.current) {
@@ -162,7 +171,7 @@ export function FloatingCounterButton({
 
       <button
         ref={counterRef}
-        className="legacyCounter readCounter"
+        className={"legacyCounter readCounter " + (!positionRestored ? "floatingControlRestoring" : "")}
         style={pos ? {left:pos.x,top:pos.y,right:"auto",bottom:"auto"} : undefined}
         onPointerDown={down}
         onPointerMove={move}
