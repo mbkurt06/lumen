@@ -1550,3 +1550,22 @@ html.pre-dark body{
     padding-top:8px!important;
   }
 }
+
+
+/* v0.2.2 — remove inner duplicate Todo and separate fullscreen launcher from V2 header */
+.fullscreenTasbihLauncher{
+  top:72px!important;
+  right:22px!important;
+  z-index:84!important;
+}
+@media(max-width:800px){
+  .fullscreenTasbihLauncher{
+    top:64px!important;
+    right:10px!important;
+    width:42px!important;
+    height:42px!important;
+  }
+}
+.memorizeTodoButton{
+  display:none!important;
+}
