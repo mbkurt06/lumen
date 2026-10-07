@@ -4,6 +4,8 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 
+type ReaderScope = "ezber" | "risale" | "quran" | "he";
+
 type Prefs = {
   theme: "light" | "dark";
   fontScale: number;
@@ -34,32 +36,53 @@ const defaults: Prefs = {
   quranPageTheme: "paper",
 };
 
-function applyPrefs(p: Prefs) {
+function scopeKey(scope: ReaderScope, key: "fontScale" | "showArabic" | "showLatin" | "showTurkish") {
+  return `${scope}${key[0].toUpperCase()}${key.slice(1)}`;
+}
+
+function readScopedPrefs(raw: Record<string, unknown>, scope: ReaderScope): Prefs {
+  const next = { ...defaults, ...(raw as Partial<Prefs>) };
+  const fontScale = raw[scopeKey(scope,"fontScale")];
+  const showArabic = raw[scopeKey(scope,"showArabic")];
+  const showLatin = raw[scopeKey(scope,"showLatin")];
+  const showTurkish = raw[scopeKey(scope,"showTurkish")];
+  if (typeof fontScale === "number") next.fontScale = fontScale;
+  if (typeof showArabic === "boolean") next.showArabic = showArabic;
+  if (typeof showLatin === "boolean") next.showLatin = showLatin;
+  if (typeof showTurkish === "boolean") next.showTurkish = showTurkish;
+  if (scope === "quran") next.showArabic = true;
+  return next;
+}
+
+function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.documentElement.classList.toggle("pre-dark", p.theme === "dark");
   document.body.classList.toggle("dark", p.theme === "dark");
   localStorage.setItem("lumen-theme", p.theme);
-  document.body.classList.toggle("hideArabic", !p.showArabic);
-  document.body.classList.toggle("hideLatin", !p.showLatin);
-  document.body.classList.toggle("hideTurkish", !p.showTurkish);
+  document.body.dataset.readerScope = scope;
+  document.body.classList.toggle("hideArabic", scope !== "quran" && !p.showArabic);
+  document.body.classList.toggle("hideLatin", scope !== "quran" && !p.showLatin);
+  document.body.classList.toggle("hideTurkish", scope !== "quran" && !p.showTurkish);
   document.documentElement.style.setProperty("--font-scale", String(p.fontScale));
   document.documentElement.style.setProperty("--quran-font-scale", String(p.quranFontScale));
   document.documentElement.style.setProperty("--quran-font-weight", String(p.quranFontWeight));
   document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(p.quranFontFamily));
   document.body.dataset.quranPageTheme = p.quranPageTheme;
-  document.body.classList.toggle("quranHideLatin", !p.quranShowLatin);
-  document.body.classList.toggle("quranHideTranslation", !p.quranShowTranslation);
-  document.body.classList.toggle("quranEasyRead", p.quranEasyRead);
-  window.dispatchEvent(new CustomEvent("lumen-library-prefs", { detail: p }));
+  document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
+  document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
+  document.body.classList.toggle("quranEasyRead", scope === "quran" && p.quranEasyRead);
+  window.dispatchEvent(new CustomEvent("lumen-library-prefs", { detail: { ...p, scope } }));
 }
 
 export function LibrarySettingsModal({
   user,
   open,
   onClose,
+  scope,
 }: {
   user: User;
   open: boolean;
   onClose: () => void;
+  scope: ReaderScope;
 }) {
   const [prefs, setPrefs] = useState<Prefs>(defaults);
   const [mushafImporting, setMushafImporting] = useState(false);
@@ -71,12 +94,12 @@ export function LibrarySettingsModal({
   useEffect(() => {
     if (!open) return;
     supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const raw = (data?.preferences ?? {}) as Partial<Prefs>;
-      const next = { ...defaults, ...raw };
+      const raw = (data?.preferences ?? {}) as Record<string, unknown>;
+      const next = readScopedPrefs(raw, scope);
       setPrefs(next);
-      applyPrefs(next);
+      applyPrefs(next, scope);
     });
-  }, [open]);
+  }, [open, scope]);
 
   useEffect(() => {
     if (!open) return;
@@ -95,7 +118,7 @@ export function LibrarySettingsModal({
 
   async function update(next: Prefs) {
     setPrefs(next);
-    applyPrefs(next);
+    applyPrefs(next, scope);
 
     const { data } = await supabase
       .from("user_preferences")
@@ -103,12 +126,19 @@ export function LibrarySettingsModal({
       .maybeSingle();
 
     const old = (data?.preferences ?? {}) as Record<string, unknown>;
+    const scoped = {
+      [scopeKey(scope,"fontScale")]: next.fontScale,
+      [scopeKey(scope,"showArabic")]: next.showArabic,
+      [scopeKey(scope,"showLatin")]: next.showLatin,
+      [scopeKey(scope,"showTurkish")]: next.showTurkish,
+    };
 
     await supabase.from("user_preferences").upsert({
       owner_id: user.id,
       preferences: {
         ...old,
         ...next,
+        ...scoped,
       },
     });
   }
@@ -145,7 +175,7 @@ export function LibrarySettingsModal({
     <aside ref={dockRef} className="librarySettingsDock" aria-label="Okuma ayarları">
       <div className="librarySettingsModal">
         <div className="modalHead">
-          <strong>Okuma ayarları</strong>
+          <strong>{scope === "quran" ? "Kur’an ayarları" : scope === "risale" ? "Risale-i Nur ayarları" : scope === "he" ? "H.E. kitapları ayarları" : "Ezber ayarları"}</strong>
           <button className="modalClose" onClick={onClose}>×</button>
         </div>
 
@@ -168,6 +198,8 @@ export function LibrarySettingsModal({
           </div>
         </div>
 
+        {scope === "quran" && (
+          <>
         <div className="settingSectionTitle">Kur’an görünümü</div>
 
         <div className="settingRow">
@@ -284,6 +316,12 @@ export function LibrarySettingsModal({
           </button>
         </div>
 
+
+          </>
+        )}
+
+        {scope !== "quran" && (
+          <>
         <div className="settingRow">
           <span>Arapça</span>
           <button className="settingButton" onClick={() => update({...prefs,showArabic:!prefs.showArabic})}>
@@ -304,6 +342,8 @@ export function LibrarySettingsModal({
             {prefs.showTurkish ? "Açık" : "Gizli"}
           </button>
         </div>
+          </>
+        )}
       </div>
     </aside>
   );
