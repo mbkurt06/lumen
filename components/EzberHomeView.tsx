@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 
 export type EzberItem = {
@@ -91,9 +92,12 @@ export function EzberHomeView({
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadChildren = useCallback(async (parentId: string) => {
+    const cached = await getCachedLibraryChildren(parentId).catch(() => []);
+    if (cached.length) return cached as EzberItem[];
+
     const { data, error } = await supabase
       .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
+      .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at,updated_at")
       .eq("parent_id", parentId)
       .order("sort_order")
       .order("title");
@@ -102,15 +106,24 @@ export function EzberHomeView({
       setMessage(error.message);
       return [];
     }
+    if (data?.length) void putStaticRows("library_items",data).catch(() => {});
     return (data ?? []) as EzberItem[];
   }, []);
 
   const loadRoot = useCallback(async () => {
-    const { data: root, error } = await supabase
-      .from("library_items")
-      .select("id,parent_id,kind,title,subtitle,sort_order,metadata")
-      .contains("metadata", { source: "dua_v2", entity: "root" })
-      .maybeSingle();
+    let root = await getCachedLibraryRoot("dua_v2").catch(() => null) as EzberItem | null;
+    let error: { message:string } | null = null;
+
+    if (!root) {
+      const result = await supabase
+        .from("library_items")
+        .select("id,parent_id,kind,title,subtitle,sort_order,metadata,created_at,updated_at")
+        .contains("metadata", { source: "dua_v2", entity: "root" })
+        .maybeSingle();
+      root = result.data as EzberItem | null;
+      error = result.error;
+      if (root) void putStaticRows("library_items",[root]).catch(() => {});
+    }
 
     if (error || !root) {
       setMessage(error?.message || "Ezber veritabanı kökü bulunamadı.");
