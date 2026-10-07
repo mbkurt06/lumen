@@ -19,7 +19,7 @@ async function init(){
   const payload=await window.duaV2Db.loadContent();
   data=payload.data;ilmihalData=payload.ilmihalData;
   applyDbLabels();
-  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=91").then(r=>r.update())
+  normalizeTodos();dua=data.duas.find(d=>d.id===state.duaId)||data.duas[0];index=Math.min(index,Math.max(0,dua.segments.length-1));applySettings();setupHomeMenuInteractions();syncGlobalHeaderHeight();setupSharedHeaderCollapse();render();if(state.currentView==="library"&&state.libraryCategory){openCategory(state.libraryCategory)}else if(state.currentView==="ilmihal"){openIlmihal(state.ilmihalTopic||null)}else if(state.currentView==="dua"){applyMode()}else if(state.currentView==="todo"){openTodo()}else if(state.currentView==="listening"){openListening()}else{openHome()}requestAnimationFrame(()=>{syncGlobalHeaderHeight();syncReadHeaderHeight();restoreCounter()});if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js?v=92").then(r=>r.update())
 }
 function menuItem(key){return (data?.menu||[]).find(x=>x.key===key)||null}
 function categoryTitle(key){return menuItem(key)?.title||""}
@@ -35,7 +35,35 @@ function applyDbLabels(){
 }
 function isEsmaNameDua(d=dua){return !!d&&d.category==="asma"&&/^esma-\d+$/.test(String(d.id||""))}
 function current(){const s=dua.segments[index];return typeof s==="string"?{latin:s}:s}
-function render(){const s=current(),esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";$("#title").textContent=dua.title;const inv=dua.invocation||"";$("#invocation").textContent=inv;$("#invocation").classList.toggle("hidden",!inv);$("#segment").textContent=esmaDetail?"":(s.latin||"");$("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);$("#arabic").textContent=s.arabic||"";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#turkish").textContent=s.turkish||"";$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}$("#progress").textContent=(index+1)+" / "+dua.segments.length;$("#count").textContent=counts[key()]||0;$("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;if(isEsmaNameDua())syncMemorizePager();applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()}
+function render(){
+  const s=current(),esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";
+  $("#title").textContent=esmaDetail?categoryTitle("asma"):dua.title;
+  const inv=dua.invocation||"";
+  $("#invocation").textContent=esmaDetail?"":inv;
+  $("#invocation").classList.toggle("hidden",esmaDetail||!inv);
+
+  const esmaBox=$("#esmaDetailContent"),esmaName=$("#esmaNameTitle"),esmaInv=$("#esmaInvocationText");
+  if(esmaBox){
+    esmaBox.classList.toggle("hidden",!esmaDetail);
+    if(esmaName)esmaName.textContent=esmaDetail?dua.title:"";
+    if(esmaInv)esmaInv.textContent=esmaDetail?inv:"";
+  }
+
+  $("#segment").textContent=esmaDetail?"":(s.latin||"");
+  $("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);
+  $("#arabic").textContent=s.arabic||"";
+  $("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);
+  $("#turkish").textContent=s.turkish||"";
+  $("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);
+  let note=$("#gestureNote");if(note){note.textContent=s.note||"";note.classList.toggle("hidden",!s.note||!state.settings.showNotes)}
+  const memorizePreset=linkedPresetForDuaSegment(dua.id,index+1),memorizeListen=$("#memorizeListenBtn");
+  if(memorizeListen){memorizeListen.classList.toggle("hidden",!memorizePreset);memorizeListen.textContent=memorizePreset?"▶ "+(index+1):"▶";memorizeListen.dataset.section=memorizePreset?String(index+1):""}
+  $("#progress").textContent=(index+1)+" / "+dua.segments.length;
+  $("#count").textContent=counts[key()]||0;
+  $("#prevBtn").disabled=index===0;$("#nextBtn").disabled=index===dua.segments.length-1;
+  if(isEsmaNameDua())syncMemorizePager();
+  applyVisibility();renderRead();updateCounterDisplay();updateTodoProgressDisplay();save()
+}
 function applySettings(){syncGlobalHeaderHeight();document.documentElement.classList.toggle("dark",state.settings.dark);document.body.classList.toggle("dark",state.settings.dark);document.documentElement.style.setProperty("--segment-size",state.settings.fontSize+"px");document.querySelector('meta[name="theme-color"]').content=state.settings.dark?"#151714":"#f5f1e8";$("#themeToggle").textContent=state.settings.dark?"Açık":"Kapalı";$("#arabicToggle").textContent=state.settings.showArabic?"Açık":"Gizli";$("#latinToggle").textContent=state.settings.showLatin?"Açık":"Gizli";$("#turkishToggle").textContent=state.settings.showTurkish?"Açık":"Gizli";$("#notesToggle").textContent=state.settings.showNotes?"Açık":"Gizli";applyVisibility()}
 function applyVisibility(){const s=dua?current():{},esmaDetail=isEsmaNameDua()&&state.settings.mode==="memorize";$("#arabic").classList.toggle("hidden",!state.settings.showArabic||!s.arabic);$("#segment").classList.toggle("hidden",esmaDetail||!state.settings.showLatin||!s.latin);$("#turkish").classList.toggle("hidden",!state.settings.showTurkish||!s.turkish);document.querySelectorAll("#readContent .arabic").forEach(e=>e.classList.toggle("hidden",!state.settings.showArabic||!e.textContent.trim()));document.querySelectorAll("#readContent .segment").forEach(e=>e.classList.toggle("hidden",!state.settings.showLatin||!e.textContent.trim()));document.querySelectorAll("#readContent .turkish").forEach(e=>e.classList.toggle("hidden",!state.settings.showTurkish||!e.textContent.trim()));document.querySelectorAll("#readContent .gesture-note").forEach(e=>e.classList.toggle("hidden",!state.settings.showNotes||!e.textContent.trim()))}
 function renderRead(){
@@ -260,7 +288,7 @@ function endCompactPlayerHold(e){
 
 function syncGlobalHeaderHeight(){requestAnimationFrame(()=>{const head=document.querySelector(".global-header");if(head)document.documentElement.style.setProperty("--global-header-height",head.getBoundingClientRect().height+"px")})}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","'":"&#39;"}[c]))}
-function applyMode(){state.currentView="dua";$("#fullscreenTasbihBtn").classList.remove("hidden");$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");$("#listeningView").classList.add("hidden");const read=state.settings.mode==="read";$("#memorizeView").classList.toggle("hidden",read);$("#memorizeView").classList.toggle("esma-detail",isEsmaNameDua()&&!read);$("#readView").classList.toggle("hidden",!read);$("#libraryView").classList.add("hidden");$(".navigation").classList.toggle("hidden",read);counter.classList.remove("hidden");counter.classList.toggle("selected-counter",isEsmaNameDua()&&!read);renderDuaListeningPanel();updateCounterDisplay();updateTodoProgressDisplay();requestAnimationFrame(()=>requestAnimationFrame(()=>{setReadHeaderCollapsed(localStorage.getItem("readHeaderCollapsed")==="1",false);setDuaPlayerCollapsed(true,false);restoreDuaCompactPosition();restoreCounter()}));save()}
+function applyMode(){state.currentView="dua";$("#fullscreenTasbihBtn").classList.remove("hidden");$("#homeView").classList.add("hidden");$("#todoView").classList.add("hidden");$("#ilmihalView").classList.add("hidden");$("#listeningView").classList.add("hidden");const read=state.settings.mode==="read";$("#memorizeView").classList.toggle("hidden",read);$("#memorizeView").classList.toggle("esma-detail",isEsmaNameDua()&&!read);$("#esmaDetailContent")?.classList.toggle("hidden",!(isEsmaNameDua()&&!read));$("#readView").classList.toggle("hidden",!read);$("#libraryView").classList.add("hidden");$(".navigation").classList.toggle("hidden",read);counter.classList.remove("hidden");counter.classList.toggle("selected-counter",isEsmaNameDua()&&!read);renderDuaListeningPanel();updateCounterDisplay();updateTodoProgressDisplay();requestAnimationFrame(()=>requestAnimationFrame(()=>{setReadHeaderCollapsed(localStorage.getItem("readHeaderCollapsed")==="1",false);setDuaPlayerCollapsed(true,false);restoreDuaCompactPosition();restoreCounter()}));save()}
 function moveEsmaName(step){
   const items=categoryItems("asma").filter(isEsmaNameDua),i=items.findIndex(d=>d.id===dua.id),n=i+step;
   if(i<0||n<0||n>=items.length)return;
