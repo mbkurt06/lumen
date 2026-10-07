@@ -33,6 +33,7 @@ export function LibraryCatalogView({
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [quranMode, setQuranMode] = useState<"surah" | "juz">("surah");
 
   const source = section === "quran" ? "quran_v1" : "risale_v1";
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
@@ -130,9 +131,17 @@ export function LibraryCatalogView({
     onMenu();
   }
 
+  const visibleItems = useMemo(() => {
+    if (section !== "quran" || current?.id !== root?.id) return items;
+    return items.filter(item => {
+      const sourceType = String(meta(item).source || "");
+      return quranMode === "juz" ? sourceType === "quran_juz_view" : sourceType !== "quran_juz_view";
+    });
+  }, [items, section, current?.id, root?.id, quranMode]);
+
   const sortedItems = useMemo(
-    () => [...items].sort((a,b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title, "tr")),
-    [items]
+    () => [...visibleItems].sort((a,b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title, "tr")),
+    [visibleItems]
   );
 
   return (
@@ -147,9 +156,17 @@ export function LibraryCatalogView({
       />
 
       {section === "quran" && current?.id === root?.id && (
-        <div className="libraryCatalogSourceNote">
-          114 sûre · 6.236 âyet · Uthmânî Arapça metin · Diyanet İşleri Türkçe meali · içerik doğrudan Lumen veritabanından okunur.
-        </div>
+        <>
+          <div className="quranCatalogTabs" role="tablist" aria-label="Kur’an görünümü">
+            <button className={quranMode === "surah" ? "active" : ""} onClick={() => setQuranMode("surah")}>Sûreler</button>
+            <button className={quranMode === "juz" ? "active" : ""} onClick={() => setQuranMode("juz")}>Cüzler</button>
+          </div>
+          <div className="libraryCatalogSourceNote">
+            {quranMode === "surah"
+              ? "114 sûre · standart 604 sayfalık Mushaf düzeni"
+              : "30 cüz · Diyanet uygulamasındaki standart Mushaf sayfa numaraları"}
+          </div>
+        </>
       )}
 
       {section === "risale" && current?.id === root?.id && (
