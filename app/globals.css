@@ -4422,7 +4422,7 @@ body:has(.v2SharedHeader) .persistentLibrarySettings{
   font-weight:750;
 }
 .rightCalendarAccount{border-top:1px solid var(--border);padding-top:10px}
-.rightCalendarAccountHead{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.rightCalendarAccountHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .rightCalendarAccountHead>span{display:grid;gap:1px;min-width:0}
 .rightCalendarAccountHead strong{font-size:13px;overflow:hidden;text-overflow:ellipsis}
 .rightCalendarAccountHead small{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
