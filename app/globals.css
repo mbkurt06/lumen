@@ -1662,3 +1662,10 @@ body.exactV2EzberActive .ezberIntegratedTopbar{
   pointer-events:auto;
   clip-path:none;
 }
+
+
+/* v0.4.0 — native Esma identity below the shared header */
+.v2EsmaReadIdentity{
+  margin:18px auto 22px;
+  width:min(900px,calc(100% - 24px));
+}
