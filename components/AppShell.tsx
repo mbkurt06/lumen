@@ -14,6 +14,7 @@ import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
@@ -53,6 +54,72 @@ export function AppShell({
       console.warn("Service worker registration failed", error);
     });
   }, []);
+
+  useEffect(() => {
+    if (!navigator.onLine || window.innerWidth < 900) return;
+
+    const LOCK_KEY="lumen-full-quran-bootstrap-lock-v1";
+    let cancelled=false;
+
+    void (async()=>{
+      const {data:source}=await supabase
+        .from("quran_mushaf_sources")
+        .select("page_count,ayah_count,surah_count,metadata")
+        .eq("owner_id",user.id)
+        .eq("source_key","istanbul_mushaf_docx")
+        .maybeSingle();
+
+      if(cancelled) return;
+      const fullReady =
+        Number(source?.page_count || 0) >= 605
+        && Number(source?.ayah_count || 0) === 6236
+        && Number(source?.surah_count || 0) === 114;
+      if(fullReady) return;
+
+      let lockAt=0;
+      try{lockAt=Number(localStorage.getItem(LOCK_KEY) || 0);}catch{}
+      if(lockAt && Date.now()-lockAt < 20*60*1000) return;
+      try{localStorage.setItem(LOCK_KEY,String(Date.now()));}catch{}
+
+      try{
+        window.dispatchEvent(new CustomEvent("lumen-quran-bootstrap",{
+          detail:{state:"downloading",message:"Tam Kur’an Diyanet Word kaynağından hazırlanıyor…"}
+        }));
+
+        const response=await fetch("/api/quran-source",{cache:"no-store"});
+        if(!response.ok) throw new Error("Diyanet Kur’an Word kaynağı indirilemedi.");
+        const blob=await response.blob();
+        const file=new File(
+          [blob],
+          "kuran.docx",
+          {type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+        );
+
+        await importQuranMushafDocx(file,user.id,(message,percent)=>{
+          window.dispatchEvent(new CustomEvent("lumen-quran-bootstrap",{
+            detail:{state:"importing",message,percent}
+          }));
+        });
+
+        await syncStaticContentInBackground(user.id);
+        try{
+          localStorage.removeItem("lumen-catalog-state:quran");
+          localStorage.removeItem(LOCK_KEY);
+        }catch{}
+        window.dispatchEvent(new CustomEvent("lumen-quran-bootstrap",{
+          detail:{state:"ready",message:"Tam Kur’an hazır: 114 sûre · 30 cüz · 6236 ayet."}
+        }));
+      }catch(error){
+        try{localStorage.removeItem(LOCK_KEY);}catch{}
+        console.warn("Full Quran bootstrap failed",error);
+        window.dispatchEvent(new CustomEvent("lumen-quran-bootstrap",{
+          detail:{state:"error",message:error instanceof Error?error.message:String(error)}
+        }));
+      }
+    })();
+
+    return()=>{cancelled=true;};
+  },[user.id]);
 
   useEffect(() => {
     const AUTO_SYNC_KEY = "lumen-static-auto-sync";
