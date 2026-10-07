@@ -112,6 +112,10 @@ export function ReaderView({
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{ todo: TodoInfo; x: number; y: number } | null>(null);
   const [quranSelectedNodeId, setQuranSelectedNodeId] = useState<string | null>(null);
+  const [quranPage, setQuranPage] = useState<number | null>(null);
+  const [quranPageMin, setQuranPageMin] = useState(1);
+  const [quranPageMax, setQuranPageMax] = useState(604);
+  const [quranPageLoading, setQuranPageLoading] = useState(false);
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
 
@@ -120,7 +124,9 @@ export function ReaderView({
   const itemTarget = Number(item.metadata?.target || 0);
   const itemMeta = (item.metadata ?? {}) as Record<string, any>;
   const sourceType = String(itemMeta.source || "");
-  const isQuranDocument = sourceType === "quran_seeded";
+  const isQuranSurah = sourceType === "quran_seeded";
+  const isQuranJuzView = sourceType === "quran_juz_view";
+  const isQuranDocument = isQuranSurah || isQuranJuzView;
   const isRisaleDocument = sourceType === "risale_seeded";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
@@ -143,8 +149,83 @@ export function ReaderView({
     setTodos(data ?? []);
   }, [item.id]);
 
+  const loadQuranPage = useCallback(async (page:number) => {
+    const safePage = Math.max(quranPageMin, Math.min(quranPageMax, page));
+    setQuranPageLoading(true);
+    setMessage("");
+    try {
+      const { data, error } = await supabase
+        .from("content_nodes")
+        .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+        .eq("metadata->>source", "quran_seeded")
+        .eq("metadata->>page", String(safePage));
+
+      if (error) throw error;
+
+      const loaded = (data ?? []).sort((a,b) => {
+        const am=(a.metadata ?? {}) as Record<string,any>;
+        const bm=(b.metadata ?? {}) as Record<string,any>;
+        return Number(am.surah_no || 0) - Number(bm.surah_no || 0)
+          || Number(am.ayah_no || a.sort_order || 0) - Number(bm.ayah_no || b.sort_order || 0);
+      });
+
+      setNodes(loaded);
+      setQuranPage(safePage);
+      setQuranSelectedNodeId(null);
+      setActiveNodeId(loaded[0]?.id ?? null);
+      setActiveTodoId(null);
+      setActiveDocumentTodoId(null);
+      setCounterArmed(false);
+      scrollRestored.current = true;
+      window.scrollTo({top:0,behavior:"smooth"});
+    } catch(error) {
+      setNodes([]);
+      setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
+    } finally {
+      setQuranPageLoading(false);
+    }
+  }, [quranPageMin, quranPageMax]);
+
   const load = useCallback(async () => {
     setMessage("");
+
+    if (isQuranDocument) {
+      const startPage = Math.max(1, Number(itemMeta.start_page || 1));
+      const endPage = Math.min(604, Math.max(startPage, Number(itemMeta.end_page || startPage)));
+      setQuranPageMin(startPage);
+      setQuranPageMax(endPage);
+
+      const { data, error } = await supabase
+        .from("content_nodes")
+        .select("id,kind,title,text_content,secondary_text,translation,metadata,sort_order")
+        .eq("metadata->>source", "quran_seeded")
+        .eq("metadata->>page", String(startPage));
+
+      if (error) {
+        setMessage(error.message);
+        setNodes([]);
+        return;
+      }
+
+      const loaded = (data ?? []).sort((a,b) => {
+        const am=(a.metadata ?? {}) as Record<string,any>;
+        const bm=(b.metadata ?? {}) as Record<string,any>;
+        return Number(am.surah_no || 0) - Number(bm.surah_no || 0)
+          || Number(am.ayah_no || a.sort_order || 0) - Number(bm.ayah_no || b.sort_order || 0);
+      });
+
+      setNodes(loaded);
+      setQuranPage(startPage);
+      setQuranSelectedNodeId(null);
+      setLocalCounts(getTransientCounts(item.id));
+      setActiveNodeId(loaded[0]?.id ?? null);
+      setActiveTodoId(null);
+      setActiveDocumentTodoId(null);
+      setCounterArmed(false);
+      scrollRestored.current = true;
+      await loadTodos();
+      return;
+    }
 
     const { data, error } = await supabase
       .from("content_nodes")
@@ -173,17 +254,11 @@ export function ReaderView({
     scrollRestored.current = false;
 
     if (!loaded.length) {
-      setMessage(
-        isQuranDocument
-          ? "Bu sûrenin veritabanı içeriği bulunamadı."
-          : isRisaleDocument
-            ? "Bu Risale bölümünün veritabanı içeriği bulunamadı."
-            : ""
-      );
+      setMessage(isRisaleDocument ? "Bu Risale bölümünün veritabanı içeriği bulunamadı." : "");
     }
 
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -405,9 +480,10 @@ export function ReaderView({
         onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
-      {isQuranDocument && (
-        <div className="readerSourceNote">
-          Kaynak: Tanzil Uthmânî Kur’an metni · Diyanet İşleri Türkçe meali · içerik Lumen veritabanından okunur.
+      {isQuranDocument && quranPage && (
+        <div className="quranPageMetaBar">
+          <strong>{String((nodes[0]?.metadata as Record<string,any> | null)?.surah_title || item.title)}</strong>
+          <span>Sayfa {quranPage} / Cüz {String((nodes[0]?.metadata as Record<string,any> | null)?.juz || itemMeta.juz_no || "")}</span>
         </div>
       )}
       {isRisaleDocument && nodes.length > 0 && (
@@ -468,8 +544,12 @@ export function ReaderView({
             );
           })()}
 
-          <div className="quranPage">
-            <div className="quranSurahTitle">{item.title}</div>
+          <div className={"quranPage " + (quranPageLoading ? "loading" : "")}>
+            <div className="quranPageTopLine">
+              <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.surah_title || item.title)}</span>
+              <span>{quranPage ? `Sayfa ${quranPage}` : ""}</span>
+              <span>{String((nodes[0]?.metadata as Record<string,any> | null)?.juz ? `Cüz ${(nodes[0]?.metadata as Record<string,any>).juz}` : "")}</span>
+            </div>
             <div className="quranFlow" dir="rtl">
               {nodes.map((node, index) => {
                 const selected = quranSelectedNodeId === node.id;
@@ -493,6 +573,12 @@ export function ReaderView({
               })}
             </div>
           </div>
+
+          <nav className="quranPagePager" aria-label="Kur’an sayfası">
+            <button disabled={!quranPage || quranPage <= quranPageMin || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage - 1)}>‹ Önceki sayfa</button>
+            <span>{quranPage ?? "—"} / 604</span>
+            <button disabled={!quranPage || quranPage >= quranPageMax || quranPageLoading} onClick={() => quranPage && void loadQuranPage(quranPage + 1)}>Sonraki sayfa ›</button>
+          </nav>
 
           <div className="quranSupplement quranLatinBlock">
             <h3>Latin harflerle okunuş</h3>
@@ -601,10 +687,12 @@ export function ReaderView({
       </div>
       )}
 
-      <nav className="contentPager">
-        <button className="secondary" disabled={!hasPreviousItem} onClick={() => leaveDocument(onPreviousItem)}>‹ Önceki</button>
-        <button className="secondary" disabled={!hasNextItem} onClick={() => leaveDocument(onNextItem)}>Sonraki ›</button>
-      </nav>
+      {!isQuranDocument && (
+        <nav className="contentPager">
+          <button className="secondary" disabled={!hasPreviousItem} onClick={() => leaveDocument(onPreviousItem)}>‹ Önceki</button>
+          <button className="secondary" disabled={!hasNextItem} onClick={() => leaveDocument(onNextItem)}>Sonraki ›</button>
+        </nav>
+      )}
 
       <FloatingPlaybackButton />
 
