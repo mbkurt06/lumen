@@ -186,6 +186,7 @@ export function ReaderView({
 
   const fitQuranTextToPage = useCallback(() => {
     if (!isQuranDocument) return;
+    if (quranMushafPage && quranMushafPage.metadata?.exactWordCharacters !== true) return;
     const page = quranPageRef.current;
     const flow = quranFlowRef.current;
     if (!page || !flow) return;
@@ -996,19 +997,29 @@ export function ReaderView({
               dir="rtl"
             >
               {quranMushafPage ? (
-                <QuranMushafPageContent
-                  page={quranMushafPage}
-                  selectedNodeId={quranSelectedNodeId}
-                  onSelectNode={nodeId => {
-                    setQuranBookmarkMenuOpen(false);
-                    setQuranTodoMenuOpen(false);
-                    setQuranSelectedNodeId(nodeId);
-                    setActiveNodeId(nodeId);
-                    setActiveDocumentTodoId(null);
-                    setActiveTodoId(null);
-                    setCounterArmed(true);
-                  }}
-                />
+                quranMushafPage.metadata?.exactWordCharacters === true ? (
+                  <QuranMushafPageContent
+                    page={quranMushafPage}
+                    selectedNodeId={quranSelectedNodeId}
+                    onSelectNode={nodeId => {
+                      setQuranBookmarkMenuOpen(false);
+                      setQuranTodoMenuOpen(false);
+                      setQuranSelectedNodeId(nodeId);
+                      setActiveNodeId(nodeId);
+                      setActiveDocumentTodoId(null);
+                      setActiveTodoId(null);
+                      setCounterArmed(true);
+                    }}
+                  />
+                ) : (
+                  <pre
+                    className="quranReaderRawDebugText"
+                    dir="rtl"
+                    data-quran-test-plain="true"
+                  >
+                    {quranMushafPage.plain_text || "(Veritabanındaki plain_text boş)"}
+                  </pre>
+                )
               ) : (
                 nodes.map((node, index) => {
                   const selected = quranSelectedNodeId === node.id;
