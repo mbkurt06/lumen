@@ -68,6 +68,8 @@ type QuranTodoChoice = {
 type BookSelection = {
   text: string;
   nodeId: string | null;
+  x: number;
+  y: number;
 };
 
 type BookBookmark = {
@@ -193,7 +195,9 @@ export function ReaderView({
   const [bookBookmarkMenuOpen, setBookBookmarkMenuOpen] = useState(false);
   const [bookBookmarkName, setBookBookmarkName] = useState("");
   const [bookTodoMenuOpen, setBookTodoMenuOpen] = useState(false);
+  const [bookTodoExistingOpen, setBookTodoExistingOpen] = useState(false);
   const [bookTodoChoices, setBookTodoChoices] = useState<QuranTodoChoice[]>([]);
+  const [bookBookmarkExistingOpen, setBookBookmarkExistingOpen] = useState(false);
   const [bookActionMessage, setBookActionMessage] = useState("");
   const editPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRestored = useRef(false);
@@ -254,14 +258,16 @@ export function ReaderView({
   const isQuranJuzView = sourceType === "quran_juz_view";
   const isQuranDocument = isQuranSurah || isQuranJuzView;
   const isRisaleDocument = sourceType === "risale_seeded";
-  const isBookSelectionDocument = !isQuranDocument && (readerScope === "risale" || readerScope === "he");
+  const isBookSelectionDocument = true;
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
 
   useEffect(() => {
     setBookSelection(null);
     setBookBookmarkMenuOpen(false);
+    setBookBookmarkExistingOpen(false);
     setBookTodoMenuOpen(false);
+    setBookTodoExistingOpen(false);
     setBookActionMessage("");
   }, [item.id, readerScope]);
 
@@ -271,7 +277,11 @@ export function ReaderView({
       return;
     }
 
-    const captureSelection = () => {
+    const captureSelection = (event: PointerEvent) => {
+      // Compact action menu is deliberate: hold Command on macOS or Ctrl elsewhere
+      // while selecting text. Normal text selection stays clean and menu-free.
+      if (!event.metaKey && !event.ctrlKey) return;
+
       const selection = window.getSelection();
       const text = selection?.toString().trim() || "";
       if (!selection || selection.rangeCount === 0 || !text) return;
@@ -283,24 +293,32 @@ export function ReaderView({
       const endElement = range.endContainer.nodeType === window.Node.ELEMENT_NODE
         ? range.endContainer as Element
         : range.endContainer.parentElement;
-      const reader = startElement?.closest(".legacyReadPage");
-      if (!reader || !endElement?.closest(".legacyReadPage")) return;
+
+      const readerSelector = ".legacyReadPage, .risaleBookPage, .quranPage";
+      const reader = startElement?.closest(readerSelector);
+      if (!reader || !endElement?.closest(readerSelector)) return;
 
       const nodeElement = startElement?.closest("[data-node-id]") as HTMLElement | null;
+      const rect = range.getBoundingClientRect();
+      const x = Math.max(110, Math.min(window.innerWidth - 110, rect.left + rect.width / 2));
+      const y = Math.max(52, rect.top - 8);
+
       setBookSelection({
         text: text.slice(0, 1200),
         nodeId: nodeElement?.dataset.nodeId || null,
+        x,
+        y,
       });
       setBookBookmarkMenuOpen(false);
+      setBookBookmarkExistingOpen(false);
       setBookTodoMenuOpen(false);
+      setBookTodoExistingOpen(false);
       setBookActionMessage("");
     };
 
     document.addEventListener("pointerup", captureSelection);
-    document.addEventListener("keyup", captureSelection);
     return () => {
       document.removeEventListener("pointerup", captureSelection);
-      document.removeEventListener("keyup", captureSelection);
     };
   }, [isBookSelectionDocument, item.id]);
 
@@ -361,6 +379,7 @@ export function ReaderView({
       position:null,
     })));
     setBookTodoMenuOpen(true);
+    setBookTodoExistingOpen(true);
   }, [item.id]);
 
   const updateBookTodoPosition = useCallback(async (todo:QuranTodoChoice) => {
@@ -393,7 +412,9 @@ export function ReaderView({
     window.getSelection()?.removeAllRanges();
     setBookSelection(null);
     setBookBookmarkMenuOpen(false);
+    setBookBookmarkExistingOpen(false);
     setBookTodoMenuOpen(false);
+    setBookTodoExistingOpen(false);
   }, []);
 
   const fitQuranTextToPage = useCallback(() => {
@@ -1253,84 +1274,89 @@ export function ReaderView({
       )}
 
       {isBookSelectionDocument && bookSelection && (
-        <div className="quranSelectionWrap bookSelectionWrap">
-          <div className="quranSelectionBar">
-            <span title={bookSelection.text}>
-              {bookSelection.text.length > 46 ? bookSelection.text.slice(0,46) + "…" : bookSelection.text} seçili
-            </span>
+        <div
+          className="bookSelectionPopover"
+          style={{left:bookSelection.x, top:bookSelection.y}}
+        >
+          <div className="bookSelectionMiniBar">
             <button
-              className="quranSelectionAction primaryAction"
-              onClick={() => setTodoTarget({
-                title:bookSelection.text || item.title,
-                nodeId:bookSelection.nodeId || undefined,
-                defaultTarget:1,
-              })}
+              className={"bookMiniAction primary " + (bookTodoMenuOpen ? "pressed" : "")}
+              onClick={() => {
+                setBookBookmarkMenuOpen(false);
+                setBookBookmarkExistingOpen(false);
+                setBookTodoExistingOpen(false);
+                setBookTodoMenuOpen(open=>!open);
+              }}
             >
               + Todo
             </button>
             <button
-              className={"quranSelectionAction " + (bookBookmarkMenuOpen ? "pressed" : "")}
+              className={"bookMiniAction iconOnly " + (bookBookmarkMenuOpen ? "pressed" : "")}
+              title="Ayraç"
+              aria-label="Ayraç"
               onClick={() => {
                 setBookTodoMenuOpen(false);
+                setBookTodoExistingOpen(false);
+                setBookBookmarkExistingOpen(false);
                 setBookBookmarkMenuOpen(open=>!open);
               }}
             >
-              🔖 Ayraç
+              🔖
             </button>
-            <button
-              className={"quranSelectionAction " + (bookTodoMenuOpen ? "pressed" : "")}
-              onClick={() => {
-                setBookBookmarkMenuOpen(false);
-                void loadBookTodoChoices();
-              }}
-            >
-              Todo konumunu güncelle
-            </button>
-            <button className="quranSelectionAction" onClick={clearBookSelection}>Seçimi kaldır</button>
+            <button className="bookMiniAction iconOnly" title="Seçimi kaldır" aria-label="Seçimi kaldır" onClick={clearBookSelection}>×</button>
           </div>
 
-          {bookBookmarkMenuOpen && (
-            <div className="quranActionChooser">
-              <strong>Ayraç seç veya yeni ayraç oluştur</strong>
-              {!!bookBookmarks.length && (
-                <div className="quranActionChoiceList">
-                  {bookBookmarks.map(bookmark=>(
-                    <button key={bookmark.id} onClick={()=>void saveBookBookmark(bookmark.id)}>
-                      <b>{bookmark.name}</b>
-                      <small>{bookmark.selectedText}</small>
-                      <span>Buraya güncelle</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="quranNewBookmarkRow">
-                <input
-                  value={bookBookmarkName}
-                  onChange={e=>setBookBookmarkName(e.target.value)}
-                  placeholder="Yeni ayraç adı"
-                />
-                <button onClick={()=>void saveBookBookmark()}>Yeni ayraç ekle</button>
-              </div>
-            </div>
-          )}
-
           {bookTodoMenuOpen && (
-            <div className="quranActionChooser">
-              <strong>Hangi Todo bu seçime güncellensin?</strong>
-              {bookTodoChoices.length ? (
-                <div className="quranActionChoiceList">
-                  {bookTodoChoices.map(todo=>(
+            <div className="bookMiniChooser">
+              {!bookTodoExistingOpen ? (
+                <>
+                  <button
+                    onClick={() => setTodoTarget({
+                      title:bookSelection.text || item.title,
+                      nodeId:bookSelection.nodeId || undefined,
+                      defaultTarget:1,
+                    })}
+                  >
+                    Yeni oluştur
+                  </button>
+                  <button onClick={() => void loadBookTodoChoices()}>
+                    Var olanı güncelle
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="bookMiniBack" onClick={()=>setBookTodoExistingOpen(false)}>‹ Geri</button>
+                  {bookTodoChoices.length ? bookTodoChoices.map(todo=>(
                     <button key={todo.id} onClick={()=>void updateBookTodoPosition(todo)}>
                       <b>{todo.title}</b>
                       {todo.description && <small>{todo.description}</small>}
-                      <span>Buraya güncelle</span>
                     </button>
-                  ))}
-                </div>
-              ) : <small>Bu kitap için kayıtlı Todo yok.</small>}
+                  )) : <small>Bu kitap için kayıtlı Todo yok.</small>}
+                </>
+              )}
             </div>
           )}
-          {bookActionMessage && <small className="bookSelectionMessage">{bookActionMessage}</small>}
+
+          {bookBookmarkMenuOpen && (
+            <div className="bookMiniChooser">
+              {!bookBookmarkExistingOpen ? (
+                <>
+                  <button onClick={() => void saveBookBookmark()}>Yeni oluştur</button>
+                  <button onClick={() => setBookBookmarkExistingOpen(true)}>Var olanı güncelle</button>
+                </>
+              ) : (
+                <>
+                  <button className="bookMiniBack" onClick={()=>setBookBookmarkExistingOpen(false)}>‹ Geri</button>
+                  {bookBookmarks.length ? bookBookmarks.map(bookmark=>(
+                    <button key={bookmark.id} onClick={()=>void saveBookBookmark(bookmark.id)}>
+                      <b>{bookmark.name}</b>
+                      <small>{bookmark.selectedText}</small>
+                    </button>
+                  )) : <small>Bu kitap için kayıtlı ayraç yok.</small>}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1722,6 +1748,25 @@ export function ReaderView({
             tracking: true,
             position: todoTarget?.quranPosition
               ?? quranPositionFor(nodes.find(node => node.id === (todoTarget?.nodeId || quranSelectedNodeId)) ?? nodes[0] ?? null),
+          },
+          selection: bookSelection ? {
+            scope: readerScope,
+            text: bookSelection.text,
+            nodeId: bookSelection.nodeId,
+          } : undefined,
+        } : bookSelection ? {
+          selection: {
+            scope: readerScope,
+            text: bookSelection.text,
+            nodeId: bookSelection.nodeId,
+          },
+          readerPosition: {
+            scope: readerScope,
+            itemId: item.id,
+            itemTitle: item.title,
+            nodeId: bookSelection.nodeId,
+            selectedText: bookSelection.text,
+            updatedAt: new Date().toISOString(),
           },
         } : undefined}
       />
