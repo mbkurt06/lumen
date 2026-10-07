@@ -200,8 +200,8 @@ export function LibrarySettingsModal({
       });
   }
 
-  async function importMushafFile(file: File | null) {
-    if (!file || mushafImporting) return;
+  async function runMushafImport(file: File) {
+    if (mushafImporting) return;
     setMushafImporting(true);
     setMushafImportProgress("Word Mushaf hazırlanıyor…");
     setMushafImportPercent(0);
@@ -210,7 +210,8 @@ export function LibrarySettingsModal({
         setMushafImportProgress(message);
         setMushafImportPercent(percent);
       });
-      setMushafImportProgress("1. cüz test olarak birebir kaydedildi: 21 sayfa · 148 ayet.");
+      localStorage.removeItem("lumen-catalog-state:quran");
+      setMushafImportProgress("Tam Kur’an hazır: 114 sûre · 30 cüz · 6236 ayet.");
       setMushafImportPercent(100);
     } catch (error) {
       const message =
@@ -223,6 +224,42 @@ export function LibrarySettingsModal({
     } finally {
       setMushafImporting(false);
       if (mushafFileRef.current) mushafFileRef.current.value = "";
+    }
+  }
+
+  async function importMushafFile(file: File | null) {
+    if (!file) return;
+    await runMushafImport(file);
+  }
+
+  async function importOfficialMushaf() {
+    if (mushafImporting) return;
+    setMushafImporting(true);
+    setMushafImportProgress("Diyanet Kur’an Word kaynağı indiriliyor…");
+    setMushafImportPercent(1);
+    try {
+      const response = await fetch("/api/quran-source", { cache: "no-store" });
+      if (!response.ok) {
+        let detail = "";
+        try {
+          const body = await response.json() as {error?:string};
+          detail = body.error ? ": " + body.error : "";
+        } catch {}
+        throw new Error("Diyanet Word kaynağı indirilemedi" + detail);
+      }
+      const blob = await response.blob();
+      const file = new File(
+        [blob],
+        "kuran.docx",
+        { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }
+      );
+
+      setMushafImporting(false);
+      await runMushafImport(file);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || "Kur’an kaynağı indirilemedi.");
+      setMushafImportProgress(message);
+      setMushafImporting(false);
     }
   }
 
@@ -345,9 +382,16 @@ export function LibrarySettingsModal({
             <button
               className="settingButton"
               disabled={mushafImporting}
+              onClick={() => void importOfficialMushaf()}
+            >
+              {mushafImporting ? "Kur’an hazırlanıyor…" : "Tam Kur’an’ı Diyanet Word kaynağından yükle"}
+            </button>
+            <button
+              className="settingButton secondary"
+              disabled={mushafImporting}
               onClick={() => mushafFileRef.current?.click()}
             >
-              {mushafImporting ? "İçe aktarılıyor…" : "1. cüzü DOCX'ten birebir içe aktar"}
+              Yerel DOCX seç
             </button>
             {!!mushafImportProgress && (
               <div className="quranDocxImportStatus">
