@@ -6362,7 +6362,7 @@ html[data-pre-risale-page-theme="dark"] .risaleBookPage{
 .bookSelectionPopover{
   position:fixed;
   z-index:10020;
-  transform:translate(-50%,-100%);
+  transform:translateX(-50%);
   width:max-content;
   max-width:min(340px,calc(100vw - 20px));
   pointer-events:auto;
@@ -6379,6 +6379,7 @@ html[data-pre-risale-page-theme="dark"] .risaleBookPage{
   background:var(--panel);
   color:var(--text);
   box-shadow:0 7px 22px #00000026;
+  transform:translateY(-100%);
 }
 .bookMiniAction{
   min-height:28px;
@@ -6406,10 +6407,14 @@ html[data-pre-risale-page-theme="dark"] .risaleBookPage{
   border-color:color-mix(in srgb,var(--accent) 42%,var(--border));
 }
 .bookMiniChooser{
+  position:absolute;
+  left:50%;
+  bottom:38px;
+  transform:translateX(-50%);
   width:min(320px,calc(100vw - 20px));
   max-height:260px;
   overflow:auto;
-  margin:5px auto 0;
+  margin:0;
   padding:5px;
   display:grid;
   gap:4px;
