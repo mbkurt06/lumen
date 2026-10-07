@@ -424,8 +424,6 @@ export function MemorizationView({
             {node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
             {node.translation && <div className="legacyTurkish">{node.translation}</div>}
 
-            <button className="segmentTodoButton memorizeTodoButton" onClick={() => setTodoOpen(true)}>+ Todo</button>
-
             <div className="memorizeTodoTargets">
               {todoInfos.filter(x => !x.done).map(info => (
                 <button
