@@ -5532,3 +5532,73 @@ body[data-quran-page-theme="dark"] .quranAyahInline.selected{
     height:auto!important;
   }
 }
+
+
+/* v0.9.7 — exact DOCX font selection, fixed-page auto-fit and TODO chooser cleanup */
+.quranFlow{
+  font-family:
+    var(--quran-font-family,"Shaikh Hamdullah Mushaf"),
+    "Shaikh Hamdullah Mushaf",
+    "Shaikh Hamdullah Book",
+    "Shaikh Hamdullah Basic",
+    "Traditional Naskh",
+    "Traditional Arabic",
+    "KFGQPC Uthmanic Script HAFS",
+    "KFGQPC Uthman Taha Naskh",
+    "Amiri Quran",
+    "Noto Naskh Arabic",
+    "Geeza Pro",
+    serif!important;
+  font-size:calc(40px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+}
+body.quranEasyRead .quranFlow{
+  font-family:
+    var(--quran-font-family,"Shaikh Hamdullah Mushaf"),
+    "Shaikh Hamdullah Mushaf",
+    "Traditional Naskh",
+    "Traditional Arabic",
+    "Noto Naskh Arabic",
+    "Geeza Pro",
+    serif!important;
+  font-size:calc(37px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+}
+.quranActionChoiceList>button>span{
+  grid-area:action;
+  color:var(--accent);
+  font-size:10px;
+  font-weight:800;
+}
+.quranTodoChoiceMeta{
+  grid-area:meta!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+  color:var(--muted)!important;
+  font-size:10px!important;
+  font-weight:600!important;
+}
+.quranTodoChoiceMeta>span{
+  grid-area:auto!important;
+  color:inherit!important;
+  font-size:inherit!important;
+  font-weight:inherit!important;
+}
+.quranTodoChoiceMeta>.quranTodoChoiceDescription{
+  color:var(--text)!important;
+  font-size:11px!important;
+  font-weight:850!important;
+}
+.quranFontSelect{
+  min-width:190px;
+  max-width:250px;
+  font-size:11px;
+}
+@media(max-width:800px){
+  .quranFlow{
+    font-size:calc(30px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+  }
+  body.quranEasyRead .quranFlow{
+    font-size:calc(29px * var(--quran-font-scale,1) * var(--quran-fit-scale,1))!important;
+  }
+}
