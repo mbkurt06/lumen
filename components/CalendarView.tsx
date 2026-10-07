@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
 type ListRange = "day" | "week" | "month" | "year" | "custom";
+type MonthDensity = "comfortable" | "compact";
 
 type CalendarInfo = {
   id: string;
@@ -91,6 +92,13 @@ function startOfYear(date: Date) {
 function sameDay(a: Date, b: Date) {
   return localDateKey(a) === localDateKey(b);
 }
+function isoWeekNumber(date: Date) {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
 function eventStart(event: CalendarEvent) {
   return event.start ? new Date(event.start + (event.allDay && !event.start.includes("T") ? "T00:00:00" : "")) : null;
 }
@@ -123,6 +131,10 @@ export function CalendarView({ user }: { user: User }) {
   const [googleConnecting, setGoogleConnecting] = useState(false);
   const yearlyTodayRef = useRef<HTMLDivElement | null>(null);
   const [yearlyAutoScrollPending, setYearlyAutoScrollPending] = useState(false);
+  const [monthDensity, setMonthDensity] = useState<MonthDensity>("comfortable");
+  const [showWeekNumbers, setShowWeekNumbers] = useState(true);
+  const [draggingEventKey, setDraggingEventKey] = useState<string | null>(null);
+  const [monthDropDate, setMonthDropDate] = useState<string | null>(null);
 
   const authHeaders = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -140,6 +152,12 @@ export function CalendarView({ user }: { user: User }) {
     if (savedView === "year" || savedView === "month" || savedView === "week" || savedView === "3day" || savedView === "day" || savedView === "list") {
       setView(savedView);
     }
+    if (prefs.calendarMonthDensity === "compact" || prefs.calendarMonthDensity === "comfortable") {
+      setMonthDensity(prefs.calendarMonthDensity);
+    }
+    if (typeof prefs.calendarShowWeekNumbers === "boolean") {
+      setShowWeekNumbers(prefs.calendarShowWeekNumbers);
+    }
   }, []);
 
   const saveCalendarPrefs = useCallback(async (nextHidden: Set<string>, nextView = view) => {
@@ -154,6 +172,19 @@ export function CalendarView({ user }: { user: User }) {
       },
     });
   }, [user.id, view]);
+
+  const saveMonthPrefs = useCallback(async (density: MonthDensity, weekNumbers: boolean) => {
+    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+    const old = (data?.preferences ?? {}) as Record<string, unknown>;
+    await supabase.from("user_preferences").upsert({
+      owner_id: user.id,
+      preferences: {
+        ...old,
+        calendarMonthDensity: density,
+        calendarShowWeekNumbers: weekNumbers,
+      },
+    });
+  }, [user.id]);
 
   const loadAccounts = useCallback(async () => {
     setLoadingAccounts(true);
@@ -381,12 +412,25 @@ export function CalendarView({ user }: { user: User }) {
     return "Etkinlik listesi";
   }, [anchor, view]);
 
+  function eventOccursOn(event: CalendarEvent, date: Date) {
+    const start = eventStart(event);
+    const end = eventEnd(event);
+    if (!start) return false;
+
+    const dayStart = startOfDay(date).getTime();
+    const dayEnd = addDays(startOfDay(date), 1).getTime();
+
+    const eventStartMs = start.getTime();
+    let eventEndMs = end?.getTime() ?? (eventStartMs + 1);
+
+    // Google all-day event end dates are exclusive.
+    if (event.allDay && end) eventEndMs = Math.max(eventStartMs + 1, eventEndMs - 1);
+
+    return eventStartMs < dayEnd && eventEndMs >= dayStart;
+  }
+
   function eventsOn(date: Date) {
-    const key = localDateKey(date);
-    return events.filter(event => {
-      const start = eventStart(event);
-      return start && localDateKey(start) === key;
-    });
+    return events.filter(event => eventOccursOn(event, date));
   }
 
   function calendarMeta(event: CalendarEvent) {
@@ -427,6 +471,60 @@ export function CalendarView({ user }: { user: User }) {
       description: event.description,
       location: event.location,
     });
+  }
+
+  async function moveEventToDate(event: CalendarEvent, date: Date) {
+    const start = eventStart(event);
+    if (!start) return;
+
+    const end = eventEnd(event);
+    const durationMs = end ? Math.max(0, end.getTime() - start.getTime()) : 60 * 60 * 1000;
+
+    try {
+      const headers = await authHeaders();
+      let payload: any;
+
+      if (event.allDay) {
+        const originalStart = startOfDay(start);
+        const originalEnd = end ? startOfDay(end) : addDays(originalStart, 1);
+        const days = Math.max(1, Math.round((originalEnd.getTime() - originalStart.getTime()) / 86400000));
+        payload = {
+          start: { date: localDateKey(date) },
+          end: { date: localDateKey(addDays(date, days)) },
+        };
+      } else {
+        const nextStart = new Date(
+          date.getFullYear(),
+          date.getMonth(),
+          date.getDate(),
+          start.getHours(),
+          start.getMinutes(),
+          start.getSeconds()
+        );
+        const nextEnd = new Date(nextStart.getTime() + durationMs);
+        payload = {
+          start: { dateTime: nextStart.toISOString() },
+          end: { dateTime: nextEnd.toISOString() },
+        };
+      }
+
+      const response = await fetch("/api/google-calendar/events", {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          accountId: event.accountId,
+          calendarId: event.calendarId,
+          eventId: event.id,
+          event: payload,
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || "Etkinlik taşınamadı.");
+      setMessage("");
+      await loadEvents();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Etkinlik taşınamadı.");
+    }
   }
 
   async function saveEvent() {
@@ -498,18 +596,46 @@ export function CalendarView({ user }: { user: User }) {
     }
   }
 
-  function renderEventChip(event: CalendarEvent) {
+  function renderEventChip(event: CalendarEvent, date?: Date) {
     const meta = calendarMeta(event);
+    const start = eventStart(event);
+    const end = eventEnd(event);
+    const startsHere = date && start ? sameDay(start, date) : true;
+    const effectiveEnd = event.allDay && end ? addDays(startOfDay(end), -1) : end;
+    const endsHere = date && effectiveEnd ? sameDay(effectiveEnd, date) : true;
+    const key = event.calendarKey + ":" + event.id;
+
     return (
       <button
-        key={event.calendarKey + ":" + event.id}
-        className="calendarEventChip"
+        key={key}
+        className={
+          "calendarEventChip " +
+          (!startsHere ? "continuesBefore " : "") +
+          (!endsHere ? "continuesAfter " : "") +
+          (draggingEventKey === key ? "dragging" : "")
+        }
         onClick={ev => { ev.stopPropagation(); openEditEvent(event); }}
         title={event.summary}
-        style={meta?.backgroundColor ? { borderLeftColor: meta.backgroundColor } : undefined}
+        draggable
+        onDragStart={ev => {
+          ev.stopPropagation();
+          ev.dataTransfer.effectAllowed = "move";
+          ev.dataTransfer.setData("text/plain", key);
+          setDraggingEventKey(key);
+        }}
+        onDragEnd={() => {
+          setDraggingEventKey(null);
+          setMonthDropDate(null);
+        }}
+        style={meta?.backgroundColor ? {
+          borderLeftColor: meta.backgroundColor,
+          ["--event-color" as string]: meta.backgroundColor
+        } : undefined}
       >
-        {!event.allDay && <small>{timeLabel(event)}</small>}
+        {!event.allDay && startsHere && <small>{timeLabel(event)}</small>}
+        {!startsHere && <small>↤</small>}
         <span>{event.summary}</span>
+        {!endsHere && <small className="eventContinue">↦</small>}
       </button>
     );
   }
@@ -518,26 +644,125 @@ export function CalendarView({ user }: { user: User }) {
     const monthStart = startOfMonth(anchor);
     const gridStart = startOfWeek(monthStart);
     const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+    const weekRows = Array.from({ length: 6 }, (_, week) => days.slice(week * 7, week * 7 + 7));
+
     return (
-      <div className="calendarMonth">
-        <div className="calendarWeekdayRow">{WEEKDAYS.map(day => <div key={day}>{day}</div>)}</div>
-        <div className="calendarMonthGrid">
-          {days.map(day => {
-            const dayEvents = eventsOn(day);
-            return (
-              <div
-                key={localDateKey(day)}
-                className={"calendarMonthCell " + (day.getMonth() === anchor.getMonth() ? "" : "outside ") + (sameDay(day, new Date()) ? "today" : "")}
-                onDoubleClick={() => openNewEvent(day)}
-              >
-                <button className="calendarDateNumber" onClick={() => { setAnchor(day); setViewAndSave("day"); }}>{day.getDate()}</button>
-                <div className="calendarCellEvents">
-                  {dayEvents.slice(0,3).map(renderEventChip)}
-                  {dayEvents.length > 3 && <button className="calendarMore" onClick={() => { setAnchor(day); setViewAndSave("day"); }}>+{dayEvents.length - 3} daha</button>}
-                </div>
+      <div className={"calendarMonth " + monthDensity}>
+        <div className="calendarMonthOptions">
+          <div className="calendarDensitySwitch" aria-label="Ay görünümü yoğunluğu">
+            <button
+              className={monthDensity === "comfortable" ? "active" : ""}
+              onClick={() => {
+                setMonthDensity("comfortable");
+                void saveMonthPrefs("comfortable", showWeekNumbers);
+              }}
+            >
+              Rahat
+            </button>
+            <button
+              className={monthDensity === "compact" ? "active" : ""}
+              onClick={() => {
+                setMonthDensity("compact");
+                void saveMonthPrefs("compact", showWeekNumbers);
+              }}
+            >
+              Kompakt
+            </button>
+          </div>
+          <label className="calendarWeekNumberToggle">
+            <input
+              type="checkbox"
+              checked={showWeekNumbers}
+              onChange={event => {
+                setShowWeekNumbers(event.target.checked);
+                void saveMonthPrefs(monthDensity, event.target.checked);
+              }}
+            />
+            Hafta no
+          </label>
+          <span className="calendarShortcutHint">T Bugün · M Ay · W Hafta · D Gün · L Liste</span>
+        </div>
+
+        <div className={"calendarMonthFrame " + (showWeekNumbers ? "withWeekNumbers" : "")}>
+          <div className="calendarWeekdayRow">
+            {showWeekNumbers && <div className="calendarWeekNumberHead">Hf</div>}
+            {WEEKDAYS.map((day,index) => <div key={day} className={index >= 5 ? "weekend" : ""}>{day}</div>)}
+          </div>
+
+          <div className="calendarMonthRows">
+            {weekRows.map((week, weekIndex) => (
+              <div className="calendarMonthWeek" key={localDateKey(week[0])}>
+                {showWeekNumbers && <div className="calendarWeekNumber">{isoWeekNumber(week[0])}</div>}
+                {week.map((day, dayIndex) => {
+                  const dayEvents = eventsOn(day);
+                  const dayKey = localDateKey(day);
+                  const writable = visibleCalendars.some(calendar => calendar.accessRole === "owner" || calendar.accessRole === "writer");
+
+                  return (
+                    <div
+                      key={dayKey}
+                      className={
+                        "calendarMonthCell " +
+                        (day.getMonth() === anchor.getMonth() ? "" : "outside ") +
+                        (sameDay(day, new Date()) ? "today " : "") +
+                        (dayIndex >= 5 ? "weekend " : "") +
+                        (monthDropDate === dayKey ? "dropTarget" : "")
+                      }
+                      onDoubleClick={() => openNewEvent(day)}
+                      onDragOver={event => {
+                        if (!draggingEventKey) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                        setMonthDropDate(dayKey);
+                      }}
+                      onDragLeave={() => {
+                        if (monthDropDate === dayKey) setMonthDropDate(null);
+                      }}
+                      onDrop={event => {
+                        event.preventDefault();
+                        const key = event.dataTransfer.getData("text/plain") || draggingEventKey;
+                        const dragged = events.find(item => item.calendarKey + ":" + item.id === key);
+                        setMonthDropDate(null);
+                        setDraggingEventKey(null);
+                        if (dragged) void moveEventToDate(dragged, day);
+                      }}
+                    >
+                      <div className="calendarCellHead">
+                        <button
+                          className="calendarDateNumber"
+                          onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                          title="Gün görünümünü aç"
+                        >
+                          {day.getDate()}
+                        </button>
+                        {writable && (
+                          <button
+                            className="calendarQuickAdd"
+                            onClick={event => { event.stopPropagation(); openNewEvent(day); }}
+                            title="Bu güne etkinlik ekle"
+                            aria-label="Etkinlik ekle"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                      <div className="calendarCellEvents">
+                        {dayEvents.slice(0, monthDensity === "compact" ? 5 : 4).map(event => renderEventChip(event, day))}
+                        {dayEvents.length > (monthDensity === "compact" ? 5 : 4) && (
+                          <button
+                            className="calendarMore"
+                            onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                          >
+                            +{dayEvents.length - (monthDensity === "compact" ? 5 : 4)} daha
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -712,6 +937,29 @@ export function CalendarView({ user }: { user: User }) {
       </div>
     );
   }
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (draft) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "t") setAnchor(new Date());
+      else if (key === "m") setViewAndSave("month");
+      else if (key === "w") setViewAndSave("week");
+      else if (key === "d") setViewAndSave("day");
+      else if (key === "l") setViewAndSave("list");
+      else if (event.key === "ArrowLeft") move(-1);
+      else if (event.key === "ArrowRight") move(1);
+      else return;
+
+      event.preventDefault();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [draft, view, anchor, hiddenKeys, listRange]);
 
   return (
     <div className="calendarPage">
