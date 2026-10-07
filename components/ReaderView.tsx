@@ -245,7 +245,24 @@ export function ReaderView({
     setTodos(data ?? []);
   }, [item.id]);
 
-  const loadQuranPage = useCallback(async (page:number) => {
+  const focusQuranNode = useCallback((nodeId:string | null) => {
+    if (!nodeId) return;
+    setQuranSelectedNodeId(nodeId);
+    setActiveNodeId(nodeId);
+    setActiveTodoId(null);
+    setActiveDocumentTodoId(null);
+    setCounterArmed(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById(`quran-ayah-${nodeId}`)?.scrollIntoView({
+          behavior:"smooth",
+          block:"center",
+        });
+      });
+    });
+  }, []);
+
+  const loadQuranPage = useCallback(async (page:number, focusNodeId:string | null = null) => {
     const safePage = Math.max(quranPageMin, Math.min(quranPageMax, page));
     setQuranPageLoading(true);
     setMessage("");
@@ -273,14 +290,18 @@ export function ReaderView({
       setActiveDocumentTodoId(null);
       setCounterArmed(false);
       scrollRestored.current = true;
-      window.scrollTo({top:0,behavior:"smooth"});
+      if (focusNodeId && loaded.some(node => node.id === focusNodeId)) {
+        focusQuranNode(focusNodeId);
+      } else {
+        window.scrollTo({top:0,behavior:"smooth"});
+      }
     } catch(error) {
       setNodes([]);
       setMessage(error instanceof Error ? error.message : "Kur’an sayfası yüklenemedi.");
     } finally {
       setQuranPageLoading(false);
     }
-  }, [quranPageMin, quranPageMax]);
+  }, [quranPageMin, quranPageMax, focusQuranNode]);
 
   const load = useCallback(async () => {
     setMessage("");
@@ -319,6 +340,10 @@ export function ReaderView({
       setActiveDocumentTodoId(null);
       setCounterArmed(false);
       scrollRestored.current = true;
+      const initialNodeId = String(itemMeta.initial_node_id || "");
+      if (initialNodeId && loaded.some(node => node.id === initialNodeId)) {
+        focusQuranNode(initialNodeId);
+      }
       await loadTodos();
       return;
     }
@@ -354,7 +379,7 @@ export function ReaderView({
     }
 
     await loadTodos();
-  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page]);
+  }, [item.id, itemTarget, loadTodos, initialFocusIndex, isQuranDocument, isRisaleDocument, itemMeta.start_page, itemMeta.end_page, itemMeta.initial_node_id, focusQuranNode]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -651,7 +676,7 @@ export function ReaderView({
             return (
               <div className="quranSelectionBar">
                 <span>{selected.title || `Ayet ${selected.sort_order}`} seçili</span>
-                <button
+                <button className="quranSelectionAction primaryAction"
                   onClick={() => setTodoTarget({
                     title: "Kur’an okuma",
                     nodeId: selected.id,
@@ -660,15 +685,16 @@ export function ReaderView({
                 >
                   + Todo
                 </button>
-                <button className="secondary" onClick={() => void saveQuranBookmark(selected)}>🔖 Ayracı buraya koy</button>
-                <button className="secondary" onClick={() => void updateQuranTodosPosition(selected)}>Todo konumunu güncelle</button>
-                <button className="secondary" onClick={() => setQuranSelectedNodeId(null)}>Seçimi kaldır</button>
+                <button className="quranSelectionAction" onClick={() => void saveQuranBookmark(selected)}>🔖 Ayracı buraya koy</button>
+                <button className="quranSelectionAction" onClick={() => void updateQuranTodosPosition(selected)}>Todo konumunu güncelle</button>
+                <button className="quranSelectionAction" onClick={() => setQuranSelectedNodeId(null)}>Seçimi kaldır</button>
               </div>
             );
           })()}
 
           <div
             className={"quranPage " + (quranPageLoading ? "loading" : "")}
+            onClick={() => setQuranSelectedNodeId(null)}
             onTouchStart={e => { quranSwipeStartX.current = e.touches[0]?.clientX ?? null; }}
             onTouchEnd={e => {
               const startX = quranSwipeStartX.current;
@@ -690,9 +716,11 @@ export function ReaderView({
                 return (
                   <button
                     key={node.id}
+                    id={"quran-ayah-" + node.id}
                     className={"quranAyahInline" + (selected ? " selected" : "")}
                     data-reader-index={index}
-                    onClick={() => {
+                    onClick={e => {
+                      e.stopPropagation();
                       setQuranSelectedNodeId(node.id);
                       setActiveNodeId(node.id);
                       setActiveDocumentTodoId(null);
@@ -717,7 +745,12 @@ export function ReaderView({
           {(quranBookmark || quranActionMessage) && (
             <div className="quranReadingStatus">
               {quranBookmark && (
-                <span>🔖 Kaldığın yer: Sayfa {quranBookmark.page} · {quranBookmark.surahTitle} {quranBookmark.ayahNo}. ayet</span>
+                <button
+                  className="quranBookmarkJump"
+                  onClick={() => void loadQuranPage(quranBookmark.page, quranBookmark.nodeId)}
+                >
+                  🔖 Kaldığın yer: Sayfa {quranBookmark.page} · {quranBookmark.surahTitle} {quranBookmark.ayahNo}. ayet
+                </button>
               )}
               {quranActionMessage && <small>{quranActionMessage}</small>}
             </div>
