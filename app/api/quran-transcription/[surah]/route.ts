@@ -1,31 +1,23 @@
 import { NextResponse } from "next/server";
 
-function collectTranscriptions(value:unknown, out:Record<number,string>) {
-  if (!value) return;
-  if (Array.isArray(value)) {
-    for (const item of value) collectTranscriptions(item,out);
-    return;
-  }
-  if (typeof value !== "object") return;
+type SourceVerse = {
+  verse_number?: number;
+  transcription?: string | null;
+};
 
-  const row=value as Record<string,unknown>;
-  const verseNumber=Number(
-    row.verse_number ?? row.verseNumber ?? row.verse ?? row.ayah_number ?? row.ayahNumber ?? 0
-  );
-  const transcription=
-    typeof row.transcription === "string" ? row.transcription :
-    typeof row.transliteration === "string" ? row.transliteration :
-    "";
+type SourcePayload = {
+  data?: {
+    zero?: SourceVerse | null;
+    verses?: SourceVerse[];
+  };
+};
 
-  if (verseNumber>0 && transcription.trim()) {
-    out[verseNumber]=transcription.replace(/\s+/g," ").trim();
-  }
-
-  for (const nested of Object.values(row)) collectTranscriptions(nested,out);
+function clean(value:string){
+  return value.replace(/\s+/g," ").trim();
 }
 
 export async function GET(
-  _request:Request,
+  request:Request,
   context:{params:Promise<{surah:string}>}
 ) {
   const {surah}=await context.params;
@@ -34,18 +26,44 @@ export async function GET(
     return NextResponse.json({error:"Geçersiz sûre numarası."},{status:400});
   }
 
+  const url=new URL(request.url);
+  const requestedAyah=Number(url.searchParams.get("ayah") || 0);
+
   try{
-    const response=await fetch(`https://api.acikkuran.com/surah/${surahNo}`,{
+    const sourceUrl=requestedAyah>0
+      ? `https://api.acikkuran.com/surah/${surahNo}/verse/${requestedAyah}`
+      : `https://api.acikkuran.com/surah/${surahNo}`;
+
+    const response=await fetch(sourceUrl,{
       headers:{Accept:"application/json"},
       next:{revalidate:86400},
     });
+
     if(!response.ok){
       return NextResponse.json({error:`Kaynak HTTP ${response.status}`},{status:502});
     }
 
-    const payload=await response.json();
+    const payload=await response.json() as any;
+
+    if(requestedAyah>0){
+      const row=payload?.data;
+      const text=clean(String(row?.transcription || ""));
+      return NextResponse.json({
+        surah:surahNo,
+        ayah:requestedAyah,
+        transcription:text || null,
+      },{
+        headers:{"Cache-Control":"public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"},
+      });
+    }
+
+    const typed=payload as SourcePayload;
     const verses:Record<number,string>={};
-    collectTranscriptions(payload,verses);
+    for(const verse of typed.data?.verses ?? []){
+      const no=Number(verse?.verse_number || 0);
+      const text=clean(String(verse?.transcription || ""));
+      if(no>0 && text) verses[no]=text;
+    }
 
     return NextResponse.json({surah:surahNo,verses},{
       headers:{"Cache-Control":"public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800"},
