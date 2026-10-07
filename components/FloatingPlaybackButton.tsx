@@ -9,6 +9,7 @@ export function FloatingPlaybackButton() {
   const [repeatTarget, setRepeatTarget] = useState(1);
   const [rate, setRate] = useState(1);
   const [pos, setPos] = useState<Point | null>(null);
+  const [positionRestored, setPositionRestored] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragging = useRef(false);
   const start = useRef<Point>({ x: 0, y: 0 });
@@ -23,6 +24,7 @@ export function FloatingPlaybackButton() {
     if (saved) {
       try { setPos(JSON.parse(saved)); } catch {}
     }
+    setPositionRestored(true);
   }, []);
 
   useEffect(() => {
@@ -37,10 +39,17 @@ export function FloatingPlaybackButton() {
     return () => document.removeEventListener("pointerdown", close);
   }, [panel]);
 
+  function rightPanelOffset() {
+    const shell = document.querySelector(".appShell");
+    if (!shell?.classList.contains("rightPanelOpen") || window.innerWidth <= 800) return 0;
+    return window.innerWidth <= 1100 ? 320 : 360;
+  }
+
   function clamp(next: Point) {
     const size = 62;
+    const panelOffset = rightPanelOffset();
     return {
-      x: Math.min(Math.max(8, next.x), window.innerWidth - size - 8),
+      x: Math.min(Math.max(8 + panelOffset, next.x), window.innerWidth - size - 8),
       y: Math.min(Math.max(8, next.y), window.innerHeight - size - 8),
     };
   }
@@ -52,7 +61,7 @@ export function FloatingPlaybackButton() {
     longPressed.current = false;
     start.current = { x: e.clientX, y: e.clientY };
     const rect = e.currentTarget.getBoundingClientRect();
-    origin.current = { x: rect.left, y: rect.top };
+    origin.current = { x: rect.left + rightPanelOffset(), y: rect.top };
 
     timer.current = setTimeout(() => {
       if (!dragging.current) {
@@ -120,7 +129,7 @@ export function FloatingPlaybackButton() {
 
       <button
         ref={playRef}
-        className="floatingPlay"
+        className={"floatingPlay " + (!positionRestored ? "floatingControlRestoring" : "")}
         style={style}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
