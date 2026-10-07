@@ -58,7 +58,6 @@ type EventDraft = {
   allDay: boolean;
   description: string;
   location: string;
-  createTodo?: boolean;
   reminderMode: "default" | "none" | "custom";
   reminderMinutes: number[];
 };
@@ -162,7 +161,6 @@ export function CalendarView({ user }: { user: User }) {
   const timeScrollRef = useRef<HTMLDivElement | null>(null);
   const [eventHover, setEventHover] = useState<EventHoverPreview | null>(null);
   const [hoverDraft, setHoverDraft] = useState<EventDraft | null>(null);
-  const [calendarTodoLinks, setCalendarTodoLinks] = useState<Record<string,{id:string;completed:boolean}>>({});
   const [hoverSaving, setHoverSaving] = useState(false);
   const hoverOpenTimerRef = useRef<number | null>(null);
   const hoverCloseTimerRef = useRef<number | null>(null);
@@ -280,29 +278,9 @@ export function CalendarView({ user }: { user: User }) {
     }
   }, [authHeaders]);
 
-  const loadCalendarTodoLinks = useCallback(async () => {
-    const { data } = await supabase.from("todos").select("id,notes,is_completed");
-    const links: Record<string,{id:string;completed:boolean}> = {};
-    for (const row of data || []) {
-      if (!row.notes) continue;
-      try {
-        const meta = JSON.parse(row.notes);
-        const ref = meta?.calendar;
-        if (ref?.accountId && ref?.calendarId && ref?.eventId) {
-          links[`${ref.accountId}|${ref.calendarId}|${ref.eventId}`] = {
-            id: row.id,
-            completed: Boolean(row.is_completed),
-          };
-        }
-      } catch {}
-    }
-    setCalendarTodoLinks(links);
-  }, []);
-
   useEffect(() => {
     void loadPreferences();
     void loadAccounts();
-    void loadCalendarTodoLinks();
 
     const params = new URLSearchParams(location.search);
     if (params.get("calendar") === "connected") {
@@ -820,7 +798,6 @@ export function CalendarView({ user }: { user: User }) {
       allDay: false,
       description: "",
       location: "",
-      createTodo: false,
       reminderMode:"default",
       reminderMinutes:[],
     });
@@ -942,61 +919,12 @@ export function CalendarView({ user }: { user: User }) {
     return json.event;
   }
 
-  async function createTodoForCalendarEvent(event: {id:string}, current: EventDraft) {
-    const key = `${current.accountId}|${current.calendarId}|${event.id}`;
-    if (calendarTodoLinks[key]) return;
-
-    const notes = {
-      description: current.description || "",
-      schedule: {
-        mode: "single",
-        startDate: current.date,
-        endDate: null,
-        durationDays: null,
-        target: 1,
-        history: {},
-      },
-      source: "calendar",
-      calendar: {
-        accountId: current.accountId,
-        calendarId: current.calendarId,
-        eventId: event.id,
-      },
-    };
-
-    const dueTime = current.allDay ? "09:00:00" : `${current.startTime}:00`;
-    const { data, error } = await supabase
-      .from("todos")
-      .insert({
-        title: current.title.trim(),
-        notes: JSON.stringify(notes),
-        due_at: `${current.date}T${dueTime}`,
-      })
-      .select("id")
-      .single();
-
-    if (error) throw error;
-    setCalendarTodoLinks(old => ({...old,[key]:{id:data.id,completed:false}}));
-  }
-
-  async function createTodoFromHoveredEvent() {
-    if (!eventHover || !hoverDraft) return;
-    try {
-      await createTodoForCalendarEvent(eventHover.event, hoverDraft);
-      setMessage("Etkinlik TODO listesine bağlandı.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "TODO oluşturulamadı.");
-    }
-  }
-
   async function saveHoverEvent() {
     if (!hoverDraft || !eventHover) return;
     setHoverSaving(true);
     try {
-      const saved = await persistEventDraft(hoverDraft);
-      void saved;
+      await persistEventDraft(hoverDraft);
       await loadEvents();
-      await loadCalendarTodoLinks();
       setEventHover(null);
       setHoverDraft(null);
       setMessage("");
@@ -1010,8 +938,7 @@ export function CalendarView({ user }: { user: User }) {
   async function saveEvent() {
     if (!draft) return;
     try {
-      const saved = await persistEventDraft(draft);
-      void saved;
+      await persistEventDraft(draft);
       setDraft(null);
       setDraftPosition(null);
       await loadEvents();
@@ -1037,7 +964,14 @@ export function CalendarView({ user }: { user: User }) {
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Etkinlik silinemedi.");
+      await supabase
+        .from("calendar_event_state")
+        .delete()
+        .eq("account_id",draft.accountId)
+        .eq("calendar_id",draft.calendarId)
+        .eq("event_id",draft.id);
       setDraft(null);
+      setDraftPosition(null);
       await loadEvents();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Etkinlik silinemedi.");
@@ -1533,27 +1467,57 @@ export function CalendarView({ user }: { user: User }) {
 
   useEffect(() => {
     if (!draft || !draftPosition || !eventEditorRef.current) return;
-    const rect=eventEditorRef.current.getBoundingClientRect();
-    let x=draftPosition.x;
-    let y=draftPosition.y;
-    if(rect.right>window.innerWidth-10) x=Math.max(10,window.innerWidth-rect.width-10);
-    if(rect.bottom>window.innerHeight-10) y=Math.max(10,window.innerHeight-rect.height-10);
-    if(rect.left<10) x=10;
-    if(rect.top<10) y=10;
-    if(x!==draftPosition.x || y!==draftPosition.y) setDraftPosition({x,y});
+    const node=eventEditorRef.current;
+
+    const clamp=()=>{
+      const rect=node.getBoundingClientRect();
+      let x=draftPosition.x;
+      let y=draftPosition.y;
+      if(rect.right>window.innerWidth-10) x=Math.max(10,window.innerWidth-rect.width-10);
+      if(rect.bottom>window.innerHeight-10) y=Math.max(10,window.innerHeight-rect.height-10);
+      if(rect.left<10) x=10;
+      if(rect.top<10) y=10;
+      if(x!==draftPosition.x || y!==draftPosition.y) {
+        setDraftPosition({x,y});
+      }
+    };
+
+    clamp();
+    const observer=new ResizeObserver(clamp);
+    observer.observe(node);
+    window.addEventListener("resize",clamp);
+    return ()=>{
+      observer.disconnect();
+      window.removeEventListener("resize",clamp);
+    };
   },[draft?.id,draftPosition?.x,draftPosition?.y]);
 
   useEffect(() => {
     if (!eventHover || !eventPreviewRef.current) return;
-    const rect = eventPreviewRef.current.getBoundingClientRect();
-    let nextX = eventHover.x;
-    let nextY = eventHover.y;
-    if (rect.bottom > window.innerHeight - 10) nextY = Math.max(10, window.innerHeight - rect.height - 10);
-    if (rect.right > window.innerWidth - 10) nextX = Math.max(10, window.innerWidth - rect.width - 10);
-    if (nextX !== eventHover.x || nextY !== eventHover.y) {
-      setEventHover({...eventHover,x:nextX,y:nextY});
-    }
-  }, [eventHover?.event.id]);
+    const node=eventPreviewRef.current;
+
+    const clamp=()=>{
+      const rect=node.getBoundingClientRect();
+      let nextX=eventHover.x;
+      let nextY=eventHover.y;
+      if(rect.bottom>window.innerHeight-10) nextY=Math.max(10,window.innerHeight-rect.height-10);
+      if(rect.right>window.innerWidth-10) nextX=Math.max(10,window.innerWidth-rect.width-10);
+      if(rect.left<10) nextX=10;
+      if(rect.top<10) nextY=10;
+      if(nextX!==eventHover.x || nextY!==eventHover.y) {
+        setEventHover(current=>current ? {...current,x:nextX,y:nextY} : current);
+      }
+    };
+
+    clamp();
+    const observer=new ResizeObserver(clamp);
+    observer.observe(node);
+    window.addEventListener("resize",clamp);
+    return ()=>{
+      observer.disconnect();
+      window.removeEventListener("resize",clamp);
+    };
+  },[eventHover?.event.id,eventHover?.x,eventHover?.y]);
 
   useEffect(() => {
     return () => {
