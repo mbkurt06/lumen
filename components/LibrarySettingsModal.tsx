@@ -12,6 +12,8 @@ type Prefs = {
   showArabic: boolean;
   showLatin: boolean;
   showTurkish: boolean;
+  showCounter: boolean;
+  showPlay: boolean;
   quranShowLatin: boolean;
   quranShowTranslation: boolean;
   quranEasyRead: boolean;
@@ -28,6 +30,8 @@ const defaults: Prefs = {
   showArabic: true,
   showLatin: true,
   showTurkish: false,
+  showCounter: true,
+  showPlay: true,
   quranShowLatin: false,
   quranShowTranslation: false,
   quranEasyRead: false,
@@ -38,7 +42,7 @@ const defaults: Prefs = {
   risalePageTheme: "paper",
 };
 
-function scopeKey(scope: ReaderScope, key: "fontScale" | "showArabic" | "showLatin" | "showTurkish") {
+function scopeKey(scope: ReaderScope, key: "fontScale" | "showArabic" | "showLatin" | "showTurkish" | "showCounter" | "showPlay") {
   return `${scope}${key[0].toUpperCase()}${key.slice(1)}`;
 }
 
@@ -48,10 +52,14 @@ function readScopedPrefs(raw: Record<string, unknown>, scope: ReaderScope): Pref
   const showArabic = raw[scopeKey(scope,"showArabic")];
   const showLatin = raw[scopeKey(scope,"showLatin")];
   const showTurkish = raw[scopeKey(scope,"showTurkish")];
+  const showCounter = raw[scopeKey(scope,"showCounter")];
+  const showPlay = raw[scopeKey(scope,"showPlay")];
   if (typeof fontScale === "number") next.fontScale = fontScale;
   if (typeof showArabic === "boolean") next.showArabic = showArabic;
   if (typeof showLatin === "boolean") next.showLatin = showLatin;
   if (typeof showTurkish === "boolean") next.showTurkish = showTurkish;
+  if (typeof showCounter === "boolean") next.showCounter = showCounter;
+  if (typeof showPlay === "boolean") next.showPlay = showPlay;
   if (scope === "quran") next.showArabic = true;
   return next;
 }
@@ -73,6 +81,8 @@ function applyPrefs(p: Prefs, scope: ReaderScope) {
   document.body.classList.toggle("quranHideLatin", scope === "quran" && !p.quranShowLatin);
   document.body.classList.toggle("quranHideTranslation", scope === "quran" && !p.quranShowTranslation);
   document.body.classList.remove("quranEasyRead");
+  document.body.dataset.readerShowCounter = p.showCounter ? "1" : "0";
+  document.body.dataset.readerShowPlay = p.showPlay ? "1" : "0";
   if (scope === "quran") {
     localStorage.setItem("lumen-quran-page-prefs", JSON.stringify({
       quranFontScale: p.quranFontScale,
@@ -147,6 +157,8 @@ export function LibrarySettingsModal({
       [scopeKey(scope,"showArabic")]: next.showArabic,
       [scopeKey(scope,"showLatin")]: next.showLatin,
       [scopeKey(scope,"showTurkish")]: next.showTurkish,
+      [scopeKey(scope,"showCounter")]: next.showCounter,
+      [scopeKey(scope,"showPlay")]: next.showPlay,
     };
     const snapshot: Record<string, unknown> = {
       ...rawPrefsRef.current,
@@ -385,6 +397,23 @@ export function LibrarySettingsModal({
         </div>
           </>
         )}
+
+        <div className="settingSectionTitle">Okuma araçları</div>
+
+        <div className="settingRow">
+          <span>Tesbih sayacı</span>
+          <button className="settingButton" onClick={() => update({...prefs,showCounter:!prefs.showCounter})}>
+            {prefs.showCounter ? "Göster" : "Gizli"}
+          </button>
+        </div>
+
+        <div className="settingRow">
+          <span>Play tuşu</span>
+          <button className="settingButton" onClick={() => update({...prefs,showPlay:!prefs.showPlay})}>
+            {prefs.showPlay ? "Göster" : "Gizli"}
+          </button>
+        </div>
+
       </div>
     </aside>
   );
