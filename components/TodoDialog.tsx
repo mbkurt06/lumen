@@ -105,6 +105,7 @@ export function TodoDialog({
       return;
     }
 
+    window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
     if (onSaved) await onSaved();
     onClose();
   }
