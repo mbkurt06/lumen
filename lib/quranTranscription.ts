@@ -9,7 +9,7 @@ const memory = new Map<number, Record<number,string>>();
 const pending = new Map<number, Promise<Record<number,string>>>();
 
 function cacheKey(surahNo:number){
-  return `lumen-quran-tr-transcription-v1:${surahNo}`;
+  return `lumen-quran-tr-transcription-v2:${surahNo}`;
 }
 
 function clean(value:string){
@@ -28,8 +28,10 @@ export async function loadTurkishQuranTranscription(surahNo:number):Promise<Reco
       const raw=localStorage.getItem(cacheKey(surahNo));
       if(raw){
         const parsed=JSON.parse(raw) as Record<number,string>;
-        memory.set(surahNo,parsed);
-        return parsed;
+        if(Object.keys(parsed).length){
+          memory.set(surahNo,parsed);
+          return parsed;
+        }
       }
     }catch{}
   }
