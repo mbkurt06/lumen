@@ -299,6 +299,7 @@ export function AppShell({
           {tab === "library" && libraryMode === "read" && selectedItem && (
             <ReaderView
               item={selectedItem}
+              categoryTitle={returnEzberRoot?.title || ""}
               initialFocusIndex={initialSegmentIndex}
               onBack={() => setLibraryMode("hub")}
               onMenu={() => {
