@@ -1,13 +1,36 @@
-const CACHE_VERSION = "lumen-pwa-v1";
+const CACHE_VERSION = "lumen-pwa-v2";
 const SHELL_CACHE = CACHE_VERSION + "-shell";
 const RUNTIME_CACHE = CACHE_VERSION + "-runtime";
 
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(SHELL_CACHE)
-      .then(cache => cache.addAll(["/"]))
-      .then(() => self.skipWaiting())
+async function precacheShell() {
+  const cache = await caches.open(SHELL_CACHE);
+  const response = await fetch("/", { cache: "reload" });
+  if (!response.ok) return;
+
+  await cache.put("/", response.clone());
+
+  const html = await response.text();
+  const paths = new Set(["/manifest.webmanifest", "/icon.svg"]);
+
+  for (const match of html.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
+    const value = match[1];
+    if (value.startsWith("/_next/static/") || value.startsWith("/_next/image")) {
+      paths.add(value);
+    }
+  }
+
+  await Promise.all(
+    Array.from(paths).map(async path => {
+      try {
+        const asset = await fetch(path, { cache: "reload" });
+        if (asset.ok) await cache.put(path, asset);
+      } catch {}
+    })
   );
+}
+
+self.addEventListener("install", event => {
+  event.waitUntil(precacheShell().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", event => {
@@ -33,7 +56,8 @@ self.addEventListener("fetch", event => {
         const response = await fetch(request);
         if (response.ok) {
           const cache = await caches.open(RUNTIME_CACHE);
-          cache.put(request, response.clone());
+          await cache.put(request, response.clone());
+          await cache.put("/", response.clone());
         }
         return response;
       } catch {
@@ -58,7 +82,7 @@ self.addEventListener("fetch", event => {
       const response = await fetch(request);
       if (response.ok) {
         const cache = await caches.open(RUNTIME_CACHE);
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
     })());
@@ -70,7 +94,7 @@ self.addEventListener("fetch", event => {
     const network = fetch(request).then(async response => {
       if (response.ok) {
         const cache = await caches.open(RUNTIME_CACHE);
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
     }).catch(() => null);
