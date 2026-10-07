@@ -102,7 +102,8 @@ export function AppShell({
     } catch {
       if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
     }
-    setRestored(true);
+    const cachedReaderPrefs = readLocalReaderPrefs();
+    if (Object.keys(cachedReaderPrefs).length) setRestored(true);
 
     supabase
       .from("user_preferences")
@@ -145,7 +146,9 @@ export function AppShell({
             showTurkish: prefs.showTurkish === true,
           }
         }));
-      });
+        setRestored(true);
+      })
+      .catch(() => setRestored(true));
   }, []);
 
   useEffect(() => {
