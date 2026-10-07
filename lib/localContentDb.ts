@@ -176,7 +176,11 @@ export async function getCachedContentByDocument(documentId:string){
 }
 
 export async function getCachedQuranNodesByPage(page:number){
-  const rows=await allFromIndex<CachedContentNode>("content_nodes","page",String(page));
+  const [numericRows,stringRows]=await Promise.all([
+    allFromIndex<CachedContentNode>("content_nodes","page",page),
+    allFromIndex<CachedContentNode>("content_nodes","page",String(page)),
+  ]);
+  const rows=[...numericRows,...stringRows.filter(row=>!numericRows.some(item=>item.id===row.id))];
   return rows
     .filter(row=>(row.metadata as any)?.source==="quran_seeded")
     .sort((a,b)=>{
