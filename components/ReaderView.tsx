@@ -1273,7 +1273,7 @@ export function ReaderView({
         </div>
       )}
 
-      {isBookSelectionDocument && bookSelection && (
+      {isBookSelectionDocument && bookSelection && !todoTarget && !documentTodoOpen && (
         <div
           className="bookSelectionPopover"
           style={{left:bookSelection.x, top:bookSelection.y}}
@@ -1311,11 +1311,15 @@ export function ReaderView({
               {!bookTodoExistingOpen ? (
                 <>
                   <button
-                    onClick={() => setTodoTarget({
-                      title:bookSelection.text || item.title,
-                      nodeId:bookSelection.nodeId || undefined,
-                      defaultTarget:1,
-                    })}
+                    onClick={() => {
+                      setBookTodoMenuOpen(false);
+                      setBookTodoExistingOpen(false);
+                      setTodoTarget({
+                        title:bookSelection.text || item.title,
+                        nodeId:bookSelection.nodeId || undefined,
+                        defaultTarget:1,
+                      });
+                    }}
                   >
                     Yeni oluştur
                   </button>
