@@ -191,6 +191,7 @@ export function ReaderView({
   const [showCounterControl, setShowCounterControl] = useState<boolean | null>(null);
   const [showPlayControl, setShowPlayControl] = useState<boolean | null>(null);
   const [bookSelection, setBookSelection] = useState<BookSelection | null>(null);
+  const [mobileSelectionDraft, setMobileSelectionDraft] = useState<BookSelection | null>(null);
   const [bookBookmarks, setBookBookmarks] = useState<BookBookmark[]>([]);
   const [bookBookmarkMenuOpen, setBookBookmarkMenuOpen] = useState(false);
   const [bookBookmarkName, setBookBookmarkName] = useState("");
@@ -264,6 +265,7 @@ export function ReaderView({
 
   useEffect(() => {
     setBookSelection(null);
+    setMobileSelectionDraft(null);
     setBookBookmarkMenuOpen(false);
     setBookBookmarkExistingOpen(false);
     setBookTodoMenuOpen(false);
@@ -274,24 +276,14 @@ export function ReaderView({
   useEffect(() => {
     if (!isBookSelectionDocument) {
       setBookSelection(null);
+      setMobileSelectionDraft(null);
       return;
     }
 
-    let settleTimer: ReturnType<typeof setTimeout> | null = null;
-    const isCoarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches === true;
-
-    const clearSettleTimer = () => {
-      if (settleTimer) clearTimeout(settleTimer);
-      settleTimer = null;
-    };
-
-    const captureCurrentSelection = () => {
+    const readCurrentSelection = (): BookSelection | null => {
       const selection = window.getSelection();
       const text = selection?.toString().trim() || "";
-      if (!selection || selection.rangeCount === 0 || !text) {
-        setBookSelection(null);
-        return;
-      }
+      if (!selection || selection.rangeCount === 0 || !text) return null;
 
       const range = selection.getRangeAt(0);
       const startElement = range.startContainer.nodeType === window.Node.ELEMENT_NODE
@@ -303,19 +295,25 @@ export function ReaderView({
 
       const readerSelector = ".legacyReadPage, .risaleBookPage, .quranPage";
       const reader = startElement?.closest(readerSelector);
-      if (!reader || !endElement?.closest(readerSelector)) return;
+      if (!reader || !endElement?.closest(readerSelector)) return null;
 
       const nodeElement = startElement?.closest("[data-node-id]") as HTMLElement | null;
       const rect = range.getBoundingClientRect();
-      const x = Math.max(110, Math.min(window.innerWidth - 110, rect.left + rect.width / 2));
-      const y = Math.max(52, rect.top - 8);
 
-      setBookSelection({
-        text: text.slice(0, 1200),
+      return {
+        text: text.slice(0,1200),
         nodeId: nodeElement?.dataset.nodeId || null,
-        x,
-        y,
-      });
+        x: Math.max(110,Math.min(window.innerWidth - 110,rect.left + rect.width / 2)),
+        y: Math.max(52,rect.top - 8),
+      };
+    };
+
+    const captureDesktopSelection = (event: PointerEvent) => {
+      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+      if (touchLike || (!event.metaKey && !event.ctrlKey)) return;
+      const current = readCurrentSelection();
+      if (!current) return;
+      setBookSelection(current);
       setBookBookmarkMenuOpen(false);
       setBookBookmarkExistingOpen(false);
       setBookTodoMenuOpen(false);
@@ -323,74 +321,22 @@ export function ReaderView({
       setBookActionMessage("");
     };
 
-    const scheduleTouchCapture = (delay = 520) => {
-      clearSettleTimer();
-      // Wait until iOS/iPadOS selection handles have stopped moving. While the
-      // user drags a handle, selectionchange keeps resetting this timer.
-      settleTimer = window.setTimeout(captureCurrentSelection, delay);
+    const captureMobileDraft = () => {
+      const coarse = window.matchMedia?.("(pointer: coarse)")?.matches === true;
+      if (!coarse) return;
+      const current = readCurrentSelection();
+      setMobileSelectionDraft(current);
+      // Native iOS selection UI owns this stage. Never open our popover here.
+      if (!current) setBookSelection(null);
     };
 
-    const onSelectionChange = () => {
-      if (!isCoarsePointer) return;
-      const selection = window.getSelection();
-      const text = selection?.toString().trim() || "";
-
-      // Hide our menu while the native handles are being adjusted. Do not clear
-      // the browser selection; the user must be free to extend it to many words.
-      setBookSelection(null);
-      setBookTodoMenuOpen(false);
-      setBookTodoExistingOpen(false);
-      setBookBookmarkMenuOpen(false);
-      setBookBookmarkExistingOpen(false);
-
-      if (!text) {
-        clearSettleTimer();
-        return;
-      }
-      scheduleTouchCapture(650);
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
-      if (!touchLike) return;
-
-      const selection = window.getSelection();
-      if (selection?.toString().trim()) {
-        // Starting to drag a native selection handle: hide only our UI.
-        // Keep the native selection intact.
-        clearSettleTimer();
-        setBookSelection(null);
-        setBookTodoMenuOpen(false);
-        setBookTodoExistingOpen(false);
-        setBookBookmarkMenuOpen(false);
-        setBookBookmarkExistingOpen(false);
-      }
-    };
-
-    const onPointerUp = (event: PointerEvent) => {
-      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
-
-      if (!touchLike) {
-        if (!event.metaKey && !event.ctrlKey) return;
-        captureCurrentSelection();
-        return;
-      }
-
-      // Native iOS selection updates can land just after pointerup.
-      scheduleTouchCapture(650);
-    };
-
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("pointerup", onPointerUp);
-    document.addEventListener("selectionchange", onSelectionChange);
-
+    document.addEventListener("pointerup",captureDesktopSelection);
+    document.addEventListener("selectionchange",captureMobileDraft);
     return () => {
-      clearSettleTimer();
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("pointerup", onPointerUp);
-      document.removeEventListener("selectionchange", onSelectionChange);
+      document.removeEventListener("pointerup",captureDesktopSelection);
+      document.removeEventListener("selectionchange",captureMobileDraft);
     };
-  }, [isBookSelectionDocument, item.id]);
+  }, [isBookSelectionDocument,item.id]);
 
   useEffect(() => {
     if (!isBookSelectionDocument) return;
@@ -486,6 +432,20 @@ export function ReaderView({
     setBookTodoMenuOpen(false);
     setBookTodoExistingOpen(false);
   }, []);
+
+  const openMobileSelectionActions = useCallback(() => {
+    if (!mobileSelectionDraft) return;
+
+    // Tapping our toolbar dismisses iOS's Copy/Translate bubble. We use the
+    // snapshot captured before that tap, so the selected words are not lost.
+    setBookSelection(mobileSelectionDraft);
+    setBookBookmarkMenuOpen(false);
+    setBookBookmarkExistingOpen(false);
+    setBookTodoMenuOpen(false);
+    setBookTodoExistingOpen(false);
+    setBookActionMessage("");
+  }, [mobileSelectionDraft]);
+
 
   const openBookActions = useCallback((args:{nodeId:string;text:string;x:number;y:number}) => {
     setBookSelection({
@@ -1354,7 +1314,10 @@ export function ReaderView({
         onTodo={() => setDocumentTodoOpen(true)}
         onMemorize={() => onMemorize?.(initialFocusIndex)}
         showFullscreen={true}
+        showSelection={true}
+        selectionReady={!!mobileSelectionDraft}
         onFullscreen={() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))}
+        onSelection={openMobileSelectionActions}
         onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
