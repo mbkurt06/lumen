@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { offlineCacheGet, offlineCacheSet, offlineGetOne, offlineUpsert } from "@/lib/offlineDb";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type CalendarInfo = {
   id:string;
@@ -37,31 +39,46 @@ export function CalendarSidePanel({user}:{user:User}) {
   const load=useCallback(async()=>{
     setLoading(true);
     try{
-      const headers=await authHeaders();
-      const [response,prefsResult]=await Promise.all([
-        fetch("/api/google-calendar/accounts",{headers}),
-        supabase.from("user_preferences").select("preferences").maybeSingle(),
-      ]);
-      const json=await response.json();
-      if(!response.ok) throw new Error(json.error||"Takvimler alınamadı.");
-      setAccounts(json.accounts||[]);
-      const prefs=(prefsResult.data?.preferences??{}) as Record<string,unknown>;
+      const cacheKey="google-calendar-accounts:"+user.id;
+      const cachedAccounts=await offlineCacheGet<CalendarAccount[]>(cacheKey);
+      if(cachedAccounts?.length) setAccounts(cachedAccounts);
+
+      let prefs=readLocalReaderPrefs();
+      if(!Object.keys(prefs).length){
+        const cached=await offlineGetOne<any>("user_preferences",user.id);
+        if(cached?.preferences) prefs=cached.preferences as Record<string,unknown>;
+      }
+
       const hidden=Array.isArray(prefs.calendarHiddenKeys)
         ? prefs.calendarHiddenKeys.filter(x=>typeof x==="string") as string[]
         : [];
       setHiddenKeys(new Set(hidden));
       if(Array.isArray(prefs.calendarTodoEnabledKeys)){
         setTodoKeys(new Set(prefs.calendarTodoEnabledKeys.filter(x=>typeof x==="string") as string[]));
-      } else {
+      }else{
         setTodoKeys(null);
       }
+
+      if(!navigator.onLine){
+        if(!cachedAccounts) setAccounts([]);
+        setMessage("");
+        return;
+      }
+
+      const headers=await authHeaders();
+      const response=await fetch("/api/google-calendar/accounts",{headers});
+      const json=await response.json();
+      if(!response.ok) throw new Error(json.error||"Takvimler alınamadı.");
+      const rows=(json.accounts||[]) as CalendarAccount[];
+      setAccounts(rows);
+      await offlineCacheSet(cacheKey,rows);
       setMessage("");
     }catch(error){
-      setMessage(error instanceof Error?error.message:"Takvimler alınamadı.");
+      if(navigator.onLine) setMessage(error instanceof Error?error.message:"Takvimler alınamadı.");
     }finally{
       setLoading(false);
     }
-  },[authHeaders]);
+  },[authHeaders,user.id]);
 
   useEffect(()=>{void load();},[load]);
 
@@ -78,12 +95,14 @@ export function CalendarSidePanel({user}:{user:User}) {
   }
 
   async function savePrefs(patch:Record<string,unknown>){
-    const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old=(data?.preferences??{}) as Record<string,unknown>;
-    await supabase.from("user_preferences").upsert({
+    const current=readLocalReaderPrefs();
+    const snapshot={...current,...patch};
+    writeLocalReaderPrefs(snapshot);
+    await offlineUpsert("user_preferences",user.id,{
       owner_id:user.id,
-      preferences:{...old,...patch},
-    });
+      preferences:snapshot,
+      updated_at:new Date().toISOString(),
+    },{onConflict:"owner_id"});
     window.dispatchEvent(new CustomEvent("lumen-calendar-sources-changed"));
   }
 
