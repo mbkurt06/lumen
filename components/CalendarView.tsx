@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { offlineCacheGet, offlineCacheSet, offlineGetOne, offlineGetRows, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
+import { offlineCacheGet, offlineCacheSet, offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
@@ -262,7 +262,9 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     try{
       const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
       const remote=(data?.preferences ?? {}) as Record<string,unknown>;
-      const merged={...remote,...readLocalReaderPrefs()};
+      const current=readLocalReaderPrefs();
+      const pending=await offlineHasPending("user_preferences");
+      const merged=pending ? {...remote,...current} : remote;
       writeLocalReaderPrefs(merged);
       applyCalendarPreferences(merged);
     }catch{}
