@@ -262,35 +262,6 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     if (typeof prefs.calendarAutoScrollNow === "boolean") setAutoScrollNow(prefs.calendarAutoScrollNow);
   }, []);
 
-  useEffect(() => {
-    const refreshToday = () => {
-      const now = new Date();
-      const key = localDateKey(now);
-      if (key === lastTodayKeyRef.current) return;
-      lastTodayKeyRef.current = key;
-
-      if (followToday) {
-        setAnchor(now);
-        void saveViewPrefs({
-          calendarAnchor: key,
-          calendarAnchorFollowsToday: true,
-        });
-      }
-    };
-
-    const timer = window.setInterval(refreshToday, 60 * 1000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refreshToday();
-    };
-    window.addEventListener("focus", refreshToday);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refreshToday);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [followToday, saveViewPrefs]);
-
   const saveCalendarPrefs = useCallback(async (nextHidden: Set<string>, nextView = view) => {
     const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
     const old = (data?.preferences ?? {}) as Record<string, unknown>;
@@ -325,6 +296,35 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       preferences: { ...old, ...patch },
     });
   }, [user.id]);
+
+  useEffect(() => {
+    const refreshToday = () => {
+      const now = new Date();
+      const key = localDateKey(now);
+      if (key === lastTodayKeyRef.current) return;
+      lastTodayKeyRef.current = key;
+
+      if (followToday) {
+        setAnchor(now);
+        void saveViewPrefs({
+          calendarAnchor: key,
+          calendarAnchorFollowsToday: true,
+        });
+      }
+    };
+
+    const timer = window.setInterval(refreshToday, 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshToday();
+    };
+    window.addEventListener("focus", refreshToday);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshToday);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [followToday, saveViewPrefs]);
 
   const loadAccounts = useCallback(async () => {
     setLoadingAccounts(true);
