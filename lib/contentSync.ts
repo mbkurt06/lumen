@@ -76,6 +76,7 @@ let syncPromise:Promise<void>|null=null;
 
 export function syncStaticContentInBackground(ownerId:string, options:{forceFull?:boolean} = {}){
   if(typeof window==="undefined") return Promise.resolve();
+  if(!navigator.onLine) return Promise.resolve();
   if(syncPromise) return syncPromise;
 
   syncPromise=(async()=>{
