@@ -290,6 +290,14 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
 
       const cachedAccounts=await offlineCacheGet<CalendarAccount[]>("google-calendar-accounts:"+ownerId);
       const cachedEvents=await offlineCacheGet<CalendarEvent[]>("google-calendar-events:"+ownerId+":"+key);
+      const masterEvents=await offlineCacheGet<CalendarEvent[]>("google-calendar-events-master:"+ownerId);
+      const dayStart=new Date(key+"T00:00:00");
+      const dayEnd=new Date(dayStart); dayEnd.setDate(dayEnd.getDate()+1);
+      const fallbackEvents=(masterEvents || []).filter(event=>{
+        if(!event.start) return false;
+        const start=new Date(event.start);
+        return !Number.isNaN(start.getTime()) && start>=dayStart && start<dayEnd;
+      });
       const localStates=await offlineGetRows<CalendarState>("calendar_event_state",ownerId,row=>row.occurrence_date===key);
       const localPrefs=readLocalReaderPrefs();
       const cachedPrefRow=await offlineGetOne<any>("user_preferences",ownerId);
@@ -299,8 +307,8 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       };
 
       if(cachedAccounts?.length) setCalendarAccounts(cachedAccounts);
-      if(cachedEvents){
-        setCalendarEvents(cachedEvents);
+      if(cachedEvents || masterEvents){
+        setCalendarEvents(cachedEvents ?? fallbackEvents);
         const cachedStateMap:Record<string,boolean>={};
         for(const state of localStates){
           cachedStateMap[`${state.account_id}|${state.calendar_id}|${state.event_id}|${state.occurrence_date}`]=Boolean(state.is_completed);
@@ -310,7 +318,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       }
 
       if(!navigator.onLine){
-        if(!cachedEvents) setCalendarEvents([]);
+        if(!cachedEvents && !masterEvents) setCalendarEvents([]);
         return;
       }
 
