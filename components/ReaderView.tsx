@@ -277,11 +277,7 @@ export function ReaderView({
       return;
     }
 
-    const captureSelection = (event: PointerEvent) => {
-      // Compact action menu is deliberate: hold Command on macOS or Ctrl elsewhere
-      // while selecting text. Normal text selection stays clean and menu-free.
-      if (!event.metaKey && !event.ctrlKey) return;
-
+    const captureCurrentSelection = () => {
       const selection = window.getSelection();
       const text = selection?.toString().trim() || "";
       if (!selection || selection.rangeCount === 0 || !text) return;
@@ -314,6 +310,21 @@ export function ReaderView({
       setBookTodoMenuOpen(false);
       setBookTodoExistingOpen(false);
       setBookActionMessage("");
+    };
+
+    const captureSelection = (event: PointerEvent) => {
+      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+
+      // Desktop: Command/Ctrl + selection.
+      // Phone/tablet: native long-press text selection, then releasing the finger
+      // opens the same compact Todo/Ayraç menu.
+      if (!touchLike && !event.metaKey && !event.ctrlKey) return;
+
+      if (touchLike) {
+        window.setTimeout(captureCurrentSelection, 120);
+      } else {
+        captureCurrentSelection();
+      }
     };
 
     document.addEventListener("pointerup", captureSelection);
