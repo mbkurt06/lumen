@@ -57,6 +57,12 @@ export function AuthPanel() {
     window.addEventListener("online",handleOnline);
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Do not throw away the persisted user merely because token refresh cannot
+      // reach Supabase while the device is offline.
+      if (!navigator.onLine && !session) {
+        setAuthReady(true);
+        return;
+      }
       setUser(session?.user ?? null);
       setAuthReady(true);
     });
