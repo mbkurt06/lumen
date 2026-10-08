@@ -50,14 +50,26 @@ export function AppShell({
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    const secure = window.location.protocol === "https:"
+    const secure = window.isSecureContext
       || window.location.hostname === "localhost"
       || window.location.hostname === "127.0.0.1";
-    if (!secure) return;
+    if (!secure) {
+      console.warn("Offline mode requires HTTPS (or localhost).");
+      return;
+    }
 
-    void navigator.serviceWorker.register("/sw.js").catch(error => {
-      console.warn("Service worker registration failed", error);
-    });
+    void (async()=>{
+      try {
+        const registration = await navigator.serviceWorker.register("/sw.js", {
+          updateViaCache: "none",
+        });
+        await registration.update().catch(()=>{});
+        const ready = await navigator.serviceWorker.ready;
+        (ready.active || ready.waiting || ready.installing)?.postMessage({type:"WARM_OFFLINE"});
+      } catch (error) {
+        console.warn("Service worker registration failed", error);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -153,11 +165,11 @@ export function AppShell({
 
       // Supabase is authoritative: every app launch performs one cheap fingerprint
       // check so changed static content reaches IndexedDB without a manual sync.
-      if (checkNow) void syncStaticContentInBackground(user.id);
+      if (checkNow && navigator.onLine) void syncStaticContentInBackground(user.id);
 
       if (localStorage.getItem(AUTO_SYNC_KEY) !== "1") return;
       timer = setInterval(() => {
-        void syncStaticContentInBackground(user.id);
+        if (navigator.onLine) void syncStaticContentInBackground(user.id);
       }, 15 * 60 * 1000);
     };
 
@@ -208,7 +220,9 @@ export function AppShell({
       if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
     }
     const cachedReaderPrefs = readLocalReaderPrefs();
-    if (Object.keys(cachedReaderPrefs).length) setRestored(true);
+    if (Object.keys(cachedReaderPrefs).length || !navigator.onLine) setRestored(true);
+
+    if (!navigator.onLine) return;
 
     supabase
       .from("user_preferences")
