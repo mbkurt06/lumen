@@ -16,8 +16,11 @@ export function EzberSharedHeader({
   onMemorize,
   showFullscreen = false,
   showSettings = true,
+  showSelection = false,
+  selectionReady = false,
   onFullscreen,
   onSettings,
+  onSelection,
 }: {
   title: string;
   invocation?: string | null;
@@ -33,8 +36,11 @@ export function EzberSharedHeader({
   onMemorize?: () => void;
   showFullscreen?: boolean;
   showSettings?: boolean;
+  showSelection?: boolean;
+  selectionReady?: boolean;
   onFullscreen?: () => void;
   onSettings?: () => void;
+  onSelection?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -79,6 +85,20 @@ export function EzberSharedHeader({
               title="Tam ekran tesbih"
             >
               ⛶
+            </button>
+          )}
+          {showSelection && (
+            <button
+              className={"v2HeaderToolButton v2HeaderSelectionButton " + (selectionReady ? "ready" : "")}
+              onPointerDown={event => {
+                event.preventDefault();
+                onSelection?.();
+              }}
+              disabled={!selectionReady}
+              aria-label="Seçili metin işlemleri"
+              title={selectionReady ? "Seçili metin: Todo / Ayraç" : "Önce metin seç"}
+            >
+              ▣
             </button>
           )}
           {showSettings && (
