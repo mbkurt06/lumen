@@ -13,7 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
-import { flushOfflineOutbox, offlineCacheGet, offlineCacheSet, offlineGetOne, offlineHasPending, syncPersonalOfflineData } from "@/lib/offlineDb";
+import { flushOfflineOutbox, offlineCacheGet, offlineCacheSet, offlineGetOne, offlineHasPending, offlineUpdate, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
@@ -413,7 +413,10 @@ export function AppShell({
               target,
             },
           };
-          await supabase.from("todos").update({ notes: JSON.stringify(next) }).eq("id", todo.id);
+          await offlineUpdate("todos",user.id,{id:todo.id},{
+            notes:JSON.stringify(next),
+            updated_at:new Date().toISOString(),
+          });
         }
       }
 
