@@ -2,6 +2,7 @@
 
 import { supabase } from "@/lib/supabase/client";
 import { putStaticRows } from "@/lib/localContentDb";
+import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 
 export type OfflineTable =
   | "user_preferences"
@@ -470,12 +471,7 @@ export async function syncPersonalOfflineData(ownerId:string){
 }
 
 async function currentOfflineOwnerId(){
-  try{
-    const {data}=await supabase.auth.getSession();
-    return data.session?.user?.id || null;
-  }catch{
-    return null;
-  }
+  return await getOfflineOwnerId();
 }
 
 function mutationOwner(mutation:OfflineMutation){
