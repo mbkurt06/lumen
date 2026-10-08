@@ -23,6 +23,7 @@ type OfflineMutation = {
   payload?:Record<string,unknown>;
   match?:Record<string,unknown>;
   createdAt:string;
+  onConflict?:string;
 };
 
 const DB_NAME="lumen-offline-data";
@@ -218,14 +219,14 @@ export async function offlineUpsert(
   await offlinePutRows(table,[row]);
 
   if(!navigator.onLine){
-    await queueMutation({table,action:"upsert",payload:row,createdAt:new Date().toISOString()});
+    await queueMutation({table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
     return {error:null,queued:true};
   }
 
   let query:any=supabase.from(table).upsert(row,options.onConflict?{onConflict:options.onConflict}:undefined);
   const {error}=await query;
   if(error){
-    await queueMutation({table,action:"upsert",payload:row,createdAt:new Date().toISOString()});
+    await queueMutation({table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
     return {error,queued:true};
   }
   return {error:null,queued:false};
@@ -295,15 +296,18 @@ async function deleteOutbox(id:number){
   }finally{db.close();}
 }
 
-export async function flushOfflineOutbox(){
-  if(!navigator.onLine) return;
+export async function flushOfflineOutbox():Promise<number>{
+  if(!navigator.onLine) return (await getOutbox()).length;
   const rows=await getOutbox();
   for(const mutation of rows){
     if(!mutation.id) continue;
     try{
       let query:any;
       if(mutation.action==="upsert"){
-        query=supabase.from(mutation.table).upsert(mutation.payload || {});
+        query=supabase.from(mutation.table).upsert(
+          mutation.payload || {},
+          mutation.onConflict ? {onConflict:mutation.onConflict} : undefined
+        );
       }else if(mutation.action==="update"){
         query=supabase.from(mutation.table).update(mutation.payload || {});
         for(const [key,value] of Object.entries(mutation.match || {})) query=query.eq(key,value);
@@ -318,6 +322,7 @@ export async function flushOfflineOutbox(){
       break;
     }
   }
+  return (await getOutbox()).length;
 }
 
 const PERSONAL_TABLES:OfflineTable[]=[
@@ -337,7 +342,10 @@ const PERSONAL_TABLES:OfflineTable[]=[
 
 export async function syncPersonalOfflineData(ownerId:string){
   if(!navigator.onLine) return;
-  await flushOfflineOutbox();
+  const pending=await flushOfflineOutbox();
+  // If a local mutation could not be delivered yet, do not overwrite newer
+  // device state with older server rows. Retry when connectivity is healthy.
+  if(pending>0) return;
 
   for(const table of PERSONAL_TABLES){
     try{
