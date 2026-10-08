@@ -163,6 +163,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
   const [calendarCompletion, setCalendarCompletion] = useState<Record<string, boolean>>({});
   const [view, setView] = useState<ViewMode>("month");
   const [anchor, setAnchor] = useState(() => new Date());
+  const [currentDay, setCurrentDay] = useState(() => new Date());
   const [followToday, setFollowToday] = useState(true);
   const lastTodayKeyRef = useRef(localDateKey(new Date()));
   const [listRange, setListRange] = useState<ListRange>("month");
@@ -300,6 +301,8 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
   useEffect(() => {
     const refreshToday = () => {
       const now = new Date();
+      setCurrentDay(now);
+
       const key = localDateKey(now);
       if (key === lastTodayKeyRef.current) return;
       lastTodayKeyRef.current = key;
@@ -718,6 +721,13 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
+
+  const todayLabel = currentDay.toLocaleDateString("tr-TR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   const title = useMemo(() => {
     if (view === "year") return String(anchor.getFullYear());
@@ -1788,7 +1798,13 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
             <button className="calendarToday" onClick={goToday}>Bugün</button>
             <button onClick={() => move(-1)}>‹</button>
             <button onClick={() => move(1)}>›</button>
-            <h1>{title}</h1>
+            <div className="calendarToolbarTitles">
+              <h1>{title}</h1>
+              <div className="calendarCurrentDate" title="Bugünün tarihi">
+                <span>Bugün</span>
+                <strong>{todayLabel}</strong>
+              </div>
+            </div>
           </div>
           <div className="calendarToolbarRight">
             <button className="calendarPrefsButton" onClick={() => setCalendarPrefsOpen(open => !open)} title="Takvim görünüm ayarları">⚙</button>
