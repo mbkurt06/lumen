@@ -51,6 +51,15 @@ export function AppShell({
   } | null>(null);
 
   useEffect(() => {
+    // Ask the browser to keep Lumen's IndexedDB/cache data persistent when the
+    // platform supports it. Installed PWAs are more likely to retain data, and
+    // unsupported browsers simply ignore this.
+    if(navigator.storage?.persist){
+      void navigator.storage.persist().catch(()=>false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const secure = window.isSecureContext
       || window.location.hostname === "localhost"
