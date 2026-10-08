@@ -12,6 +12,7 @@ import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { offlineGetOne, offlineGetRows, offlineReplaceRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Item = {
   id: string;
@@ -356,19 +357,28 @@ export function ReaderView({
 
   useEffect(() => {
     if (!isBookSelectionDocument) return;
+    const local=readLocalReaderPrefs();
+    const key=readerScope+"Bookmarks";
+    const localRows=Array.isArray(local[key]) ? local[key] as BookBookmark[] : [];
+    setBookBookmarks(localRows.filter(row=>row?.itemId===item.id));
+
+    if(!navigator.onLine) return;
     void supabase.from("user_preferences").select("preferences").maybeSingle().then(({data}) => {
-      const prefs=(data?.preferences ?? {}) as Record<string,unknown>;
-      const key=readerScope+"Bookmarks";
-      const rows=Array.isArray(prefs[key]) ? prefs[key] as BookBookmark[] : [];
+      const remote=(data?.preferences ?? {}) as Record<string,unknown>;
+      const merged={...remote,...readLocalReaderPrefs()};
+      writeLocalReaderPrefs(merged);
+      const rows=Array.isArray(merged[key]) ? merged[key] as BookBookmark[] : [];
       setBookBookmarks(rows.filter(row=>row?.itemId===item.id));
-    });
+    }).catch(()=>{});
   }, [isBookSelectionDocument, item.id, readerScope]);
 
   const saveBookBookmark = useCallback(async (existingId?:string) => {
     if (!bookSelection) return;
-    const {data,error}=await supabase.from("user_preferences").select("preferences").maybeSingle();
-    if(error){setBookActionMessage(error.message);return;}
-    const prefs=(data?.preferences ?? {}) as Record<string,unknown>;
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
+
+    const prefs=readLocalReaderPrefs();
     const key=readerScope+"Bookmarks";
     const all=Array.isArray(prefs[key]) ? prefs[key] as BookBookmark[] : [];
     const existing=existingId ? all.find(row=>row.id===existingId) : null;
@@ -386,11 +396,16 @@ export function ReaderView({
     const next=existing
       ? all.map(row=>row.id===existing.id ? nextBookmark : row)
       : [...all,nextBookmark];
-    const {error:saveError}=await supabase.from("user_preferences").upsert({
-      preferences:{...prefs,[key]:next},
+
+    const snapshot={...prefs,[key]:next};
+    writeLocalReaderPrefs(snapshot);
+    const result=await offlineUpsert("user_preferences",ownerId,{
+      owner_id:ownerId,
+      preferences:snapshot,
       updated_at:new Date().toISOString(),
-    });
-    if(saveError){setBookActionMessage(saveError.message);return;}
+    },{onConflict:"owner_id"});
+    if(result.error && navigator.onLine){setBookActionMessage(result.error.message);return;}
+
     setBookBookmarks(next.filter(row=>row.itemId===item.id));
     setBookBookmarkName("");
     setBookBookmarkMenuOpen(false);
@@ -398,17 +413,14 @@ export function ReaderView({
   }, [bookSelection,bookBookmarkName,item.id,item.title,readerScope]);
 
   const loadBookTodoChoices = useCallback(async () => {
-    const {data,error}=await supabase.from("todos")
-      .select("id,title,notes")
-      .eq("related_library_item_id",item.id)
-      .order("created_at",{ascending:true});
-    if(error){setBookActionMessage(error.message);return;}
-    setBookTodoChoices((data ?? []).map(todo=>({
-      id:todo.id,
-      title:todo.title,
-      notes:todo.notes,
-      description:parseMeta(todo.notes).description || "",
-      position:null,
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
+    const local=await offlineGetRows<any>("todos",ownerId,row=>row.related_library_item_id===item.id);
+    const rows=local.sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+    setBookTodoChoices(rows.map(todo=>({
+      id:todo.id,title:todo.title,notes:todo.notes,
+      description:parseMeta(todo.notes).description || "",position:null,
     })));
     setBookTodoMenuOpen(true);
     setBookTodoExistingOpen(true);
@@ -429,12 +441,16 @@ export function ReaderView({
         updatedAt:new Date().toISOString(),
       },
     };
-    const {error}=await supabase.from("todos").update({
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
+    const result=await offlineUpdate("todos",ownerId,{id:todo.id},{
       notes:JSON.stringify(nextMeta),
       related_library_item_id:item.id,
       related_content_node_id:bookSelection.nodeId,
-    }).eq("id",todo.id);
-    if(error){setBookActionMessage(error.message);return;}
+      updated_at:new Date().toISOString(),
+    });
+    if(result.error && navigator.onLine){setBookActionMessage(result.error.message);return;}
     setBookTodoMenuOpen(false);
     setBookActionMessage(`${todo.title} seçili konuma güncellendi.`);
     window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
@@ -690,9 +706,12 @@ export function ReaderView({
         position,
       },
     };
-    const { error } = await supabase.from("todos").update({ notes: JSON.stringify(nextMeta) }).eq("id", todo.id);
-    if (error) {
-      setQuranActionMessage(error.message);
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){setQuranActionMessage("Oturum bulunamadı.");return;}
+    const result=await offlineUpdate("todos",ownerId,{id:todo.id},{notes:JSON.stringify(nextMeta),updated_at:new Date().toISOString()});
+    if(result.error && navigator.onLine){
+      setQuranActionMessage(result.error.message);
       return;
     }
     setQuranTodoMenuOpen(false);
@@ -710,16 +729,30 @@ export function ReaderView({
   }, [itemTarget, nodes.length]);
 
   const loadTodos = useCallback(async () => {
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) return;
+
+    const local=await offlineGetRows<Todo>("todos",ownerId,row=>row.related_library_item_id===item.id);
+    if(local.length) setTodos(local);
+
+    if(!navigator.onLine){
+      if(!local.length) setTodos([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("todos")
-      .select("id,notes,related_content_node_id,related_library_item_id")
+      .select("id,owner_id,title,notes,is_completed,due_at,sort_order,related_content_node_id,related_library_item_id,created_at,updated_at")
       .eq("related_library_item_id", item.id);
 
     if (error) {
-      setMessage(error.message);
+      if(!local.length) setMessage(error.message);
       return;
     }
-    setTodos(data ?? []);
+    const rows=(data ?? []) as any[];
+    await offlineReplaceRows("todos",rows.filter(row=>row.owner_id===ownerId),ownerId);
+    setTodos(rows);
   }, [item.id]);
 
   const focusQuranNode = useCallback((nodeId:string | null) => {
@@ -936,21 +969,14 @@ export function ReaderView({
 
   useEffect(() => {
     if (!isQuranDocument) return;
-    void (async () => {
-      const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-      const preferences = (data?.preferences ?? {}) as Record<string, any>;
-      let bookmarks = Array.isArray(preferences.quranBookmarks)
-        ? preferences.quranBookmarks as QuranBookmark[]
-        : [];
-      if (!bookmarks.length && preferences.quranBookmark?.nodeId) {
-        bookmarks = [{
-          id:"quran-bookmark-main",
-          name:"Kaldığım yer",
-          position:preferences.quranBookmark as QuranPosition,
-        }];
-      }
-      setQuranBookmarks(bookmarks.filter(bookmark => bookmark?.position?.nodeId && bookmark?.position?.page));
-    })();
+    const preferences=readLocalReaderPrefs() as Record<string,any>;
+    let bookmarks = Array.isArray(preferences.quranBookmarks)
+      ? preferences.quranBookmarks as QuranBookmark[]
+      : [];
+    if (!bookmarks.length && preferences.quranBookmark?.nodeId) {
+      bookmarks = [{id:"quran-bookmark-main",name:"Kaldığım yer",position:preferences.quranBookmark as QuranPosition}];
+    }
+    setQuranBookmarks(bookmarks.filter(bookmark => bookmark?.position?.nodeId && bookmark?.position?.page));
   }, [isQuranDocument, item.id]);
 
   useEffect(() => {
@@ -1078,12 +1104,14 @@ export function ReaderView({
       )
     );
 
-    const { error } = await supabase
-      .from("todos")
-      .update({ notes: JSON.stringify(nextMeta) })
-      .eq("id", todoInfo.todo.id);
-
-    if (error) setMessage(error.message);
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) return;
+    const result=await offlineUpdate("todos",ownerId,{id:todoInfo.todo.id},{
+      notes:JSON.stringify(nextMeta),
+      updated_at:new Date().toISOString(),
+    });
+    if(result.error && navigator.onLine) setMessage(result.error.message);
   }
 
   async function incrementActive() {
