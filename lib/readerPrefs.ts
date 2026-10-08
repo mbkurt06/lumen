@@ -26,5 +26,12 @@ export function scopedBoolean(
   fallback:boolean
 ){
   const value=prefs[scope+key];
-  return typeof value==="boolean" ? value : fallback;
+  if(typeof value==="boolean") return value;
+
+  // Older preference snapshots stored these switches without a scope
+  // (showPlay/showCounter). Settings still reads those values, so Reader must
+  // use the same fallback or the UI can say "Kapalı" while the button appears.
+  const legacyKey=key[0].toLowerCase()+key.slice(1);
+  const legacyValue=prefs[legacyKey];
+  return typeof legacyValue==="boolean" ? legacyValue : fallback;
 }
