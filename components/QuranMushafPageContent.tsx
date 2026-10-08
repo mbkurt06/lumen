@@ -299,7 +299,7 @@ export function QuranMushafPageContent({
                   onPointerUp={() => clearLongPress()}
                   onPointerCancel={() => clearLongPress()}
                   onContextMenu={event => {
-                    if (event.pointerType === "touch" || event.pointerType === "pen") event.preventDefault();
+                    event.preventDefault();
                   }}
                   onClick={event => {
                     event.stopPropagation();
