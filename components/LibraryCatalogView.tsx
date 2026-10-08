@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import type { EzberItem } from "@/components/EzberHomeView";
+import { readLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Section = "quran" | "risale";
 
@@ -146,20 +147,17 @@ export function LibraryCatalogView({
 
   useEffect(() => {
     if (section !== "quran") return;
-    const loadBookmarks = async () => {
-      const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-      const preferences = (data?.preferences ?? {}) as Record<string, any>;
-      let bookmarks = Array.isArray(preferences.quranBookmarks) ? preferences.quranBookmarks : [];
-      if (!bookmarks.length && preferences.quranBookmark?.page) {
-        bookmarks = [{
-          id:"quran-bookmark-main",
-          name:"Kaldığım yer",
-          position:preferences.quranBookmark,
-        }];
-      }
-      setQuranBookmarks(bookmarks);
-    };
-    void loadBookmarks();
+    const preferences = readLocalReaderPrefs() as Record<string, any>;
+    let bookmarks = Array.isArray(preferences.quranBookmarks) ? preferences.quranBookmarks : [];
+    if (!bookmarks.length && preferences.quranBookmark?.page) {
+      bookmarks = [{
+        id:"quran-bookmark-main",
+        name:"Kaldığım yer",
+        position:preferences.quranBookmark,
+      }];
+    }
+    setQuranBookmarks(bookmarks);
+
     const handle = (event: Event) => {
       const detail = (event as CustomEvent).detail;
       if (Array.isArray(detail)) setQuranBookmarks(detail);
