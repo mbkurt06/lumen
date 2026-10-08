@@ -150,10 +150,10 @@ export async function putStaticRows(storeName:StaticStoreName,rows:any[]){
       const tx=db.transaction(storeName,"readwrite");
       const store=tx.objectStore(storeName);
       for(const row of rows){
-        if(storeName==="quran_mushaf_pages" && !row.id){
-          row={...row,id:`${row.source_key}:${row.word_page}`};
-        }
-        store.put(row);
+        const normalized = storeName==="quran_mushaf_pages" && !row.id
+          ? {...row,id:`${row.source_key}:${row.word_page}`}
+          : row;
+        store.put(normalized);
       }
       tx.oncomplete=()=>resolve();
       tx.onerror=()=>reject(tx.error);
