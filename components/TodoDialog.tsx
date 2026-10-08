@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Props = {
   open: boolean;
@@ -98,13 +99,33 @@ export function TodoDialog({
       related_content_node_id: contentNodeId,
     };
 
-    const { error } = editTodo
-      ? await supabase.from("todos").update(payload).eq("id", editTodo.id)
-      : await supabase.from("todos").insert(payload);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const ownerId = sessionData.session?.user?.id;
+    if (!ownerId) {
+      setBusy(false);
+      setMessage("Oturum bilgisi bulunamadı.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const result = editTodo
+      ? await offlineUpdate("todos", ownerId, { id: editTodo.id }, {
+          ...payload,
+          updated_at: now,
+        })
+      : await offlineUpsert("todos", ownerId, {
+          id: crypto.randomUUID(),
+          owner_id: ownerId,
+          ...payload,
+          is_completed: false,
+          sort_order: 0,
+          created_at: now,
+          updated_at: now,
+        }, { onConflict: "id" });
 
     setBusy(false);
-    if (error) {
-      setMessage(error.message);
+    if (result.error && navigator.onLine) {
+      setMessage(result.error.message);
       return;
     }
 
