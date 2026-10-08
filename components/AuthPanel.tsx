@@ -15,6 +15,19 @@ export function AuthPanel() {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    // Register as early as possible, even if no user session has been restored.
+    // Offline navigation must not depend on mounting AppShell after login.
+    if (!("serviceWorker" in navigator)) return;
+    if (!window.isSecureContext && !["localhost","127.0.0.1"].includes(location.hostname)) return;
+    void navigator.serviceWorker.register("/sw.js", {updateViaCache:"none"})
+      .then(async registration => {
+        await navigator.serviceWorker.ready;
+        registration.active?.postMessage({type:"WARM_OFFLINE"});
+      })
+      .catch(error => console.warn("Offline service worker setup failed",error));
+  }, []);
+
+  useEffect(() => {
     let cancelled=false;
 
     const boot=async()=>{
