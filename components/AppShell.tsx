@@ -228,101 +228,130 @@ export function AppShell({
     let cancelled=false;
 
     void (async()=>{
-    try {
-      let saved = localStorage.getItem("lumen-app-state");
-      if(!saved){
-        const cached=await offlineCacheGet<Record<string,unknown>>("app-state:"+user.id);
-        if(cached) saved=JSON.stringify(cached);
-      }
-      let restoredSidebar = false;
-      if (saved) {
-        const state = JSON.parse(saved);
-        if (state.tab) setTab(state.tab);
-        if (state.libraryMode) setLibraryMode(state.libraryMode);
-        if (state.selectedItem) setSelectedItem(state.selectedItem);
-        if (Array.isArray(state.siblings)) setSiblings(state.siblings);
-        if (typeof state.initialSegmentIndex === "number") setInitialSegmentIndex(state.initialSegmentIndex);
-        if (state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
-        if (typeof state.returnToEzber === "boolean") setReturnToEzber(state.returnToEzber);
-        if (state.returnLibrarySection === "ezber" || state.returnLibrarySection === "risale" || state.returnLibrarySection === "quran" || state.returnLibrarySection === "he") {
-          setReturnLibrarySection(state.returnLibrarySection);
+      try {
+        let saved=localStorage.getItem("lumen-app-state");
+        if(!saved){
+          const cached=await offlineCacheGet<Record<string,unknown>>("app-state:"+user.id);
+          if(cached) saved=JSON.stringify(cached);
         }
-        if (typeof state.sidebarOpen === "boolean") {
-          setSidebarOpen(state.sidebarOpen);
-          restoredSidebar = true;
+
+        let restoredSidebar=false;
+        if(saved){
+          try{
+            const state=JSON.parse(saved);
+            if(state.tab) setTab(state.tab);
+            if(state.libraryMode) setLibraryMode(state.libraryMode);
+            if(state.selectedItem) setSelectedItem(state.selectedItem);
+            if(Array.isArray(state.siblings)) setSiblings(state.siblings);
+            if(typeof state.initialSegmentIndex==="number") setInitialSegmentIndex(state.initialSegmentIndex);
+            if(state.returnEzberRoot) setReturnEzberRoot(state.returnEzberRoot);
+            if(typeof state.returnToEzber==="boolean") setReturnToEzber(state.returnToEzber);
+            if(
+              state.returnLibrarySection==="ezber"
+              || state.returnLibrarySection==="risale"
+              || state.returnLibrarySection==="quran"
+              || state.returnLibrarySection==="he"
+            ){
+              setReturnLibrarySection(state.returnLibrarySection);
+            }
+            if(typeof state.sidebarOpen==="boolean"){
+              setSidebarOpen(state.sidebarOpen);
+              restoredSidebar=true;
+            }
+            if(typeof state.rightPanelOpen==="boolean") setRightPanelOpen(state.rightPanelOpen);
+            if(state.rightPanelMode==="todo" || state.rightPanelMode==="calendar"){
+              setRightPanelMode(state.rightPanelMode);
+            }
+          }catch{
+            // Corrupt local app state must not block offline startup.
+          }
         }
-        if (typeof state.rightPanelOpen === "boolean") setRightPanelOpen(state.rightPanelOpen);
-        if (state.rightPanelMode === "todo" || state.rightPanelMode === "calendar") setRightPanelMode(state.rightPanelMode);
-      }
-      if (!restoredSidebar && window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
-    } catch {
-      if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
-    }
-    let cachedReaderPrefs = readLocalReaderPrefs();
-    if(!Object.keys(cachedReaderPrefs).length){
-      const cachedPreferenceRow=await offlineGetOne<any>("user_preferences",user.id);
-      if(cachedPreferenceRow?.preferences && typeof cachedPreferenceRow.preferences==="object"){
-        cachedReaderPrefs={...(cachedPreferenceRow.preferences as Record<string,unknown>)};
-        writeLocalReaderPrefs(cachedReaderPrefs);
-      }
-    }
-    if (Object.keys(cachedReaderPrefs).length || !navigator.onLine) setRestored(true);
 
-    if (!navigator.onLine) return;
+        if(!restoredSidebar && window.matchMedia("(max-width: 800px)").matches){
+          setSidebarOpen(false);
+        }
 
-    supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle()
-      .then(async ({ data }) => {
-        const serverPrefs = (data?.preferences ?? {}) as Record<string, unknown>;
-        const localMirror = readLocalReaderPrefs();
-        let localQuran: Record<string, unknown> = {};
-        try {
-          localQuran = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
-        } catch {}
+        let cachedReaderPrefs=readLocalReaderPrefs();
+        if(!Object.keys(cachedReaderPrefs).length){
+          const cachedPreferenceRow=await offlineGetOne<any>("user_preferences",user.id);
+          if(cachedPreferenceRow?.preferences && typeof cachedPreferenceRow.preferences==="object"){
+            cachedReaderPrefs={...(cachedPreferenceRow.preferences as Record<string,unknown>)};
+            writeLocalReaderPrefs(cachedReaderPrefs);
+          }
+        }
+
+        if(Object.keys(cachedReaderPrefs).length || !navigator.onLine){
+          if(!cancelled) setRestored(true);
+        }
+
+        if(!navigator.onLine) return;
+
+        const {data}=await supabase
+          .from("user_preferences")
+          .select("preferences")
+          .maybeSingle();
+
+        if(cancelled) return;
+
+        const serverPrefs=(data?.preferences ?? {}) as Record<string,unknown>;
+        const localMirror=readLocalReaderPrefs();
+        let localQuran:Record<string,unknown>={};
+        try{
+          localQuran=JSON.parse(
+            localStorage.getItem("lumen-quran-page-prefs") || "{}"
+          ) as Record<string,unknown>;
+        }catch{}
+
         const hasPendingPrefs=await offlineHasPending("user_preferences");
-        const prefs = hasPendingPrefs
-          ? { ...serverPrefs, ...localMirror, ...localQuran }
-          : { ...localQuran, ...serverPrefs };
-        // Supabase wins while online unless this device has an unsent preference mutation.
+        if(cancelled) return;
+
+        const prefs=hasPendingPrefs
+          ? {...serverPrefs,...localMirror,...localQuran}
+          : {...localQuran,...serverPrefs};
+
+        // Supabase wins while online unless this device has an unsent local mutation.
         writeLocalReaderPrefs(prefs);
-        const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
-        const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
-        const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
-        const quranFontWeight = typeof prefs.quranFontWeight === "number" ? prefs.quranFontWeight : 300;
-        const quranFontFamily = typeof prefs.quranFontFamily === "string" ? prefs.quranFontFamily : "Shaikh Hamdullah Mushaf";
-        const quranPageTheme = typeof prefs.quranPageTheme === "string" ? prefs.quranPageTheme : "paper";
-        const risalePageTheme = typeof prefs.risalePageTheme === "string" ? prefs.risalePageTheme : "paper";
-        document.documentElement.classList.toggle("pre-dark", theme === "dark");
-        document.body.classList.toggle("dark", theme === "dark");
-        localStorage.setItem("lumen-theme", theme);
-        document.documentElement.style.setProperty("--font-scale", String(fontScale));
-        document.documentElement.style.setProperty("--quran-font-scale", String(quranFontScale));
-        document.documentElement.style.setProperty("--quran-font-weight", String(quranFontWeight));
-        document.documentElement.style.setProperty("--quran-font-family", JSON.stringify(quranFontFamily));
-        document.body.dataset.quranPageTheme = quranPageTheme;
-        document.body.dataset.risalePageTheme = risalePageTheme;
-        document.documentElement.dataset.preQuranPageTheme = quranPageTheme;
-        document.documentElement.dataset.preRisalePageTheme = risalePageTheme;
-        document.body.classList.toggle("quranHideLatin", prefs.quranShowLatin !== true);
-        document.body.classList.toggle("quranHideTranslation", prefs.quranShowTranslation !== true);
+
+        const theme=typeof prefs.theme==="string" ? prefs.theme : "light";
+        const fontScale=typeof prefs.fontScale==="number" ? prefs.fontScale : 1;
+        const quranFontScale=typeof prefs.quranFontScale==="number" ? prefs.quranFontScale : 1;
+        const quranFontWeight=typeof prefs.quranFontWeight==="number" ? prefs.quranFontWeight : 300;
+        const quranFontFamily=typeof prefs.quranFontFamily==="string"
+          ? prefs.quranFontFamily
+          : "Shaikh Hamdullah Mushaf";
+        const quranPageTheme=typeof prefs.quranPageTheme==="string" ? prefs.quranPageTheme : "paper";
+        const risalePageTheme=typeof prefs.risalePageTheme==="string" ? prefs.risalePageTheme : "paper";
+
+        document.documentElement.classList.toggle("pre-dark",theme==="dark");
+        document.body.classList.toggle("dark",theme==="dark");
+        localStorage.setItem("lumen-theme",theme);
+        document.documentElement.style.setProperty("--font-scale",String(fontScale));
+        document.documentElement.style.setProperty("--quran-font-scale",String(quranFontScale));
+        document.documentElement.style.setProperty("--quran-font-weight",String(quranFontWeight));
+        document.documentElement.style.setProperty("--quran-font-family",JSON.stringify(quranFontFamily));
+        document.body.dataset.quranPageTheme=quranPageTheme;
+        document.body.dataset.risalePageTheme=risalePageTheme;
+        document.documentElement.dataset.preQuranPageTheme=quranPageTheme;
+        document.documentElement.dataset.preRisalePageTheme=risalePageTheme;
+        document.body.classList.toggle("quranHideLatin",prefs.quranShowLatin!==true);
+        document.body.classList.toggle("quranHideTranslation",prefs.quranShowTranslation!==true);
         document.body.classList.remove("quranEasyRead");
-        window.dispatchEvent(new CustomEvent("lumen-library-prefs", {
-          detail: {
+
+        window.dispatchEvent(new CustomEvent("lumen-library-prefs",{
+          detail:{
             theme,
             fontScale,
-            showArabic: prefs.showArabic !== false,
-            showLatin: prefs.showLatin !== false,
-            showTurkish: prefs.showTurkish === true,
-          }
+            showArabic:prefs.showArabic!==false,
+            showLatin:prefs.showLatin!==false,
+            showTurkish:prefs.showTurkish===true,
+          },
         }));
-        setRestored(true);
-      })
-      .catch(() => setRestored(true));
-    } finally {
-      if(!cancelled && !navigator.onLine) setRestored(true);
-    }
+
+        if(!cancelled) setRestored(true);
+      }catch(error){
+        console.warn("App state/preferences restore failed",error);
+        if(!cancelled) setRestored(true);
+      }
     })();
 
     return()=>{cancelled=true;};
