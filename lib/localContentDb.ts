@@ -47,7 +47,7 @@ export type CachedQuranPage = {
 };
 
 const DB_NAME="lumen-static-content";
-const DB_VERSION=1;
+const DB_VERSION=2;
 
 function openDb(){
   return new Promise<IDBDatabase>((resolve,reject)=>{
@@ -72,6 +72,11 @@ function openDb(){
       if(!db.objectStoreNames.contains("quran_mushaf_pages")){
         const store=db.createObjectStore("quran_mushaf_pages",{keyPath:"id"});
         store.createIndex("source_word_page",["source_key","word_page"],{unique:false});
+      }
+      for(const extraStore of ["quran_mushaf_sources","quran_mushaf_source_chunks","media_sources","media_segments"]){
+        if(!db.objectStoreNames.contains(extraStore)){
+          db.createObjectStore(extraStore,{keyPath:"id"});
+        }
       }
       if(!db.objectStoreNames.contains("meta")) db.createObjectStore("meta",{keyPath:"key"});
     };
@@ -131,11 +136,13 @@ export async function setMeta(key:string,value:unknown){
   await withStore("meta","readwrite",store=>store.put({key,value}));
 }
 
-export async function clearStaticStore(storeName:"library_items"|"content_nodes"|"quran_mushaf_pages"){
+export type StaticStoreName="library_items"|"content_nodes"|"quran_mushaf_pages"|"quran_mushaf_sources"|"quran_mushaf_source_chunks"|"media_sources"|"media_segments";
+
+export async function clearStaticStore(storeName:StaticStoreName){
   await withStore(storeName,"readwrite",store=>store.clear());
 }
 
-export async function putStaticRows(storeName:"library_items"|"content_nodes"|"quran_mushaf_pages",rows:any[]){
+export async function putStaticRows(storeName:StaticStoreName,rows:any[]){
   if(!rows.length) return;
   const db=await openDb();
   try{
