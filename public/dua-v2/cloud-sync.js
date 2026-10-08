@@ -27,6 +27,48 @@
   let saveTimer = null;
   let auth = null;
 
+  const OFFLINE_DB="lumen-dua-v2-offline";
+  const OFFLINE_STORE="cache";
+
+  function openOfflineDb() {
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open(OFFLINE_DB,1);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains(OFFLINE_STORE)) db.createObjectStore(OFFLINE_STORE,{keyPath:"key"});
+      };
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
+  }
+
+  async function cacheContent(value) {
+    try{
+      const db=await openOfflineDb();
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(OFFLINE_STORE,"readwrite");
+        tx.objectStore(OFFLINE_STORE).put({key:"content",value,updatedAt:new Date().toISOString()});
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+      });
+      db.close();
+    }catch(error){console.warn("Dua V2 offline cache:",error)}
+  }
+
+  async function readCachedContent() {
+    try{
+      const db=await openOfflineDb();
+      const value=await new Promise((resolve,reject)=>{
+        const tx=db.transaction(OFFLINE_STORE,"readonly");
+        const req=tx.objectStore(OFFLINE_STORE).get("content");
+        req.onsuccess=()=>resolve(req.result?.value || null);
+        req.onerror=()=>reject(req.error);
+      });
+      db.close();
+      return value;
+    }catch{return null}
+  }
+
   function authSession() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -111,6 +153,7 @@
   }
 
   async function loadRemote() {
+    if(!navigator.onLine) return;
     auth = authSession();
     if (!auth) return;
     const expiresAt = Number(auth.expires_at || 0);
@@ -124,7 +167,7 @@
   }
 
   async function saveRemote() {
-    if (!remoteReady || !auth) return;
+    if (!remoteReady || !auth || !navigator.onLine) return;
     try {
       await request(TABLE + "?on_conflict=owner_id", {
         method: "POST",
@@ -164,8 +207,17 @@
   }
 
   async function loadContent() {
+    if(!navigator.onLine){
+      const cached=await readCachedContent();
+      if(cached) return cached;
+      throw new Error("Offline içerik önbelleği henüz hazırlanmadı.");
+    }
     if (!auth) auth = authSession();
-    if (!auth) throw new Error("Authenticated session is required.");
+    if (!auth) {
+      const cached=await readCachedContent();
+      if(cached) return cached;
+      throw new Error("Authenticated session is required.");
+    }
 
     const [items, nodes] = await Promise.all([
       loadAllRows("library_items", "id,parent_id,kind,title,subtitle,sort_order,metadata"),
@@ -267,7 +319,7 @@
       sections: ilmihalSections
     };
 
-    return {
+    const result = {
       data: {
         rootTitle: root.title,
         menu,
@@ -279,6 +331,8 @@
       },
       ilmihalData
     };
+    await cacheContent(result);
+    return result;
   }
 
 
@@ -294,8 +348,13 @@
   }
 
   async function loadMainTodos(contentData) {
+    if(!navigator.onLine){
+      try{return JSON.parse(localStorage.getItem("duaTodoState") || "[]")}catch{return []}
+    }
     if (!auth) auth = authSession();
-    if (!auth) return [];
+    if (!auth) {
+      try{return JSON.parse(localStorage.getItem("duaTodoState") || "[]")}catch{return []}
+    }
 
     const rows = await request("todos?select=id,title,notes,related_library_item_id,related_content_node_id&order=created_at.asc");
     const docsByDb = new Map((contentData?.duas || []).map(d => [d.dbId, d]));
@@ -336,6 +395,7 @@
   }
 
   async function syncMainTodos(todoList, contentData) {
+    if(!navigator.onLine) return;
     if (!auth) auth = authSession();
     if (!auth || !Array.isArray(todoList)) return;
 
