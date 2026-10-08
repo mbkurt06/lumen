@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { getMeta, hasStaticCache } from "@/lib/localContentDb";
-import { offlineCacheGet } from "@/lib/offlineDb";
 import { offlineOutboxCount, syncPersonalOfflineData } from "@/lib/offlineDb";
 
 const AUTO_SYNC_KEY = "lumen-static-auto-sync";
