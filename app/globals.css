@@ -6801,3 +6801,82 @@ body.dark .unifiedBookPage{
     color:var(--accent)!important;
   }
 }
+
+
+/* Distinguish Todo repeats from intrinsic repeats inside book text blocks. */
+.unifiedBookBlockContent{
+  position:relative!important;
+  padding-left:66px!important;
+  padding-right:72px!important;
+}
+.unifiedBookTodoCounters,
+.unifiedBookIntrinsicCounters{
+  position:absolute;
+  top:0;
+  z-index:5;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.unifiedBookTodoCounters{
+  left:0;
+  align-items:flex-start;
+}
+.unifiedBookIntrinsicCounters{
+  right:0;
+  align-items:flex-end;
+}
+.unifiedBookTodoCounters .segmentTargetButton,
+.unifiedBookIntrinsicCounters .segmentTargetButton{
+  position:static!important;
+}
+.todoRepeatCircle{
+  width:52px!important;
+  min-width:52px!important;
+  height:52px!important;
+  min-height:52px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  display:grid!important;
+  place-items:center!important;
+  background:#5b68a8!important;
+  border:2px solid color-mix(in srgb,#5b68a8 72%,white)!important;
+  color:#fff!important;
+  font-size:11px!important;
+  font-weight:850!important;
+  line-height:1!important;
+  box-shadow:0 3px 10px #0002!important;
+}
+.todoRepeatCircle.active{
+  background:#46538f!important;
+  border-color:#c7cef7!important;
+  color:#fff!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,#5b68a8 35%,transparent)!important;
+}
+.todoRepeatCircle.done{
+  background:#5b68a8!important;
+  border-color:#c7cef7!important;
+  color:#fff!important;
+}
+.todoRepeatCircle .targetMultiplicity{
+  right:-6px!important;
+  top:-7px!important;
+}
+.intrinsicRepeatBadge{
+  min-width:58px!important;
+  min-height:31px!important;
+  border-radius:999px!important;
+}
+@media(max-width:760px){
+  .unifiedBookBlockContent{
+    padding-left:60px!important;
+    padding-right:66px!important;
+  }
+  .todoRepeatCircle{
+    width:48px!important;
+    min-width:48px!important;
+    height:48px!important;
+    min-height:48px!important;
+    font-size:10px!important;
+  }
+}
