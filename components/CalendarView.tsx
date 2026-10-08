@@ -447,11 +447,20 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     const eventCacheKey=`google-calendar-events:${user.id}:${startKey}:${endKey}:${visibleCalendars.map(x=>x.key).join("§")}`;
 
     try {
-      const [cachedEvents,localCompletionRows]=await Promise.all([
+      const [cachedEvents,masterEvents,localCompletionRows]=await Promise.all([
         offlineCacheGet<CalendarEvent[]>(eventCacheKey),
+        offlineCacheGet<CalendarEvent[]>("google-calendar-events-master:"+user.id),
         offlineGetRows<any>("calendar_event_state",user.id,row=>row.occurrence_date>=startKey && row.occurrence_date<=endKey),
       ]);
-      if(cachedEvents) setEvents(cachedEvents);
+      const visibleKeys=new Set(visibleCalendars.map(calendar=>calendar.key));
+      const localEvents=cachedEvents ?? (masterEvents || []).filter(event=>{
+        if(!visibleKeys.has(event.calendarKey || `${event.accountId}|${event.calendarId}`)) return false;
+        if(!event.start) return false;
+        const start=new Date(event.start);
+        if(Number.isNaN(start.getTime())) return false;
+        return start>=range.start && start<range.end;
+      });
+      if(cachedEvents || masterEvents) setEvents(localEvents);
       const localCompletion:Record<string,boolean>={};
       for(const row of localCompletionRows){
         localCompletion[`${row.account_id}|${row.calendar_id}|${row.event_id}|${row.occurrence_date}`]=Boolean(row.is_completed);
@@ -459,7 +468,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       setCalendarCompletion(localCompletion);
 
       if(!navigator.onLine){
-        if(!cachedEvents) setEvents([]);
+        if(!cachedEvents && !masterEvents) setEvents([]);
         return;
       }
 
