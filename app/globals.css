@@ -6781,3 +6781,23 @@ body.dark .unifiedBookPage{
     align-items:flex-end!important;
   }
 }
+
+
+/* Mobile text selection launcher: native iOS selection first, Lumen actions on demand. */
+.v2HeaderSelectionButton{
+  display:none!important;
+}
+@media(max-width:1100px) and (pointer:coarse){
+  .v2HeaderSelectionButton{
+    display:grid!important;
+    place-items:center;
+  }
+  .v2HeaderSelectionButton:disabled{
+    opacity:.38!important;
+  }
+  .v2HeaderSelectionButton.ready{
+    border-color:color-mix(in srgb,var(--accent) 65%,var(--border))!important;
+    background:color-mix(in srgb,var(--accent) 16%,var(--panel))!important;
+    color:var(--accent)!important;
+  }
+}
