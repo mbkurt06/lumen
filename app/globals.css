@@ -6880,3 +6880,37 @@ body.dark .unifiedBookPage{
     font-size:10px!important;
   }
 }
+
+
+/* Todo repeat badge refinement: compact blue circle, larger count text. */
+.todoRepeatCircle{
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  background:#2f6fca!important;
+  border-color:#7fb0ef!important;
+  color:#fff!important;
+  font-size:13px!important;
+  font-weight:900!important;
+}
+.todoRepeatCircle.active{
+  background:#245da9!important;
+  border-color:#b7d4f7!important;
+  color:#fff!important;
+  box-shadow:0 0 0 3px color-mix(in srgb,#2f6fca 32%,transparent)!important;
+}
+.todoRepeatCircle.done{
+  background:#2f6fca!important;
+  border-color:#9bc5f4!important;
+  color:#fff!important;
+}
+@media(max-width:760px){
+  .todoRepeatCircle{
+    width:42px!important;
+    min-width:42px!important;
+    height:42px!important;
+    min-height:42px!important;
+    font-size:13px!important;
+  }
+}
