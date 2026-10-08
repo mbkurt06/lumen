@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { offlineCacheGet, offlineCacheSet, offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
+import { offlineCacheGet, offlineCacheSet, offlineDelete, offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
@@ -1134,12 +1134,11 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Etkinlik silinemedi.");
-      await supabase
-        .from("calendar_event_state")
-        .delete()
-        .eq("account_id",draft.accountId)
-        .eq("calendar_id",draft.calendarId)
-        .eq("event_id",draft.id);
+      await offlineDelete("calendar_event_state",user.id,{
+        account_id:draft.accountId,
+        calendar_id:draft.calendarId,
+        event_id:draft.id,
+      });
       setDraft(null);
       setDraftPosition(null);
       await loadEvents();
