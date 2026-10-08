@@ -123,17 +123,21 @@ export async function offlinePutRows(table:OfflineTable,rows:Record<string,any>[
 export async function offlineReplaceRows(table:OfflineTable,rows:Record<string,any>[],ownerId:string){
   const db=await openDb();
   try{
-    const tx=db.transaction(table,"readwrite");
-    const store=tx.objectStore(table);
-    const index=store.index("owner_id");
-    const keysReq=index.getAllKeys(ownerId);
+    // Safari/iPad can auto-close an IndexedDB transaction after an awaited
+    // request. Read the keys in one transaction, then replace rows in a second.
+    const readTx=db.transaction(table,"readonly");
+    const keysReq=readTx.objectStore(table).index("owner_id").getAllKeys(ownerId);
     const keys=await new Promise<IDBValidKey[]>((resolve,reject)=>{
       keysReq.onsuccess=()=>resolve(keysReq.result || []);
       keysReq.onerror=()=>reject(keysReq.error);
     });
+    await txDone(readTx);
+
+    const writeTx=db.transaction(table,"readwrite");
+    const store=writeTx.objectStore(table);
     for(const key of keys) store.delete(key);
     for(const row of rows) store.put({...row,_localKey:rowKey(table,row)});
-    await txDone(tx);
+    await txDone(writeTx);
   }finally{db.close();}
 }
 
