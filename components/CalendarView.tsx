@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
+import { offlineCacheGet, offlineCacheSet, offlineGetOne, offlineGetRows, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
 type ListRange = "day" | "week" | "month" | "year" | "remainingYear" | "custom";
@@ -207,9 +209,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     return { authorization: `Bearer ${token}`, "content-type": "application/json" };
   }, []);
 
-  const loadPreferences = useCallback(async () => {
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
+  const applyCalendarPreferences = useCallback((prefs:Record<string,unknown>) => {
     const hidden = Array.isArray(prefs.calendarHiddenKeys) ? prefs.calendarHiddenKeys.filter(x => typeof x === "string") as string[] : [];
     setHiddenKeys(new Set(hidden));
     if (Array.isArray(prefs.calendarTodoEnabledKeys)) {
@@ -218,27 +218,15 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       setTodoCalendarKeys(null);
     }
     const savedView = prefs.calendarView;
-    if (savedView === "year" || savedView === "month" || savedView === "week" || savedView === "3day" || savedView === "day" || savedView === "list") {
-      setView(savedView);
-    }
+    if (savedView === "year" || savedView === "month" || savedView === "week" || savedView === "3day" || savedView === "day" || savedView === "list") setView(savedView);
 
     const savedListRange = prefs.calendarListRange;
-    if (
-      savedListRange === "day" ||
-      savedListRange === "week" ||
-      savedListRange === "month" ||
-      savedListRange === "year" ||
-      savedListRange === "remainingYear" ||
-      savedListRange === "custom"
-    ) {
-      setListRange(savedListRange);
-    }
+    if (savedListRange === "day" || savedListRange === "week" || savedListRange === "month" || savedListRange === "year" || savedListRange === "remainingYear" || savedListRange === "custom") setListRange(savedListRange);
 
     const shouldFollowToday = prefs.calendarAnchorFollowsToday !== false;
     setFollowToday(shouldFollowToday);
-    if (shouldFollowToday) {
-      setAnchor(new Date());
-    } else if (typeof prefs.calendarAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(prefs.calendarAnchor)) {
+    if (shouldFollowToday) setAnchor(new Date());
+    else if (typeof prefs.calendarAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(prefs.calendarAnchor)) {
       const restoredAnchor = new Date(prefs.calendarAnchor + "T12:00:00");
       if (!Number.isNaN(restoredAnchor.getTime())) setAnchor(restoredAnchor);
     }
@@ -246,57 +234,68 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     if (typeof prefs.calendarCustomStart === "string") setCustomStart(prefs.calendarCustomStart);
     if (typeof prefs.calendarCustomEnd === "string") setCustomEnd(prefs.calendarCustomEnd);
     if (typeof prefs.calendarSourcesOpen === "boolean") setSourcePanelOpen(prefs.calendarSourcesOpen);
-    if (typeof prefs.calendarSourcesWidth === "number") {
-      setSourcePanelWidth(Math.max(180, Math.min(420, prefs.calendarSourcesWidth)));
-    }
-    if (prefs.calendarMonthDensity === "compact" || prefs.calendarMonthDensity === "comfortable") {
-      setMonthDensity(prefs.calendarMonthDensity);
-    }
-    if (typeof prefs.calendarShowWeekNumbers === "boolean") {
-      setShowWeekNumbers(prefs.calendarShowWeekNumbers);
-    }
+    if (typeof prefs.calendarSourcesWidth === "number") setSourcePanelWidth(Math.max(180,Math.min(420,prefs.calendarSourcesWidth)));
+    if (prefs.calendarMonthDensity === "compact" || prefs.calendarMonthDensity === "comfortable") setMonthDensity(prefs.calendarMonthDensity);
+    if (typeof prefs.calendarShowWeekNumbers === "boolean") setShowWeekNumbers(prefs.calendarShowWeekNumbers);
     if (typeof prefs.calendarShowWeekends === "boolean") setShowWeekends(prefs.calendarShowWeekends);
     if (prefs.calendarWeekDaysMode === 5 || prefs.calendarWeekDaysMode === 7) setWeekDaysMode(prefs.calendarWeekDaysMode);
-    if (typeof prefs.calendarDayStartHour === "number") setDayStartHour(Math.max(0, Math.min(12, prefs.calendarDayStartHour)));
-    if (typeof prefs.calendarDayEndHour === "number") setDayEndHour(Math.max(12, Math.min(24, prefs.calendarDayEndHour)));
+    if (typeof prefs.calendarDayStartHour === "number") setDayStartHour(Math.max(0,Math.min(12,prefs.calendarDayStartHour)));
+    if (typeof prefs.calendarDayEndHour === "number") setDayEndHour(Math.max(12,Math.min(24,prefs.calendarDayEndHour)));
     if (prefs.calendarHourDensity === 36 || prefs.calendarHourDensity === 48 || prefs.calendarHourDensity === 64) setHourDensity(prefs.calendarHourDensity);
     if (typeof prefs.calendarAutoScrollNow === "boolean") setAutoScrollNow(prefs.calendarAutoScrollNow);
   }, []);
 
+  const loadPreferences = useCallback(async () => {
+    const local=readLocalReaderPrefs();
+    let prefs:Record<string,unknown>={...local};
+
+    if(!Object.keys(prefs).length){
+      const cached=await offlineGetOne<any>("user_preferences",user.id);
+      if(cached?.preferences && typeof cached.preferences==="object"){
+        prefs={...(cached.preferences as Record<string,unknown>)};
+        writeLocalReaderPrefs(prefs);
+      }
+    }
+    if(Object.keys(prefs).length) applyCalendarPreferences(prefs);
+
+    if(!navigator.onLine) return;
+    try{
+      const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
+      const remote=(data?.preferences ?? {}) as Record<string,unknown>;
+      const merged={...remote,...readLocalReaderPrefs()};
+      writeLocalReaderPrefs(merged);
+      applyCalendarPreferences(merged);
+    }catch{}
+  }, [user.id,applyCalendarPreferences]);
+
+  const savePrefsOffline = useCallback(async (patch:Record<string,unknown>) => {
+    const current=readLocalReaderPrefs();
+    const next={...current,...patch};
+    writeLocalReaderPrefs(next);
+    await offlineUpsert("user_preferences",user.id,{
+      owner_id:user.id,
+      preferences:next,
+      updated_at:new Date().toISOString(),
+    },{onConflict:"owner_id"});
+  },[user.id]);
+
   const saveCalendarPrefs = useCallback(async (nextHidden: Set<string>, nextView = view) => {
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
-    await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: {
-        ...old,
-        calendarHiddenKeys: [...nextHidden],
-        calendarView: nextView,
-      },
+    await savePrefsOffline({
+      calendarHiddenKeys:[...nextHidden],
+      calendarView:nextView,
     });
-  }, [user.id, view]);
+  }, [savePrefsOffline,view]);
 
   const saveMonthPrefs = useCallback(async (density: MonthDensity, weekNumbers: boolean) => {
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
-    await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: {
-        ...old,
-        calendarMonthDensity: density,
-        calendarShowWeekNumbers: weekNumbers,
-      },
+    await savePrefsOffline({
+      calendarMonthDensity:density,
+      calendarShowWeekNumbers:weekNumbers,
     });
-  }, [user.id]);
+  }, [savePrefsOffline]);
 
   const saveViewPrefs = useCallback(async (patch: Record<string, unknown>) => {
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
-    await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: { ...old, ...patch },
-    });
-  }, [user.id]);
+    await savePrefsOffline(patch);
+  }, [savePrefsOffline]);
 
   useEffect(() => {
     const refreshToday = () => {
@@ -331,19 +330,30 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
 
   const loadAccounts = useCallback(async () => {
     setLoadingAccounts(true);
+    const cacheKey="google-calendar-accounts:"+user.id;
     try {
+      const cached=await offlineCacheGet<CalendarAccount[]>(cacheKey);
+      if(cached?.length) setAccounts(cached);
+
+      if(!navigator.onLine){
+        if(!cached) setAccounts([]);
+        return;
+      }
+
       const headers = await authHeaders();
       const response = await fetch("/api/google-calendar/accounts", { headers });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || "Google takvim hesapları alınamadı.");
-      setAccounts(json.accounts || []);
+      const rows=(json.accounts || []) as CalendarAccount[];
+      setAccounts(rows);
+      await offlineCacheSet(cacheKey,rows);
       setMessage("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Google takvim hesapları alınamadı.");
+      if(navigator.onLine) setMessage(error instanceof Error ? error.message : "Google takvim hesapları alınamadı.");
     } finally {
       setLoadingAccounts(false);
     }
-  }, [authHeaders]);
+  }, [authHeaders,user.id]);
 
   useEffect(() => {
     void loadPreferences();
@@ -430,7 +440,27 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       return;
     }
     setLoadingEvents(true);
+    const startKey=localDateKey(range.start);
+    const endKey=localDateKey(addDays(range.end,-1));
+    const eventCacheKey=`google-calendar-events:${user.id}:${startKey}:${endKey}:${visibleCalendars.map(x=>x.key).join("§")}`;
+
     try {
+      const [cachedEvents,localCompletionRows]=await Promise.all([
+        offlineCacheGet<CalendarEvent[]>(eventCacheKey),
+        offlineGetRows<any>("calendar_event_state",user.id,row=>row.occurrence_date>=startKey && row.occurrence_date<=endKey),
+      ]);
+      if(cachedEvents) setEvents(cachedEvents);
+      const localCompletion:Record<string,boolean>={};
+      for(const row of localCompletionRows){
+        localCompletion[`${row.account_id}|${row.calendar_id}|${row.event_id}|${row.occurrence_date}`]=Boolean(row.is_completed);
+      }
+      setCalendarCompletion(localCompletion);
+
+      if(!navigator.onLine){
+        if(!cachedEvents) setEvents([]);
+        return;
+      }
+
       const headers = await authHeaders();
       const params = new URLSearchParams({
         timeMin: range.start.toISOString(),
@@ -442,28 +472,29 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       if (!response.ok) throw new Error(json.error || "Etkinlikler alınamadı.");
       const nextEvents = (json.events || []) as CalendarEvent[];
       setEvents(nextEvents);
+      await offlineCacheSet(eventCacheKey,nextEvents);
 
-      const startKey = localDateKey(range.start);
-      const endKey = localDateKey(addDays(range.end,-1));
       const { data: completionRows, error: completionError } = await supabase
         .from("calendar_event_state")
-        .select("account_id,calendar_id,event_id,occurrence_date,is_completed")
+        .select("id,owner_id,account_id,calendar_id,event_id,occurrence_date,is_completed,completed_at,created_at,updated_at")
         .gte("occurrence_date", startKey)
         .lte("occurrence_date", endKey);
       if (completionError) throw completionError;
+      const rows=(completionRows || []) as any[];
+      if(rows.length) await offlinePutRows("calendar_event_state",rows);
 
       const nextCompletion: Record<string,boolean> = {};
-      for (const row of completionRows || []) {
+      for (const row of rows) {
         nextCompletion[`${row.account_id}|${row.calendar_id}|${row.event_id}|${row.occurrence_date}`] = Boolean(row.is_completed);
       }
       setCalendarCompletion(nextCompletion);
       setMessage("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Etkinlikler alınamadı.");
+      if(navigator.onLine) setMessage(error instanceof Error ? error.message : "Etkinlikler alınamadı.");
     } finally {
       setLoadingEvents(false);
     }
-  }, [authHeaders, range.start.getTime(), range.end.getTime(), visibleCalendars.map(x => x.key).join("§")]);
+  }, [authHeaders, user.id, range.start.getTime(), range.end.getTime(), visibleCalendars.map(x => x.key).join("§")]);
 
   useEffect(() => {
     if (!loadingAccounts) void loadEvents();
@@ -582,20 +613,28 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     const next = !calendarCompletion[key];
 
     setCalendarCompletion(current => ({...current,[key]:next}));
-    const { error } = await supabase.from("calendar_event_state").upsert({
+    const now=new Date().toISOString();
+    const existing=await offlineGetRows<any>("calendar_event_state",user.id,row=>
+      row.account_id===event.accountId &&
+      row.calendar_id===event.calendarId &&
+      row.event_id===event.id &&
+      row.occurrence_date===occurrence
+    );
+    const result=await offlineUpsert("calendar_event_state",user.id,{
+      id:existing[0]?.id || crypto.randomUUID(),
       owner_id:user.id,
       account_id:event.accountId,
       calendar_id:event.calendarId,
       event_id:event.id,
       occurrence_date:occurrence,
       is_completed:next,
-      completed_at:next ? new Date().toISOString() : null,
+      completed_at:next ? now : null,
+      created_at:existing[0]?.created_at || now,
+      updated_at:now,
     }, { onConflict:"owner_id,account_id,calendar_id,event_id,occurrence_date" });
 
-    if (error) {
-      setCalendarCompletion(current => ({...current,[key]:!next}));
-      setMessage(error.message);
-      return;
+    if (result.error && navigator.onLine) {
+      setMessage(result.error.message);
     }
 
     window.dispatchEvent(new CustomEvent("lumen-calendar-completion-changed", {
