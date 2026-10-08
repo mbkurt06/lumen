@@ -621,7 +621,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       row.occurrence_date===occurrence
     );
     const result=await offlineUpsert("calendar_event_state",user.id,{
-      id:existing[0]?.id || crypto.randomUUID(),
+      ...(existing[0]?.id ? {id:existing[0].id} : {}),
       owner_id:user.id,
       account_id:event.accountId,
       calendar_id:event.calendarId,
