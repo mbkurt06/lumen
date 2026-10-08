@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
-import { getMeta } from "@/lib/localContentDb";
+import { getMeta, hasStaticCache } from "@/lib/localContentDb";
+import { offlineCacheGet } from "@/lib/offlineDb";
 import { offlineOutboxCount, syncPersonalOfflineData } from "@/lib/offlineDb";
 
 const AUTO_SYNC_KEY = "lumen-static-auto-sync";
@@ -26,9 +27,13 @@ export function SettingsView({
   const [syncStatus,setSyncStatus]=useState("Güncel");
   const [lastSync,setLastSync]=useState<string|null>(null);
   const [queuedChanges,setQueuedChanges]=useState(0);
+  const [offlineReady,setOfflineReady]=useState<boolean|null>(null);
+  const [connectionOnline,setConnectionOnline]=useState(true);
 
   useEffect(()=>{
     setAutoSync(localStorage.getItem(AUTO_SYNC_KEY)==="1");
+    setConnectionOnline(navigator.onLine);
+    void hasStaticCache().then(setOfflineReady).catch(()=>setOfflineReady(false));
     void offlineOutboxCount().then(setQueuedChanges).catch(()=>{});
     void getMeta<string>("last_sync_at").then(value=>{
       setLastSync(value);
@@ -53,24 +58,29 @@ export function SettingsView({
         setSyncing(false);
         setSyncStatus("Güncel");
         void getMeta<string>("last_sync_at").then(setLastSync).catch(()=>{});
+        void hasStaticCache().then(setOfflineReady).catch(()=>{});
       }else if(detail.state==="error"){
         setSyncing(false);
         setSyncStatus(detail.message || "Senkronizasyon başarısız");
       }
     };
     const onQueue=()=>void offlineOutboxCount().then(setQueuedChanges).catch(()=>{});
+    const onConnection=()=>{setConnectionOnline(navigator.onLine);onQueue();};
     window.addEventListener("lumen-static-sync",onSync as EventListener);
     window.addEventListener("lumen-offline-queue-changed",onQueue);
-    window.addEventListener("online",onQueue);
+    window.addEventListener("online",onConnection);
+    window.addEventListener("offline",onConnection);
     return ()=>{
       window.removeEventListener("lumen-static-sync",onSync as EventListener);
       window.removeEventListener("lumen-offline-queue-changed",onQueue);
-      window.removeEventListener("online",onQueue);
+      window.removeEventListener("online",onConnection);
+      window.removeEventListener("offline",onConnection);
     };
   },[]);
 
   async function runFullSync(){
     if(syncing) return;
+    if(!navigator.onLine){setSyncStatus("İnternet bağlantısı yok; mevcut yerel veriler korunuyor.");return;}
     setSyncing(true);
     setSyncStatus("Tüm içerikler hazırlanıyor…");
     await Promise.all([
@@ -78,6 +88,8 @@ export function SettingsView({
       syncPersonalOfflineData(user.id),
     ]);
     setQueuedChanges(await offlineOutboxCount());
+    setOfflineReady(await hasStaticCache().catch(()=>false));
+    setSyncing(false);
   }
 
   function toggleAutoSync(){
@@ -136,6 +148,8 @@ export function SettingsView({
           </button>
         </div>
 
+        <div className="settingRow"><strong>Bağlantı</strong><span>{connectionOnline ? "Çevrimiçi" : "Çevrimdışı — yerel kullanım"}</span></div>
+        <div className="settingRow"><strong>Yerel içerik</strong><span>{offlineReady===null ? "Kontrol ediliyor…" : offlineReady ? "İlk indirme tamamlandı" : "Henüz tam indirilmedi"}</span></div>
         <div className="syncStatusRow">
           <span>{syncStatus}</span>
           <span className="muted">Son senkronizasyon: {formatSyncDate(lastSync)} · Bekleyen offline değişiklik: {queuedChanges}</span>
