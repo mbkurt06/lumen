@@ -13,6 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
+import { flushOfflineOutbox, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 
@@ -156,6 +157,27 @@ export function AppShell({
   },[user.id]);
 
   useEffect(() => {
+    const PERSONAL_SYNC_MARKER="lumen-personal-offline-sync-v1";
+    let timer:ReturnType<typeof setInterval>|null=null;
+
+    const sync=()=>{
+      if(!navigator.onLine) return;
+      void flushOfflineOutbox()
+        .then(()=>syncPersonalOfflineData(user.id))
+        .then(()=>localStorage.setItem(PERSONAL_SYNC_MARKER,new Date().toISOString()))
+        .catch(error=>console.warn("Personal offline sync failed",error));
+    };
+
+    sync();
+    timer=setInterval(sync,5*60*1000);
+    window.addEventListener("online",sync);
+    return()=>{
+      if(timer) clearInterval(timer);
+      window.removeEventListener("online",sync);
+    };
+  },[user.id]);
+
+  useEffect(() => {
     const AUTO_SYNC_KEY = "lumen-static-auto-sync";
     let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -236,7 +258,9 @@ export function AppShell({
           localQuran = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
         } catch {}
         const prefs = { ...serverPrefs, ...localMirror, ...localQuran };
-        writeLocalReaderPrefs({ ...serverPrefs, ...localQuran });
+        // Never replace the local mirror with an older/partial server snapshot.
+        // Local settings are the immediate source while offline; Supabase is reconciled in background.
+        writeLocalReaderPrefs(prefs);
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
         const quranFontScale = typeof prefs.quranFontScale === "number" ? prefs.quranFontScale : 1;
@@ -291,11 +315,14 @@ export function AppShell({
     const local=readLocalReaderPrefs();
     if(Object.keys(local).length) apply(local);
 
+    if(!navigator.onLine) return;
     supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
       const remote=(data?.preferences ?? {}) as Record<string, unknown>;
-      writeLocalReaderPrefs(remote);
-      apply(remote);
-    });
+      const current=readLocalReaderPrefs();
+      const merged={...remote,...current};
+      writeLocalReaderPrefs(merged);
+      apply(merged);
+    }).catch(()=>{});
   }, [readerScope]);
 
   useEffect(() => {
