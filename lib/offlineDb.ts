@@ -408,6 +408,10 @@ export async function syncPersonalOfflineData(ownerId:string){
 export async function offlineOutboxCount(){
   return (await getOutbox()).length;
 }
+export async function offlineHasPending(table:OfflineMutationTable){
+  return (await getOutbox()).some(row=>row.table===table);
+}
+
 
 export async function offlineCacheGet<T=unknown>(key:string):Promise<T|null>{
   const db=await openDb();
