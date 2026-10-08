@@ -436,14 +436,26 @@ export function ReaderView({
   const openMobileSelectionActions = useCallback(() => {
     if (!mobileSelectionDraft) return;
 
-    // Tapping our toolbar dismisses iOS's Copy/Translate bubble. We use the
-    // snapshot captured before that tap, so the selected words are not lost.
-    setBookSelection(mobileSelectionDraft);
+    const draft = mobileSelectionDraft;
+
+    // iOS renders Copy/Translate as a native system overlay, so CSS z-index
+    // cannot place our popover above it. Preserve the selected text first,
+    // then clear the native selection to dismiss Apple's menu, and only after
+    // that open the Lumen Todo/Ayraç actions from the saved snapshot.
+    window.getSelection()?.removeAllRanges();
+    const active = document.activeElement as HTMLElement | null;
+    active?.blur?.();
+
+    setBookSelection(null);
     setBookBookmarkMenuOpen(false);
     setBookBookmarkExistingOpen(false);
     setBookTodoMenuOpen(false);
     setBookTodoExistingOpen(false);
     setBookActionMessage("");
+
+    window.setTimeout(() => {
+      setBookSelection(draft);
+    }, 120);
   }, [mobileSelectionDraft]);
 
 
