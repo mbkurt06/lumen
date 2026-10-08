@@ -8,7 +8,7 @@ import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { getCachedContentByDocument } from "@/lib/localContentDb";
-import { offlineGetRows, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { offlineGetRows, offlineHasPending, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Item = {
   id: string;
@@ -267,9 +267,11 @@ export function MemorizationView({
         .from("user_preferences")
         .select("preferences")
         .maybeSingle()
-        .then(({data})=>{
+        .then(async ({data})=>{
           const remote=(data?.preferences ?? {}) as Record<string,unknown>;
-          const merged={...remote,...readLocalReaderPrefs()};
+          const current=readLocalReaderPrefs();
+          const pending=await offlineHasPending("user_preferences");
+          const merged=pending ? {...remote,...current} : remote;
           writeLocalReaderPrefs(merged);
           apply(merged);
         })
