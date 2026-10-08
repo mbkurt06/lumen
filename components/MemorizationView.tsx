@@ -6,6 +6,7 @@ import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
+import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Item = {
   id: string;
@@ -103,6 +104,10 @@ export function MemorizationView({
   const [editTodo, setEditTodo] = useState<TodoInfo | null>(null);
   const [editMenu, setEditMenu] = useState<{todo: TodoInfo; x:number; y:number}|null>(null);
   const [message, setMessage] = useState("");
+  const [showPlayControl,setShowPlayControl] = useState<boolean | null>(() => {
+    const local=readLocalReaderPrefs();
+    return Object.keys(local).length ? scopedBoolean(local,"ezber","ShowPlay",true) : null;
+  });
   const [resolvedMeta, setResolvedMeta] = useState<Record<string, any>>((item?.metadata ?? {}) as Record<string, any>);
   const [resolvedCategoryTitle, setResolvedCategoryTitle] = useState(categoryTitle);
 
@@ -199,6 +204,46 @@ export function MemorizationView({
     }
     await loadTodos();
   }, [item, initialIndex, loadTodos]);
+
+  useEffect(() => {
+    let cancelled=false;
+
+    const apply=(prefs:Record<string,unknown>)=>{
+      if(cancelled) return;
+      setShowPlayControl(scopedBoolean(prefs,"ezber","ShowPlay",true));
+    };
+
+    const local=readLocalReaderPrefs();
+    if(Object.keys(local).length) apply(local);
+
+    if(navigator.onLine){
+      void supabase
+        .from("user_preferences")
+        .select("preferences")
+        .maybeSingle()
+        .then(({data})=>{
+          const remote=(data?.preferences ?? {}) as Record<string,unknown>;
+          writeLocalReaderPrefs(remote);
+          apply(remote);
+        })
+        .catch(()=>{
+          if(!Object.keys(local).length && !cancelled) setShowPlayControl(false);
+        });
+    }else if(!Object.keys(local).length){
+      setShowPlayControl(false);
+    }
+
+    const onPrefs=(event:Event)=>{
+      const detail=(event as CustomEvent<Record<string,unknown>>).detail;
+      if(!detail || detail.scope!=="ezber") return;
+      if(typeof detail.showPlay==="boolean") setShowPlayControl(detail.showPlay);
+    };
+    window.addEventListener("lumen-library-prefs",onPrefs);
+    return()=>{
+      cancelled=true;
+      window.removeEventListener("lumen-library-prefs",onPrefs);
+    };
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("lumen-counter-pos");
@@ -511,7 +556,7 @@ export function MemorizationView({
         />
       )}
 
-      <FloatingPlaybackButton />
+      {showPlayControl === true && <FloatingPlaybackButton />}
 
       {node && (
         <TodoDialog
