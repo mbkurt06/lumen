@@ -386,14 +386,15 @@ export function AppShell({
       if(Object.keys(local).length) apply(local);
 
       if(!navigator.onLine || cancelled) return;
-      supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({ data }) => {
-      const remote=(data?.preferences ?? {}) as Record<string, unknown>;
-      const current=readLocalReaderPrefs();
-      const pending=await offlineHasPending("user_preferences");
-      const merged=pending ? {...remote,...current} : remote;
-      writeLocalReaderPrefs(merged);
-      apply(merged);
-      }).catch(()=>{});
+      try{
+        const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
+        const remote=(data?.preferences ?? {}) as Record<string, unknown>;
+        const current=readLocalReaderPrefs();
+        const pending=await offlineHasPending("user_preferences");
+        const merged=pending ? {...remote,...current} : remote;
+        writeLocalReaderPrefs(merged);
+        apply(merged);
+      }catch{}
     })();
     return()=>{cancelled=true;};
   }, [readerScope,user.id]);
