@@ -12,7 +12,7 @@ import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
-import { offlineGetOne, offlineGetRows, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Item = {
   id: string;
@@ -239,9 +239,11 @@ export function ReaderView({
         .from("user_preferences")
         .select("preferences")
         .maybeSingle()
-        .then(({ data }) => {
+        .then(async ({ data }) => {
           const remote=(data?.preferences ?? {}) as Record<string, unknown>;
-          const merged={...remote,...readLocalReaderPrefs()};
+          const current=readLocalReaderPrefs();
+          const pending=await offlineHasPending("user_preferences");
+          const merged=pending ? {...remote,...current} : remote;
           writeLocalReaderPrefs(merged);
           apply(merged);
         })
@@ -369,9 +371,11 @@ export function ReaderView({
     setBookBookmarks(localRows.filter(row=>row?.itemId===item.id));
 
     if(!navigator.onLine) return;
-    void supabase.from("user_preferences").select("preferences").maybeSingle().then(({data}) => {
+    void supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({data}) => {
       const remote=(data?.preferences ?? {}) as Record<string,unknown>;
-      const merged={...remote,...readLocalReaderPrefs()};
+      const current=readLocalReaderPrefs();
+      const pending=await offlineHasPending("user_preferences");
+      const merged=pending ? {...remote,...current} : remote;
       writeLocalReaderPrefs(merged);
       const rows=Array.isArray(merged[key]) ? merged[key] as BookBookmark[] : [];
       setBookBookmarks(rows.filter(row=>row?.itemId===item.id));
