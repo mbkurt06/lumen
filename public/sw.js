@@ -1,151 +1,97 @@
-const CACHE_VERSION = "lumen-pwa-v4";
+const CACHE_VERSION = "lumen-pwa-v6";
 const SHELL_CACHE = CACHE_VERSION + "-shell";
 const RUNTIME_CACHE = CACHE_VERSION + "-runtime";
 
-async function cacheResponse(cache, request, response) {
-  if (!response || !response.ok) return;
-  try { await cache.put(request, response.clone()); } catch {}
+async function save(cache, request, response) {
+  if (!response?.ok || response.type === "opaque") return;
+  try { await cache.put(request, response.clone()); } catch (error) {
+    console.warn("Offline cache write failed", error);
+  }
 }
 
-async function precacheShell() {
+async function warmShell() {
   const cache = await caches.open(SHELL_CACHE);
-  let response;
-  try {
-    response = await fetch("/", { cache: "reload", credentials: "include" });
-  } catch {
-    return;
+  const response = await fetch("/", { cache: "reload", credentials: "same-origin" });
+  if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
+    throw new Error("Unable to cache application shell");
   }
-  if (!response.ok) return;
-
-  await cacheResponse(cache, "/", response);
-
+  await save(cache, "/", response);
   const html = await response.clone().text();
-  const paths = new Set([
-    "/",
-    "/manifest.webmanifest",
-    "/icon.svg",
-  ]);
-
+  const urls = new Set(["/manifest.webmanifest", "/icon.svg"]);
   for (const match of html.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
-    const value = match[1];
-    if (
-      value.startsWith("/_next/static/") ||
-      value.startsWith("/_next/image") ||
-      value === "/manifest.webmanifest" ||
-      value === "/icon.svg"
-    ) {
-      paths.add(value);
-    }
+    const url = match[1];
+    if (url.startsWith("/_next/static/")) urls.add(url);
   }
-
-  await Promise.all(
-    Array.from(paths).map(async path => {
-      try {
-        const asset = await fetch(path, {
-          cache: "reload",
-          credentials: "include",
-        });
-        await cacheResponse(cache, path, asset);
-      } catch {}
-    })
-  );
+  await Promise.all(Array.from(urls).map(async url => {
+    try {
+      const asset = await fetch(url, { cache:"reload",credentials:"same-origin" });
+      await save(cache, url, asset);
+    } catch (error) { console.warn("Offline asset warm failed",url,error); }
+  }));
 }
 
 self.addEventListener("install", event => {
-  event.waitUntil(precacheShell().then(() => self.skipWaiting()));
+  event.waitUntil(warmShell().catch(error => console.warn("Offline precache unavailable", error))
+    .then(() => self.skipWaiting()));
 });
-
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(key => !key.startsWith(CACHE_VERSION))
-          .map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith("lumen-pwa-") &&
+      key !== SHELL_CACHE && key !== RUNTIME_CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
-
 self.addEventListener("message", event => {
   if (event.data?.type === "WARM_OFFLINE") {
-    event.waitUntil(precacheShell());
+    event.waitUntil(warmShell().catch(error => console.warn("Offline warm failed",error)));
   }
 });
-
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
-
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Never intercept private APIs, OAuth, Next RSC/Flight responses or requests
+  // with authorization headers: they must not be persisted in a public cache.
+  if (url.pathname.startsWith("/api/") || url.searchParams.has("_rsc") ||
+      request.headers.has("authorization") ||
+      request.headers.get("rsc") === "1" ||
+      request.headers.get("next-router-prefetch") === "1") return;
+
   if (request.mode === "navigate") {
     event.respondWith((async () => {
-      const shell = await caches.match("/");
+      const fallback = await caches.match("/");
       try {
         const response = await fetch(request);
-        if (response.ok) {
-          const cache = await caches.open(RUNTIME_CACHE);
-          await cacheResponse(cache, request, response);
-          await cacheResponse(cache, "/", response);
+        if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
+          return response;
         }
+        const cache = await caches.open(RUNTIME_CACHE);
+        await save(cache, request, response);
+        // Root page is the only safe source for our offline app shell.
+        if(url.pathname === "/") await save(cache, "/", response);
         return response;
       } catch {
-        return (await caches.match(request)) || shell || Response.error();
+        return (await caches.match(request)) || fallback ||
+          new Response("Offline içerik henüz indirilmedi.",{status:503,headers:{"content-type":"text/plain; charset=utf-8"}});
       }
     })());
     return;
   }
 
-  const isStatic =
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/_next/image") ||
-    url.pathname === "/icon.svg" ||
-    url.pathname === "/manifest.webmanifest";
-
-  if (isStatic) {
-    event.respondWith((async () => {
-      const cached = await caches.match(request);
-      if (cached) return cached;
-
-      try {
-        const response = await fetch(request);
-        if (response.ok) {
-          const cache = await caches.open(RUNTIME_CACHE);
-          await cacheResponse(cache, request, response);
-        }
-        return response;
-      } catch {
-        return Response.error();
-      }
-    })());
-    return;
-  }
+  const isStatic = url.pathname.startsWith("/_next/static/") ||
+    url.pathname === "/icon.svg" || url.pathname === "/manifest.webmanifest";
+  if (!isStatic) return;
 
   event.respondWith((async () => {
     const cached = await caches.match(request);
-    if (cached) {
-      // Refresh silently when online, but never block offline use.
-      event.waitUntil(
-        fetch(request)
-          .then(async response => {
-            if (response.ok) {
-              const cache = await caches.open(RUNTIME_CACHE);
-              await cacheResponse(cache, request, response);
-            }
-          })
-          .catch(() => {})
-      );
-      return cached;
-    }
-
+    if (cached) return cached;
     try {
       const response = await fetch(request);
-      if (response.ok) {
-        const cache = await caches.open(RUNTIME_CACHE);
-        await cacheResponse(cache, request, response);
-      }
+      const cache = await caches.open(RUNTIME_CACHE);
+      await save(cache, request, response);
       return response;
     } catch {
       return Response.error();
