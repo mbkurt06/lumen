@@ -12,7 +12,7 @@ export function AuthPanel() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("Supabase bağlantısı kontrol ediliyor...");
   const [busy, setBusy] = useState(false);
-  const [authReady, setAuthReady] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     let cancelled=false;
@@ -25,7 +25,7 @@ export function AuthPanel() {
         setUser(localUser);
         setMessage("Bu cihazdaki kayıtlı hesap açılıyor.");
       }
-      setAuthReady(true);
+      if(localUser) setAuthReady(true);
       try {
       // getSession reads the persisted Supabase session locally, so an already
       // signed-in device can boot even when there is no network connection.
