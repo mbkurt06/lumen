@@ -12,12 +12,21 @@ export function AuthPanel() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("Supabase bağlantısı kontrol ediliyor...");
   const [busy, setBusy] = useState(false);
-  const [authReady, setAuthReady] = useState(false);
+  const [authReady, setAuthReady] = useState(true);
 
   useEffect(() => {
     let cancelled=false;
 
     const boot=async()=>{
+      // Recover the cached identity first; never hide the login screen while
+      // waiting for Supabase auth/network to settle.
+      const localUser=readOfflineUser();
+      if(localUser){
+        setUser(localUser);
+        setMessage("Bu cihazdaki kayıtlı hesap açılıyor.");
+      }
+      setAuthReady(true);
+      try {
       // getSession reads the persisted Supabase session locally, so an already
       // signed-in device can boot even when there is no network connection.
       const {data:sessionData}=await supabase.auth.getSession();
@@ -54,6 +63,14 @@ export function AuthPanel() {
       setUser(data.user ?? cachedUser);
       setMessage(data.user || cachedUser ? "Oturum açık." : "Supabase bağlantısı hazır.");
       setAuthReady(true);
+      } catch(error) {
+        console.warn("Auth bootstrap failed",error);
+        if(!cancelled){
+          setUser(readOfflineUser());
+          setMessage("Bağlantı kurulamadı. Yerel hesap kullanılabilir.");
+          setAuthReady(true);
+        }
+      }
     };
 
     void boot();
