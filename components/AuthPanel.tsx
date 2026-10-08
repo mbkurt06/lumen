@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { AppShell } from "@/components/AppShell";
+import { cacheOfflineUser, readOfflineUser } from "@/lib/offlineIdentity";
 
 export function AuthPanel() {
   const [user, setUser] = useState<User | null>(null);
@@ -22,16 +23,19 @@ export function AuthPanel() {
       const {data:sessionData}=await supabase.auth.getSession();
       if(cancelled) return;
 
-      const cachedUser=sessionData.session?.user ?? null;
+      const sessionUser=sessionData.session?.user ?? null;
+      if(sessionUser) cacheOfflineUser(sessionUser);
+      const cachedUser=sessionUser ?? readOfflineUser();
+
       if(cachedUser){
         setUser(cachedUser);
-        setMessage(navigator.onLine ? "Oturum açık." : "Çevrimdışı mod — kayıtlı oturum kullanılıyor.");
+        setMessage(navigator.onLine ? "Oturum açık." : "Çevrimdışı mod — bu cihazdaki kayıtlı kullanıcı kullanılıyor.");
         setAuthReady(true);
       }
 
       if(!navigator.onLine){
         if(!cachedUser){
-          setMessage("Çevrimdışısın. Bu cihazda daha önce açılmış bir oturum bulunamadı.");
+          setMessage("Çevrimdışısın. Bu cihazda daha önce açılmış bir hesap bulunamadı.");
           setAuthReady(true);
         }
         return;
@@ -46,6 +50,7 @@ export function AuthPanel() {
         }
         return;
       }
+      if(data.user) cacheOfflineUser(data.user);
       setUser(data.user ?? cachedUser);
       setMessage(data.user || cachedUser ? "Oturum açık." : "Supabase bağlantısı hazır.");
       setAuthReady(true);
@@ -60,9 +65,12 @@ export function AuthPanel() {
       // Do not throw away the persisted user merely because token refresh cannot
       // reach Supabase while the device is offline.
       if (!navigator.onLine && !session) {
+        const offlineUser=readOfflineUser();
+        if(offlineUser) setUser(offlineUser);
         setAuthReady(true);
         return;
       }
+      if(session?.user) cacheOfflineUser(session.user);
       setUser(session?.user ?? null);
       setAuthReady(true);
     });
@@ -100,6 +108,10 @@ export function AuthPanel() {
   async function signOut() {
     setBusy(true);
     const { error } = await supabase.auth.signOut();
+    if(!error){
+      cacheOfflineUser(null);
+      setUser(null);
+    }
     setMessage(error ? error.message : "Oturum kapatıldı.");
     setBusy(false);
   }
