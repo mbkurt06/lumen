@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { getMeta } from "@/lib/localContentDb";
+import { offlineOutboxCount, syncPersonalOfflineData } from "@/lib/offlineDb";
 
 const AUTO_SYNC_KEY = "lumen-static-auto-sync";
 
@@ -24,9 +25,11 @@ export function SettingsView({
   const [syncing,setSyncing]=useState(false);
   const [syncStatus,setSyncStatus]=useState("Güncel");
   const [lastSync,setLastSync]=useState<string|null>(null);
+  const [queuedChanges,setQueuedChanges]=useState(0);
 
   useEffect(()=>{
     setAutoSync(localStorage.getItem(AUTO_SYNC_KEY)==="1");
+    void offlineOutboxCount().then(setQueuedChanges).catch(()=>{});
     void getMeta<string>("last_sync_at").then(value=>{
       setLastSync(value);
       if(value) setSyncStatus("Güncel");
@@ -55,15 +58,26 @@ export function SettingsView({
         setSyncStatus(detail.message || "Senkronizasyon başarısız");
       }
     };
+    const onQueue=()=>void offlineOutboxCount().then(setQueuedChanges).catch(()=>{});
     window.addEventListener("lumen-static-sync",onSync as EventListener);
-    return ()=>window.removeEventListener("lumen-static-sync",onSync as EventListener);
+    window.addEventListener("lumen-offline-queue-changed",onQueue);
+    window.addEventListener("online",onQueue);
+    return ()=>{
+      window.removeEventListener("lumen-static-sync",onSync as EventListener);
+      window.removeEventListener("lumen-offline-queue-changed",onQueue);
+      window.removeEventListener("online",onQueue);
+    };
   },[]);
 
   async function runFullSync(){
     if(syncing) return;
     setSyncing(true);
     setSyncStatus("Tüm içerikler hazırlanıyor…");
-    await syncStaticContentInBackground(user.id,{forceFull:true});
+    await Promise.all([
+      syncStaticContentInBackground(user.id,{forceFull:true}),
+      syncPersonalOfflineData(user.id),
+    ]);
+    setQueuedChanges(await offlineOutboxCount());
   }
 
   function toggleAutoSync(){
@@ -99,7 +113,7 @@ export function SettingsView({
         <div className="settingRow syncSettingRow">
           <div>
             <strong>Tüm içerikleri lokale indir</strong>
-            <div className="muted syncHint">İlk kullanımda veya gerektiğinde Supabase’deki sabit içeriklerin tamamını bu cihaza indirir.</div>
+            <div className="muted syncHint">Supabase’deki içerikleri, Todo’ları, sayaç/okuma durumlarını ve uygulama ayarlarını bu cihaza indirir. Offline değişiklikler internet gelince geri gönderilir.</div>
           </div>
           <button className="settingButton" disabled={syncing} onClick={()=>void runFullSync()}>
             {syncing ? "Senkronize ediliyor…" : "Şimdi senkronize et"}
@@ -109,7 +123,7 @@ export function SettingsView({
         <div className="settingRow syncSettingRow">
           <div>
             <strong>Otomatik senkronizasyon</strong>
-            <div className="muted syncHint">Uygulama açılırken bir kez kontrol edilir. Otomatik açıkken ayrıca 15 dakikada bir değişiklik kontrolü yapılır.</div>
+            <div className="muted syncHint">Statik içerikler 15 dakikada bir; kişisel veriler ve offline değişiklik kuyruğu 5 dakikada bir ve internet geri geldiğinde senkronize edilir.</div>
           </div>
           <button
             type="button"
@@ -124,7 +138,7 @@ export function SettingsView({
 
         <div className="syncStatusRow">
           <span>{syncStatus}</span>
-          <span className="muted">Son senkronizasyon: {formatSyncDate(lastSync)}</span>
+          <span className="muted">Son senkronizasyon: {formatSyncDate(lastSync)} · Bekleyen offline değişiklik: {queuedChanges}</span>
         </div>
       </div>
 
