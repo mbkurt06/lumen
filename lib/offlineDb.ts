@@ -469,11 +469,34 @@ export async function syncPersonalOfflineData(ownerId:string){
   window.dispatchEvent(new CustomEvent("lumen-personal-sync",{detail:{state:"ready"}}));
 }
 
-export async function offlineOutboxCount(){
-  return (await getOutbox()).length;
+async function currentOfflineOwnerId(){
+  try{
+    const {data}=await supabase.auth.getSession();
+    return data.session?.user?.id || null;
+  }catch{
+    return null;
+  }
 }
-export async function offlineHasPending(table:OfflineMutationTable){
-  return (await getOutbox()).some(row=>row.table===table);
+
+function mutationOwner(mutation:OfflineMutation){
+  return mutation.ownerId
+    || String((mutation.payload as any)?.owner_id || "")
+    || String((mutation.match as any)?.owner_id || "")
+    || null;
+}
+
+export async function offlineOutboxCount(ownerId?:string){
+  const activeOwnerId=ownerId || await currentOfflineOwnerId();
+  const rows=await getOutbox();
+  return activeOwnerId
+    ? rows.filter(row=>!mutationOwner(row) || mutationOwner(row)===activeOwnerId).length
+    : rows.length;
+}
+export async function offlineHasPending(table:OfflineMutationTable,ownerId?:string){
+  const activeOwnerId=ownerId || await currentOfflineOwnerId();
+  return (await getOutbox()).some(row=>
+    row.table===table && (!activeOwnerId || !mutationOwner(row) || mutationOwner(row)===activeOwnerId)
+  );
 }
 
 
