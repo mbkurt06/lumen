@@ -249,24 +249,20 @@ export function ReaderView({
       if (Object.keys(local).length) apply(local);
 
       if(navigator.onLine){
-      void supabase
-        .from("user_preferences")
-        .select("preferences")
-        .maybeSingle()
-        .then(async ({ data }) => {
+        try{
+          const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
           const remote=(data?.preferences ?? {}) as Record<string, unknown>;
           const current=readLocalReaderPrefs();
           const pending=await offlineHasPending("user_preferences");
           const merged=pending ? {...remote,...current} : remote;
           writeLocalReaderPrefs(merged);
           apply(merged);
-        })
-        .catch(() => {
+        }catch{
           if (!Object.keys(local).length && !cancelled) {
             setShowCounterControl(false);
             setShowPlayControl(false);
           }
-        });
+        }
       } else if(!Object.keys(local).length && !cancelled){
         setShowCounterControl(false);
         setShowPlayControl(false);
@@ -386,15 +382,18 @@ export function ReaderView({
     setBookBookmarks(localRows.filter(row=>row?.itemId===item.id));
 
     if(!navigator.onLine) return;
-    void supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({data}) => {
-      const remote=(data?.preferences ?? {}) as Record<string,unknown>;
-      const current=readLocalReaderPrefs();
-      const pending=await offlineHasPending("user_preferences");
-      const merged=pending ? {...remote,...current} : remote;
-      writeLocalReaderPrefs(merged);
-      const rows=Array.isArray(merged[key]) ? merged[key] as BookBookmark[] : [];
-      setBookBookmarks(rows.filter(row=>row?.itemId===item.id));
-    }).catch(()=>{});
+    void (async()=>{
+      try{
+        const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
+        const remote=(data?.preferences ?? {}) as Record<string,unknown>;
+        const current=readLocalReaderPrefs();
+        const pending=await offlineHasPending("user_preferences");
+        const merged=pending ? {...remote,...current} : remote;
+        writeLocalReaderPrefs(merged);
+        const rows=Array.isArray(merged[key]) ? merged[key] as BookBookmark[] : [];
+        setBookBookmarks(rows.filter(row=>row?.itemId===item.id));
+      }catch{}
+    })();
   }, [isBookSelectionDocument, item.id, readerScope]);
 
   const saveBookBookmark = useCallback(async (existingId?:string) => {
