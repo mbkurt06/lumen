@@ -410,7 +410,7 @@ export function MemorizationView({
     if(!ownerId) return;
     const now=new Date().toISOString();
     const result=await offlineUpsert("memorization_state",ownerId,{
-      id:(memory as any)?.id || crypto.randomUUID(),
+      ...((memory as any)?.id ? {id:(memory as any).id} : {}),
       owner_id:ownerId,
       content_node_id:node.id,
       repeat_count:next.repeat_count,
