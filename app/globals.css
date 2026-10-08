@@ -6914,3 +6914,45 @@ body.dark .unifiedBookPage{
     font-size:13px!important;
   }
 }
+
+
+/* Calendar: always show the real current date in every view. */
+.calendarToolbarTitles{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-width:0;
+}
+.calendarToolbarTitles>h1{
+  margin:0!important;
+}
+.calendarCurrentDate{
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  min-width:0;
+  padding-left:12px;
+  border-left:1px solid var(--border);
+  white-space:nowrap;
+  color:var(--muted);
+  font-size:11px;
+}
+.calendarCurrentDate span{
+  font-weight:700;
+}
+.calendarCurrentDate strong{
+  color:var(--text);
+  font-weight:800;
+}
+@media(max-width:900px){
+  .calendarToolbarTitles{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:2px;
+  }
+  .calendarCurrentDate{
+    padding-left:0;
+    border-left:0;
+    font-size:10px;
+  }
+}
