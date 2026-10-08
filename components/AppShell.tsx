@@ -13,7 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
-import { flushOfflineOutbox, offlineHasPending, syncPersonalOfflineData } from "@/lib/offlineDb";
+import { flushOfflineOutbox, offlineCacheGet, offlineCacheSet, offlineGetOne, offlineHasPending, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
@@ -216,8 +216,15 @@ export function AppShell({
   }, [selectedItem, returnLibrarySection]);
 
   useEffect(() => {
+    let cancelled=false;
+
+    void (async()=>{
     try {
-      const saved = localStorage.getItem("lumen-app-state");
+      let saved = localStorage.getItem("lumen-app-state");
+      if(!saved){
+        const cached=await offlineCacheGet<Record<string,unknown>>("app-state:"+user.id);
+        if(cached) saved=JSON.stringify(cached);
+      }
       let restoredSidebar = false;
       if (saved) {
         const state = JSON.parse(saved);
@@ -242,7 +249,14 @@ export function AppShell({
     } catch {
       if (window.matchMedia("(max-width: 800px)").matches) setSidebarOpen(false);
     }
-    const cachedReaderPrefs = readLocalReaderPrefs();
+    let cachedReaderPrefs = readLocalReaderPrefs();
+    if(!Object.keys(cachedReaderPrefs).length){
+      const cachedPreferenceRow=await offlineGetOne<any>("user_preferences",user.id);
+      if(cachedPreferenceRow?.preferences && typeof cachedPreferenceRow.preferences==="object"){
+        cachedReaderPrefs={...(cachedPreferenceRow.preferences as Record<string,unknown>)};
+        writeLocalReaderPrefs(cachedReaderPrefs);
+      }
+    }
     if (Object.keys(cachedReaderPrefs).length || !navigator.onLine) setRestored(true);
 
     if (!navigator.onLine) return;
@@ -297,7 +311,13 @@ export function AppShell({
         setRestored(true);
       })
       .catch(() => setRestored(true));
-  }, []);
+    } finally {
+      if(!cancelled && !navigator.onLine) setRestored(true);
+    }
+    })();
+
+    return()=>{cancelled=true;};
+  }, [user.id]);
 
   useEffect(() => {
     const apply=(prefs:Record<string,unknown>)=>{
@@ -315,19 +335,30 @@ export function AppShell({
       }
     };
 
-    const local=readLocalReaderPrefs();
-    if(Object.keys(local).length) apply(local);
+    let cancelled=false;
+    void (async()=>{
+      let local=readLocalReaderPrefs();
+      if(!Object.keys(local).length){
+        const cached=await offlineGetOne<any>("user_preferences",user.id);
+        if(cached?.preferences && typeof cached.preferences==="object"){
+          local={...(cached.preferences as Record<string,unknown>)};
+          writeLocalReaderPrefs(local);
+        }
+      }
+      if(Object.keys(local).length) apply(local);
 
-    if(!navigator.onLine) return;
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({ data }) => {
+      if(!navigator.onLine || cancelled) return;
+      supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({ data }) => {
       const remote=(data?.preferences ?? {}) as Record<string, unknown>;
       const current=readLocalReaderPrefs();
       const pending=await offlineHasPending("user_preferences");
       const merged=pending ? {...remote,...current} : remote;
       writeLocalReaderPrefs(merged);
       apply(merged);
-    }).catch(()=>{});
-  }, [readerScope]);
+      }).catch(()=>{});
+    })();
+    return()=>{cancelled=true;};
+  }, [readerScope,user.id]);
 
   useEffect(() => {
     const openSettings = () => setLibrarySettingsOpen(open => !open);
@@ -392,7 +423,7 @@ export function AppShell({
 
   useEffect(() => {
     if (!restored) return;
-    localStorage.setItem("lumen-app-state", JSON.stringify({
+    const appState={
       tab,
       libraryMode,
       selectedItem,
@@ -404,7 +435,9 @@ export function AppShell({
       sidebarOpen,
       rightPanelOpen,
       rightPanelMode,
-    }));
+    };
+    localStorage.setItem("lumen-app-state", JSON.stringify(appState));
+    void offlineCacheSet("app-state:"+user.id,appState).catch(()=>{});
   }, [restored, tab, libraryMode, selectedItem, siblings, initialSegmentIndex, returnEzberRoot, returnToEzber, returnLibrarySection, sidebarOpen, rightPanelOpen, rightPanelMode]);
 
   async function openTodoSource(todo: {
