@@ -12,7 +12,7 @@ import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
-import { offlineGetOne, offlineGetRows, offlineReplaceRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { offlineGetOne, offlineGetRows, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Item = {
   id: string;
@@ -751,7 +751,7 @@ export function ReaderView({
       return;
     }
     const rows=(data ?? []) as any[];
-    await offlineReplaceRows("todos",rows.filter(row=>row.owner_id===ownerId),ownerId);
+    if(rows.length) await offlinePutRows("todos",rows.filter(row=>row.owner_id===ownerId));
     setTodos(rows);
   }, [item.id]);
 
