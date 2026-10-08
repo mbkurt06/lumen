@@ -477,7 +477,6 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     setCalendarStates(current => ({...current,[stateKey]:next}));
     const now=new Date().toISOString();
     const result=await offlineUpsert("calendar_event_state",ownerId,{
-      id: crypto.randomUUID(),
       owner_id: ownerId,
       account_id: event.accountId,
       calendar_id: event.calendarId,
