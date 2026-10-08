@@ -7,6 +7,8 @@ import { TodoDialog } from "@/components/TodoDialog";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
 import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { getCachedContentByDocument } from "@/lib/localContentDb";
+import { offlineGetRows, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 
 type Item = {
   id: string;
@@ -161,17 +163,59 @@ export function MemorizationView({
 
   const loadTodos = useCallback(async () => {
     if (!item) return;
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) return;
+
+    const local=await offlineGetRows<Todo>("todos",ownerId,row=>row.related_library_item_id===item.id);
+    if(local.length) setTodos(local);
+    if(!navigator.onLine){
+      if(!local.length) setTodos([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("todos")
-      .select("id,notes,related_content_node_id,related_library_item_id")
+      .select("id,owner_id,title,notes,is_completed,due_at,sort_order,related_content_node_id,related_library_item_id,created_at,updated_at")
       .eq("related_library_item_id", item.id);
-    if (error) setMessage(error.message);
-    else setTodos(data ?? []);
+    if (error) {
+      if(!local.length) setMessage(error.message);
+      return;
+    }
+    const rows=(data ?? []) as any[];
+    if(rows.length) await offlinePutRows("todos",rows);
+    setTodos(rows);
   }, [item]);
 
   const load = useCallback(async () => {
     if (!item) {
       setNodes([]);
+      return;
+    }
+
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    const cachedNodes=await getCachedContentByDocument(item.id).catch(()=>[]);
+    if(cachedNodes.length){
+      const loaded=cachedNodes as Node[];
+      setNodes(loaded);
+      setActive(Math.min(initialIndex,Math.max(0,loaded.length-1)));
+
+      if(ownerId){
+        const memoryRows=await offlineGetRows<MemoryState & {owner_id?:string}>(
+          "memorization_state",
+          ownerId,
+          row=>loaded.some(node=>node.id===row.content_node_id)
+        );
+        const map:Record<string,MemoryState>={};
+        memoryRows.forEach(row=>{map[row.content_node_id]=row;});
+        setStates(map);
+      }
+      await loadTodos();
+    }
+
+    if(!navigator.onLine) {
+      if(!cachedNodes.length) setMessage("Offline: Bu içerik bu cihazda henüz senkronize edilmemiş.");
       return;
     }
 
@@ -182,7 +226,7 @@ export function MemorizationView({
       .order("sort_order");
 
     if (error) {
-      setMessage(error.message);
+      if(!cachedNodes.length) setMessage(error.message);
       return;
     }
 
@@ -191,15 +235,17 @@ export function MemorizationView({
     setActive(Math.min(initialIndex, Math.max(0, loaded.length - 1)));
 
     const ids = loaded.map(node => node.id);
-    if (ids.length) {
+    if (ids.length && ownerId) {
       const { data: memoryData } = await supabase
         .from("memorization_state")
-        .select("content_node_id,repeat_count,repeat_target,playback_rate,is_memorized")
+        .select("id,owner_id,content_node_id,repeat_count,repeat_target,playback_rate,is_memorized,last_practiced_at,updated_at")
         .in("content_node_id", ids);
+      const rows=(memoryData ?? []) as any[];
+      if(rows.length) await offlinePutRows("memorization_state",rows);
       const map: Record<string, MemoryState> = {};
-      (memoryData ?? []).forEach(row => { map[row.content_node_id] = row; });
+      rows.forEach(row => { map[row.content_node_id] = row; });
       setStates(map);
-    } else {
+    } else if(!ids.length) {
       setStates({});
     }
     await loadTodos();
@@ -334,8 +380,14 @@ export function MemorizationView({
     history[today] = { count, completedAt: count >= info.target ? new Date().toISOString() : null };
     const nextMeta = { ...info.meta, schedule: { ...info.meta.schedule, history } };
     setTodos(current => current.map(todo => todo.id === info.todo.id ? { ...todo, notes: JSON.stringify(nextMeta) } : todo));
-    const { error } = await supabase.from("todos").update({ notes: JSON.stringify(nextMeta) }).eq("id", info.todo.id);
-    if (error) setMessage(error.message);
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) return;
+    const result=await offlineUpdate("todos",ownerId,{id:info.todo.id},{
+      notes:JSON.stringify(nextMeta),
+      updated_at:new Date().toISOString(),
+    });
+    if(result.error && navigator.onLine) setMessage(result.error.message);
   }
 
   async function updateMemory(nextCount: number) {
@@ -352,15 +404,22 @@ export function MemorizationView({
       setTransientCounts(item.id, all);
       return;
     }
-    const { error } = await supabase.from("memorization_state").upsert({
-      content_node_id: node.id,
-      repeat_count: next.repeat_count,
-      repeat_target: next.repeat_target,
-      playback_rate: next.playback_rate,
-      is_memorized: next.is_memorized,
-      last_practiced_at: new Date().toISOString(),
-    }, { onConflict: "owner_id,content_node_id" });
-    if (error) setMessage(error.message);
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) return;
+    const now=new Date().toISOString();
+    const result=await offlineUpsert("memorization_state",ownerId,{
+      id:(memory as any)?.id || crypto.randomUUID(),
+      owner_id:ownerId,
+      content_node_id:node.id,
+      repeat_count:next.repeat_count,
+      repeat_target:next.repeat_target,
+      playback_rate:next.playback_rate,
+      is_memorized:next.is_memorized,
+      last_practiced_at:now,
+      updated_at:now,
+    },{onConflict:"owner_id,content_node_id"});
+    if(result.error && navigator.onLine) setMessage(result.error.message);
   }
 
   async function increment() {
