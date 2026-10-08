@@ -320,9 +320,9 @@ export function MemorizationView({
   useEffect(() => {
     if (!resetMenu) return;
     const close = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (resetRef.current?.contains(target)) return;
-      if (counterRef.current?.contains(target)) return;
+      const target = event.target as globalThis.Node | null;
+      if (target && resetRef.current?.contains(target)) return;
+      if (target && counterRef.current?.contains(target)) return;
       setResetMenu(false);
     };
     document.addEventListener("pointerdown", close);
