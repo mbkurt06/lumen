@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
-import { offlineGetOne, offlineGetRows, offlineUpsert } from "@/lib/offlineDb";
+import { offlineGetOne, offlineGetRows, offlineLibraryItemUpdate, offlineUpsert } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 export type EzberItem = {
@@ -232,10 +232,10 @@ export function EzberHomeView({
   async function persistChildren() {
     const results = await Promise.all(
       children.map((item, index) =>
-        supabase.from("library_items").update({ sort_order: index }).eq("id", item.id)
+        offlineLibraryItemUpdate(user.id,item,{sort_order:index})
       )
     );
-    const failed = results.find(result => result.error);
+    const failed = results.find(result => result.error && navigator.onLine);
     if (failed?.error) setMessage(failed.error.message);
   }
 
