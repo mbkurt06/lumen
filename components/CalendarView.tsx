@@ -163,6 +163,8 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
   const [calendarCompletion, setCalendarCompletion] = useState<Record<string, boolean>>({});
   const [view, setView] = useState<ViewMode>("month");
   const [anchor, setAnchor] = useState(() => new Date());
+  const [followToday, setFollowToday] = useState(true);
+  const lastTodayKeyRef = useRef(localDateKey(new Date()));
   const [listRange, setListRange] = useState<ListRange>("month");
   const [customStart, setCustomStart] = useState(() => localDateKey(startOfMonth(new Date())));
   const [customEnd, setCustomEnd] = useState(() => localDateKey(addDays(addMonths(startOfMonth(new Date()), 1), -1)));
@@ -231,7 +233,11 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       setListRange(savedListRange);
     }
 
-    if (typeof prefs.calendarAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(prefs.calendarAnchor)) {
+    const shouldFollowToday = prefs.calendarAnchorFollowsToday !== false;
+    setFollowToday(shouldFollowToday);
+    if (shouldFollowToday) {
+      setAnchor(new Date());
+    } else if (typeof prefs.calendarAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(prefs.calendarAnchor)) {
       const restoredAnchor = new Date(prefs.calendarAnchor + "T12:00:00");
       if (!Number.isNaN(restoredAnchor.getTime())) setAnchor(restoredAnchor);
     }
@@ -255,6 +261,35 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     if (prefs.calendarHourDensity === 36 || prefs.calendarHourDensity === 48 || prefs.calendarHourDensity === 64) setHourDensity(prefs.calendarHourDensity);
     if (typeof prefs.calendarAutoScrollNow === "boolean") setAutoScrollNow(prefs.calendarAutoScrollNow);
   }, []);
+
+  useEffect(() => {
+    const refreshToday = () => {
+      const now = new Date();
+      const key = localDateKey(now);
+      if (key === lastTodayKeyRef.current) return;
+      lastTodayKeyRef.current = key;
+
+      if (followToday) {
+        setAnchor(now);
+        void saveViewPrefs({
+          calendarAnchor: key,
+          calendarAnchorFollowsToday: true,
+        });
+      }
+    };
+
+    const timer = window.setInterval(refreshToday, 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshToday();
+    };
+    window.addEventListener("focus", refreshToday);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshToday);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [followToday, saveViewPrefs]);
 
   const saveCalendarPrefs = useCallback(async (nextHidden: Set<string>, nextView = view) => {
     const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
@@ -571,6 +606,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
 
     if (next === "list" && listRange === "year") {
       nextAnchor = new Date();
+      setFollowToday(true);
       setAnchor(nextAnchor);
       setYearlyAutoScrollPending(true);
     }
@@ -579,6 +615,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       calendarView: next,
       calendarListRange: listRange,
       calendarAnchor: localDateKey(nextAnchor),
+      calendarAnchorFollowsToday: next === "list" && listRange === "year" ? true : followToday,
     });
   }
 
@@ -588,10 +625,12 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
 
     if (next === "year") {
       nextAnchor = new Date();
+      setFollowToday(true);
       setAnchor(nextAnchor);
       setYearlyAutoScrollPending(true);
     } else if (next === "remainingYear") {
       nextAnchor = new Date();
+      setFollowToday(true);
       setAnchor(nextAnchor);
       setYearlyAutoScrollPending(false);
     }
@@ -627,14 +666,23 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       const step = listRange === "year" ? 365 : listRange === "remainingYear" ? 365 : listRange === "month" ? 31 : listRange === "week" ? 7 : 1;
       next = addDays(anchor, delta * step);
     }
+    setFollowToday(false);
     setAnchor(next);
-    void saveViewPrefs({ calendarAnchor: localDateKey(next) });
+    void saveViewPrefs({
+      calendarAnchor: localDateKey(next),
+      calendarAnchorFollowsToday: false,
+    });
   }
 
   function goToday() {
     const today = new Date();
+    lastTodayKeyRef.current = localDateKey(today);
+    setFollowToday(true);
     setAnchor(today);
-    void saveViewPrefs({ calendarAnchor: localDateKey(today) });
+    void saveViewPrefs({
+      calendarAnchor: localDateKey(today),
+      calendarAnchorFollowsToday: true,
+    });
   }
 
   function toggleSourcesPanel() {
@@ -1279,7 +1327,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
                       <div className="calendarCellHead">
                         <button
                           className="calendarDateNumber"
-                          onClick={() => { setAnchor(day); void saveViewPrefs({ calendarAnchor:localDateKey(day), calendarView:"day" }); setViewAndSave("day"); }}
+                          onClick={() => { setFollowToday(false); setAnchor(day); void saveViewPrefs({calendarAnchor:localDateKey(day),calendarAnchorFollowsToday:false,calendarView:"day"}); setView("day"); }}
                           title="Gün görünümünü aç"
                         >
                           {day.getDate()}
@@ -1304,7 +1352,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
                         {dayEvents.length > (monthDensity === "compact" ? 5 : 4) && (
                           <button
                             className="calendarMore"
-                            onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                            onClick={() => { setFollowToday(false); setAnchor(day); void saveViewPrefs({calendarAnchor:localDateKey(day),calendarAnchorFollowsToday:false,calendarView:"day"}); setView("day"); }}
                           >
                             +{dayEvents.length - (monthDensity === "compact" ? 5 : 4)} daha
                           </button>
@@ -1337,7 +1385,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
           return (
             <div className="miniMonth" key={month}>
               <div className="miniMonthTop">
-                <button className="miniMonthTitle" onClick={() => { setAnchor(monthDate); void saveViewPrefs({ calendarAnchor:localDateKey(monthDate), calendarView:"month" }); setViewAndSave("month"); }}>
+                <button className="miniMonthTitle" onClick={() => { setFollowToday(false); setAnchor(monthDate); void saveViewPrefs({calendarAnchor:localDateKey(monthDate),calendarAnchorFollowsToday:false,calendarView:"month"}); setView("month"); }}>
                   {MONTHS[month]}
                 </button>
                 {monthEvents.length > 0 && <span className="miniMonthCount">{monthEvents.length}</span>}
@@ -1358,7 +1406,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
                         (sameDay(day, today) ? "today " : "") +
                         (count ? "hasEvents " : "")
                       }
-                      onClick={() => { setAnchor(day); setViewAndSave("day"); }}
+                      onClick={() => { setFollowToday(false); setAnchor(day); void saveViewPrefs({calendarAnchor:localDateKey(day),calendarAnchorFollowsToday:false,calendarView:"day"}); setView("day"); }}
                       title={count ? `${count} etkinlik` : undefined}
                     >
                       <span>{day.getDate()}</span>
@@ -1399,7 +1447,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
         <div className="calendarTimeHeader">
           <div className="calendarTimeCorner" />
           {days.map(day => (
-            <button key={localDateKey(day)} className={sameDay(day,new Date()) ? "today" : ""} onClick={() => { setAnchor(day); setViewAndSave("day"); }}>
+            <button key={localDateKey(day)} className={sameDay(day,new Date()) ? "today" : ""} onClick={() => { setFollowToday(false); setAnchor(day); void saveViewPrefs({calendarAnchor:localDateKey(day),calendarAnchorFollowsToday:false,calendarView:"day"}); setView("day"); }}>
               <small>{day.toLocaleDateString("tr-TR",{weekday:"short"})}</small>
               <strong>{day.getDate()}</strong>
             </button>
