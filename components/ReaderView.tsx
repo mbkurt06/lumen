@@ -234,21 +234,27 @@ export function ReaderView({
     const local = readLocalReaderPrefs();
     if (Object.keys(local).length) apply(local);
 
-    void supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle()
-      .then(({ data }) => {
-        const remote=(data?.preferences ?? {}) as Record<string, unknown>;
-        writeLocalReaderPrefs(remote);
-        apply(remote);
-      })
-      .catch(() => {
-        if (!Object.keys(local).length && !cancelled) {
-          setShowCounterControl(false);
-          setShowPlayControl(false);
-        }
-      });
+    if(navigator.onLine){
+      void supabase
+        .from("user_preferences")
+        .select("preferences")
+        .maybeSingle()
+        .then(({ data }) => {
+          const remote=(data?.preferences ?? {}) as Record<string, unknown>;
+          const merged={...remote,...readLocalReaderPrefs()};
+          writeLocalReaderPrefs(merged);
+          apply(merged);
+        })
+        .catch(() => {
+          if (!Object.keys(local).length && !cancelled) {
+            setShowCounterControl(false);
+            setShowPlayControl(false);
+          }
+        });
+    } else if(!Object.keys(local).length && !cancelled){
+      setShowCounterControl(false);
+      setShowPlayControl(false);
+    }
 
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
@@ -622,18 +628,25 @@ export function ReaderView({
   }, []);
 
   const persistQuranBookmarks = useCallback(async (next: QuranBookmark[]) => {
-    const { data, error } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    if (error) throw error;
-    const preferences = (data?.preferences ?? {}) as Record<string, unknown>;
-    const { error: saveError } = await supabase.from("user_preferences").upsert({
-      preferences: {
-        ...preferences,
-        quranBookmarks: next,
-        quranBookmark: null,
-      },
-      updated_at: new Date().toISOString(),
-    });
-    if (saveError) throw saveError;
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId) throw new Error("Oturum bulunamadı.");
+
+    const preferences=readLocalReaderPrefs();
+    const snapshot={
+      ...preferences,
+      quranBookmarks:next,
+      quranBookmark:null,
+    };
+    writeLocalReaderPrefs(snapshot);
+
+    const result=await offlineUpsert("user_preferences",ownerId,{
+      owner_id:ownerId,
+      preferences:snapshot,
+      updated_at:new Date().toISOString(),
+    },{onConflict:"owner_id"});
+    if(result.error && navigator.onLine) throw result.error;
+
     setQuranBookmarks(next);
     window.dispatchEvent(new CustomEvent("lumen-quran-bookmarks-changed", { detail: next }));
   }, []);
@@ -669,26 +682,25 @@ export function ReaderView({
   }, [quranPositionFor, quranBookmarks, persistQuranBookmarks, flashQuranAction]);
 
   const loadQuranTodoChoices = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("todos")
-      .select("id,title,notes")
-      .order("created_at", { ascending: true });
-    if (error) {
-      setQuranActionMessage(error.message);
-      return;
-    }
-    const choices = (data ?? []).flatMap(todo => {
-      let meta: TodoMeta = {};
-      try { meta = JSON.parse(todo.notes || "{}") as TodoMeta; } catch {}
-      if (!meta.quran?.tracking) return [];
-      return [{
-        id: todo.id,
-        title: todo.title,
-        notes: todo.notes,
-        description: meta.description || "",
-        position: meta.quran.position ?? null,
-      }];
-    });
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){setQuranActionMessage("Oturum bulunamadı.");return;}
+
+    const rows=await offlineGetRows<any>("todos",ownerId);
+    const choices = rows
+      .sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")))
+      .flatMap(todo => {
+        let meta: TodoMeta = {};
+        try { meta = JSON.parse(todo.notes || "{}") as TodoMeta; } catch {}
+        if (!meta.quran?.tracking) return [];
+        return [{
+          id: todo.id,
+          title: todo.title,
+          notes: todo.notes,
+          description: meta.description || "",
+          position: meta.quran.position ?? null,
+        }];
+      });
     setQuranTodoChoices(choices);
     setQuranTodoMenuOpen(true);
   }, []);
