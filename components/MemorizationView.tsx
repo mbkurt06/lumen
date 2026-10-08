@@ -9,6 +9,7 @@ import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters"
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { getCachedContentByDocument } from "@/lib/localContentDb";
 import { offlineGetRows, offlineHasPending, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 
 type Item = {
   id: string;
@@ -163,8 +164,7 @@ export function MemorizationView({
 
   const loadTodos = useCallback(async () => {
     if (!item) return;
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) return;
 
     const local=await offlineGetRows<Todo>("todos",ownerId,row=>row.related_library_item_id===item.id);
@@ -193,8 +193,7 @@ export function MemorizationView({
       return;
     }
 
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     const cachedNodes=await getCachedContentByDocument(item.id).catch(()=>[]);
     if(cachedNodes.length){
       const loaded=cachedNodes as Node[];
@@ -263,8 +262,7 @@ export function MemorizationView({
 
     void (async()=>{
       if(!Object.keys(local).length){
-        const {data:sessionData}=await supabase.auth.getSession();
-        const ownerId=sessionData.session?.user.id;
+        const ownerId=await getOfflineOwnerId();
         if(ownerId){
           const cached=await offlineGetRows<any>("user_preferences",ownerId);
           const prefs=cached[0]?.preferences;
@@ -399,8 +397,7 @@ export function MemorizationView({
     history[today] = { count, completedAt: count >= info.target ? new Date().toISOString() : null };
     const nextMeta = { ...info.meta, schedule: { ...info.meta.schedule, history } };
     setTodos(current => current.map(todo => todo.id === info.todo.id ? { ...todo, notes: JSON.stringify(nextMeta) } : todo));
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) return;
     const result=await offlineUpdate("todos",ownerId,{id:info.todo.id},{
       notes:JSON.stringify(nextMeta),
@@ -423,8 +420,7 @@ export function MemorizationView({
       setTransientCounts(item.id, all);
       return;
     }
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) return;
     const now=new Date().toISOString();
     const result=await offlineUpsert("memorization_state",ownerId,{
