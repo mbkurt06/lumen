@@ -21,6 +21,7 @@ type OfflineMutationTable = OfflineTable | "library_items";
 
 type OfflineMutation = {
   id?:number;
+  ownerId?:string;
   table:OfflineMutationTable;
   action:"upsert"|"update"|"delete";
   payload?:Record<string,unknown>;
@@ -222,14 +223,14 @@ export async function offlineUpsert(
   await offlinePutRows(table,[row]);
 
   if(!navigator.onLine){
-    await queueMutation({table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
     return {error:null,queued:true};
   }
 
   let query:any=supabase.from(table).upsert(row,options.onConflict?{onConflict:options.onConflict}:undefined);
   const {error}=await query;
   if(error){
-    await queueMutation({table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"upsert",payload:row,onConflict:options.onConflict,createdAt:new Date().toISOString()});
     return {error,queued:true};
   }
   return {error:null,queued:false};
@@ -243,7 +244,7 @@ export async function offlineUpdate(
 ){
   await offlinePatchRows(table,ownerId,match,patch);
   if(!navigator.onLine){
-    await queueMutation({table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
     return {error:null,queued:true};
   }
 
@@ -251,7 +252,7 @@ export async function offlineUpdate(
   for(const [key,value] of Object.entries(match)) query=query.eq(key,value);
   const {error}=await query;
   if(error){
-    await queueMutation({table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
     return {error,queued:true};
   }
   return {error:null,queued:false};
@@ -267,6 +268,7 @@ export async function offlineLibraryItemUpdate(
   await putStaticRows("library_items",[next]);
 
   const mutation:OfflineMutation={
+    ownerId,
     table:"library_items",
     action:"update",
     payload:{...patch,updated_at:now},
@@ -299,7 +301,7 @@ export async function offlineDelete(
 ){
   await offlineDeleteRows(table,ownerId,match);
   if(!navigator.onLine){
-    await queueMutation({table,action:"delete",match,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"delete",match,createdAt:new Date().toISOString()});
     return {error:null,queued:true};
   }
 
@@ -307,7 +309,7 @@ export async function offlineDelete(
   for(const [key,value] of Object.entries(match)) query=query.eq(key,value);
   const {error}=await query;
   if(error){
-    await queueMutation({table,action:"delete",match,createdAt:new Date().toISOString()});
+    await queueMutation({ownerId,table,action:"delete",match,createdAt:new Date().toISOString()});
     return {error,queued:true};
   }
   return {error:null,queued:false};
@@ -334,9 +336,23 @@ async function deleteOutbox(id:number){
   }finally{db.close();}
 }
 
-export async function flushOfflineOutbox():Promise<number>{
-  if(!navigator.onLine) return (await getOutbox()).length;
-  const rows=await getOutbox();
+export async function flushOfflineOutbox(ownerId?:string):Promise<number>{
+  const allRows=await getOutbox();
+  let activeOwnerId=ownerId || null;
+  if(!activeOwnerId){
+    try{
+      const {data}=await supabase.auth.getSession();
+      activeOwnerId=data.session?.user?.id || null;
+    }catch{}
+  }
+  const belongsToActiveUser=(mutation:OfflineMutation)=>{
+    const mutationOwner=mutation.ownerId
+      || String((mutation.payload as any)?.owner_id || "")
+      || String((mutation.match as any)?.owner_id || "");
+    return !activeOwnerId || !mutationOwner || mutationOwner===activeOwnerId;
+  };
+  if(!navigator.onLine) return allRows.filter(belongsToActiveUser).length;
+  const rows=allRows.filter(belongsToActiveUser);
   for(const mutation of rows){
     if(!mutation.id) continue;
     try{
@@ -360,7 +376,7 @@ export async function flushOfflineOutbox():Promise<number>{
       break;
     }
   }
-  return (await getOutbox()).length;
+  return (await getOutbox()).filter(belongsToActiveUser).length;
 }
 
 const PERSONAL_TABLES:OfflineTable[]=[
@@ -380,7 +396,7 @@ const PERSONAL_TABLES:OfflineTable[]=[
 
 export async function syncPersonalOfflineData(ownerId:string){
   if(!navigator.onLine) return;
-  const pending=await flushOfflineOutbox();
+  const pending=await flushOfflineOutbox(ownerId);
   // If a local mutation could not be delivered yet, do not overwrite newer
   // device state with older server rows. Retry when connectivity is healthy.
   if(pending>0) return;
