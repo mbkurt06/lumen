@@ -36,3 +36,7 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Local iPhone HTTPS certificates (never commit keys)
+.local-https/
+public/lumen-local-ca.crt
