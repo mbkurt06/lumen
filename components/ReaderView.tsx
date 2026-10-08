@@ -231,10 +231,24 @@ export function ReaderView({
       document.body.dataset.readerShowPlay=nextPlay ? "1" : "0";
     };
 
-    const local = readLocalReaderPrefs();
-    if (Object.keys(local).length) apply(local);
+    let local = readLocalReaderPrefs();
 
-    if(navigator.onLine){
+    void (async()=>{
+      if(!Object.keys(local).length){
+        const {data:sessionData}=await supabase.auth.getSession();
+        const ownerId=sessionData.session?.user.id;
+        if(ownerId){
+          const cached=await offlineGetOne<any>("user_preferences",ownerId);
+          if(cached?.preferences && typeof cached.preferences==="object"){
+            local={...(cached.preferences as Record<string,unknown>)};
+            writeLocalReaderPrefs(local);
+          }
+        }
+      }
+
+      if (Object.keys(local).length) apply(local);
+
+      if(navigator.onLine){
       void supabase
         .from("user_preferences")
         .select("preferences")
@@ -253,10 +267,11 @@ export function ReaderView({
             setShowPlayControl(false);
           }
         });
-    } else if(!Object.keys(local).length && !cancelled){
-      setShowCounterControl(false);
-      setShowPlayControl(false);
-    }
+      } else if(!Object.keys(local).length && !cancelled){
+        setShowCounterControl(false);
+        setShowPlayControl(false);
+      }
+    })();
 
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
