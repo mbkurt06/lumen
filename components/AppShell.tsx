@@ -338,7 +338,7 @@ export function AppShell({
   }, [tab]);
 
   useEffect(() => {
-    if (!restored) return;
+    if (!restored || !navigator.onLine) return;
     if (localStorage.getItem("lumen-repair-todo-target-v1") === "done") return;
 
     (async () => {
