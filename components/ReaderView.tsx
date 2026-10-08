@@ -1668,8 +1668,8 @@ export function ReaderView({
                       {node.translation && <div className="legacyTurkish unifiedBookTurkish">{node.translation}</div>}
                     </div>
 
-                    {(activeTodoInfos.length > 0 || intrinsicTarget > 0) && (
-                      <div className="unifiedBookCounters">
+                    {activeTodoInfos.length > 0 && (
+                      <div className="unifiedBookTodoCounters" aria-label="Todo tekrarları">
                         {Object.values(activeTodoInfos.reduce((groups, info) => {
                           const key = info.target + "/" + info.count;
                           (groups[key] ||= []).push(info);
@@ -1680,7 +1680,7 @@ export function ReaderView({
                           return (
                             <button
                               key={info.todo.id}
-                              className={"segmentTargetButton todoTarget " + (selected ? " active" : "")}
+                              className={"segmentTargetButton todoTarget todoRepeatCircle " + (selected ? " active" : "")}
                               onPointerDown={e => startTodoEditPress(info, e)}
                               onPointerUp={endTodoEditPress}
                               onPointerCancel={endTodoEditPress}
@@ -1692,27 +1692,31 @@ export function ReaderView({
                                 setActiveTodoId(info.todo.id);
                                 setCounterArmed(true);
                               }}
+                              title="Todo tekrarı"
                             >
                               {info.target}/{info.count}
                               {group.length > 1 && <span className="targetMultiplicity">{group.length}</span>}
                             </button>
                           );
                         })}
+                      </div>
+                    )}
 
-                        {!activeTodoInfos.length && intrinsicTarget > 0 && (
-                          <button
-                            className={"segmentTargetButton " + (intrinsicDone ? "done" : "") + (active && !activeTodoId ? " active" : "")}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setActiveNodeId(node.id);
-                              setActiveDocumentTodoId(null);
-                              setActiveTodoId(null);
-                              setCounterArmed(true);
-                            }}
-                          >
-                            {intrinsicTarget}/{intrinsicCount}
-                          </button>
-                        )}
+                    {intrinsicTarget > 0 && (
+                      <div className="unifiedBookIntrinsicCounters" aria-label="Metnin normal tekrarı">
+                        <button
+                          className={"segmentTargetButton intrinsicRepeatBadge " + (intrinsicDone ? "done" : "") + (active && !activeTodoId ? " active" : "")}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setActiveNodeId(node.id);
+                            setActiveDocumentTodoId(null);
+                            setActiveTodoId(null);
+                            setCounterArmed(true);
+                          }}
+                          title="Normal tekrar"
+                        >
+                          {intrinsicTarget}/{intrinsicCount}
+                        </button>
                       </div>
                     )}
                   </div>
