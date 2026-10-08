@@ -226,6 +226,9 @@ export function AppShell({
 
   useEffect(() => {
     let cancelled=false;
+    // Never block the whole UI behind IndexedDB or a Supabase request.
+    // Restored state/preferences can hydrate after the app becomes visible.
+    setRestored(true);
 
     void (async()=>{
       try {
