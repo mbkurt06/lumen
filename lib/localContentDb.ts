@@ -162,6 +162,16 @@ export async function putStaticRows(storeName:StaticStoreName,rows:any[]){
   }finally{db.close();}
 }
 
+export async function getCachedLibraryItem(id:string){
+  const row=await withStore<CachedLibraryItem>("library_items","readonly",store=>store.get(id));
+  return row ?? null;
+}
+
+export async function getCachedContentNode(id:string){
+  const row=await withStore<CachedContentNode>("content_nodes","readonly",store=>store.get(id));
+  return row ?? null;
+}
+
 export async function getCachedLibraryChildren(parentId:string){
   const rows=await allFromIndex<CachedLibraryItem>("library_items","parent_id",parentId);
   return rows.sort((a,b)=>(a.sort_order-b.sort_order)||a.title.localeCompare(b.title,"tr"));
