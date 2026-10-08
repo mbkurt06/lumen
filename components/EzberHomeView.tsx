@@ -4,6 +4,8 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { offlineGetOne, offlineGetRows, offlineUpsert } from "@/lib/offlineDb";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 export type EzberItem = {
   id: string;
@@ -135,19 +137,18 @@ export function EzberHomeView({
     const filtered = items.filter(item => meta(item).menu_key !== "todo");
     setRootChildren(filtered);
 
-    const { data: prefData } = await supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle();
-
-    const prefs = (prefData?.preferences ?? {}) as Record<string, unknown>;
+    let prefs=readLocalReaderPrefs();
+    if(!Object.keys(prefs).length){
+      const cached=await offlineGetOne<any>("user_preferences",user.id);
+      if(cached?.preferences) prefs=cached.preferences as Record<string,unknown>;
+    }
     const saved = prefs.duaEzberMenuOrder;
     if (Array.isArray(saved)) {
       const ids = saved.filter(x => typeof x === "string") as string[];
       rootOrderRef.current = ids;
       setRootOrder(ids);
     }
-  }, [loadChildren]);
+  }, [loadChildren,user.id]);
 
   useEffect(() => { loadRoot(); }, [loadRoot]);
 
@@ -163,25 +164,22 @@ export function EzberHomeView({
       setTodoSummaries([]);
       return;
     }
-    const ids = children.map(item => item.id);
-    supabase
-      .from("todos")
-      .select("id,notes,related_library_item_id")
-      .in("related_library_item_id", ids)
-      .then(({ data }) => {
-        const today = localDateKey();
-        const rows: TodoSummary[] = [];
-        for (const todo of data ?? []) {
-          if (!todo.related_library_item_id) continue;
-          const todoMeta = parseTodo(todo.notes);
-          if (!todoOccurs(todoMeta, today)) continue;
-          const target = Math.max(1, Number(todoMeta?.schedule?.target || 1));
-          const count = Math.min(target, Number(todoMeta?.schedule?.history?.[today]?.count || 0));
-          rows.push({ id: todo.id, itemId: todo.related_library_item_id, target, count, done: count >= target });
-        }
-        setTodoSummaries(rows);
-      });
-  }, [children]);
+    void (async()=>{
+      const ids=new Set(children.map(item=>item.id));
+      const rows=await offlineGetRows<any>("todos",user.id,row=>ids.has(row.related_library_item_id));
+      const today=localDateKey();
+      const summaries:TodoSummary[]=[];
+      for(const todo of rows){
+        if(!todo.related_library_item_id) continue;
+        const todoMeta=parseTodo(todo.notes);
+        if(!todoOccurs(todoMeta,today)) continue;
+        const target=Math.max(1,Number(todoMeta?.schedule?.target || 1));
+        const count=Math.min(target,Number(todoMeta?.schedule?.history?.[today]?.count || 0));
+        summaries.push({id:todo.id,itemId:todo.related_library_item_id,target,count,done:count>=target});
+      }
+      setTodoSummaries(summaries);
+    })();
+  }, [children,user.id]);
 
   const orderedRoots = useMemo(() => {
     if (!rootOrder.length) return rootChildren;
@@ -196,14 +194,15 @@ export function EzberHomeView({
   async function saveRootOrder(ids: string[]) {
     rootOrderRef.current = ids;
     setRootOrder(ids);
-
-    const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
-    const { error } = await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: { ...old, duaEzberMenuOrder: ids },
-    });
-    if (error) setMessage(error.message);
+    const current=readLocalReaderPrefs();
+    const snapshot={...current,duaEzberMenuOrder:ids};
+    writeLocalReaderPrefs(snapshot);
+    const result=await offlineUpsert("user_preferences",user.id,{
+      owner_id:user.id,
+      preferences:snapshot,
+      updated_at:new Date().toISOString(),
+    },{onConflict:"owner_id"});
+    if(result.error && navigator.onLine) setMessage(result.error.message);
   }
 
   function reorderRoots(overId: string) {
