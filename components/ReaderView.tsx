@@ -188,8 +188,14 @@ export function ReaderView({
   const [quranDebugOpen, setQuranDebugOpen] = useState(false);
   const [quranDebugBusy, setQuranDebugBusy] = useState(false);
   const [quranDebugSnapshot, setQuranDebugSnapshot] = useState<Record<string, any> | null>(null);
-  const [showCounterControl, setShowCounterControl] = useState<boolean | null>(null);
-  const [showPlayControl, setShowPlayControl] = useState<boolean | null>(null);
+  const [showCounterControl, setShowCounterControl] = useState<boolean | null>(() => {
+    const local=readLocalReaderPrefs();
+    return Object.keys(local).length ? scopedBoolean(local,readerScope,"ShowCounter",true) : null;
+  });
+  const [showPlayControl, setShowPlayControl] = useState<boolean | null>(() => {
+    const local=readLocalReaderPrefs();
+    return Object.keys(local).length ? scopedBoolean(local,readerScope,"ShowPlay",true) : null;
+  });
   const [bookSelection, setBookSelection] = useState<BookSelection | null>(null);
   const [mobileSelectionDraft, setMobileSelectionDraft] = useState<BookSelection | null>(null);
   const [bookBookmarks, setBookBookmarks] = useState<BookBookmark[]>([]);
@@ -216,8 +222,12 @@ export function ReaderView({
 
     const apply = (preferences: Record<string, unknown>) => {
       if (cancelled) return;
-      setShowCounterControl(scopedBoolean(preferences, readerScope, "ShowCounter", true));
-      setShowPlayControl(scopedBoolean(preferences, readerScope, "ShowPlay", true));
+      const nextCounter=scopedBoolean(preferences,readerScope,"ShowCounter",true);
+      const nextPlay=scopedBoolean(preferences,readerScope,"ShowPlay",true);
+      setShowCounterControl(nextCounter);
+      setShowPlayControl(nextPlay);
+      document.body.dataset.readerShowCounter=nextCounter ? "1" : "0";
+      document.body.dataset.readerShowPlay=nextPlay ? "1" : "0";
     };
 
     const local = readLocalReaderPrefs();
@@ -242,8 +252,14 @@ export function ReaderView({
     const handle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!detail || detail.scope !== readerScope) return;
-      if (typeof detail.showCounter === "boolean") setShowCounterControl(detail.showCounter);
-      if (typeof detail.showPlay === "boolean") setShowPlayControl(detail.showPlay);
+      if (typeof detail.showCounter === "boolean") {
+        setShowCounterControl(detail.showCounter);
+        document.body.dataset.readerShowCounter=detail.showCounter ? "1" : "0";
+      }
+      if (typeof detail.showPlay === "boolean") {
+        setShowPlayControl(detail.showPlay);
+        document.body.dataset.readerShowPlay=detail.showPlay ? "1" : "0";
+      }
     };
     window.addEventListener("lumen-library-prefs", handle);
     return () => {
