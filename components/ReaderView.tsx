@@ -13,6 +13,7 @@ import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 
 type Item = {
   id: string;
@@ -235,8 +236,7 @@ export function ReaderView({
 
     void (async()=>{
       if(!Object.keys(local).length){
-        const {data:sessionData}=await supabase.auth.getSession();
-        const ownerId=sessionData.session?.user.id;
+        const ownerId=await getOfflineOwnerId();
         if(ownerId){
           const cached=await offlineGetOne<any>("user_preferences",ownerId);
           if(cached?.preferences && typeof cached.preferences==="object"){
@@ -399,8 +399,7 @@ export function ReaderView({
 
   const saveBookBookmark = useCallback(async (existingId?:string) => {
     if (!bookSelection) return;
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
 
     const prefs=readLocalReaderPrefs();
@@ -438,8 +437,7 @@ export function ReaderView({
   }, [bookSelection,bookBookmarkName,item.id,item.title,readerScope]);
 
   const loadBookTodoChoices = useCallback(async () => {
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
     const local=await offlineGetRows<any>("todos",ownerId,row=>row.related_library_item_id===item.id);
     const rows=local.sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
@@ -466,8 +464,7 @@ export function ReaderView({
         updatedAt:new Date().toISOString(),
       },
     };
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){setBookActionMessage("Oturum bulunamadı.");return;}
     const result=await offlineUpdate("todos",ownerId,{id:todo.id},{
       notes:JSON.stringify(nextMeta),
@@ -647,8 +644,7 @@ export function ReaderView({
   }, []);
 
   const persistQuranBookmarks = useCallback(async (next: QuranBookmark[]) => {
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) throw new Error("Oturum bulunamadı.");
 
     const preferences=readLocalReaderPrefs();
@@ -701,8 +697,7 @@ export function ReaderView({
   }, [quranPositionFor, quranBookmarks, persistQuranBookmarks, flashQuranAction]);
 
   const loadQuranTodoChoices = useCallback(async () => {
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){setQuranActionMessage("Oturum bulunamadı.");return;}
 
     const rows=await offlineGetRows<any>("todos",ownerId);
@@ -737,8 +732,7 @@ export function ReaderView({
         position,
       },
     };
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){setQuranActionMessage("Oturum bulunamadı.");return;}
     const result=await offlineUpdate("todos",ownerId,{id:todo.id},{notes:JSON.stringify(nextMeta),updated_at:new Date().toISOString()});
     if(result.error && navigator.onLine){
@@ -760,8 +754,7 @@ export function ReaderView({
   }, [itemTarget, nodes.length]);
 
   const loadTodos = useCallback(async () => {
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) return;
 
     const local=await offlineGetRows<Todo>("todos",ownerId,row=>row.related_library_item_id===item.id);
@@ -1135,8 +1128,7 @@ export function ReaderView({
       )
     );
 
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId) return;
     const result=await offlineUpdate("todos",ownerId,{id:todoInfo.todo.id},{
       notes:JSON.stringify(nextMeta),
