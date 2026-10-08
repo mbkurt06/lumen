@@ -3,10 +3,18 @@
 import { supabase } from "@/lib/supabase/client";
 import { clearStaticStore, getMeta, putStaticRows, setMeta } from "@/lib/localContentDb";
 
-type StaticTable = "library_items"|"content_nodes"|"quran_mushaf_pages";
+type StaticTable = "library_items"|"content_nodes"|"quran_mushaf_pages"|"quran_mushaf_sources"|"quran_mushaf_source_chunks"|"media_sources"|"media_segments";
 type Fingerprint = { count:number; maxUpdatedAt:string|null };
 
-const TABLES: StaticTable[] = ["library_items","content_nodes","quran_mushaf_pages"];
+const TABLES: StaticTable[] = [
+  "library_items",
+  "content_nodes",
+  "quran_mushaf_pages",
+  "quran_mushaf_sources",
+  "quran_mushaf_source_chunks",
+  "media_sources",
+  "media_segments",
+];
 const PAGE_SIZE = 750;
 
 async function remoteFingerprint(table:StaticTable):Promise<Fingerprint>{
