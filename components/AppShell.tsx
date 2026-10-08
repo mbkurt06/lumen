@@ -590,7 +590,12 @@ export function AppShell({
         {tab === "library" && (
           <button
             className="persistentLibrarySettings"
-            onClick={() => setLibrarySettingsOpen(open => !open)}
+            onPointerDown={event => {
+              event.preventDefault();
+              event.stopPropagation();
+              setLibrarySettingsOpen(open => !open);
+            }}
+            aria-expanded={librarySettingsOpen}
             aria-label="Kütüphane ayarları"
             title="Kütüphane ayarları"
           >
