@@ -4,7 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
-import { offlineUpsert, offlineGetOne } from "@/lib/offlineDb";
+import { offlineHasPending, offlineUpsert, offlineGetOne } from "@/lib/offlineDb";
 
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
@@ -161,8 +161,11 @@ export function LibrarySettingsModal({
             quranLocal=JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string,unknown>;
           }catch{}
         }
-        // Device-local changes win until the offline outbox is flushed.
-        const raw={...serverRaw,...base,...quranLocal};
+        const pending=await offlineHasPending("user_preferences");
+        // Supabase is authoritative once this device has no unsent preference change.
+        const raw=pending
+          ? {...serverRaw,...base,...quranLocal}
+          : {...quranLocal,...serverRaw};
         rawPrefsRef.current=raw;
         writeLocalReaderPrefs(raw);
         await offlineUpsert("user_preferences",user.id,{
