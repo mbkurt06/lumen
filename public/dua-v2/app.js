@@ -41,6 +41,7 @@ const saveTodos=()=>{
     window.duaV2Db.syncMainTodos(todos,data).catch(err=>console.error("Todo sync:",err));
   }
 };
+addEventListener("online",()=>saveTodos());
 const todayKey=()=>new Date().toLocaleDateString("en-CA");
 const key=()=>dua.id+":"+index;
 const segmentKey=i=>dua.id+":"+i;
