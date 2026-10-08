@@ -259,10 +259,25 @@ export function MemorizationView({
       setShowPlayControl(scopedBoolean(prefs,"ezber","ShowPlay",true));
     };
 
-    const local=readLocalReaderPrefs();
-    if(Object.keys(local).length) apply(local);
+    let local=readLocalReaderPrefs();
 
-    if(navigator.onLine){
+    void (async()=>{
+      if(!Object.keys(local).length){
+        const {data:sessionData}=await supabase.auth.getSession();
+        const ownerId=sessionData.session?.user.id;
+        if(ownerId){
+          const cached=await offlineGetRows<any>("user_preferences",ownerId);
+          const prefs=cached[0]?.preferences;
+          if(prefs && typeof prefs==="object"){
+            local={...(prefs as Record<string,unknown>)};
+            writeLocalReaderPrefs(local);
+          }
+        }
+      }
+
+      if(Object.keys(local).length) apply(local);
+
+      if(navigator.onLine){
       void supabase
         .from("user_preferences")
         .select("preferences")
@@ -278,9 +293,10 @@ export function MemorizationView({
         .catch(()=>{
           if(!Object.keys(local).length && !cancelled) setShowPlayControl(false);
         });
-    }else if(!Object.keys(local).length){
-      setShowPlayControl(false);
-    }
+      }else if(!Object.keys(local).length){
+        setShowPlayControl(false);
+      }
+    })();
 
     const onPrefs=(event:Event)=>{
       const detail=(event as CustomEvent<Record<string,unknown>>).detail;
