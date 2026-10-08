@@ -358,3 +358,24 @@ export async function syncPersonalOfflineData(ownerId:string){
 export async function offlineOutboxCount(){
   return (await getOutbox()).length;
 }
+
+export async function offlineCacheGet<T=unknown>(key:string):Promise<T|null>{
+  const db=await openDb();
+  try{
+    const tx=db.transaction(META,"readonly");
+    const req=tx.objectStore(META).get(key);
+    return await new Promise<T|null>((resolve,reject)=>{
+      req.onsuccess=()=>resolve((req.result?.value ?? null) as T|null);
+      req.onerror=()=>reject(req.error);
+    });
+  }finally{db.close();}
+}
+
+export async function offlineCacheSet(key:string,value:unknown){
+  const db=await openDb();
+  try{
+    const tx=db.transaction(META,"readwrite");
+    tx.objectStore(META).put({key,value,updatedAt:new Date().toISOString()});
+    await txDone(tx);
+  }finally{db.close();}
+}
