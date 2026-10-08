@@ -34,6 +34,8 @@ export type QuranMushafParagraph = {
 };
 
 export type QuranMushafPage = {
+  source_key?: string;
+  updated_at?: string;
   word_page: number;
   display_page: number;
   surah_numbers: number[];
