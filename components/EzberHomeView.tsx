@@ -96,6 +96,7 @@ export function EzberHomeView({
   const loadChildren = useCallback(async (parentId: string) => {
     const cached = await getCachedLibraryChildren(parentId).catch(() => []);
     if (cached.length) return cached as EzberItem[];
+    if(!navigator.onLine) return [];
 
     const { data, error } = await supabase
       .from("library_items")
@@ -115,6 +116,11 @@ export function EzberHomeView({
   const loadRoot = useCallback(async () => {
     let root = await getCachedLibraryRoot("dua_v2").catch(() => null) as EzberItem | null;
     let error: { message:string } | null = null;
+
+    if (!root && !navigator.onLine) {
+      setMessage("Offline: Ezber içeriği bu cihazda henüz senkronize edilmemiş.");
+      return;
+    }
 
     if (!root) {
       const result = await supabase
