@@ -16,6 +16,7 @@ import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { flushOfflineOutbox, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
+import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening";
@@ -415,6 +416,73 @@ export function AppShell({
 
     let requestedNodeId = todoMeta?.quran?.position?.nodeId || todo.related_content_node_id || null;
     let requestedPage = Number(todoMeta?.quran?.position?.page || 0) || null;
+
+    if(!navigator.onLine){
+      let localItem=await getCachedLibraryItem(todo.related_library_item_id);
+      if(!localItem) return;
+
+      const localSource=String((localItem.metadata as any)?.source || "");
+      if(localSource.startsWith("quran") && requestedNodeId){
+        const targetNode=await getCachedContentNode(requestedNodeId);
+        if(targetNode?.document_id){
+          const targetItem=await getCachedLibraryItem(targetNode.document_id);
+          if(targetItem){
+            localItem={
+              ...targetItem,
+              metadata:{
+                ...(targetItem.metadata ?? {}),
+                start_page:requestedPage || Number((targetNode.metadata as any)?.page || 1),
+                initial_node_id:requestedNodeId,
+              },
+            };
+          }
+        }
+      }
+
+      const resolvedSource=String((localItem.metadata as any)?.source || "");
+      if(resolvedSource.startsWith("quran")){
+        setSelectedItem(localItem as EzberItem);
+        setReturnLibrarySection("quran");
+        setReturnEzberRoot(null);
+        setReturnToEzber(false);
+        setSiblings([]);
+        setInitialSegmentIndex(0);
+        setLibraryMode("read");
+        setTab("library");
+        return;
+      }
+
+      let parent:EzberItem|null=null;
+      let list:EzberItem[]=[];
+      if(localItem.parent_id){
+        parent=(await getCachedLibraryItem(localItem.parent_id)) as EzberItem|null;
+        list=(await getCachedLibraryChildren(localItem.parent_id)) as EzberItem[];
+      }
+
+      let segmentIndex=0;
+      if(requestedNodeId){
+        const localNodes=await getCachedContentByDocument(localItem.id);
+        const idx=localNodes.findIndex(node=>node.id===requestedNodeId);
+        if(idx>=0) segmentIndex=idx;
+      }
+
+      const itemMeta=(localItem.metadata ?? {}) as Record<string,unknown>;
+      const sourceName=String(itemMeta.source || itemMeta.catalog_source || "");
+      const targetSection:SectionKey=
+        sourceName.startsWith("quran") ? "quran" :
+        sourceName.startsWith("risale") ? "risale" :
+        "ezber";
+
+      setSelectedItem(localItem as EzberItem);
+      setReturnLibrarySection(targetSection);
+      setReturnEzberRoot(targetSection==="ezber" ? parent : null);
+      setReturnToEzber(targetSection==="ezber");
+      setSiblings(list.filter(x=>x.kind==="document"));
+      setInitialSegmentIndex(segmentIndex);
+      setLibraryMode("read");
+      setTab("library");
+      return;
+    }
 
     let { data: item } = await supabase
       .from("library_items")
