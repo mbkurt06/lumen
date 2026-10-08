@@ -6956,3 +6956,10 @@ body.dark .unifiedBookPage{
     font-size:10px;
   }
 }
+
+
+/* Reader tool visibility safety: never show playback when the active scope has it disabled. */
+body[data-reader-show-play="0"] .floatingPlay,
+body[data-reader-show-play="0"] .compactPlaybackPanel{
+  display:none!important;
+}
