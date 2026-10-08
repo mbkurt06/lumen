@@ -276,21 +276,17 @@ export function MemorizationView({
       if(Object.keys(local).length) apply(local);
 
       if(navigator.onLine){
-      void supabase
-        .from("user_preferences")
-        .select("preferences")
-        .maybeSingle()
-        .then(async ({data})=>{
+        try{
+          const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
           const remote=(data?.preferences ?? {}) as Record<string,unknown>;
           const current=readLocalReaderPrefs();
           const pending=await offlineHasPending("user_preferences");
           const merged=pending ? {...remote,...current} : remote;
           writeLocalReaderPrefs(merged);
           apply(merged);
-        })
-        .catch(()=>{
+        }catch{
           if(!Object.keys(local).length && !cancelled) setShowPlayControl(false);
-        });
+        }
       }else if(!Object.keys(local).length){
         setShowPlayControl(false);
       }
