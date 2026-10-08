@@ -503,5 +503,6 @@
     };
 
     remoteReady = true;
+    addEventListener("online", () => scheduleSave());
   })();
 })();
