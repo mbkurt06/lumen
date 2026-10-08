@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { TodoDialog } from "@/components/TodoDialog";
+import { offlineCacheGet, offlineCacheSet, offlineDelete, offlineGetOne, offlineGetRows, offlinePutRows, offlineReplaceRows, offlineUpsert } from "@/lib/offlineDb";
+import { readLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Todo = {
   id: string;
@@ -244,38 +246,89 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   }, []);
 
   const loadTodos = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("todos")
-      .select("id,title,notes,is_completed,due_at,related_library_item_id,related_content_node_id,created_at")
-      .order("created_at", { ascending: true });
+    const { data: sessionData } = await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+    if(!ownerId){
+      setMessage("Oturum bulunamadı.");
+      return;
+    }
 
-    if (error) setMessage("Todo okunamadı: " + error.message);
-    else {
-      setTodos(data ?? []);
+    const local=await offlineGetRows<Todo>("todos",ownerId);
+    if(local.length){
+      setTodos(local.sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||""))));
       setMessage("");
     }
+
+    if(!navigator.onLine){
+      if(!local.length) setMessage("Offline: Bu cihazda henüz Todo verisi yok.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("todos")
+      .select("id,owner_id,title,notes,is_completed,due_at,sort_order,related_library_item_id,related_content_node_id,created_at,updated_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      if(!local.length) setMessage("Todo okunamadı: " + error.message);
+      return;
+    }
+
+    const rows=(data ?? []) as any[];
+    await offlineReplaceRows("todos",rows,ownerId);
+    setTodos(rows);
+    setMessage("");
   }, []);
 
   const loadCalendarForDate = useCallback(async (key: string) => {
     setLoadingCalendar(true);
+    const {data:sessionData}=await supabase.auth.getSession();
+    const ownerId=sessionData.session?.user.id;
+
     try {
+      if(!ownerId) throw new Error("Oturum bulunamadı.");
+
+      const cachedAccounts=await offlineCacheGet<CalendarAccount[]>("google-calendar-accounts:"+ownerId);
+      const cachedEvents=await offlineCacheGet<CalendarEvent[]>("google-calendar-events:"+ownerId+":"+key);
+      const localStates=await offlineGetRows<CalendarState>("calendar_event_state",ownerId,row=>row.occurrence_date===key);
+      const localPrefs=readLocalReaderPrefs();
+      const cachedPrefRow=await offlineGetOne<any>("user_preferences",ownerId);
+      const prefs={
+        ...((cachedPrefRow?.preferences ?? {}) as Record<string,unknown>),
+        ...localPrefs,
+      };
+
+      if(cachedAccounts?.length) setCalendarAccounts(cachedAccounts);
+      if(cachedEvents){
+        setCalendarEvents(cachedEvents);
+        const cachedStateMap:Record<string,boolean>={};
+        for(const state of localStates){
+          cachedStateMap[`${state.account_id}|${state.calendar_id}|${state.event_id}|${state.occurrence_date}`]=Boolean(state.is_completed);
+        }
+        setCalendarStates(cachedStateMap);
+        setMessage("");
+      }
+
+      if(!navigator.onLine){
+        if(!cachedEvents) setCalendarEvents([]);
+        return;
+      }
+
       const headers = await authHeaders();
-      const [accountsResponse, prefsResult] = await Promise.all([
-        fetch("/api/google-calendar/accounts", { headers }),
-        supabase.from("user_preferences").select("preferences").maybeSingle(),
-      ]);
+      const accountsResponse=await fetch("/api/google-calendar/accounts", { headers });
       const accountsJson = await accountsResponse.json();
       if (!accountsResponse.ok) throw new Error(accountsJson.error || "Takvimler alınamadı.");
 
       const accounts = (accountsJson.accounts || []) as CalendarAccount[];
       setCalendarAccounts(accounts);
+      await offlineCacheSet("google-calendar-accounts:"+ownerId,accounts);
+
       const flat = accounts.flatMap(account => account.calendars.map(calendar => ({
         ...calendar,
         accountId: account.id,
         key: `${account.id}|${calendar.id}`,
       })));
 
-      const prefs = (prefsResult.data?.preferences ?? {}) as Record<string, unknown>;
       const savedKeys = Array.isArray(prefs.calendarTodoEnabledKeys)
         ? prefs.calendarTodoEnabledKeys.filter(item => typeof item === "string") as string[]
         : null;
@@ -295,6 +348,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       if (!enabled.length) {
         setCalendarEvents([]);
         setCalendarStates({});
+        await offlineCacheSet("google-calendar-events:"+ownerId+":"+key,[]);
         return;
       }
 
@@ -308,7 +362,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
         fetch(`/api/google-calendar/events?${params.toString()}`, { headers }),
         supabase
           .from("calendar_event_state")
-          .select("account_id,calendar_id,event_id,occurrence_date,is_completed")
+          .select("id,owner_id,account_id,calendar_id,event_id,occurrence_date,is_completed,completed_at,created_at,updated_at")
           .eq("occurrence_date", key),
       ]);
 
@@ -322,16 +376,20 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
           if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
           return String(a.start || "").localeCompare(String(b.start || ""));
         });
+      await offlineCacheSet("google-calendar-events:"+ownerId+":"+key,nextEvents);
+
+      const stateRows=(statesResult.data || []) as any[];
+      if(stateRows.length) await offlinePutRows("calendar_event_state",stateRows);
       const nextStates: Record<string,boolean> = {};
-      for (const state of (statesResult.data || []) as CalendarState[]) {
+      for (const state of stateRows as CalendarState[]) {
         nextStates[`${state.account_id}|${state.calendar_id}|${state.event_id}|${state.occurrence_date}`] = Boolean(state.is_completed);
       }
 
       setCalendarEvents(nextEvents);
       setCalendarStates(nextStates);
+      setMessage("");
     } catch (error) {
-      setCalendarEvents([]);
-      setMessage(error instanceof Error ? error.message : "Takvim etkinlikleri alınamadı.");
+      if(navigator.onLine) setMessage(error instanceof Error ? error.message : "Takvim etkinlikleri alınamadı.");
     } finally {
       setLoadingCalendar(false);
     }
@@ -396,12 +454,14 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
 
   async function remove(id: string) {
     if (!window.confirm("Bu Todo silinsin mi?")) return;
-    const { error } = await supabase.from("todos").delete().eq("id", id);
-    if (error) setMessage(error.message);
-    else {
-      await loadTodos();
-      window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
-    }
+    const {data}=await supabase.auth.getSession();
+    const ownerId=data.session?.user.id;
+    if(!ownerId){ setMessage("Oturum bulunamadı."); return; }
+
+    const result=await offlineDelete("todos",ownerId,{id});
+    if(result.error && navigator.onLine) setMessage(result.error.message);
+    setTodos(current=>current.filter(todo=>todo.id!==id));
+    window.dispatchEvent(new CustomEvent("lumen-todos-changed"));
   }
 
   async function toggleCalendarDone(event: CalendarEvent) {
@@ -415,20 +475,22 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     }
 
     setCalendarStates(current => ({...current,[stateKey]:next}));
-    const { error } = await supabase.from("calendar_event_state").upsert({
+    const now=new Date().toISOString();
+    const result=await offlineUpsert("calendar_event_state",ownerId,{
+      id: crypto.randomUUID(),
       owner_id: ownerId,
       account_id: event.accountId,
       calendar_id: event.calendarId,
       event_id: event.id,
       occurrence_date: selectedDate,
       is_completed: next,
-      completed_at: next ? new Date().toISOString() : null,
+      completed_at: next ? now : null,
+      created_at: now,
+      updated_at: now,
     }, { onConflict:"owner_id,account_id,calendar_id,event_id,occurrence_date" });
 
-    if (error) {
-      setCalendarStates(current => ({...current,[stateKey]:!next}));
-      setMessage(error.message);
-      return;
+    if (result.error && navigator.onLine) {
+      setMessage(result.error.message);
     }
 
     window.dispatchEvent(new CustomEvent("lumen-calendar-completion-changed", {
