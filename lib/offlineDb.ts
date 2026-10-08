@@ -395,6 +395,54 @@ export async function syncPersonalOfflineData(ownerId:string){
     }
   }
 
+  // Google OAuth tokens stay server-side. Cache only sanitized account/calendar
+  // metadata and a broad event window for offline calendar viewing.
+  try{
+    const {data:sessionData}=await supabase.auth.getSession();
+    const token=sessionData.session?.access_token;
+    if(token){
+      const headers={authorization:`Bearer ${token}`,"content-type":"application/json"};
+      const accountsResponse=await fetch("/api/google-calendar/accounts",{headers});
+      if(accountsResponse.ok){
+        const accountsJson=await accountsResponse.json();
+        const accounts=(accountsJson.accounts ?? []) as any[];
+        await offlineCacheSet("google-calendar-accounts:"+ownerId,accounts);
+
+        const calendarKeys=accounts.flatMap(account=>
+          (account.calendars ?? []).map((calendar:any)=>`${account.id}|${calendar.id}`)
+        );
+        if(calendarKeys.length){
+          const year=new Date().getFullYear();
+          const params=new URLSearchParams({
+            timeMin:new Date(year-1,0,1).toISOString(),
+            timeMax:new Date(year+2,0,1).toISOString(),
+          });
+          for(const key of calendarKeys) params.append("calendar",key);
+          const eventsResponse=await fetch("/api/google-calendar/events?"+params.toString(),{headers});
+          if(eventsResponse.ok){
+            const eventsJson=await eventsResponse.json();
+            await offlineCacheSet(
+              "google-calendar-events-master:"+ownerId,
+              (eventsJson.events ?? []) as any[]
+            );
+          }
+        }
+      }
+    }
+  }catch(error){
+    console.warn("Google calendar offline cache refresh failed",error);
+  }
+
+  // Keep the fast localStorage mirror aligned with the authoritative server
+  // after all pending preference writes have been delivered.
+  try{
+    const prefRows=await offlineGetRows<any>("user_preferences",ownerId);
+    const prefs=prefRows[0]?.preferences;
+    if(prefs && typeof prefs==="object"){
+      localStorage.setItem("lumen-reader-prefs-v1",JSON.stringify(prefs));
+    }
+  }catch{}
+
   const db=await openDb();
   try{
     const tx=db.transaction(META,"readwrite");
