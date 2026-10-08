@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { TodoDialog } from "@/components/TodoDialog";
 import { offlineCacheGet, offlineCacheSet, offlineDelete, offlineGetOne, offlineGetRows, offlinePutRows, offlineReplaceRows, offlineUpsert } from "@/lib/offlineDb";
+import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 import { readLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Todo = {
@@ -246,8 +247,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   }, []);
 
   const loadTodos = useCallback(async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){
       setMessage("Oturum bulunamadı.");
       return;
@@ -282,8 +282,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
 
   const loadCalendarForDate = useCallback(async (key: string) => {
     setLoadingCalendar(true);
-    const {data:sessionData}=await supabase.auth.getSession();
-    const ownerId=sessionData.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
 
     try {
       if(!ownerId) throw new Error("Oturum bulunamadı.");
@@ -462,8 +461,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
 
   async function remove(id: string) {
     if (!window.confirm("Bu Todo silinsin mi?")) return;
-    const {data}=await supabase.auth.getSession();
-    const ownerId=data.session?.user.id;
+    const ownerId=await getOfflineOwnerId();
     if(!ownerId){ setMessage("Oturum bulunamadı."); return; }
 
     const result=await offlineDelete("todos",ownerId,{id});
@@ -475,8 +473,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
   async function toggleCalendarDone(event: CalendarEvent) {
     const stateKey = eventStateKey(event,selectedDate);
     const next = !calendarStates[stateKey];
-    const { data } = await supabase.auth.getSession();
-    const ownerId = data.session?.user.id;
+    const ownerId = await getOfflineOwnerId();
     if (!ownerId) {
       setMessage("Oturum bulunamadı.");
       return;
