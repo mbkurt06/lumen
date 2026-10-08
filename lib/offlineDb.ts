@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
+import { putStaticRows } from "@/lib/localContentDb";
 
 export type OfflineTable =
   | "user_preferences"
@@ -16,9 +17,11 @@ export type OfflineTable =
   | "dua_v2_listening_sections"
   | "dua_v2_listening_videos";
 
+type OfflineMutationTable = OfflineTable | "library_items";
+
 type OfflineMutation = {
   id?:number;
-  table:OfflineTable;
+  table:OfflineMutationTable;
   action:"upsert"|"update"|"delete";
   payload?:Record<string,unknown>;
   match?:Record<string,unknown>;
@@ -249,6 +252,41 @@ export async function offlineUpdate(
   const {error}=await query;
   if(error){
     await queueMutation({table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
+    return {error,queued:true};
+  }
+  return {error:null,queued:false};
+}
+
+export async function offlineLibraryItemUpdate(
+  ownerId:string,
+  row:Record<string,any>,
+  patch:Record<string,any>
+){
+  const now=new Date().toISOString();
+  const next={...row,...patch,updated_at:now};
+  await putStaticRows("library_items",[next]);
+
+  const mutation:OfflineMutation={
+    table:"library_items",
+    action:"update",
+    payload:{...patch,updated_at:now},
+    match:{id:row.id,owner_id:ownerId},
+    createdAt:now,
+  };
+
+  if(!navigator.onLine){
+    await queueMutation(mutation);
+    return {error:null,queued:true};
+  }
+
+  const {error}=await supabase
+    .from("library_items")
+    .update(mutation.payload || {})
+    .eq("id",row.id)
+    .eq("owner_id",ownerId);
+
+  if(error){
+    await queueMutation(mutation);
     return {error,queued:true};
   }
   return {error:null,queued:false};
