@@ -60,6 +60,7 @@ export function LibraryCatalogView({
   const loadChildren = useCallback(async (parentId: string) => {
     const cached = await getCachedLibraryChildren(parentId).catch(() => []);
     if (cached.length) return cached as CatalogItem[];
+    if(!navigator.onLine) return [];
 
     const { data, error } = await supabase
       .from("library_items")
@@ -75,6 +76,9 @@ export function LibraryCatalogView({
   const loadRoot = useCallback(async () => {
     const cachedRoot = await getCachedLibraryRoot(source).catch(() => null);
     if (cachedRoot) return cachedRoot as CatalogItem;
+    if(!navigator.onLine){
+      throw new Error("Offline: Bu kütüphane bölümü bu cihazda henüz senkronize edilmemiş.");
+    }
 
     const { data, error } = await supabase
       .from("library_items")
