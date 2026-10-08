@@ -269,8 +269,9 @@ export function MemorizationView({
         .maybeSingle()
         .then(({data})=>{
           const remote=(data?.preferences ?? {}) as Record<string,unknown>;
-          writeLocalReaderPrefs(remote);
-          apply(remote);
+          const merged={...remote,...readLocalReaderPrefs()};
+          writeLocalReaderPrefs(merged);
+          apply(merged);
         })
         .catch(()=>{
           if(!Object.keys(local).length && !cancelled) setShowPlayControl(false);
