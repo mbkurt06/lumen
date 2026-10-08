@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
+import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 
 type Props = {
   open: boolean;
@@ -99,8 +100,7 @@ export function TodoDialog({
       related_content_node_id: contentNodeId,
     };
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const ownerId = sessionData.session?.user?.id;
+    const ownerId = await getOfflineOwnerId();
     if (!ownerId) {
       setBusy(false);
       setMessage("Oturum bilgisi bulunamadı.");
