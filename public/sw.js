@@ -1,4 +1,4 @@
-const CACHE_VERSION = "lumen-pwa-v6";
+const CACHE_VERSION = "lumen-pwa-v7";
 const SHELL_CACHE = CACHE_VERSION + "-shell";
 const RUNTIME_CACHE = CACHE_VERSION + "-runtime";
 
@@ -62,9 +62,15 @@ self.addEventListener("fetch", event => {
 
   if (request.mode === "navigate") {
     event.respondWith((async () => {
-      const fallback = await caches.match("/");
+      const fallback = (await caches.match(request)) || (await caches.match("/"));
+      // Prefer the cached shell for offline navigations instead of waiting for a
+      // stalled network request (Safari can take a long time to fail).
+      if (self.navigator.onLine === false && fallback) return fallback;
       try {
-        const response = await fetch(request);
+        const response = await Promise.race([
+          fetch(request),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("navigation timeout")), 3000))
+        ]);
         if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
           return response;
         }
