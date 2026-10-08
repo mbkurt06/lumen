@@ -277,10 +277,21 @@ export function ReaderView({
       return;
     }
 
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const isCoarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches === true;
+
+    const clearSettleTimer = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = null;
+    };
+
     const captureCurrentSelection = () => {
       const selection = window.getSelection();
       const text = selection?.toString().trim() || "";
-      if (!selection || selection.rangeCount === 0 || !text) return;
+      if (!selection || selection.rangeCount === 0 || !text) {
+        setBookSelection(null);
+        return;
+      }
 
       const range = selection.getRangeAt(0);
       const startElement = range.startContainer.nodeType === window.Node.ELEMENT_NODE
@@ -312,24 +323,72 @@ export function ReaderView({
       setBookActionMessage("");
     };
 
-    const captureSelection = (event: PointerEvent) => {
+    const scheduleTouchCapture = (delay = 520) => {
+      clearSettleTimer();
+      // Wait until iOS/iPadOS selection handles have stopped moving. While the
+      // user drags a handle, selectionchange keeps resetting this timer.
+      settleTimer = window.setTimeout(captureCurrentSelection, delay);
+    };
+
+    const onSelectionChange = () => {
+      if (!isCoarsePointer) return;
+      const selection = window.getSelection();
+      const text = selection?.toString().trim() || "";
+
+      // Hide our menu while the native handles are being adjusted. Do not clear
+      // the browser selection; the user must be free to extend it to many words.
+      setBookSelection(null);
+      setBookTodoMenuOpen(false);
+      setBookTodoExistingOpen(false);
+      setBookBookmarkMenuOpen(false);
+      setBookBookmarkExistingOpen(false);
+
+      if (!text) {
+        clearSettleTimer();
+        return;
+      }
+      scheduleTouchCapture(650);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
       const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+      if (!touchLike) return;
 
-      // Desktop: Command/Ctrl + selection.
-      // Phone/tablet: native long-press text selection, then releasing the finger
-      // opens the same compact Todo/Ayraç menu.
-      if (!touchLike && !event.metaKey && !event.ctrlKey) return;
-
-      if (touchLike) {
-        window.setTimeout(captureCurrentSelection, 120);
-      } else {
-        captureCurrentSelection();
+      const selection = window.getSelection();
+      if (selection?.toString().trim()) {
+        // Starting to drag a native selection handle: hide only our UI.
+        // Keep the native selection intact.
+        clearSettleTimer();
+        setBookSelection(null);
+        setBookTodoMenuOpen(false);
+        setBookTodoExistingOpen(false);
+        setBookBookmarkMenuOpen(false);
+        setBookBookmarkExistingOpen(false);
       }
     };
 
-    document.addEventListener("pointerup", captureSelection);
+    const onPointerUp = (event: PointerEvent) => {
+      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+
+      if (!touchLike) {
+        if (!event.metaKey && !event.ctrlKey) return;
+        captureCurrentSelection();
+        return;
+      }
+
+      // Native iOS selection updates can land just after pointerup.
+      scheduleTouchCapture(650);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("selectionchange", onSelectionChange);
+
     return () => {
-      document.removeEventListener("pointerup", captureSelection);
+      clearSettleTimer();
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("selectionchange", onSelectionChange);
     };
   }, [isBookSelectionDocument, item.id]);
 
@@ -456,6 +515,15 @@ export function ReaderView({
         setBookTodoExistingOpen(false);
         setBookBookmarkMenuOpen(false);
         setBookBookmarkExistingOpen(false);
+        return;
+      }
+
+      const touchLike = event.pointerType === "touch" || event.pointerType === "pen";
+      if (touchLike && window.getSelection()?.toString().trim()) {
+        // On iPhone/iPad the browser's selection handles are not normal DOM
+        // controls. A pointerdown while dragging one can look like an "outside"
+        // tap. Hide our popover, but never destroy the native selection.
+        setBookSelection(null);
         return;
       }
 
