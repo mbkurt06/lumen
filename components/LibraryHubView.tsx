@@ -4,6 +4,8 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
 import { LibraryCatalogView } from "@/components/LibraryCatalogView";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { offlineGetOne, offlineUpsert } from "@/lib/offlineDb";
 
 export type SectionKey = "ezber" | "risale" | "quran" | "he";
 
@@ -41,36 +43,31 @@ export function LibraryHubView({
   const [dragKey, setDragKey] = useState<SectionKey | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle()
-      .then(({ data }) => {
-        const prefs = (data?.preferences ?? {}) as Record<string, unknown>;
-        const saved = prefs.libraryHubOrder;
-        if (Array.isArray(saved)) {
-          const filtered = saved.filter((x): x is SectionKey => defaultOrder.includes(x as SectionKey));
-          const missing = defaultOrder.filter(x => !filtered.includes(x));
-          setOrder([...filtered, ...missing]);
-        }
-      });
-  }, []);
+    void (async()=>{
+      let prefs=readLocalReaderPrefs();
+      if(!Object.keys(prefs).length){
+        const cached=await offlineGetOne<any>("user_preferences",user.id);
+        if(cached?.preferences) prefs=cached.preferences as Record<string,unknown>;
+      }
+      const saved=prefs.libraryHubOrder;
+      if(Array.isArray(saved)){
+        const filtered=saved.filter((x):x is SectionKey=>defaultOrder.includes(x as SectionKey));
+        const missing=defaultOrder.filter(x=>!filtered.includes(x));
+        setOrder([...filtered,...missing]);
+      }
+    })();
+  }, [user.id]);
 
   async function saveOrder(next: SectionKey[]) {
     setOrder(next);
-    const { data } = await supabase
-      .from("user_preferences")
-      .select("preferences")
-      .maybeSingle();
-
-    const old = (data?.preferences ?? {}) as Record<string, unknown>;
-    await supabase.from("user_preferences").upsert({
-      owner_id: user.id,
-      preferences: {
-        ...old,
-        libraryHubOrder: next,
-      },
-    });
+    const current=readLocalReaderPrefs();
+    const snapshot={...current,libraryHubOrder:next};
+    writeLocalReaderPrefs(snapshot);
+    await offlineUpsert("user_preferences",user.id,{
+      owner_id:user.id,
+      preferences:snapshot,
+      updated_at:new Date().toISOString(),
+    },{onConflict:"owner_id"});
   }
 
   function move(over: SectionKey) {
