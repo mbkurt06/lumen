@@ -4,6 +4,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { offlineUpsert, offlineGetOne } from "@/lib/offlineDb";
 
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
@@ -122,36 +123,64 @@ export function LibrarySettingsModal({
   useEffect(() => {
     if (!open) return;
 
+    let cancelled=false;
     setPrefsReady(false);
-    const localMirror = readLocalReaderPrefs();
-    const hasLocal = Object.keys(localMirror).length > 0;
-    if (hasLocal) {
-      rawPrefsRef.current = localMirror;
-      const next = readScopedPrefs(localMirror, scope);
-      setPrefs(next);
-      applyPrefs(next, scope);
-      setPrefsReady(true);
-    }
 
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
-      const serverRaw = (data?.preferences ?? {}) as Record<string, unknown>;
-      let quranLocal:Record<string,unknown> = {};
-      if (scope === "quran") {
-        try {
-          quranLocal = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
-        } catch {}
+    void (async()=>{
+      const localMirror=readLocalReaderPrefs();
+      let base:Record<string,unknown>={...localMirror};
+
+      if(!Object.keys(base).length){
+        const cached=await offlineGetOne<any>("user_preferences",user.id);
+        if(cached?.preferences && typeof cached.preferences==="object"){
+          base={...(cached.preferences as Record<string,unknown>)};
+          writeLocalReaderPrefs(base);
+        }
       }
-      const raw = { ...serverRaw, ...quranLocal };
-      rawPrefsRef.current = raw;
-      writeLocalReaderPrefs(raw);
-      const next = readScopedPrefs(raw, scope);
-      setPrefs(next);
-      applyPrefs(next, scope);
-      setPrefsReady(true);
-    }).catch(() => {
-      if (!hasLocal) setPrefsReady(true);
-    });
-  }, [open, scope]);
+
+      if(Object.keys(base).length && !cancelled){
+        rawPrefsRef.current=base;
+        const next=readScopedPrefs(base,scope);
+        setPrefs(next);
+        applyPrefs(next,scope);
+        setPrefsReady(true);
+      }
+
+      if(!navigator.onLine){
+        if(!cancelled && !Object.keys(base).length) setPrefsReady(true);
+        return;
+      }
+
+      try{
+        const {data}=await supabase.from("user_preferences").select("preferences").maybeSingle();
+        if(cancelled) return;
+        const serverRaw=(data?.preferences ?? {}) as Record<string,unknown>;
+        let quranLocal:Record<string,unknown>={};
+        if(scope==="quran"){
+          try{
+            quranLocal=JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string,unknown>;
+          }catch{}
+        }
+        // Device-local changes win until the offline outbox is flushed.
+        const raw={...serverRaw,...base,...quranLocal};
+        rawPrefsRef.current=raw;
+        writeLocalReaderPrefs(raw);
+        await offlineUpsert("user_preferences",user.id,{
+          owner_id:user.id,
+          preferences:raw,
+          updated_at:new Date().toISOString(),
+        },{onConflict:"owner_id"});
+        const next=readScopedPrefs(raw,scope);
+        setPrefs(next);
+        applyPrefs(next,scope);
+        setPrefsReady(true);
+      }catch{
+        if(!cancelled) setPrefsReady(true);
+      }
+    })();
+
+    return()=>{cancelled=true;};
+  }, [open, scope, user.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -192,11 +221,12 @@ export function LibrarySettingsModal({
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        const { error } = await supabase.from("user_preferences").upsert({
+        const { error } = await offlineUpsert("user_preferences", user.id, {
           owner_id: user.id,
           preferences: snapshot,
-        });
-        if (error) console.error("Preferences could not be saved", error);
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "owner_id" });
+        if (error && navigator.onLine) console.error("Preferences could not be saved", error);
       });
   }
 
