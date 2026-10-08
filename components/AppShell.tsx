@@ -13,7 +13,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
-import { flushOfflineOutbox, syncPersonalOfflineData } from "@/lib/offlineDb";
+import { flushOfflineOutbox, offlineHasPending, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
@@ -251,16 +251,18 @@ export function AppShell({
       .from("user_preferences")
       .select("preferences")
       .maybeSingle()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         const serverPrefs = (data?.preferences ?? {}) as Record<string, unknown>;
         const localMirror = readLocalReaderPrefs();
         let localQuran: Record<string, unknown> = {};
         try {
           localQuran = JSON.parse(localStorage.getItem("lumen-quran-page-prefs") || "{}") as Record<string, unknown>;
         } catch {}
-        const prefs = { ...serverPrefs, ...localMirror, ...localQuran };
-        // Never replace the local mirror with an older/partial server snapshot.
-        // Local settings are the immediate source while offline; Supabase is reconciled in background.
+        const hasPendingPrefs=await offlineHasPending("user_preferences");
+        const prefs = hasPendingPrefs
+          ? { ...serverPrefs, ...localMirror, ...localQuran }
+          : { ...localQuran, ...serverPrefs };
+        // Supabase wins while online unless this device has an unsent preference mutation.
         writeLocalReaderPrefs(prefs);
         const theme = typeof prefs.theme === "string" ? prefs.theme : "light";
         const fontScale = typeof prefs.fontScale === "number" ? prefs.fontScale : 1;
@@ -317,10 +319,11 @@ export function AppShell({
     if(Object.keys(local).length) apply(local);
 
     if(!navigator.onLine) return;
-    supabase.from("user_preferences").select("preferences").maybeSingle().then(({ data }) => {
+    supabase.from("user_preferences").select("preferences").maybeSingle().then(async ({ data }) => {
       const remote=(data?.preferences ?? {}) as Record<string, unknown>;
       const current=readLocalReaderPrefs();
-      const merged={...remote,...current};
+      const pending=await offlineHasPending("user_preferences");
+      const merged=pending ? {...remote,...current} : remote;
       writeLocalReaderPrefs(merged);
       apply(merged);
     }).catch(()=>{});
