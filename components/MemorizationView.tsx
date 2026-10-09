@@ -99,7 +99,7 @@ export function MemorizationView({
   const [states, setStates] = useState<Record<string, MemoryState>>({});
   const [todos, setTodos] = useState<Todo[]>([]);
   const [active, setActive] = useState(initialIndex);
-  const [segmentListOpen,setSegmentListOpen] = useState(true);
+  const [segmentListOpen,setSegmentListOpen] = useState(false);
   const [visibleLanguages,setVisibleLanguages] = useState({arabic:true,latin:true,translation:true});
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
   const [counterArmed, setCounterArmed] = useState(true);
@@ -578,7 +578,7 @@ export function MemorizationView({
               style={{display:"flex",textAlign:"left",alignItems:"center",gap:12,width:"100%",padding:"9px 12px"}}
             >
               <strong style={{minWidth:32}}>{index+1}.</strong>
-              <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(visibleLanguages.latin && part.text_content) || (visibleLanguages.arabic && part.secondary_text) || (visibleLanguages.translation && part.translation) || part.title || "Cümle "+(index+1)}</span>
+              <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"normal",overflowWrap:"anywhere"}}>{(visibleLanguages.latin && part.text_content) || (visibleLanguages.arabic && part.secondary_text) || (visibleLanguages.translation && part.translation) || part.title || "Cümle "+(index+1)}</span>
               <span>›</span>
             </button>
           ))}
