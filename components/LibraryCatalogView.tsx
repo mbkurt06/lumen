@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
-import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import type { EzberItem } from "@/components/EzberHomeView";
 import { readLocalReaderPrefs } from "@/lib/readerPrefs";
 
@@ -224,7 +224,7 @@ export function LibraryCatalogView({
 
   return (
     <section className="legacyNestedPage libraryCatalogPage">
-      <EzberSharedHeader
+      <SectionHeader
         title={current?.title || rootTitle}
         showMenu={true}
         showBack={!!current && current.id !== root?.id}
