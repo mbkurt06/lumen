@@ -32,3 +32,7 @@ See `docs/local-deployment-security.md` for details.
 ## Deployment note
 
 A public Git repository stores source code; it does not by itself serve an always-on Next.js server. Use an application hosting environment with server-side environment variables for full API route functionality.
+
+## Deployment
+
+Pushes to the default branch are intended to trigger connected hosting-provider builds. Configure environment variables in the hosting dashboard before publishing.
