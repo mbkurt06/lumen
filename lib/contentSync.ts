@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabase/client";
+import { isLocalDatabaseEnabled } from "@/lib/storageMode";
 import { clearStaticStore, getMeta, putStaticRows, setMeta } from "@/lib/localContentDb";
 
 type StaticTable = "library_items"|"content_nodes"|"quran_mushaf_pages"|"quran_mushaf_sources"|"quran_mushaf_source_chunks"|"media_sources"|"media_segments";
@@ -83,7 +84,7 @@ async function incrementalSync(table:StaticTable,local:Fingerprint,remote:Finger
 let syncPromise:Promise<void>|null=null;
 
 export function syncStaticContentInBackground(ownerId:string, options:{forceFull?:boolean} = {}){
-  if(typeof window==="undefined") return Promise.resolve();
+  if(typeof window==="undefined" || !isLocalDatabaseEnabled()) return Promise.resolve();
   if(!navigator.onLine) return Promise.resolve();
   if(syncPromise) return syncPromise;
 
