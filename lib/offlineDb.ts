@@ -429,7 +429,7 @@ const PERSONAL_TABLES:OfflineTable[]=[
 ];
 
 export async function syncPersonalOfflineData(ownerId:string){
-  if(!navigator.onLine) return;
+  if(!isLocalDatabaseEnabled() || !navigator.onLine) return;
   const pending=await flushOfflineOutbox(ownerId);
   // If a local mutation could not be delivered yet, do not overwrite newer
   // device state with older server rows. Retry when connectivity is healthy.
