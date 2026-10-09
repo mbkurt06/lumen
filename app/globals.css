@@ -7234,3 +7234,52 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     outline-offset:3px;
   }
 }
+
+/* iPhone memorization: keep the selected passage in view and prevent
+   language buttons or long lines from overflowing the viewport. */
+@media(max-width:800px){
+  .legacyApp .memorizeSegmentControls{
+    width:100%!important;
+    max-width:100vw!important;
+    box-sizing:border-box!important;
+    padding:8px 10px!important;
+    gap:5px!important;
+    flex-wrap:wrap!important;
+  }
+  .legacyApp .memorizeSegmentControls .v2HeaderButton{
+    min-height:34px!important;
+    padding:6px 8px!important;
+    font-size:12px!important;
+    white-space:normal!important;
+  }
+  .legacyApp .memorizeSegmentIndex{
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100vw!important;
+    padding:0 10px 10px!important;
+    overflow-x:hidden!important;
+  }
+  .legacyApp .memorizeSegmentIndex button{
+    box-sizing:border-box!important;
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:normal!important;
+  }
+  .legacyApp .memorizeSegmentIndex button span{
+    min-width:0!important;
+    overflow-wrap:anywhere!important;
+  }
+  .legacyApp .legacyMemorize{
+    box-sizing:border-box!important;
+    min-width:0!important;
+    max-width:100%!important;
+    overflow-wrap:anywhere!important;
+  }
+  .legacyApp .legacyMemorize .legacySegment,
+  .legacyApp .legacyMemorize .legacyArabic,
+  .legacyApp .legacyMemorize .legacyTurkish{
+    max-width:100%!important;
+    white-space:pre-wrap!important;
+    overflow-wrap:break-word!important;
+  }
+}
