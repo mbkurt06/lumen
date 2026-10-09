@@ -6992,3 +6992,42 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     flex-wrap:wrap!important;
   }
 }
+
+/* Mobile reader navigation: explicitly reserve a dedicated row for Back.
+   Avoid width competition with Todo / Memorize / Settings action buttons. */
+@media (max-width:800px){
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderToolbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:8px!important;
+    justify-items:stretch!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:first-child{
+    display:flex!important;
+    width:100%!important;
+    min-height:44px!important;
+    box-sizing:border-box!important;
+    padding-left:92px!important;
+    justify-content:flex-start!important;
+    flex-wrap:nowrap!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:first-child .v2HeaderButton{
+    display:inline-flex!important;
+    position:relative!important;
+    z-index:1!important;
+    min-width:68px!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:first-child .v2HeaderMenuButton{
+    display:none!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:last-child{
+    width:100%!important;
+    min-width:0!important;
+    display:flex!important;
+    justify-content:flex-end!important;
+    flex-wrap:wrap!important;
+  }
+}
