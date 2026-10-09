@@ -40,3 +40,13 @@ pnpm-debug.log*
 # Local iPhone HTTPS certificates (never commit keys)
 .local-https/
 public/lumen-local-ca.crt
+
+# Keep environment overrides and local content out of public source control
+.env.*
+!.env.example
+.private/
+.local-data/
+*.pem
+*.key
+*.p12
+*.p8
