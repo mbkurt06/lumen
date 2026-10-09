@@ -99,6 +99,8 @@ export function MemorizationView({
   const [states, setStates] = useState<Record<string, MemoryState>>({});
   const [todos, setTodos] = useState<Todo[]>([]);
   const [active, setActive] = useState(initialIndex);
+  const [segmentListOpen,setSegmentListOpen] = useState(true);
+  const [visibleLanguages,setVisibleLanguages] = useState({arabic:true,latin:true,translation:true});
   const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
   const [counterArmed, setCounterArmed] = useState(true);
   const [counterPos, setCounterPos] = useState<{x:number;y:number}|null>(null);
@@ -303,6 +305,28 @@ export function MemorizationView({
       window.removeEventListener("lumen-library-prefs",onPrefs);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      const stored=localStorage.getItem("lumen-memorize-visible-languages");
+      if(stored){
+        const saved=JSON.parse(stored);
+        setVisibleLanguages({
+          arabic:saved.arabic!==false,
+          latin:saved.latin!==false,
+          translation:saved.translation!==false,
+        });
+      }
+    } catch {}
+  }, []);
+
+  function toggleLanguage(language:"arabic"|"latin"|"translation"){
+    setVisibleLanguages(old=>{
+      const updated={...old,[language]:!old[language]};
+      localStorage.setItem("lumen-memorize-visible-languages",JSON.stringify(updated));
+      return updated;
+    });
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem("lumen-counter-pos");
@@ -534,6 +558,32 @@ export function MemorizationView({
         onSettings={() => window.dispatchEvent(new Event("lumen-open-library-settings"))}
       />
 
+      <div className="memorizeSegmentControls" style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",padding:"12px 16px"}}>
+        <button type="button" className="v2HeaderButton" onClick={()=>setSegmentListOpen(value=>!value)}>
+          {segmentListOpen ? "Cümle listesini gizle" : "☷ Numaralı cümleler"}
+        </button>
+        <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.arabic} onClick={()=>toggleLanguage("arabic")}>Arapça {visibleLanguages.arabic ? "✓" : "○"}</button>
+        <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.latin} onClick={()=>toggleLanguage("latin")}>Latin {visibleLanguages.latin ? "✓" : "○"}</button>
+        <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.translation} onClick={()=>toggleLanguage("translation")}>Meal {visibleLanguages.translation ? "✓" : "○"}</button>
+      </div>
+      {segmentListOpen && nodes.length>0 && (
+        <div className="memorizeSegmentIndex" style={{padding:"0 16px 12px",display:"grid",gap:6,maxHeight:260,overflowY:"auto"}}>
+          {nodes.map((part,index)=>(
+            <button
+              type="button"
+              key={part.id}
+              className={"legacyCategoryRow " + (active===index ? "active" : "")}
+              aria-current={active===index ? "step" : undefined}
+              onClick={()=>{setActive(index);setSegmentListOpen(false);}}
+              style={{display:"flex",textAlign:"left",alignItems:"center",gap:12,width:"100%",padding:"9px 12px"}}
+            >
+              <strong style={{minWidth:32}}>{index+1}.</strong>
+              <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(visibleLanguages.latin && part.text_content) || (visibleLanguages.arabic && part.secondary_text) || (visibleLanguages.translation && part.translation) || part.title || "Cümle "+(index+1)}</span>
+              <span>›</span>
+            </button>
+          ))}
+        </div>
+      )}
       <main
         className={"legacyMemorize " + (isEsmaDetail ? "v2EsmaDetail" : "")}
         onPointerDown={e => {
@@ -553,9 +603,9 @@ export function MemorizationView({
         {node ? (
           <>
             {typeof node.metadata?.note === "string" && node.metadata.note && <div className="legacyNote">{node.metadata.note}</div>}
-            {node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
-            {node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
-            {node.translation && <div className="legacyTurkish">{node.translation}</div>}
+            {visibleLanguages.arabic && node.secondary_text && <div className="legacyArabic" dir="rtl">{node.secondary_text}</div>}
+            {visibleLanguages.latin && node.text_content && <div className={node.metadata?.instruction ? "legacyInstruction" : "legacySegment"}>{node.text_content}</div>}
+            {visibleLanguages.translation && node.translation && <div className="legacyTurkish">{node.translation}</div>}
 
             <div className="memorizeTodoTargets">
               {todoInfos.filter(x => !x.done).map(info => (
