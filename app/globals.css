@@ -6963,3 +6963,11 @@ body[data-reader-show-play="0"] .floatingPlay,
 body[data-reader-show-play="0"] .compactPlaybackPanel{
   display:none!important;
 }
+
+/* The fixed global hamburger provides the same action on phones.
+   Hide the duplicate reader menu button so Back stays fully tappable. */
+@media (max-width:800px){
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderMenuButton{
+    display:none!important;
+  }
+}
