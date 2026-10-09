@@ -2,11 +2,11 @@ import https from "node:https";
 import http from "node:http";
 import fs from "node:fs";
 
-const cert=process.env.LUMEN_HTTPS_CERT;
-const key=process.env.LUMEN_HTTPS_KEY;
-const port=Number(process.env.LUMEN_HTTPS_PORT || 3443);
-const upstream=Number(process.env.LUMEN_NEXT_PORT || 3100);
-if(!cert || !key) throw new Error("Missing LUMEN_HTTPS_CERT or LUMEN_HTTPS_KEY");
+const cert=process.env.APP_HTTPS_CERT;
+const key=process.env.APP_HTTPS_KEY;
+const port=Number(process.env.APP_HTTPS_PORT || 3443);
+const upstream=Number(process.env.APP_UPSTREAM_PORT || 3100);
+if(!cert || !key) throw new Error("Missing APP_HTTPS_CERT or APP_HTTPS_KEY");
 
 https.createServer({
   cert:fs.readFileSync(cert),
@@ -20,9 +20,9 @@ https.createServer({
     upstreamRes.pipe(res);
   });
   proxy.on("error",error=>{
-    console.error("Lumen upstream error:",error.message);
+    console.error("Upstream error:",error.message);
     if(!res.headersSent) res.writeHead(502,{"content-type":"text/plain; charset=utf-8"});
-    res.end("Lumen sunucusuna baglanilamadi.");
+    res.end("Upstream application is unavailable.");
   });
   req.pipe(proxy);
-}).listen(port,"0.0.0.0",()=>console.log(`Lumen local HTTPS ready on port ${port}`));
+}).listen(port,"0.0.0.0",()=>console.log(`Local HTTPS ready on port ${port}`));
