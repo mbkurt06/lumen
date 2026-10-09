@@ -390,7 +390,7 @@ export async function ensureExactMushafFont(ownerId?:string|null) {
     // 3) last resort: extract once from the official Word source
     if (!buffer && navigator.onLine) {
       try {
-        const response = await fetch("/api/quran-source", { cache: "force-cache" });
+        const response = await fetch("/api/document-source", { cache: "force-cache" });
         if (response.ok) {
           const docxBuffer = await response.arrayBuffer();
           const zip = await JSZip.loadAsync(docxBuffer);
