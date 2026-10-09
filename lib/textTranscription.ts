@@ -23,7 +23,7 @@ export async function loadTranscription(section:number):Promise<CachedSegments>{
   const cached=readCache(section);
   if(typeof navigator!=="undefined" && !navigator.onLine) return cached;
   try{
-    const response=await fetch(`/api/quran-transcription/${section}`,{cache:"no-store"});
+    const response=await fetch(`/api/text-transcription/${section}`,{cache:"no-store"});
     if(!response.ok) return cached;
     const body=await response.json();
     const rows={...cached,...(body.verses||{})};
@@ -36,7 +36,7 @@ export async function loadSegmentTranscription(section:number,index:number):Prom
   if(cached[index])return cached[index];
   if(typeof navigator!=="undefined" && !navigator.onLine)return "";
   try{
-    const response=await fetch(`/api/quran-transcription/${section}?ayah=${index}`,{cache:"no-store"});
+    const response=await fetch(`/api/text-transcription/${section}?part=${index}`,{cache:"no-store"});
     if(!response.ok)return "";
     const body=await response.json();
     const value=normalize(String(body.transcription||""));
