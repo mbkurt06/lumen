@@ -1690,7 +1690,7 @@ export function ReaderView({
           onNextDocument={onNextItem}
         />
       ) : (
-      <div className={"legacyReadContent unifiedBookReader " + (readerScope === "ezber" ? "ezberBookReader" : "heBookReader")}>
+      <div className={"legacyReadContent unifiedBookReader " + (readerScope === "ezber" ? "ezberBookReader" : "heBookReader") + (itemMeta.category_key === "jawshan" ? " jawshanBookReader" : "")}>
         <section className="unifiedBookPage">
           <header className="unifiedBookPageHead">
             <strong>{item.title}</strong>
