@@ -7,12 +7,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Lumen",
-  description: "Kur’an, dua, Risale-i Nur ve kişisel okuma/ezber uygulaması",
+  title: process.env.NEXT_PUBLIC_APP_TITLE || "Content Workspace",
+  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Personal content workspace",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Lumen",
+    title: process.env.NEXT_PUBLIC_APP_TITLE || "Content Workspace",
     statusBarStyle: "default",
   },
 };
