@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Lumen — Dua ve Ezber",
-  "short_name": "Lumen",
-  "description": "Kur’an, dua, okuma ve ezber uygulaması",
+  "name": "Content Workspace",
+  "short_name": "Workspace",
+  "description": "Personal content workspace",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
