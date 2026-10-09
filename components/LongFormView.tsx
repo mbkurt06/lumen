@@ -48,7 +48,7 @@ function paginate(nodes:RisaleNode[],target=2250){
   return pages.length ? pages : [[]];
 }
 
-export function RisaleBookView({
+export function LongFormView({
   itemId,
   title,
   bookTitle,

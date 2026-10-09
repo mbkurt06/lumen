@@ -6,9 +6,9 @@ import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
 import { SectionHeader } from "@/components/SectionHeader";
-import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
-import { RisaleBookView } from "@/components/RisaleBookView";
-import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
+import { DocumentPageContent } from "@/components/DocumentPageContent";
+import { LongFormView } from "@/components/LongFormView";
+import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/documentImport";
 import { clearTransientCounts, getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { getCachedContentByDocument, getCachedQuranNodesByPage, putStaticRows } from "@/lib/localContentDb";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
@@ -1571,7 +1571,7 @@ export function ReaderView({
             >
               {quranMushafPage ? (
                 quranMushafPage.metadata?.exactWordCharacters === true ? (
-                  <QuranMushafPageContent
+                  <DocumentPageContent
                     page={quranMushafPage}
                     selectedNodeId={quranSelectedNodeId}
                     onSelectNode={nodeId => {
@@ -1679,7 +1679,7 @@ export function ReaderView({
           </div>
         </div>
       ) : isRisaleDocument ? (
-        <RisaleBookView
+        <LongFormView
           itemId={item.id}
           title={item.title}
           bookTitle={String(itemMeta.book_title || "")}

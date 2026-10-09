@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/quranMushafDocx";
-import { loadTurkishQuranAyahTranscription, loadTurkishQuranTranscription } from "@/lib/quranTranscription";
+import type { QuranMushafPage, QuranMushafParagraph, QuranMushafRun } from "@/lib/documentImport";
+import { loadTurkishQuranAyahTranscription, loadTurkishQuranTranscription } from "@/lib/textTranscription";
 import { supabase } from "@/lib/supabase/client";
 
 type RenderGroup = {
@@ -67,7 +67,7 @@ function RunContent({ run }: { run: QuranMushafRun }) {
   );
 }
 
-export function QuranMushafPageContent({
+export function DocumentPageContent({
   page,
   selectedNodeId,
   onSelectNode,

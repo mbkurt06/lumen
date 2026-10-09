@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { flushOfflineOutbox, offlineCacheGet, offlineCacheSet, offlineGetOne, offlineHasPending, offlineUpdate, syncPersonalOfflineData } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
-import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
+import { importQuranMushafDocx } from "@/lib/documentImport";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
