@@ -7056,3 +7056,66 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     box-sizing:border-box!important;
   }
 }
+
+/* Compact, consistent Ezber navigation on iPhone: list and reader use
+   the same short header, with reserved space for the fixed hamburger. */
+@media(max-width:800px){
+  .legacyReadPage .v2SharedHeader,
+  .duaEzberIntegrated .v2SharedHeader{
+    height:auto!important;
+    min-height:0!important;
+    padding:8px 8px 12px!important;
+    margin-top:0!important;
+    margin-bottom:20px!important;
+  }
+  .legacyReadPage .v2HeaderToolbar,
+  .duaEzberIntegrated .v2HeaderToolbar{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    gap:4px!important;
+    margin:0!important;
+  }
+  .legacyReadPage .v2HeaderGroup:first-child,
+  .duaEzberIntegrated .v2HeaderGroup:first-child{
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    min-height:38px!important;
+    padding-left:92px!important;
+    width:100%!important;
+    flex:0 0 auto!important;
+  }
+  .legacyReadPage .v2HeaderGroup:last-child,
+  .duaEzberIntegrated .v2HeaderGroup:last-child{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex-wrap:nowrap!important;
+    gap:4px!important;
+    min-height:36px!important;
+    width:100%!important;
+    flex:0 0 auto!important;
+  }
+  .legacyReadPage .v2HeaderGroup:first-child:empty,
+  .duaEzberIntegrated .v2HeaderGroup:first-child:empty{
+    display:none!important;
+  }
+  .legacyReadPage .v2HeaderTitle,
+  .duaEzberIntegrated .v2HeaderTitle{
+    margin:5px 0 0!important;
+    line-height:1.15!important;
+  }
+  .legacyReadPage .v2HeaderCollapse,
+  .duaEzberIntegrated .v2HeaderCollapse{
+    bottom:-18px!important;
+  }
+  .legacyReadPage .v2HeaderGroup:last-child .v2HeaderToolButton,
+  .duaEzberIntegrated .v2HeaderGroup:last-child .v2HeaderToolButton{
+    width:34px!important;
+    min-width:34px!important;
+    height:34px!important;
+  }
+}
