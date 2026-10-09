@@ -129,6 +129,7 @@ export function MemorizationView({
   const today = localDateKey();
 
   const itemMeta = resolvedMeta;
+  const singleSectionMode = itemMeta.legacy_id === "istiaze";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || item?.subtitle || "");
 
@@ -559,14 +560,14 @@ export function MemorizationView({
       />
 
       <div className="memorizeSegmentControls" style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",padding:"12px 16px"}}>
-        <button type="button" className="v2HeaderButton" onClick={()=>setSegmentListOpen(value=>!value)}>
+        {!singleSectionMode && <button type="button" className="v2HeaderButton" onClick={()=>setSegmentListOpen(value=>!value)}>
           {segmentListOpen ? "Cümle listesini gizle" : "☷ Numaralı cümleler"}
-        </button>
+        </button>}
         <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.arabic} onClick={()=>toggleLanguage("arabic")}>Arapça {visibleLanguages.arabic ? "✓" : "○"}</button>
         <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.latin} onClick={()=>toggleLanguage("latin")}>Latin {visibleLanguages.latin ? "✓" : "○"}</button>
         <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.translation} onClick={()=>toggleLanguage("translation")}>Meal {visibleLanguages.translation ? "✓" : "○"}</button>
       </div>
-      {segmentListOpen && nodes.length>0 && (
+      {!singleSectionMode && segmentListOpen && nodes.length>0 && (
         <div className="memorizeSegmentIndex" style={{padding:"0 16px 12px",display:"grid",gap:6,maxHeight:260,overflowY:"auto"}}>
           {nodes.map((part,index)=>(
             <button
