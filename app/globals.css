@@ -7179,3 +7179,58 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     margin:4px 0 0!important;
   }
 }
+
+/* Unified phone header geometry: short first row for Back, centered second row
+   for actions, no extra inherited heights. */
+@media(max-width:800px){
+  body:has(.sidebarReopen) .v2SharedHeader:not(.collapsed){
+    padding:6px 8px 11px!important;
+    min-height:0!important;
+    height:auto!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader:not(.collapsed) .v2HeaderToolbar{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-auto-rows:min-content!important;
+    row-gap:5px!important;
+    min-height:0!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader:not(.collapsed) .v2HeaderNavigation{
+    padding:0 0 0 92px!important;
+    height:38px!important;
+    min-height:38px!important;
+    max-height:38px!important;
+    margin:0!important;
+    justify-content:flex-start!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader:not(.collapsed) .v2HeaderActions{
+    min-height:36px!important;
+    height:36px!important;
+    max-height:36px!important;
+    margin:0!important;
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader:not(.collapsed) .v2HeaderTitle{
+    margin:5px 0 0!important;
+    padding:0!important;
+  }
+  .istiazeSectionReader .unifiedBookBlock{
+    cursor:pointer;
+  }
+  .istiazeSectionReader .unifiedBookBlock h3{
+    text-align:left!important;
+    font-family:system-ui,-apple-system,sans-serif;
+    font-size:.8em!important;
+    font-weight:750!important;
+    color:color-mix(in srgb,var(--unified-book-fg) 70%,transparent);
+    margin:0 0 6px!important;
+  }
+  .istiazeSectionReader .unifiedBookBlock:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:3px;
+  }
+}
