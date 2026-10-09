@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { SectionHeader } from "@/components/SectionHeader";
-import type { EzberItem } from "@/components/EzberHomeView";
+import type { EzberItem } from "@/components/CollectionHomeView";
 import { readLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Section = "quran" | "risale";
