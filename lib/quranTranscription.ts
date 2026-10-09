@@ -1,33 +1,47 @@
 "use client";
 
-import corpusJson from "@/data/quran-translit-tr.json";
+type CachedSegments = Record<number,string>;
+const STORAGE_PREFIX="workspace-transcription-v1-";
+const normalize=(value:string)=>value.replace(/\s+/g," ").trim();
 
-type Corpus = Record<string,Record<string,string>>;
-const corpus = corpusJson as Corpus;
-
-function clean(value:string){
-  return value
-    .replace(/\s+/g," ")
-    .replace(/\s+([.,;:!?])/g,"$1")
-    .trim();
+function readCache(section:number):CachedSegments{
+  if(typeof window==="undefined") return {};
+  try{
+    const value=JSON.parse(localStorage.getItem(STORAGE_PREFIX+section)||"{}");
+    const result:CachedSegments={};
+    for(const [index,text] of Object.entries(value)) {
+      const n=Number(index);
+      if(Number.isInteger(n)&&n>0&&typeof text==="string") result[n]=normalize(text);
+    }
+    return result;
+  }catch{return {};}
 }
-
-export async function loadTurkishQuranTranscription(
-  surahNo:number
-):Promise<Record<number,string>>{
-  const source=corpus[String(surahNo)] ?? {};
-  const result:Record<number,string>={};
-  for(const [ayahNo,value] of Object.entries(source)){
-    const no=Number(ayahNo);
-    const text=clean(String(value || ""));
-    if(no>0 && text) result[no]=text;
-  }
-  return result;
+function writeCache(section:number,rows:CachedSegments){
+  try { localStorage.setItem(STORAGE_PREFIX+section,JSON.stringify(rows)); } catch {}
 }
-
-export async function loadTurkishQuranAyahTranscription(
-  surahNo:number,
-  ayahNo:number
-):Promise<string>{
-  return clean(String(corpus[String(surahNo)]?.[String(ayahNo)] || ""));
+export async function loadTranscription(section:number):Promise<CachedSegments>{
+  const cached=readCache(section);
+  if(typeof navigator!=="undefined" && !navigator.onLine) return cached;
+  try{
+    const response=await fetch(`/api/quran-transcription/${section}`,{cache:"no-store"});
+    if(!response.ok) return cached;
+    const body=await response.json();
+    const rows={...cached,...(body.verses||{})};
+    writeCache(section,rows);
+    return rows;
+  }catch{return cached;}
 }
+export async function loadSegmentTranscription(section:number,index:number):Promise<string>{
+  const cached=readCache(section);
+  if(cached[index])return cached[index];
+  if(typeof navigator!=="undefined" && !navigator.onLine)return "";
+  try{
+    const response=await fetch(`/api/quran-transcription/${section}?ayah=${index}`,{cache:"no-store"});
+    if(!response.ok)return "";
+    const body=await response.json();
+    const value=normalize(String(body.transcription||""));
+    if(value)writeCache(section,{...cached,[index]:value});
+    return value;
+  }catch{return "";}
+}
+export {loadTranscription as loadTurkishQuranTranscription,loadSegmentTranscription as loadTurkishQuranAyahTranscription};
