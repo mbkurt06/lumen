@@ -1,4 +1,14 @@
 "use client";
+import {supabase} from "@/lib/supabase/client";
+import {isLocalDatabaseEnabled} from "@/lib/storageMode";
+
+async function remoteRows(table:string,field:string,value:unknown):Promise<any[]>{
+ if(typeof navigator!=="undefined"&&!navigator.onLine)throw new Error("Supabase connection is required.");
+ const {data,error}=await supabase.from(table).select("*").eq(field,value).order("sort_order");
+ if(error)throw error;
+ return data??[];
+}
+
 
 export type CachedLibraryItem = {
   id:string;
@@ -143,7 +153,7 @@ export async function clearStaticStore(storeName:StaticStoreName){
 }
 
 export async function putStaticRows(storeName:StaticStoreName,rows:any[]){
-  if(!rows.length) return;
+  if(!rows.length || !isLocalDatabaseEnabled()) return;
   const db=await openDb();
   try{
     await new Promise<void>((resolve,reject)=>{
@@ -163,21 +173,29 @@ export async function putStaticRows(storeName:StaticStoreName,rows:any[]){
 }
 
 export async function getCachedLibraryItem(id:string){
+  if(!isLocalDatabaseEnabled())return (await remoteRows("library_items","id",id))[0]??null;
   const row=await withStore<CachedLibraryItem>("library_items","readonly",store=>store.get(id));
   return row ?? null;
 }
 
 export async function getCachedContentNode(id:string){
+  if(!isLocalDatabaseEnabled())return (await remoteRows("content_nodes","id",id))[0]??null;
   const row=await withStore<CachedContentNode>("content_nodes","readonly",store=>store.get(id));
   return row ?? null;
 }
 
 export async function getCachedLibraryChildren(parentId:string){
+  if(!isLocalDatabaseEnabled())return remoteRows("library_items","parent_id",parentId);
   const rows=await allFromIndex<CachedLibraryItem>("library_items","parent_id",parentId);
   return rows.sort((a,b)=>(a.sort_order-b.sort_order)||a.title.localeCompare(b.title,"tr"));
 }
 
 export async function getCachedLibraryRoot(source:string){
+  if(!isLocalDatabaseEnabled()){
+    const {data,error}=await supabase.from("library_items").select("*").eq("metadata->>source",source).is("parent_id",null);
+    if(error)throw error;
+    return (data??[]).find(row=>(row.metadata as any)?.entity==="root")??null;
+  }
   const rows=await allFromIndex<CachedLibraryItem>("library_items","source",source);
   return rows
     .filter(row=>{
@@ -188,11 +206,17 @@ export async function getCachedLibraryRoot(source:string){
 }
 
 export async function getCachedContentByDocument(documentId:string){
+  if(!isLocalDatabaseEnabled())return remoteRows("content_nodes","document_id",documentId);
   const rows=await allFromIndex<CachedContentNode>("content_nodes","document_id",documentId);
   return rows.sort((a,b)=>a.sort_order-b.sort_order);
 }
 
 export async function getCachedQuranNodesByPage(page:number){
+  if(!isLocalDatabaseEnabled()){
+    const {data,error}=await supabase.from("content_nodes").select("*").eq("metadata->>page",String(page)).eq("metadata->>source","quran_seeded");
+    if(error)throw error;
+    return data??[];
+  }
   const [numericRows,stringRows]=await Promise.all([
     allFromIndex<CachedContentNode>("content_nodes","page",page),
     allFromIndex<CachedContentNode>("content_nodes","page",String(page)),
@@ -209,6 +233,11 @@ export async function getCachedQuranNodesByPage(page:number){
 }
 
 export async function getCachedQuranMushafPage(sourceKey:string,wordPage:number){
+  if(!isLocalDatabaseEnabled()){
+    const {data,error}=await supabase.from("quran_mushaf_pages").select("*").eq("source_key",sourceKey).eq("word_page",wordPage).maybeSingle();
+    if(error)throw error;
+    return data??null;
+  }
   const rows=await allFromIndex<CachedQuranPage>("quran_mushaf_pages","source_word_page",[sourceKey,wordPage]);
   return rows[0] ?? null;
 }
