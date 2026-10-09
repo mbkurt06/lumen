@@ -7032,29 +7032,29 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
   }
 }
 
-/* Cevsen chapter texts: allow the page and each text block to use the phone width.
+/* All Ezber document texts: allow pages and text blocks to use the phone width.
    Preserve room for inline Todo/repeat badges only when they actually exist. */
 @media(max-width:760px){
-  .jawshanBookReader.unifiedBookReader{
+  .ezberBookReader.unifiedBookReader{
     width:calc(100vw - 12px)!important;
     max-width:none!important;
   }
-  .jawshanBookReader .unifiedBookPage{
+  .ezberBookReader .unifiedBookPage{
     width:100%!important;
     box-sizing:border-box!important;
     padding:18px 12px 18px!important;
   }
-  .jawshanBookReader .unifiedBookBlockContent{
+  .ezberBookReader .unifiedBookBlockContent{
     padding-left:0!important;
     padding-right:0!important;
   }
-  .jawshanBookReader .unifiedBookBlockContent:has(.unifiedBookTodoCounters){
+  .ezberBookReader .unifiedBookBlockContent:has(.unifiedBookTodoCounters){
     padding-left:52px!important;
   }
-  .jawshanBookReader .unifiedBookBlockContent:has(.unifiedBookIntrinsicCounters){
+  .ezberBookReader .unifiedBookBlockContent:has(.unifiedBookIntrinsicCounters){
     padding-right:58px!important;
   }
-  .jawshanBookReader .unifiedBookText{
+  .ezberBookReader .unifiedBookText{
     width:100%!important;
     max-width:none!important;
     box-sizing:border-box!important;
