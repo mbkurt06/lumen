@@ -42,7 +42,7 @@ if(existingError)throw existingError;
 let inserted=0;
 for(const chapter of normalized){
   const prior=existing.find(x=>x.sort_order===chapter.number&&x.title===chapter.number+". Bab");
-  const item={owner_id:folder.owner_id,parent_id:collectionId,kind:"document",title:chapter.number+". Bab",subtitle:"Arapça · Latin · Türkçe",sort_order:chapter.number,metadata:{source:"dua_v2",entity:"document",category_key:"jawshan",unit:"chapter",segment_count:1,licensed_source:sourcePackage}};
+  const item={owner_id:folder.owner_id,parent_id:collectionId,kind:"document",title:chapter.number+". Bab",subtitle:"Arapça · Latin · Türkçe",sort_order:chapter.number,metadata:{source:process.env.CONTENT_SOURCE_KEY||"external",entity:"document",category_key:process.env.CONTENT_CATEGORY_KEY||"general",unit:"chapter",segment_count:1,licensed_source:sourcePackage}};
   let id=prior?.id;
   if(id){
     const {error}=await api.from("library_items").update(item).eq("id",id);if(error)throw error;
