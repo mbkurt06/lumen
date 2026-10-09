@@ -296,6 +296,7 @@ export function ReaderView({
   const isQuranDocument = isQuranSurah || isQuranJuzView;
   const isRisaleDocument = sourceType === "risale_seeded";
   const isBookSelectionDocument = true;
+  const isIstiazeDocument = itemMeta.legacy_id === "istiaze";
   const isEsmaDetail = itemMeta.category_key === "asma" || String(itemMeta.legacy_id || "").startsWith("esma-");
   const invocation = String(itemMeta.invocation || ((!isQuranDocument && !isRisaleDocument) ? item.subtitle : "") || "");
 
@@ -1690,7 +1691,7 @@ export function ReaderView({
           onNextDocument={onNextItem}
         />
       ) : (
-      <div className={"legacyReadContent unifiedBookReader " + (readerScope === "ezber" ? "ezberBookReader" : "heBookReader") + (itemMeta.category_key === "jawshan" ? " jawshanBookReader" : "")}>
+      <div className={"legacyReadContent unifiedBookReader " + (readerScope === "ezber" ? "ezberBookReader" : "heBookReader") + (itemMeta.category_key === "jawshan" ? " jawshanBookReader" : "") + (isIstiazeDocument ? " istiazeSectionReader" : "")}>
         <section className="unifiedBookPage">
           <header className="unifiedBookPageHead">
             <strong>{item.title}</strong>
@@ -1719,6 +1720,10 @@ export function ReaderView({
                   key={node.id}
                   data-node-id={node.id}
                   data-reader-index={index}
+                  role={isIstiazeDocument && onMemorize ? "button" : undefined}
+                  tabIndex={isIstiazeDocument && onMemorize ? 0 : undefined}
+                  onClick={isIstiazeDocument && onMemorize ? () => onMemorize(index) : undefined}
+                  onKeyDown={isIstiazeDocument && onMemorize ? (event) => { if(event.key === "Enter" || event.key === " "){event.preventDefault();onMemorize(index);} } : undefined}
                 >
                   {note && <div className="unifiedBookSectionNote">{note}</div>}
                   {node.title && <h3>{node.title}</h3>}
