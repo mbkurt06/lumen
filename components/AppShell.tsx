@@ -131,7 +131,7 @@ export function AppShell({
           detail:{state:"downloading",message:"Tam Kur’an Diyanet Word kaynağından hazırlanıyor…"}
         }));
 
-        const response=await fetch("/api/quran-source",{cache:"no-store"});
+        const response=await fetch("/api/document-source",{cache:"no-store"});
         if(!response.ok) throw new Error("Diyanet Kur’an Word kaynağı indirilemedi.");
         const blob=await response.blob();
         const file=new File(
