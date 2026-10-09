@@ -66,11 +66,11 @@ export function SectionHeader({
   return (
     <div className={"v2SharedHeader " + (collapsed ? "collapsed" : "")}>
       <div className="v2HeaderToolbar">
-        <div className="v2HeaderGroup">
+        {(showMenu || showBack) && <div className="v2HeaderGroup v2HeaderNavigation">
           {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu}>‹ Menü</button>}
           {showBack && <button className="v2HeaderButton" onClick={onBack}>‹ Geri</button>}
-        </div>
-        <div className="v2HeaderGroup">
+        </div>}
+        <div className="v2HeaderGroup v2HeaderActions">
           {showTodo && <button className="v2HeaderButton" onClick={onTodo}>+ Todo</button>}
           {showMemorize && (
             <button className={"v2HeaderPrimary " + (memorizeActive ? "active" : "")} onClick={onMemorize}>
