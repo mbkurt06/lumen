@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { getMeta, hasStaticCache } from "@/lib/localContentDb";
-import { offlineOutboxCount, syncPersonalOfflineData } from "@/lib/offlineDb";
+import { offlineOutboxCount, syncPersonalOfflineData, flushOfflineOutbox } from "@/lib/offlineDb";
+import { isLocalDatabaseEnabled, setLocalDatabaseEnabled } from "@/lib/storageMode";
 
 const AUTO_SYNC_KEY = "lumen-static-auto-sync";
 
@@ -22,6 +23,7 @@ export function SettingsView({
   onSignOut: () => void;
 }) {
   const [autoSync,setAutoSync]=useState(false);
+  const [localDbEnabled,setLocalDbEnabled]=useState(true);
   const [syncing,setSyncing]=useState(false);
   const [syncStatus,setSyncStatus]=useState("Güncel");
   const [lastSync,setLastSync]=useState<string|null>(null);
@@ -31,6 +33,7 @@ export function SettingsView({
 
   useEffect(()=>{
     setAutoSync(localStorage.getItem(AUTO_SYNC_KEY)==="1");
+    setLocalDbEnabled(isLocalDatabaseEnabled());
     setConnectionOnline(navigator.onLine);
     void hasStaticCache().then(setOfflineReady).catch(()=>setOfflineReady(false));
     void offlineOutboxCount().then(setQueuedChanges).catch(()=>{});
@@ -77,8 +80,25 @@ export function SettingsView({
     };
   },[]);
 
+  async function changeLocalDatabaseMode(){
+    const next=!localDbEnabled;
+    if(!next){
+      if(!navigator.onLine){window.alert("Supabase bağlantısı olmadan yerel veritabanını kapatamazsınız.");return;}
+      const pending=await offlineOutboxCount();
+      if(pending>0){
+        await flushOfflineOutbox(user.id);
+        const remaining=await offlineOutboxCount();
+        if(remaining>0){window.alert("Bekleyen değişiklikler Supabase’e gönderilemedi. Önce senkronize edin.");return;}
+      }
+    }
+    setLocalDatabaseEnabled(next);
+    setLocalDbEnabled(next);
+    window.location.reload();
+  }
+
   async function runFullSync(){
     if(syncing) return;
+    if(!localDbEnabled){setSyncStatus("Yerel veritabanı kapalı. Veriler doğrudan Supabase’den okunuyor.");return;}
     if(!navigator.onLine){setSyncStatus("İnternet bağlantısı yok; mevcut yerel veriler korunuyor.");return;}
     setSyncing(true);
     setSyncStatus("Tüm içerikler hazırlanıyor…");
@@ -96,7 +116,7 @@ export function SettingsView({
     setAutoSync(next);
     localStorage.setItem(AUTO_SYNC_KEY,next ? "1" : "0");
     window.dispatchEvent(new CustomEvent("lumen-auto-sync-changed",{detail:{enabled:next}}));
-    if(next) void syncStaticContentInBackground(user.id);
+    if(next && localDbEnabled) void syncStaticContentInBackground(user.id);
   }
 
   return (
@@ -116,6 +136,13 @@ export function SettingsView({
       </div>
 
       <div className="settingsSection">
+        <div className="settingRow syncSettingRow">
+          <div>
+            <strong>Yerel veritabanı</strong>
+            <div className="muted syncHint">{localDbEnabled ? "Açık: Veriler cihazda da tutulur; çevrimdışı kullanılabilir." : "Kapalı: İçerik ve değişiklikler doğrudan Supabase’den alınır. İnternet gereklidir. Önceden indirilmiş veriler silinmez."}</div>
+          </div>
+          <button type="button" className={"syncSwitch "+(localDbEnabled?"on":"off")} role="switch" aria-label="Yerel veritabanı" aria-checked={localDbEnabled} onClick={()=>void changeLocalDatabaseMode()}><span /></button>
+        </div>
         <div className="settingsSectionHead">
           <strong>İçerik senkronizasyonu</strong>
           <span className="muted">Kur’an, dualar, Risale-i Nur ve kitaplar</span>
@@ -126,7 +153,7 @@ export function SettingsView({
             <strong>Tüm içerikleri lokale indir</strong>
             <div className="muted syncHint">Supabase’deki içerikleri, Todo’ları, sayaç/okuma durumlarını ve uygulama ayarlarını bu cihaza indirir. Offline değişiklikler internet gelince geri gönderilir.</div>
           </div>
-          <button className="settingButton" disabled={syncing} onClick={()=>void runFullSync()}>
+          <button className="settingButton" disabled={syncing || !localDbEnabled} onClick={()=>void runFullSync()}>
             {syncing ? "Senkronize ediliyor…" : "Şimdi senkronize et"}
           </button>
         </div>
