@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { importQuranMushafDocx } from "@/lib/quranMushafDocx";
+import { importQuranMushafDocx } from "@/lib/documentImport";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { offlineHasPending, offlineUpsert, offlineGetOne } from "@/lib/offlineDb";
 
