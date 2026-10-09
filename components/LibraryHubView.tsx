@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { EzberHomeView, type EzberItem } from "@/components/EzberHomeView";
+import { CollectionHomeView, type EzberItem } from "@/components/CollectionHomeView";
 import { LibraryCatalogView } from "@/components/LibraryCatalogView";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { offlineGetOne, offlineUpsert } from "@/lib/offlineDb";
@@ -124,7 +124,7 @@ export function LibraryHubView({
 
       {section === "ezber" && (
         <div className="nativeEzberMount active">
-          <EzberHomeView
+          <CollectionHomeView
             user={user}
             onOpenItem={onOpenItem}
             initialRoot={initialEzberRoot}

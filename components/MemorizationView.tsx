@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase/client";
 import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
-import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { getTransientCounts, setTransientCounts } from "@/lib/transientCounters";
 import { readLocalReaderPrefs, scopedBoolean, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { getCachedContentByDocument } from "@/lib/localContentDb";
@@ -543,7 +543,7 @@ export function MemorizationView({
         }
       }}
     >
-      <EzberSharedHeader
+      <SectionHeader
         title={isEsmaDetail ? (resolvedCategoryTitle || categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         progress={nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}

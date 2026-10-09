@@ -5,7 +5,7 @@ import { FloatingPlaybackButton } from "@/components/FloatingPlaybackButton";
 import { FloatingCounterButton } from "@/components/FloatingCounterButton";
 import { FullscreenTasbih } from "@/components/FullscreenTasbih";
 import { TodoDialog } from "@/components/TodoDialog";
-import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { QuranMushafPageContent } from "@/components/QuranMushafPageContent";
 import { RisaleBookView } from "@/components/RisaleBookView";
 import { ensureExactMushafFont, loadQuranMushafPage, type QuranMushafPage } from "@/lib/quranMushafDocx";
@@ -1382,7 +1382,7 @@ export function ReaderView({
         }
       }}
     >
-      <EzberSharedHeader
+      <SectionHeader
         title={isEsmaDetail ? (categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}

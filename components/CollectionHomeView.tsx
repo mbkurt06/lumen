@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
-import { EzberSharedHeader } from "@/components/EzberSharedHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { offlineGetOne, offlineGetRows, offlineLibraryItemUpdate, offlineUpsert } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
@@ -67,7 +67,7 @@ function itemDisplayTitle(item: EzberItem, parent: EzberItem | null) {
   return item.title;
 }
 
-export function EzberHomeView({
+export function CollectionHomeView({
   onOpenItem,
   user,
   initialRoot = null,
@@ -370,7 +370,7 @@ export function EzberHomeView({
   return (
     <section className="legacyNestedPage duaEzberIntegrated">
       {currentRoot ? (
-        <EzberSharedHeader
+        <SectionHeader
           title={currentRoot.title}
           showMenu={true}
           showBack={trail.length > 0}

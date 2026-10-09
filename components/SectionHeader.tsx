@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 
-export function EzberSharedHeader({
+export function SectionHeader({
   title,
   invocation,
   progress,

@@ -3,12 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
-import { type EzberItem } from "@/components/EzberHomeView";
+import { type EzberItem } from "@/components/CollectionHomeView";
 import { LibraryHubView, type SectionKey } from "@/components/LibraryHubView";
 import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
-import { DuaListeningEmbed } from "@/components/DuaListeningEmbed";
+import { MediaEmbed } from "@/components/MediaEmbed";
 import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
 import { supabase } from "@/lib/supabase/client";
@@ -803,7 +803,7 @@ export function AppShell({
           )}
 
           {tab === "library" && libraryMode === "listening" && (
-            <DuaListeningEmbed onBack={() => { setReturnToEzber(true); setLibraryMode("hub"); }} />
+            <MediaEmbed onBack={() => { setReturnToEzber(true); setLibraryMode("hub"); }} />
           )}
 
           {tab === "library" && libraryMode === "read" && selectedItem && (

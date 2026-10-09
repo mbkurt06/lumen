@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 
-export function DuaListeningEmbed({ onBack }: { onBack: () => void }) {
+export function MediaEmbed({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       if (event.data?.type === "lumen-dua-listening-back") onBack();
