@@ -6971,3 +6971,24 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     display:none!important;
   }
 }
+
+/* Mobile reader: reserve space for the fixed global hamburger, while keeping Back visible. */
+@media (max-width:800px){
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderToolbar{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    justify-content:space-between!important;
+    align-items:center!important;
+    row-gap:8px!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:first-child{
+    padding-left:clamp(58px, 14vw, 72px)!important;
+    flex:0 0 auto!important;
+    min-width:0!important;
+  }
+  body:has(.sidebarReopen) .v2SharedHeader .v2HeaderGroup:last-child{
+    flex:1 1 auto!important;
+    min-width:0!important;
+    flex-wrap:wrap!important;
+  }
+}
