@@ -3,6 +3,7 @@
 import { supabase } from "@/lib/supabase/client";
 import { putStaticRows } from "@/lib/localContentDb";
 import { getOfflineOwnerId } from "@/lib/offlineIdentity";
+import { isLocalDatabaseEnabled } from "@/lib/storageMode";
 
 export type OfflineTable =
   | "user_preferences"
@@ -114,6 +115,7 @@ async function txDone(tx:IDBTransaction){
 }
 
 export async function offlinePutRows(table:OfflineTable,rows:Record<string,any>[]){
+  if(!isLocalDatabaseEnabled())return;
   if(!rows.length) return;
   const db=await openDb();
   try{
@@ -127,6 +129,7 @@ export async function offlinePutRows(table:OfflineTable,rows:Record<string,any>[
 }
 
 export async function offlineReplaceRows(table:OfflineTable,rows:Record<string,any>[],ownerId:string){
+  if(!isLocalDatabaseEnabled())return;
   const db=await openDb();
   try{
     // Safari/iPad can auto-close an IndexedDB transaction after an awaited
@@ -152,6 +155,12 @@ export async function offlineGetRows<T=any>(
   ownerId:string,
   filter?:(row:T)=>boolean
 ):Promise<T[]>{
+  if(!isLocalDatabaseEnabled()){
+    if(!navigator.onLine)throw new Error("Supabase connection is required.");
+    const {data,error}=await supabase.from(table).select("*").eq("owner_id",ownerId);
+    if(error)throw error;
+    return ((data??[]) as T[]).filter(row=>filter?filter(row):true);
+  }
   const db=await openDb();
   try{
     const tx=db.transaction(table,"readonly");
@@ -221,6 +230,11 @@ export async function offlineUpsert(
   options:{onConflict?:string;match?:Record<string,unknown>}={}
 ){
   const row={...payload,owner_id:payload.owner_id || ownerId,updated_at:payload.updated_at || new Date().toISOString()};
+  if(!isLocalDatabaseEnabled()){
+    if(!navigator.onLine)return {error:new Error("Supabase connection is required."),queued:false};
+    const {error}=await supabase.from(table).upsert(row,options.onConflict?{onConflict:options.onConflict}:undefined);
+    return {error,queued:false};
+  }
   await offlinePutRows(table,[row]);
 
   if(!navigator.onLine){
@@ -243,6 +257,13 @@ export async function offlineUpdate(
   match:Record<string,unknown>,
   patch:Record<string,any>
 ){
+  if(!isLocalDatabaseEnabled()){
+    if(!navigator.onLine)return {error:new Error("Supabase connection is required."),queued:false};
+    let direct:any=supabase.from(table).update(patch);
+    for(const [key,value] of Object.entries(match))direct=direct.eq(key,value);
+    const {error}=await direct;
+    return {error,queued:false};
+  }
   await offlinePatchRows(table,ownerId,match,patch);
   if(!navigator.onLine){
     await queueMutation({ownerId,table,action:"update",payload:patch,match,createdAt:new Date().toISOString()});
@@ -266,6 +287,11 @@ export async function offlineLibraryItemUpdate(
 ){
   const now=new Date().toISOString();
   const next={...row,...patch,updated_at:now};
+  if(!isLocalDatabaseEnabled()){
+    if(!navigator.onLine)return {error:new Error("Supabase connection is required."),queued:false};
+    const {error}=await supabase.from("library_items").update({...patch,updated_at:now}).eq("id",row.id).eq("owner_id",ownerId);
+    return {error,queued:false};
+  }
   await putStaticRows("library_items",[next]);
 
   const mutation:OfflineMutation={
@@ -300,6 +326,13 @@ export async function offlineDelete(
   ownerId:string,
   match:Record<string,unknown>
 ){
+  if(!isLocalDatabaseEnabled()){
+    if(!navigator.onLine)return {error:new Error("Supabase connection is required."),queued:false};
+    let direct:any=supabase.from(table).delete();
+    for(const [key,value] of Object.entries(match))direct=direct.eq(key,value);
+    const {error}=await direct;
+    return {error,queued:false};
+  }
   await offlineDeleteRows(table,ownerId,match);
   if(!navigator.onLine){
     await queueMutation({ownerId,table,action:"delete",match,createdAt:new Date().toISOString()});
