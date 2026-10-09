@@ -271,7 +271,7 @@ export function LibrarySettingsModal({
     setMushafImportProgress("Diyanet Kur’an Word kaynağı indiriliyor…");
     setMushafImportPercent(1);
     try {
-      const response = await fetch("/api/quran-source", { cache: "no-store" });
+      const response = await fetch("/api/document-source", { cache: "no-store" });
       if (!response.ok) {
         let detail = "";
         try {
