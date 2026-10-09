@@ -50,3 +50,5 @@ public/lumen-local-ca.crt
 *.key
 *.p12
 *.p8
+
+public/local-ca.crt
