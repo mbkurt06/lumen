@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ReaderView } from "@/components/ReaderView";
 import { MemorizationView } from "@/components/MemorizationView";
+import { MemorizationList, saveMemorization, type SavedMemorization } from "@/components/MemorizationList";
 import { type EzberItem } from "@/components/CollectionHomeView";
 import { LibraryHubView, type SectionKey } from "@/components/LibraryHubView";
 import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
@@ -19,7 +20,7 @@ import { importQuranMushafDocx } from "@/lib/documentImport";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
 
 type Tab = "todos" | "library" | "calendar" | "settings";
-type LibraryMode = "hub" | "read" | "memorize" | "listening";
+type LibraryMode = "hub" | "read" | "memorize" | "listening" | "saved";
 type RightPanelMode = "todo" | "calendar";
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
@@ -35,6 +36,7 @@ export function AppShell({
   const [selectedItem, setSelectedItem] = useState<EzberItem | null>(null);
   const [siblings, setSiblings] = useState<EzberItem[]>([]);
   const [initialSegmentIndex, setInitialSegmentIndex] = useState(0);
+  const [memorizationBackMode,setMemorizationBackMode]=useState<"read"|"saved">("read");
   const [librarySettingsOpen, setLibrarySettingsOpen] = useState(false);
   const [returnEzberRoot, setReturnEzberRoot] = useState<EzberItem | null>(null);
   const [returnToEzber, setReturnToEzber] = useState(false);
@@ -725,6 +727,7 @@ export function AppShell({
         </div>
 
         <nav className="nav">
+          <button className={"navButton "+(tab==="library"&&libraryMode==="saved"?"active":"")} onClick={()=>{setTab("library");setLibraryMode("saved");if(window.innerWidth<=800)setSidebarOpen(false);}}><span className="navIcon">◉</span><span>Ezber Listem</span></button>
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => { setTab("todos"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
@@ -802,11 +805,33 @@ export function AppShell({
             />
           )}
 
+          {tab === "library" && libraryMode === "saved" && (
+            <MemorizationList userId={user.id} onBack={()=>{setReturnLibrarySection("ezber");setReturnToEzber(true);setLibraryMode("hub");}} onOpen={(saved:SavedMemorization,index)=>{setSelectedItem({id:saved.id,title:saved.title,subtitle:saved.subtitle,metadata:saved.metadata,kind:"document"} as EzberItem);setInitialSegmentIndex(index);setMemorizationBackMode("saved");setLibraryMode("memorize");}} />
+          )}
+
           {tab === "library" && libraryMode === "listening" && (
             <MediaEmbed onBack={() => { setReturnToEzber(true); setLibraryMode("hub"); }} />
           )}
 
           {tab === "library" && libraryMode === "read" && selectedItem && (
+            <>
+            {readerScope==="ezber" && <div style={{display:"flex",justifyContent:"flex-end",padding:"62px 16px 0"}}><button type="button" style={{padding:"9px 12px",borderRadius:9,border:"1px solid currentColor"}} onClick={async()=>{
+              const item=selectedItem;
+              const range=window.prompt("Ezberlenecek bölümler: tamamı için boş bırak, yalnızca belirli bölümler için 1-5 veya 1,3,7 yaz.","");
+              if(range===null)return;
+              let indices:number[]=[];
+              if(range.trim()){
+                let rows=await getCachedContentByDocument(item.id);
+                if(!rows.length&&navigator.onLine){const {data}=await supabase.from("content_nodes").select("id,sort_order").eq("document_id",item.id).order("sort_order");rows=(data||[]) as typeof rows;}
+                const total=rows.length;
+                const parts=range.split(",").map(v=>v.trim()).filter(Boolean);
+                const numbers:number[]=[];
+                for(const part of parts){const match=part.match(/^(\\d+)(?:\\s*-\\s*(\\d+))?$/);if(!match){window.alert("Örnek: 1-5 veya 1,3,7");return;}const start=Number(match[1]),end=Number(match[2]||match[1]);if(start<1||end<start||end>total){window.alert("Bölüm aralığı geçersiz. Toplam bölüm: "+total);return;}for(let n=start;n<=end;n++)numbers.push(n-1);}
+                indices=[...new Set(numbers)].sort((a,b)=>a-b);
+              }
+              saveMemorization(user.id,{id:item.id,title:item.title,subtitle:item.subtitle,metadata:item.metadata,indices});
+              setLibraryMode("saved");
+            }}>＋ Ezber Listeme Ekle</button></div>}
             <ReaderView
               item={selectedItem}
               readerScope={readerScope}
@@ -821,6 +846,7 @@ export function AppShell({
                 setLibraryMode("hub");
               }}
               onMemorize={(index = 0) => {
+                setMemorizationBackMode("read");
                 setInitialSegmentIndex(index);
                 setLibraryMode("memorize");
               }}
@@ -829,6 +855,7 @@ export function AppShell({
               hasPreviousItem={selectedIndex > 0}
               hasNextItem={selectedIndex >= 0 && selectedIndex < siblings.length - 1}
             />
+            </>
           )}
 
           {tab === "library" && libraryMode === "memorize" && selectedItem && (
@@ -843,7 +870,7 @@ export function AppShell({
                 }
                 setLibraryMode("hub");
               }}
-              onBack={() => setLibraryMode("read")}
+              onBack={() => setLibraryMode(memorizationBackMode)}
             />
           )}
 
