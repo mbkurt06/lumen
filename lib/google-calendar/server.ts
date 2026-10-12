@@ -45,10 +45,17 @@ export async function authenticatedUser(request: Request) {
   const client = createClient(
     required("NEXT_PUBLIC_SUPABASE_URL"),
     required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
-    { auth: { persistSession: false, autoRefreshToken: false } }
+    { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { authorization: `Bearer ${token}` } } }
   );
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) return null;
+  // Access control must be checked on the server, not only in the UI.
+  const { data: member, error: accessError } = await client
+    .from("private_app_members")
+    .select("user_id")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+  if (accessError || member?.user_id !== data.user.id) return null;
   return data.user;
 }
 
