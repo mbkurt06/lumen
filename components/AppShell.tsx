@@ -133,7 +133,12 @@ export function AppShell({
           detail:{state:"downloading",message:"Tam Kur’an Diyanet Word kaynağından hazırlanıyor…"}
         }));
 
-        const response=await fetch("/api/document-source",{cache:"no-store"});
+        const {data:{session}}=await supabase.auth.getSession();
+        if(!session?.access_token) throw new Error("Belge indirmek için oturum gerekli.");
+        const response=await fetch("/api/document-source",{
+          cache:"no-store",
+          headers:{authorization:`Bearer ${session.access_token}`}
+        });
         if(!response.ok) throw new Error("Diyanet Kur’an Word kaynağı indirilemedi.");
         const blob=await response.blob();
         const file=new File(
