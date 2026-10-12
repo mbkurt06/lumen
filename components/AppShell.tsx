@@ -677,6 +677,26 @@ export function AppShell({
     setTab("library");
   }
 
+  async function saveCurrentForMemorization(){
+
+              const item=selectedItem;
+              const range=window.prompt("Ezberlenecek bölümler: tamamı için boş bırak, yalnızca belirli bölümler için 1-5 veya 1,3,7 yaz.","");
+              if(range===null)return;
+              let indices:number[]=[];
+              if(range.trim()){
+                let rows=await getCachedContentByDocument(item.id);
+                if(!rows.length&&navigator.onLine){const {data}=await supabase.from("content_nodes").select("id,sort_order").eq("document_id",item.id).order("sort_order");rows=(data||[]) as typeof rows;}
+                const total=rows.length;
+                const parts=range.split(",").map(v=>v.trim()).filter(Boolean);
+                const numbers:number[]=[];
+                for(const part of parts){const match=part.match(/^([0-9]+)(?:[ ]*-[ ]*([0-9]+))?$/);if(!match){window.alert("Örnek: 1-5 veya 1,3,7");return;}const start=Number(match[1]),end=Number(match[2]||match[1]);if(start<1||end<start||end>total){window.alert("Bölüm aralığı geçersiz. Toplam bölüm: "+total);return;}for(let n=start;n<=end;n++)numbers.push(n-1);}
+                indices=[...new Set(numbers)].sort((a,b)=>a-b);
+              }
+              saveMemorization(user.id,{id:item.id,title:item.title,subtitle:item.subtitle,metadata:item.metadata,indices});
+              setLibraryMode("saved");
+            
+  }
+
   function openLibraryHome() {
     setSelectedItem(null);
     setSiblings([]);
@@ -815,23 +835,7 @@ export function AppShell({
 
           {tab === "library" && libraryMode === "read" && selectedItem && (
             <>
-            {readerScope==="ezber" && <div style={{display:"flex",justifyContent:"flex-end",padding:"62px 16px 0"}}><button type="button" style={{padding:"9px 12px",borderRadius:9,border:"1px solid currentColor"}} onClick={async()=>{
-              const item=selectedItem;
-              const range=window.prompt("Ezberlenecek bölümler: tamamı için boş bırak, yalnızca belirli bölümler için 1-5 veya 1,3,7 yaz.","");
-              if(range===null)return;
-              let indices:number[]=[];
-              if(range.trim()){
-                let rows=await getCachedContentByDocument(item.id);
-                if(!rows.length&&navigator.onLine){const {data}=await supabase.from("content_nodes").select("id,sort_order").eq("document_id",item.id).order("sort_order");rows=(data||[]) as typeof rows;}
-                const total=rows.length;
-                const parts=range.split(",").map(v=>v.trim()).filter(Boolean);
-                const numbers:number[]=[];
-                for(const part of parts){const match=part.match(/^([0-9]+)(?:[ ]*-[ ]*([0-9]+))?$/);if(!match){window.alert("Örnek: 1-5 veya 1,3,7");return;}const start=Number(match[1]),end=Number(match[2]||match[1]);if(start<1||end<start||end>total){window.alert("Bölüm aralığı geçersiz. Toplam bölüm: "+total);return;}for(let n=start;n<=end;n++)numbers.push(n-1);}
-                indices=[...new Set(numbers)].sort((a,b)=>a-b);
-              }
-              saveMemorization(user.id,{id:item.id,title:item.title,subtitle:item.subtitle,metadata:item.metadata,indices});
-              setLibraryMode("saved");
-            }}>＋ Ezber Listeme Ekle</button></div>}
+
             <ReaderView
               item={selectedItem}
               readerScope={readerScope}
@@ -845,6 +849,7 @@ export function AppShell({
                 }
                 setLibraryMode("hub");
               }}
+              onSaveMemorization={readerScope === "ezber" ? saveCurrentForMemorization : undefined}
               onMemorize={(index = 0) => {
                 setMemorizationBackMode("read");
                 setInitialSegmentIndex(index);
@@ -855,7 +860,6 @@ export function AppShell({
               hasPreviousItem={selectedIndex > 0}
               hasNextItem={selectedIndex >= 0 && selectedIndex < siblings.length - 1}
             />
-            </>
           )}
 
           {tab === "library" && libraryMode === "memorize" && selectedItem && (
