@@ -7,6 +7,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   try {
     const state = verifyOAuthState(url.searchParams.get("state") || "", request);
+    // Prevent a previously authorized OAuth state from reconnecting revoked users.
+    const {data:member,error:membershipError}=await adminSupabase()
+      .from("private_app_members").select("user_id")
+      .eq("user_id",state.userId).maybeSingle();
+    if(membershipError || member?.user_id !== state.userId)
+      throw new Error("Bu hesaba erişim izni yok.");
     const code = url.searchParams.get("code");
     if (!code) throw new Error(url.searchParams.get("error") || "Google yetkilendirme kodu gelmedi.");
 
