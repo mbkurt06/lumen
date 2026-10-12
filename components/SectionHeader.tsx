@@ -14,6 +14,7 @@ export function SectionHeader({
   onBack,
   onTodo,
   onMemorize,
+  onSaveMemorization,
   showFullscreen = false,
   showSettings = true,
   showSelection = false,
@@ -34,6 +35,7 @@ export function SectionHeader({
   onBack?: () => void;
   onTodo?: () => void;
   onMemorize?: () => void;
+  onSaveMemorization?: () => void;
   showFullscreen?: boolean;
   showSettings?: boolean;
   showSelection?: boolean;
@@ -66,9 +68,10 @@ export function SectionHeader({
   return (
     <div className={"v2SharedHeader " + (collapsed ? "collapsed" : "")}>
       <div className="v2HeaderToolbar">
-        {(showMenu || showBack) && <div className="v2HeaderGroup v2HeaderNavigation">
+        {(showMenu || showBack || onSaveMemorization) && <div className="v2HeaderGroup v2HeaderNavigation">
           {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu}>‹ Menü</button>}
           {showBack && <button className="v2HeaderButton" onClick={onBack}>‹ Geri</button>}
+          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋ Listeye ekle</button>}
         </div>}
         <div className="v2HeaderGroup v2HeaderActions">
           {showTodo && <button className="v2HeaderButton" onClick={onTodo}>+ Todo</button>}
