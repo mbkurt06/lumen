@@ -545,6 +545,7 @@ export function MemorizationView({
       }}
     >
       <SectionHeader
+        showMenu={false}
         title={isEsmaDetail ? (resolvedCategoryTitle || categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         progress={nodes.length ? active + 1 + " / " + nodes.length : "0 / 0"}
