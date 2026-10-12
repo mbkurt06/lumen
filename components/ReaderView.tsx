@@ -1386,6 +1386,7 @@ export function ReaderView({
       }}
     >
       <SectionHeader
+        showMenu={false}
         title={isEsmaDetail ? (categoryTitle || item.title) : item.title}
         invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}
