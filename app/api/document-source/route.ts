@@ -1,6 +1,8 @@
 import {NextResponse} from "next/server";
+import {authenticatedUser} from "@/lib/google-calendar/server";
 export const runtime="nodejs";
-export async function GET(){
+export async function GET(request: Request){
+  if(!await authenticatedUser(request)) return NextResponse.json({error:"Unauthorized"},{status:401});
   const url=process.env.CONTENT_DOCUMENT_URL;
   if(!url)return NextResponse.json({error:"Document source not configured"},{status:503});
   try{
@@ -9,7 +11,7 @@ export async function GET(){
     return new NextResponse(await response.arrayBuffer(),{headers:{
       "Content-Type":"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition":'inline; filename="document.docx"',
-      "Cache-Control":"public, max-age=86400"
+      "Cache-Control":"private, no-store"
     }});
   }catch{return NextResponse.json({error:"Document source unavailable"},{status:502});}
 }
