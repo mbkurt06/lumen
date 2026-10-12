@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import { AppShell } from "@/components/AppShell";
+import { PrivateMemberGate } from "@/components/PrivateMemberGate";
 import { cacheOfflineUser, readOfflineUser } from "@/lib/offlineIdentity";
 
 export function AuthPanel() {
@@ -122,19 +122,6 @@ export function AuthPanel() {
     setBusy(false);
   }
 
-  async function signUp() {
-    setBusy(true);
-    setMessage("Hesap oluşturuluyor...");
-
-    const { error } = await supabase.auth.signUp({ email, password });
-    setMessage(
-      error
-        ? error.message
-        : "Hesap oluşturuldu. E-posta doğrulaması açıksa gelen kutunu kontrol et."
-    );
-    setBusy(false);
-  }
-
   async function signOut() {
     setBusy(true);
     const { error } = await supabase.auth.signOut();
@@ -149,14 +136,14 @@ export function AuthPanel() {
   if (!authReady) return <div className="authBootBlank" />;
 
   if (user) {
-    return <AppShell user={user} onSignOut={signOut} />;
+    return <PrivateMemberGate user={user} onSignOut={signOut} />;
   }
 
   return (
     <section style={styles.card}>
       <h2 style={styles.heading}>Lumen hesabı</h2>
       <p style={styles.text}>
-        Aynı hesapla giriş yaptığın tüm cihazlar merkezi veritabanını kullanacak.
+        Bu uygulamaya yalnızca önceden yetkilendirilmiş hesapla giriş yapılabilir.
       </p>
 
       <form onSubmit={signIn} style={styles.form}>
@@ -183,14 +170,6 @@ export function AuthPanel() {
         <div style={styles.actions}>
           <button style={styles.button} type="submit" disabled={busy}>
             Giriş yap
-          </button>
-          <button
-            style={styles.secondaryButton}
-            type="button"
-            onClick={signUp}
-            disabled={busy}
-          >
-            Hesap oluştur
           </button>
         </div>
       </form>
