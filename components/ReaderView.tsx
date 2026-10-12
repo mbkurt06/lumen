@@ -142,6 +142,7 @@ export function ReaderView({
   onBack,
   onMenu,
   onMemorize,
+  onSaveMemorization,
   categoryTitle = "",
   initialFocusIndex = 0,
   onPreviousItem,
@@ -154,6 +155,7 @@ export function ReaderView({
   onBack?: () => void;
   onMenu?: () => void;
   onMemorize?: (index?: number) => void;
+  onSaveMemorization?: () => void;
   categoryTitle?: string;
   initialFocusIndex?: number;
   onPreviousItem?: () => void;
@@ -1388,12 +1390,13 @@ export function ReaderView({
         invocation={!isEsmaDetail ? invocation || null : null}
         showTodo={true}
         showMemorize={true}
+        onSaveMemorization={onSaveMemorization}
         onMenu={() => leaveDocument(onMenu)}
         onBack={() => leaveDocument(onBack)}
         onTodo={() => setDocumentTodoOpen(true)}
         onMemorize={() => onMemorize?.(initialFocusIndex)}
         showFullscreen={true}
-        showSelection={true}
+        showSelection={!!mobileSelectionDraft}
         selectionReady={!!mobileSelectionDraft}
         onFullscreen={() => window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))}
         onSelection={openMobileSelectionActions}
