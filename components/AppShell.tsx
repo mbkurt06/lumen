@@ -677,24 +677,41 @@ export function AppShell({
     setTab("library");
   }
 
-  async function saveCurrentForMemorization(){
-
-              const item=selectedItem;
-              const range=window.prompt("Ezberlenecek bölümler: tamamı için boş bırak, yalnızca belirli bölümler için 1-5 veya 1,3,7 yaz.","");
-              if(range===null)return;
-              let indices:number[]=[];
-              if(range.trim()){
-                let rows=await getCachedContentByDocument(item.id);
-                if(!rows.length&&navigator.onLine){const {data}=await supabase.from("content_nodes").select("id,sort_order").eq("document_id",item.id).order("sort_order");rows=(data||[]) as typeof rows;}
-                const total=rows.length;
-                const parts=range.split(",").map(v=>v.trim()).filter(Boolean);
-                const numbers:number[]=[];
-                for(const part of parts){const match=part.match(/^([0-9]+)(?:[ ]*-[ ]*([0-9]+))?$/);if(!match){window.alert("Örnek: 1-5 veya 1,3,7");return;}const start=Number(match[1]),end=Number(match[2]||match[1]);if(start<1||end<start||end>total){window.alert("Bölüm aralığı geçersiz. Toplam bölüm: "+total);return;}for(let n=start;n<=end;n++)numbers.push(n-1);}
-                indices=[...new Set(numbers)].sort((a,b)=>a-b);
-              }
-              saveMemorization(user.id,{id:item.id,title:item.title,subtitle:item.subtitle,metadata:item.metadata,indices});
-              setLibraryMode("saved");
-            
+  async function saveCurrentForMemorization() {
+    if (!selectedItem) return;
+    const item = selectedItem;
+    const range = window.prompt(
+      "Ezberlenecek bölümler: tamamı için boş bırak, yalnızca belirli bölümler için 1-5 veya 1,3,7 yaz.",
+      ""
+    );
+    if (range === null) return;
+    let indices: number[] = [];
+    if (range.trim()) {
+      let rows = await getCachedContentByDocument(item.id);
+      if (!rows.length && navigator.onLine) {
+        const { data } = await supabase.from("content_nodes")
+          .select("id,sort_order").eq("document_id",item.id).order("sort_order");
+        rows = (data || []) as typeof rows;
+      }
+      const total = rows.length;
+      const numbers: number[] = [];
+      for (const part of range.split(",").map(v => v.trim()).filter(Boolean)) {
+        const match = part.match(/^([0-9]+)(?:[ ]*-[ ]*([0-9]+))?$/);
+        if (!match) { window.alert("Örnek: 1-5 veya 1,3,7"); return; }
+        const start = Number(match[1]);
+        const end = Number(match[2] || match[1]);
+        if (start < 1 || end < start || end > total) {
+          window.alert("Bölüm aralığı geçersiz. Toplam bölüm: " + total);
+          return;
+        }
+        for (let n = start; n <= end; n++) numbers.push(n - 1);
+      }
+      indices = [...new Set(numbers)].sort((a, b) => a - b);
+    }
+    saveMemorization(user.id, {
+      id:item.id,title:item.title,subtitle:item.subtitle,metadata:item.metadata,indices
+    });
+    setLibraryMode("saved");
   }
 
   function openLibraryHome() {
@@ -834,8 +851,6 @@ export function AppShell({
           )}
 
           {tab === "library" && libraryMode === "read" && selectedItem && (
-            <>
-
             <ReaderView
               item={selectedItem}
               readerScope={readerScope}
