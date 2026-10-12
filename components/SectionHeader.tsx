@@ -47,13 +47,13 @@ export function SectionHeader({
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    setCollapsed(localStorage.getItem("lumen-ezber-header-collapsed") === "1");
+    setCollapsed(localStorage.getItem("lumen-ezber-header-collapsed-v2") === "1");
   }, []);
 
   function toggle() {
     setCollapsed(current => {
       const next = !current;
-      localStorage.setItem("lumen-ezber-header-collapsed", next ? "1" : "0");
+      localStorage.setItem("lumen-ezber-header-collapsed-v2", next ? "1" : "0");
       window.dispatchEvent(new CustomEvent("lumen-ezber-header", { detail: next }));
       return next;
     });
@@ -67,6 +67,7 @@ export function SectionHeader({
 
   return (
     <div className={"v2SharedHeader " + (collapsed ? "collapsed" : "")}>
+      {!collapsed && <>
       <div className="v2HeaderToolbar">
         {(showMenu || showBack || onSaveMemorization) && <div className="v2HeaderGroup v2HeaderNavigation">
           {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu}>‹ Menü</button>}
@@ -119,6 +120,7 @@ export function SectionHeader({
       {progress && <div className="v2HeaderProgress">{progress}</div>}
       <div className="v2HeaderTitle">{title}</div>
       {invocation && <div className="v2HeaderInvocation">{invocation}</div>}
+      </>}
       <button
         className="v2HeaderCollapse"
         onClick={toggle}
