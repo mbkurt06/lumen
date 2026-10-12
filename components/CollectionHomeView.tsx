@@ -372,8 +372,8 @@ export function CollectionHomeView({
       {currentRoot ? (
         <SectionHeader
           title={currentRoot.title}
-          showMenu={true}
-          showBack={trail.length > 0}
+          showMenu={false}
+          showBack={true}
           onMenu={() => {
             setCurrentRoot(null);
             setTrail([]);
