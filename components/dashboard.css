@@ -33,3 +33,14 @@
 .dashboardFullWidth>[hidden]{display:none!important}
 .dashboardFullWidth>.lumenDashboard,.dashboardFullWidth>div:not([hidden]){width:100%;max-width:none;min-width:0}
 .dashboardFullWidth .lumenDashboard{width:100%!important;max-width:none!important;margin:0!important;box-sizing:border-box}
+
+/* User-editable 12-column widget grid */
+.dashGrid{display:grid!important;grid-template-columns:repeat(12,minmax(0,1fr))!important;grid-auto-flow:row dense;align-items:stretch;gap:12px}
+.dashGrid>.dashCard{grid-row:auto!important;grid-column:auto;min-width:0;min-height:170px!important}
+.dashGridEditing{background-image:linear-gradient(#79d6a819 1px,transparent 1px),linear-gradient(90deg,#79d6a819 1px,transparent 1px);background-size:calc(100% / 12) 52px;border:1px dashed #487a63;border-radius:12px;padding:7px}
+.dashGridEditing>.dashCard{cursor:grab;border-color:#568f75}
+.dashGridEditing>.dashCard:active{cursor:grabbing}
+.dashEditTools{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding-bottom:9px;color:#94e3b7;font-size:11px;cursor:grab}
+.dashEditTools span{margin-right:auto}.dashEditTools button{padding:4px 10px;font-size:17px}
+.dashGridHelp{padding:10px 14px;border:1px dashed #548d72;border-radius:10px;color:#b8e4ce;font-size:13px}
+@media(max-width:750px){.dashGrid{grid-template-columns:repeat(12,minmax(0,1fr))!important}.dashGrid>.dashCard{grid-column:1 / -1!important}}
