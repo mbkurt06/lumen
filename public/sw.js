@@ -1,4 +1,4 @@
-const CACHE_VERSION = "lumen-pwa-v7";
+const CACHE_VERSION = "lumen-pwa-v8";
 const SHELL_CACHE = CACHE_VERSION + "-shell";
 const RUNTIME_CACHE = CACHE_VERSION + "-runtime";
 
@@ -17,7 +17,7 @@ async function warmShell() {
   }
   await save(cache, "/", response);
   const html = await response.clone().text();
-  const urls = new Set(["/manifest.webmanifest", "/icon.svg"]);
+  const urls = new Set(["/manifest.webmanifest", "/icon.svg", "/apple-icon"]);
   for (const match of html.matchAll(/(?:src|href)=["']([^"']+)["']/g)) {
     const url = match[1];
     if (url.startsWith("/_next/static/")) urls.add(url);
@@ -88,7 +88,7 @@ self.addEventListener("fetch", event => {
   }
 
   const isStatic = url.pathname.startsWith("/_next/static/") ||
-    url.pathname === "/icon.svg" || url.pathname === "/manifest.webmanifest";
+    url.pathname === "/icon.svg" || url.pathname === "/apple-icon" || url.pathname === "/manifest.webmanifest";
   if (!isStatic) return;
 
   event.respondWith((async () => {
