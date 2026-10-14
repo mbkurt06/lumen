@@ -168,3 +168,13 @@
 .lumenDashboard .dashHabitRow i.done{color:#4deab1!important;text-shadow:0 0 12px #50edb955}
 .lumenDashboard .dashGridEditing>.dashCard{outline:1px solid #ffffff12}
 @media(min-width:1100px){.lumenDashboard .dashGrid>.dashHero .dashDigits{font-size:clamp(28px,2.4vw,46px)}}
+
+/* Branded confirmation overlay, replacing browser-native white alerts. */
+.dashDialogOverlay{position:fixed;inset:0;z-index:100000;background:#010b09b9;backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:20px}
+.dashDialog{width:min(100%,440px);border:1px solid #357a60;border-radius:20px;padding:28px;background:linear-gradient(145deg,#19372d,#101d1a 76%);color:#f1fff7;box-shadow:0 24px 90px #000b,0 0 35px #2fba8530}
+.dashDialogIcon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#23644b;color:#84e7b6;font-size:28px;margin-bottom:15px}
+.lumenDashboard .dashDialog h2{font-size:21px!important;margin:0 0 12px;font-weight:800}
+.lumenDashboard .dashDialog p{font-size:15px;line-height:1.6;color:#c0d5c9;margin:0 0 25px}
+.dashDialogActions{display:flex;justify-content:flex-end;gap:10px}
+.lumenDashboard .dashDialogActions button{border-radius:10px;padding:11px 20px;background:#273d34;border:1px solid #446858}
+.lumenDashboard .dashDialogActions .dashPrimary{background:linear-gradient(135deg,#23976a,#177652);border-color:#41ae80;color:#fff}
