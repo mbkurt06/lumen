@@ -14,3 +14,12 @@
 
 /* Wider desktop layout: use the available canvas without shrinking the cards. */
 @media(min-width:1500px){.lumenDashboard{padding:20px 26px!important}.dashGrid{grid-template-columns:minmax(0,1.65fr) minmax(0,1.1fr) minmax(0,1fr)}.dashCard{min-height:220px!important}.dashDailyPlan{grid-row:2 / span 3}}
+
+/* Weekly overview and reference-inspired three-column layout. */
+.dashWeekly{grid-column:3;grid-row:2;background:linear-gradient(145deg,#171e24,#111d1b)}
+.dashWeekDays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:12px 0}
+.dashWeekDays>div{display:flex;flex-direction:column;align-items:center;gap:7px;padding:9px 2px;border-radius:9px;color:#b5c7be}
+.dashWeekDays>div.selected{background:#237757;color:#fff}
+.dashWeekDays small{font-size:10px}.dashWeekDays strong{font-size:16px}
+@media(max-width:1250px){.dashWeekly{grid-column:2;grid-row:3}.dashProjects{grid-row:5}.dashHabits{grid-row:6}.dashTimeUsage{grid-row:6}.dashNotes{grid-row:7}}
+@media(max-width:750px){.dashWeekly{grid-column:1;grid-row:auto}}
