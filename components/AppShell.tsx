@@ -222,6 +222,7 @@ export function AppShell({
   }, [user.id]);
 
   const readerScope: ReaderScope = useMemo(() => {
+    if (libraryMode === "saved") return "ezber";
     const source = String((selectedItem?.metadata as any)?.source || (selectedItem?.metadata as any)?.catalog_source || "");
     if (source.startsWith("quran")) return "quran";
     if (source.startsWith("risale")) return "risale";
@@ -229,7 +230,7 @@ export function AppShell({
     if (returnLibrarySection === "quran") return "quran";
     if (returnLibrarySection === "risale") return "risale";
     return "ezber";
-  }, [selectedItem, returnLibrarySection]);
+  }, [libraryMode, selectedItem, returnLibrarySection]);
 
   useEffect(() => {
     let cancelled=false;
