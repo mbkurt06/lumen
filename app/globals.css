@@ -7306,3 +7306,35 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
 .appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation { padding-left:51px!important; }
 .appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { gap:2px!important; }
 }
+
+/* Equal spacing between Back, Todo, Memorize, Add, Fullscreen and Settings. */
+.v2SharedHeader .v2HeaderCompactRow {
+ display:flex!important; flex-flow:row nowrap!important; align-items:center!important;
+ justify-content:space-between!important; gap:0!important;
+}
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation {
+ flex:0 0 auto!important; display:flex!important; margin:0!important;
+}
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderActions {
+ flex:1 1 auto!important; display:flex!important; justify-content:space-evenly!important;
+ align-items:center!important; gap:0!important; min-width:0!important; margin:0!important;
+}
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderSettings {
+ flex:0 0 auto!important; display:flex!important; margin:0!important;
+}
+@media(max-width:760px) {
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderToolbar.v2HeaderCompactRow {
+ display:flex!important; flex-direction:row!important; flex-wrap:nowrap!important;
+ justify-content:space-between!important; gap:0!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation {
+ flex:0 0 auto!important; width:auto!important; margin:0!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions {
+ flex:1 1 auto!important; width:auto!important; min-width:0!important;
+ justify-content:space-evenly!important; gap:0!important; margin:0!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderSettings {
+ flex:0 0 auto!important; width:auto!important; margin:0!important;
+}
+}
