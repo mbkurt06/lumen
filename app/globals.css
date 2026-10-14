@@ -7338,3 +7338,16 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
  flex:0 0 auto!important; width:auto!important; margin:0!important;
 }
 }
+
+/* Saved memorization: document list, then numbered text sections. */
+.savedMemorizationPage { padding:72px 16px 32px; max-width:900px; margin:auto; color:var(--text); }
+.savedMemorizationPage h2 { margin:12px 0 22px; }
+.savedMemorizationBack,.savedMemorizationRemove { border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:10px; padding:9px 12px; cursor:pointer; }
+.savedMemorizationItems,.savedMemorizationSections { display:grid; gap:10px; }
+.savedMemorizationItem { display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:12px; padding:10px; }
+.savedMemorizationOpen { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; border:0; background:transparent; color:var(--text); text-align:left; font-weight:750; font-size:17px; cursor:pointer; }
+.savedMemorizationSection { display:flex; flex-direction:column; align-items:stretch; gap:10px; width:100%; padding:16px; border:1px solid var(--border); border-radius:12px; background:var(--panel); color:var(--text); text-align:left; cursor:pointer; }
+.savedMemorizationSectionNumber { font-size:17px; font-weight:800; }
+.savedMemorizationArabic { text-align:right; font-size:clamp(20px,3vw,28px); line-height:1.9; white-space:pre-wrap; overflow-wrap:anywhere; }
+.savedMemorizationLatin { font-size:16px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+.savedMemorizationTranslation { opacity:.85; font-size:14px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
