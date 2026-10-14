@@ -105,3 +105,33 @@
 .dashWidgetSettingsPanel h3{margin:0 0 12px}
 .dashWidgetSettingsPanel p{color:#b6c8c0;line-height:1.5}
 .dashWidgetSettingsPanel button{margin:6px}
+
+/* Lumen visual system v2 — override the old generic card selector */
+.lumenDashboard .dashGrid>.dashCard{border-width:1px!important;border-style:solid!important;border-radius:16px!important;padding:clamp(14px,1.25vw,23px)!important;box-shadow:inset 0 1px 0 #ffffff12,0 9px 26px #0008!important}
+.lumenDashboard .dashGrid>.dashHero{background:radial-gradient(circle at 14% 15%,#155f4a77,transparent 54%),linear-gradient(135deg,#0b3029,#0c1d1b)!important;border-color:#16835e!important}
+.lumenDashboard .dashGrid>.dashReminders{background:radial-gradient(circle at 8% 10%,#66502155,transparent 60%),linear-gradient(125deg,#2a291d,#101b19)!important;border-color:#a07a37!important}
+.lumenDashboard .dashGrid>.dashDailyPlan{background:radial-gradient(circle at 2% 8%,#185b4966,transparent 50%),linear-gradient(145deg,#102922,#0d191a)!important;border-color:#26715b!important}
+.lumenDashboard .dashGrid>.dashWeekly{background:radial-gradient(circle at 10% 10%,#3b398455,transparent 55%),linear-gradient(140deg,#192239,#10191f)!important;border-color:#56529b!important}
+.lumenDashboard .dashGrid>.dashProjects{background:radial-gradient(circle at 12% 0%,#215c8066,transparent 58%),linear-gradient(145deg,#142b35,#0e1c22)!important;border-color:#33799a!important}
+.lumenDashboard .dashGrid>.dashHabits{background:radial-gradient(circle at 10% 0%,#55418b66,transparent 58%),linear-gradient(145deg,#23213b,#111923)!important;border-color:#6952a5!important}
+.lumenDashboard .dashGrid>.dashNotes{background:radial-gradient(circle at 5% 0%,#9d5e2d55,transparent 60%),linear-gradient(145deg,#34271e,#171b19)!important;border-color:#9d6c39!important}
+.lumenDashboard .dashGrid>.dashCard[data-widget="todos"]{background:radial-gradient(circle at 10% 0%,#1d786455,transparent 55%),linear-gradient(145deg,#122f29,#0e1d1b)!important;border-color:#3b9479!important}
+.lumenDashboard .dashCard h2{font-size:clamp(15px,1.05vw,20px)!important;font-weight:750;letter-spacing:-.2px}
+.lumenDashboard .dashCard h2:first-letter{color:#65e6b5}
+.lumenDashboard .dashCard[data-widget="weekly"] h2:first-letter,.lumenDashboard .dashCard[data-widget="habits"] h2:first-letter{color:#bd91ff}
+.lumenDashboard .dashCard[data-widget="notes"] h2:first-letter{color:#ffbf6e}
+.lumenDashboard .dashCard .dashRow{border-bottom-color:#ffffff1c}
+.lumenDashboard .dashCard button:not(.dashResizeHandle):not(.dashWidgetGear){background:linear-gradient(145deg,#246e57,#1d493d);border-color:#377f67;color:#f5fff9;box-shadow:inset 0 1px #ffffff12}
+.lumenDashboard .dashCard button:hover{filter:brightness(1.25)}
+.lumenDashboard .dashCard .dashDanger{background:linear-gradient(135deg,#b9444d,#762f38)!important;border-color:#bc5c61!important}
+.lumenDashboard .dashCard .dashDigits{color:#58e2ab;text-shadow:0 0 25px #3dd99b2b}
+.lumenDashboard .dashCard[data-widget="reminders"] .dashQuickButtons button{background:linear-gradient(135deg,#63532e,#343c2c)!important;border-color:#75613b}
+.lumenDashboard .dashWeekDays>div.selected{background:linear-gradient(145deg,#268c67,#1a614e);box-shadow:0 0 18px #3be3a42b}
+.lumenDashboard .dashProjectRow:nth-of-type(2) i{background:linear-gradient(90deg,#368cf5,#69c0ff)}
+.lumenDashboard .dashProjectRow:nth-of-type(3) i{background:linear-gradient(90deg,#dc9b2b,#ffd369)}
+.lumenDashboard .dashProjectRow:nth-of-type(4) i{background:linear-gradient(90deg,#18a77b,#69edb5)}
+.lumenDashboard .dashProjectRow:nth-of-type(5) i{background:linear-gradient(90deg,#a74ec7,#ef89d7)}
+.lumenDashboard .dashStats>div{box-shadow:inset 0 1px #ffffff12,0 7px 23px #0005}
+.lumenDashboard .dashTimelineDot{box-shadow:0 0 0 4px #4bdfa51e}
+.lumenDashboard .dashWidgetGear{border-color:#4b7e70!important}
+@media(min-width:1100px){.lumenDashboard .dashGrid>.dashCard{font-size:clamp(12px,.85vw,15px)}}
