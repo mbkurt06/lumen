@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: "Kur’an, dua, ezber, tesbih ve kişisel takvim",
   manifest: "/manifest.webmanifest",
   applicationName: "Lumen",
-  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  icons: { icon: "/icon.svg", apple: "/apple-icon" },
   appleWebApp: {
     capable: true,
     title: process.env.NEXT_PUBLIC_APP_TITLE || "Content Workspace",
