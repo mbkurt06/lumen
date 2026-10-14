@@ -47,3 +47,15 @@
 
 .dashGridEditing>.dashCard{position:relative;overflow:visible;padding-bottom:43px}
 .dashResizeHandle{position:absolute;right:5px;bottom:5px;z-index:5;width:35px;height:35px;border:1px solid #83d6af;border-radius:8px;background:#245e48;color:white;font-size:23px;cursor:nwse-resize;touch-action:none;user-select:none}
+
+/* Unified focus and time reporting; reminder controls live inside reminder card */
+.dashHero{background:linear-gradient(145deg,#092b27,#102b25 55%,#10211f)!important;border-color:#267d61!important}
+.dashReminders{background:linear-gradient(145deg,#1b2523,#1b2926)!important;border-color:#7b6938!important}
+.dashCard:not(.dashHero):not(.dashReminders){background:linear-gradient(145deg,#192724,#152321)!important}
+.dashCombinedUsage{border-top:1px solid #35604f;margin-top:17px;padding-top:14px}
+.dashCombinedUsage .dashDigits{font-size:clamp(23px,2.2vw,36px)}
+.dashCombinedUsage h3{font-size:14px;margin:0;color:#e5f3eb}
+.dashReminderActions{display:flex;gap:6px;align-items:center}
+.dashReminderSettings{border:1px solid #4b7564;border-radius:10px;background:#102c27;padding:12px;margin:8px 0 12px}
+.dashReminderSettings h3{margin:0 0 10px;font-size:14px}
+.dashReminderSettings p{margin:7px 0 0}
