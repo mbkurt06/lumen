@@ -76,3 +76,32 @@
 .dashFreeGrid .dashMoveHandle{touch-action:none;cursor:grab}
 .dashFreeGrid .dashResizeHandle{touch-action:none}
 @media(max-width:700px){.dashFreeGrid{display:grid!important;min-height:0!important}.dashFreeGrid>.dashCard{position:relative!important;left:auto!important;top:auto!important;width:auto!important;height:auto!important;min-height:170px!important;grid-column:1!important}}
+
+/* Rich visual dashboard — distinct accents and functional widget controls */
+.lumenDashboard{--dashMint:#45dfaa;--dashBorder:#274b43;color:#f1f8f4;background:radial-gradient(ellipse at 42% -10%,#10362e 0%,#0a1716 54%,#0b1314 100%)!important}
+.dashStats>div{border-color:#254d45;background:linear-gradient(125deg,#102a26,#11211f)!important}
+.dashStats>div:nth-child(2){border-color:#326659;background:linear-gradient(120deg,#142c2a,#13211e)!important}
+.dashStats>div:nth-child(3){border-color:#71453e;background:linear-gradient(120deg,#2b2021,#151e1d)!important}
+.dashStats>div:nth-child(4){border-color:#375e75;background:linear-gradient(120deg,#122a33,#122021)!important}
+.dashStats>div:nth-child(3) strong{color:#f38d81}
+.dashStats>div:nth-child(4) strong{color:#7bbdff}
+.dashHero{background:linear-gradient(130deg,#103b32,#0c2220 75%)!important;border-color:#248b69!important}
+.dashReminders{background:linear-gradient(130deg,#2b2a1d,#151e1b 75%)!important;border-color:#9c7636!important}
+.dashDailyPlan{background:linear-gradient(145deg,#102824,#101a1b)!important;border-color:#2c6354!important}
+.dashWeekly{background:linear-gradient(140deg,#182133,#111b20)!important;border-color:#394b78!important}
+.dashProjects{background:linear-gradient(135deg,#20252b,#111e20)!important;border-color:#3b6177!important}
+.dashHabits{background:linear-gradient(140deg,#191d2c,#111b20)!important;border-color:#565083!important}
+.dashNotes{background:linear-gradient(135deg,#29231d,#161d1a)!important;border-color:#685035!important}
+.dashCard{box-shadow:inset 0 1px #ffffff0b,0 10px 25px #0004!important;overflow:auto}
+.dashCardTop{position:relative;padding-right:30px}
+.dashWidgetGear{position:absolute;right:12px;top:10px;z-index:3;padding:4px 8px!important;border-radius:7px!important;background:#243b34!important;color:#b6d5c8!important;font-size:15px!important}
+.dashCardTop .dashWidgetGear{right:-30px;top:0}
+.dashWidgetGear:hover{background:#2e755c!important;color:white!important}
+.dashInlineTimer{display:inline-block;color:#57e4ad;font-size:12px;margin-left:9px;font-variant-numeric:tabular-nums}
+.dashWeekDays>div{cursor:pointer;border:1px solid transparent}
+.dashWeekDays>div:hover,.dashWeekDays>div:focus-visible{border-color:#58dba8;outline:none;background:#1a483a}
+.dashWidgetSettingsOverlay{position:fixed;inset:0;z-index:1000;background:#0009;display:grid;place-items:center;padding:16px}
+.dashWidgetSettingsPanel{width:min(430px,100%);background:#162b26;border:1px solid #48896e;border-radius:16px;padding:26px;box-shadow:0 20px 70px #0009}
+.dashWidgetSettingsPanel h3{margin:0 0 12px}
+.dashWidgetSettingsPanel p{color:#b6c8c0;line-height:1.5}
+.dashWidgetSettingsPanel button{margin:6px}
