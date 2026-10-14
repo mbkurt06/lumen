@@ -135,3 +135,36 @@
 .lumenDashboard .dashTimelineDot{box-shadow:0 0 0 4px #4bdfa51e}
 .lumenDashboard .dashWidgetGear{border-color:#4b7e70!important}
 @media(min-width:1100px){.lumenDashboard .dashGrid>.dashCard{font-size:clamp(12px,.85vw,15px)}}
+
+/* Reference screenshot: vivid timer dial, cards, row accents, typography. */
+.lumenDashboard{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;background:radial-gradient(ellipse at 30% -20%,#07382c 0%,#071c19 44%,#081412 100%)!important}
+.lumenDashboard .dashHeader h1{font-weight:850;letter-spacing:-.04em}
+.lumenDashboard .dashGrid>.dashCard{background-clip:padding-box!important}
+.lumenDashboard .dashGrid>.dashHero{border:1px solid #15845c!important;background:radial-gradient(ellipse at 5% 10%,#124c3c,#071f1a 72%)!important}
+.lumenDashboard .dashGrid>.dashReminders{border:1px solid #a88b36!important;background:radial-gradient(ellipse at 0 0,#3c3820,#131d19 78%)!important}
+.lumenDashboard .dashGrid>.dashWeekly{border:1px solid #6157a5!important;background:radial-gradient(ellipse at 0 0,#272547,#111d23 78%)!important}
+.lumenDashboard .dashGrid>.dashProjects{border:1px solid #2d7f9e!important;background:radial-gradient(ellipse at 0 0,#163d4e,#101d24 78%)!important}
+.lumenDashboard .dashGrid>.dashHabits{border:1px solid #7755a3!important;background:radial-gradient(ellipse at 0 0,#322746,#151b28 78%)!important}
+.lumenDashboard .dashGrid>.dashNotes{border:1px solid #a2703b!important;background:radial-gradient(ellipse at 0 0,#493021,#191b1b 78%)!important}
+.lumenDashboard .dashGrid>.dashDailyPlan{border:1px solid #257b60!important;background:radial-gradient(ellipse at 0 0,#123d30,#0c1d1a 78%)!important}
+.lumenDashboard .dashCard{color:#f3fbf7!important}
+.lumenDashboard .dashCard h2{font-size:clamp(16px,1.1vw,21px)!important;color:#f8fffc!important}
+.lumenDashboard .dashCard .dashRow{padding:10px 2px!important;border-bottom:1px solid #8db9a51f!important}
+.lumenDashboard .dashCard .dashRow:hover{background:#3cc68a0e}
+.lumenDashboard .dashCard .dashRow button{border-radius:9px!important;min-width:33px}
+.lumenDashboard .dashCard .dashProgress{height:10px;background:#ffffff17;border-radius:30px}
+.lumenDashboard .dashCard .dashProgress i{background:linear-gradient(90deg,#219f73,#53f3ad);border-radius:30px}
+.lumenDashboard .dashCard .dashPill{background:#0a382b;border-color:#249f70;color:#84f4be}
+.lumenDashboard .dashCard .dashDigits{font-weight:850;letter-spacing:-.05em;color:#56eab0}
+.lumenDashboard .dashStats>div{border-radius:14px!important;min-height:105px!important}
+.lumenDashboard .dashStats>div strong{font-weight:850;letter-spacing:-.04em}
+.lumenDashboard .dashStats>div:nth-child(1){background:radial-gradient(circle at 95% 0,#176b4d55,transparent 65%),#102820!important}
+.lumenDashboard .dashStats>div:nth-child(2){background:radial-gradient(circle at 95% 0,#158c6b55,transparent 65%),#102720!important}
+.lumenDashboard .dashStats>div:nth-child(3){background:radial-gradient(circle at 95% 0,#a54a4955,transparent 65%),#2a1d1e!important}
+.lumenDashboard .dashStats>div:nth-child(4){background:radial-gradient(circle at 95% 0,#297eae55,transparent 65%),#12242d!important}
+.lumenDashboard .dashStats>div:nth-child(3) strong{color:#ff8c85!important}
+.lumenDashboard .dashStats>div:nth-child(4) strong{color:#75bdff!important}
+.lumenDashboard .dashWeekDays>div.selected{background:#168960!important;color:white!important;box-shadow:0 4px 20px #35d89a45}
+.lumenDashboard .dashHabitRow i.done{color:#4deab1!important;text-shadow:0 0 12px #50edb955}
+.lumenDashboard .dashGridEditing>.dashCard{outline:1px solid #ffffff12}
+@media(min-width:1100px){.lumenDashboard .dashGrid>.dashHero .dashDigits{font-size:clamp(28px,2.4vw,46px)}}
