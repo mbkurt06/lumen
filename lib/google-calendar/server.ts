@@ -42,14 +42,12 @@ export async function authenticatedUser(request: Request) {
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!token) return null;
 
-  const client = createClient(
-    required("NEXT_PUBLIC_SUPABASE_URL"),
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-    { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { authorization: `Bearer ${token}` } } }
-  );
+  // Verify the caller's JWT against Supabase Auth; never trust an unverified user id.
+  // Use the server's service-role client to avoid differing public key configuration
+  // and RLS header behavior between browser and server.
+  const client = adminSupabase();
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) return null;
-  // Access control must be checked on the server, not only in the UI.
   const { data: member, error: accessError } = await client
     .from("private_app_members")
     .select("user_id")
