@@ -4,16 +4,21 @@ import "./globals.css";
 
 export const viewport: Viewport = {
   themeColor: "#315b4d",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_TITLE || "Content Workspace",
-  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Personal content workspace",
+  title: "Lumen",
+  description: "Kur’an, dua, ezber, tesbih ve kişisel takvim",
   manifest: "/manifest.webmanifest",
+  applicationName: "Lumen",
+  icons: { icon: "/icon.svg", apple: "/apple-icon" },
   appleWebApp: {
     capable: true,
     title: process.env.NEXT_PUBLIC_APP_TITLE || "Content Workspace",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
 };
 
