@@ -1631,8 +1631,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
 
               {shouldPlaceTodayAnchor && (
                 <div ref={yearlyTodayRef} className="calendarTodayAnchor">
-                  <span>Bugün</span>
-                </div>
+                  </div>
               )}
 
               <section>
