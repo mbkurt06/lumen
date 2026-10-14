@@ -16,7 +16,7 @@ export function saveMemorization(userId:string,item:SavedMemorization){
   localStorage.setItem(key(userId),JSON.stringify(list));
   window.dispatchEvent(new Event("lumen-memorization-list-changed"));
 }
-export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(item:SavedMemorization,index:number)=>void;onBack:()=>void}){
+export function MemorizationList({userId,onOpen,onBack,onTodo}:{userId:string;onOpen:(item:SavedMemorization,index:number)=>void;onBack:()=>void;onTodo:()=>void}){
  const [visibility,setVisibility]=useState({arabic:true,latin:true,turkish:false});
  useEffect(()=>{
   const sync=()=>{const p=readLocalReaderPrefs();setVisibility({arabic:p.ezberShowArabic!==false,latin:p.ezberShowLatin!==false,turkish:p.ezberShowTurkish===true});};
@@ -45,7 +45,7 @@ export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(i
  };
  const selected=items.find(item=>item.id===expanded);
  return <section className="savedMemorizationPage">
-  <SectionHeader title={selected?.title || "Ezber Listem"} showMenu={false} onBack={()=>expanded?setExpanded(null):onBack()} showTodo onTodo={()=>window.dispatchEvent(new Event("lumen-open-todo"))} showMemorize={Boolean(selected)} onMemorize={()=>{if(selected)onOpen(selected,selected.indices[0]??0);}} onSaveMemorization={onBack} showFullscreen={Boolean(selected)} onFullscreen={()=>window.dispatchEvent(new Event("lumen-open-fullscreen-tasbih"))} onSettings={()=>window.dispatchEvent(new Event("lumen-open-library-settings"))} />
+  <SectionHeader title={selected?.title || "Ezber Listem"} showMenu={false} onBack={()=>expanded?setExpanded(null):onBack()} showTodo onTodo={onTodo} showMemorize={Boolean(selected)} onMemorize={()=>{if(selected)onOpen(selected,selected.indices[0]??0);}} onSaveMemorization={onBack} showFullscreen={Boolean(selected)} onFullscreen={()=>{if(selected)onOpen(selected,selected.indices[0]??0);}} onSettings={()=>window.dispatchEvent(new Event("lumen-open-library-settings"))} />
   {!selected ? (
     <>
       <p>Ezberlemek istediğin duayı veya sûreyi seç.</p>
