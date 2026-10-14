@@ -72,11 +72,13 @@ export function CollectionHomeView({
   user,
   initialRoot = null,
   onOpenListening,
+  onOpenSaved,
 }: {
   onOpenItem: (item: EzberItem, siblings: EzberItem[], parent: EzberItem | null) => void;
   user: User;
   initialRoot?: EzberItem | null;
   onOpenListening?: () => void;
+  onOpenSaved?: () => void;
 }) {
   const [duaRoot, setDuaRoot] = useState<EzberItem | null>(null);
   const [rootChildren, setRootChildren] = useState<EzberItem[]>([]);
@@ -389,6 +391,7 @@ export function CollectionHomeView({
       )}
 
       <div className={currentRoot ? "legacyCategoryList" : "legacyHomeMenu"}>
+        {!currentRoot && onOpenSaved && <button type="button" className="savedEzberLibraryEntry" onClick={onOpenSaved}><span>◉</span><strong>Ezber Listem</strong><span aria-hidden="true">›</span></button>}
         {primaryRows.map(item => renderRow(item))}
         {surahMode && (featuredRows.length > 0 || extraRows.length > 0) && (
           <div className="ezberSubheading">{String(meta(currentRoot!).extra_section_title || "Ek okumalar")}</div>
