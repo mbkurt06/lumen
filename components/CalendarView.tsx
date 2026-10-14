@@ -203,9 +203,13 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
   const eventEditorRef = useRef<HTMLDivElement | null>(null);
 
   const authHeaders = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) throw new Error("Oturum bulunamadı.");
+    let { data } = await supabase.auth.getSession();
+    let token = data.session?.access_token;
+    if (!token && navigator.onLine) {
+      const refreshed = await supabase.auth.refreshSession();
+      token = refreshed.data.session?.access_token;
+    }
+    if (!token) throw new Error("Oturum süresi dolmuş. İnternete bağlanıp tekrar giriş yapın; çevrimdışı kaydedilmiş etkinlikler korunur.");
     return { authorization: `Bearer ${token}`, "content-type": "application/json" };
   }, []);
 
