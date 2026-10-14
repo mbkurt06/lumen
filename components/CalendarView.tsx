@@ -1853,7 +1853,6 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
             <div className="calendarToolbarTitles">
               <h1>{title}</h1>
               <div className="calendarCurrentDate" title="Bugünün tarihi">
-                <span>Bugün</span>
                 <strong>{todayLabel}</strong>
               </div>
             </div>
