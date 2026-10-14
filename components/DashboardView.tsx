@@ -1,4 +1,5 @@
 "use client";
+import "./dashboard.css";
 import { useEffect, useState } from "react";
 type Timer={name:string;start:number;elapsed:number;running:boolean;target:number};
 type Reminder={id:number;name:string;end:number};
