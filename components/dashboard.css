@@ -27,3 +27,9 @@
 /* Keep notes and habits in the right-hand area on wide screens. */
 @media(min-width:1251px){.dashGrid{grid-template-columns:minmax(0,1.55fr) minmax(0,1.05fr) minmax(0,1.05fr)}.dashDailyPlan{grid-column:1;grid-row:2 / span 3}.dashWeekly{grid-column:3;grid-row:2}.dashTimeUsage{grid-column:3;grid-row:3}.dashNotes{grid-column:3;grid-row:4}.dashProjects{grid-column:2;grid-row:3}.dashHabits{grid-column:2;grid-row:4}.dashCard{min-height:160px!important}.dashCard textarea{min-height:76px}}
 @media(min-width:900px) and (max-width:1250px){.dashGrid{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr)}.dashHero{grid-column:1;grid-row:1}.dashReminders{grid-column:2;grid-row:1}.dashNotification{grid-column:3;grid-row:1}.dashDailyPlan{grid-column:1;grid-row:2 / span 3}.dashWeekly{grid-column:3;grid-row:2}.dashProjects{grid-column:2;grid-row:3}.dashHabits{grid-column:2;grid-row:4}.dashTimeUsage{grid-column:3;grid-row:3}.dashNotes{grid-column:3;grid-row:4}.dashCard{min-height:150px!important}}
+
+/* Dashboard bypasses the narrow pageWrap container in AppShell. */
+.dashboardFullWidth{display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0}
+.dashboardFullWidth>[hidden]{display:none!important}
+.dashboardFullWidth>.lumenDashboard,.dashboardFullWidth>div:not([hidden]){width:100%;max-width:none;min-width:0}
+.dashboardFullWidth .lumenDashboard{width:100%!important;max-width:none!important;margin:0!important;box-sizing:border-box}
