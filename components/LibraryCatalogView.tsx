@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { getCachedLibraryChildren, getCachedLibraryRoot, putStaticRows } from "@/lib/localContentDb";
 import { SectionHeader } from "@/components/SectionHeader";
 import type { EzberItem } from "@/components/CollectionHomeView";
-import { readLocalReaderPrefs } from "@/lib/readerPrefs";
+import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 
 type Section = "quran" | "risale";
 
@@ -52,6 +52,31 @@ export function LibraryCatalogView({
       ayahNo?: number;
     };
   }>>([]);
+
+  const [editingBookmarks, setEditingBookmarks] = useState(false);
+  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
+  const [bookmarkDraft, setBookmarkDraft] = useState("");
+
+  function saveBookmarks(next: typeof quranBookmarks) {
+    const preferences = readLocalReaderPrefs();
+    writeLocalReaderPrefs({...preferences, quranBookmarks:next, quranBookmark:null});
+    setQuranBookmarks(next);
+    window.dispatchEvent(new CustomEvent("lumen-quran-bookmarks-changed", {detail:next}));
+  }
+
+  function removeBookmark(id:string) {
+    const bookmark = quranBookmarks.find(entry => entry.id === id);
+    if (!bookmark || !window.confirm(`“${bookmark.name}” kaydını silmek istiyor musunuz?`)) return;
+    saveBookmarks(quranBookmarks.filter(entry => entry.id !== id));
+    setEditingBookmarkId(null);
+  }
+
+  function renameBookmark(id:string) {
+    const name = bookmarkDraft.trim();
+    if (!name) return;
+    saveBookmarks(quranBookmarks.map(entry => entry.id === id ? {...entry,name} : entry));
+    setEditingBookmarkId(null);
+  }
 
   const source = section === "quran" ? "quran_v1" : "risale_v1";
   const rootTitle = section === "quran" ? "Kur’an-ı Kerim" : "Risale-i Nur";
@@ -236,39 +261,53 @@ export function LibraryCatalogView({
       {section === "quran" && current?.id === root?.id && (
         <>
           {!!quranBookmarks.length && (
-            <div className="quranBookmarkCards">
-              {quranBookmarks.map(bookmark => (
-                <button
-                  key={bookmark.id}
-                  className="quranBookmarkCard"
-                  onClick={() => {
-                    const position = bookmark.position;
-                    const surahItem = items.find(candidate =>
-                      String(meta(candidate).source || "") === "quran_seeded"
-                      && Number(meta(candidate).surah_no || 0) === Number(position.surahNo || 0)
-                    );
-                    if (!surahItem || !position.page) return;
-                    onOpenItem(
-                      {
-                        ...surahItem,
-                        metadata: {
-                          ...(surahItem.metadata ?? {}),
-                          start_page: position.page,
-                          initial_node_id: position.nodeId || null,
-                        },
-                      },
-                      items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"),
-                      current
-                    );
-                  }}
-                >
-                  <span>🔖 {bookmark.name}</span>
-                  <strong>
-                    Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle || ""} {bookmark.position.ayahNo ? `${bookmark.position.ayahNo}. ayet` : ""}
-                  </strong>
-                  <small>Buradan devam et ›</small>
+            <div className="quranBookmarkManage">
+              <div className="quranBookmarkManageToolbar">
+                <button type="button" onClick={() => {setEditingBookmarks(value => !value);setEditingBookmarkId(null);}}>
+                  {editingBookmarks ? "✓ Bitti" : "✎ Düzenle"}
                 </button>
-              ))}
+              </div>
+              <div className="quranBookmarkCards">
+                {quranBookmarks.map(bookmark => (
+                  <div key={bookmark.id} className="quranBookmarkCard quranBookmarkEditable">
+                    {editingBookmarkId === bookmark.id ? (
+                      <form className="quranBookmarkRename" onSubmit={event => {event.preventDefault();renameBookmark(bookmark.id);}}>
+                        <input aria-label="Yer imi adı" value={bookmarkDraft} autoFocus onChange={event => setBookmarkDraft(event.target.value)} />
+                        <button type="submit" disabled={!bookmarkDraft.trim()}>Kaydet</button>
+                        <button type="button" onClick={() => setEditingBookmarkId(null)}>İptal</button>
+                      </form>
+                    ) : (
+                      <button type="button" className="quranBookmarkOpen" onClick={() => {
+                        if (editingBookmarks) return;
+                        const position = bookmark.position;
+                        const surahItem = items.find(candidate =>
+                          String(meta(candidate).source || "") === "quran_seeded"
+                          && Number(meta(candidate).surah_no || 0) === Number(position.surahNo || 0)
+                        );
+                        if (!surahItem || !position.page) return;
+                        onOpenItem({
+                          ...surahItem,
+                          metadata: {
+                            ...(surahItem.metadata ?? {}),
+                            start_page: position.page,
+                            initial_node_id: position.nodeId || null,
+                          },
+                        }, items.filter(candidate => String(meta(candidate).source || "") === "quran_seeded"), current);
+                      }}>
+                        <span>🔖 {bookmark.name}</span>
+                        <strong>Sayfa {displayQuranPage(bookmark.position.page)} · {bookmark.position.surahTitle || ""} {bookmark.position.ayahNo ? `${bookmark.position.ayahNo}. ayet` : ""}</strong>
+                        {!editingBookmarks && <small>Buradan devam et ›</small>}
+                      </button>
+                    )}
+                    {editingBookmarks && editingBookmarkId !== bookmark.id && (
+                      <div className="quranBookmarkActions">
+                        <button type="button" onClick={() => {setEditingBookmarkId(bookmark.id);setBookmarkDraft(bookmark.name);}}>Adını değiştir</button>
+                        <button type="button" className="danger" onClick={() => removeBookmark(bookmark.id)}>Sil</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
