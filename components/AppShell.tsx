@@ -770,7 +770,6 @@ export function AppShell({
         </div>
 
         <nav className="nav">
-          <button className={"navButton "+(tab==="library"&&libraryMode==="saved"?"active":"")} onClick={()=>{setTab("library");setLibraryMode("saved");if(window.innerWidth<=800)setSidebarOpen(false);}}><span className="navIcon">◉</span><span>Ezber Listem</span></button>
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => { setTab("todos"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
@@ -839,6 +838,7 @@ export function AppShell({
                 setReturnToEzber(section === "ezber");
                 if (section !== "ezber") setReturnEzberRoot(null);
               }}
+              onOpenSaved={() => { setReturnLibrarySection("ezber");setReturnToEzber(true);setLibraryMode("saved"); }}
               onOpenListening={() => {
                 setReturnEzberRoot(null);
                 setReturnLibrarySection("ezber");
