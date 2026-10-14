@@ -848,7 +848,7 @@ export function AppShell({
           )}
 
           {tab === "library" && libraryMode === "saved" && (
-            <MemorizationList userId={user.id} onBack={()=>{setReturnLibrarySection("ezber");setReturnToEzber(true);setLibraryMode("hub");}} onOpen={(saved:SavedMemorization,index)=>{setSelectedItem({id:saved.id,title:saved.title,subtitle:saved.subtitle,metadata:saved.metadata,kind:"document"} as EzberItem);setInitialSegmentIndex(index);setMemorizationBackMode("saved");setLibraryMode("memorize");}} />
+            <MemorizationList userId={user.id} onTodo={()=>{setRightPanelMode("todo");setRightPanelOpen(true);}} onBack={()=>{setReturnLibrarySection("ezber");setReturnToEzber(true);setLibraryMode("hub");}} onOpen={(saved:SavedMemorization,index)=>{setSelectedItem({id:saved.id,title:saved.title,subtitle:saved.subtitle,metadata:saved.metadata,kind:"document"} as EzberItem);setInitialSegmentIndex(index);setMemorizationBackMode("saved");setLibraryMode("memorize");}} />
           )}
 
           {tab === "library" && libraryMode === "listening" && (
