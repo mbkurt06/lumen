@@ -68,3 +68,11 @@
 .dashGridEditing .dashEditTools{z-index:12}
 .dashGridEditing .dashEditTools button{min-width:34px;min-height:34px}
 .dashGridEditing .dashCard{overflow:visible}
+
+/* Free-form dashboard canvas: empty space remains empty */
+.dashFreeGrid{position:relative!important;display:block!important;min-height:650px}
+.dashFreeGrid>.dashCard{box-sizing:border-box;overflow:auto;max-width:none}
+.dashFreeGrid.dashGridEditing{background-image:linear-gradient(#78c7a31a 1px,transparent 1px),linear-gradient(90deg,#78c7a31a 1px,transparent 1px);background-size:20px 20px}
+.dashFreeGrid .dashMoveHandle{touch-action:none;cursor:grab}
+.dashFreeGrid .dashResizeHandle{touch-action:none}
+@media(max-width:700px){.dashFreeGrid{display:grid!important;min-height:0!important}.dashFreeGrid>.dashCard{position:relative!important;left:auto!important;top:auto!important;width:auto!important;height:auto!important;min-height:170px!important;grid-column:1!important}}
