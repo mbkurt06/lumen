@@ -7290,3 +7290,19 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
  flex-basis:30px!important; width:30px!important; min-width:30px!important; max-width:30px!important;
 }
 }
+
+/* Center the four primary tools evenly between Back and Settings. */
+.v2SharedHeader .v2HeaderCompactRow { display:grid!important; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important; align-items:center!important; column-gap:5px!important; }
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation { grid-column:1!important; justify-self:start!important; width:auto!important; }
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { grid-column:2!important; justify-self:center!important; margin:0!important; width:auto!important; gap:5px!important; }
+.v2SharedHeader .v2HeaderCompactRow .v2HeaderSettings { grid-column:3!important; justify-self:end!important; margin:0!important; width:auto!important; }
+@media(max-width:760px) {
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderToolbar.v2HeaderCompactRow { display:grid!important; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important; align-items:center!important; gap:3px!important; }
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation { grid-column:1!important; width:auto!important; justify-self:start!important; padding-left:62px!important; }
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { grid-column:2!important; width:auto!important; justify-self:center!important; margin:0!important; gap:4px!important; }
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderSettings { grid-column:3!important; width:auto!important; justify-self:end!important; margin:0!important; }
+}
+@media(max-width:390px) {
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation { padding-left:51px!important; }
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { gap:2px!important; }
+}
