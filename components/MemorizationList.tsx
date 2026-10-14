@@ -2,6 +2,8 @@
 import {useEffect,useState} from "react";
 import {getCachedContentByDocument} from "@/lib/localContentDb";
 import {supabase} from "@/lib/supabase/client";
+import {SectionHeader} from "@/components/SectionHeader";
+import {readLocalReaderPrefs} from "@/lib/readerPrefs";
 
 export type SavedMemorization={id:string;title:string;subtitle?:string|null;metadata?:Record<string,unknown>|null;indices:number[]};
 const key=(userId:string)=>"lumen-ezber-listem-v1:"+userId;
@@ -14,7 +16,16 @@ export function saveMemorization(userId:string,item:SavedMemorization){
   localStorage.setItem(key(userId),JSON.stringify(list));
   window.dispatchEvent(new Event("lumen-memorization-list-changed"));
 }
-export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(item:SavedMemorization,index:number)=>void;onBack:()=>void}){
+export function MemorizationList({userId,onOpen,onBack,onTodo}:{userId:string;onOpen:(item:SavedMemorization,index:number)=>void;onBack:()=>void;onTodo:()=>void}){
+ const [visibility,setVisibility]=useState({arabic:true,latin:true,turkish:false});
+ useEffect(()=>{
+  const sync=()=>{const p=readLocalReaderPrefs();setVisibility({arabic:p.ezberShowArabic!==false,latin:p.ezberShowLatin!==false,turkish:p.ezberShowTurkish===true});};
+  sync();
+  const onPrefs=(event:Event)=>{const detail=(event as CustomEvent<{scope?:string}>).detail;if(!detail?.scope||detail.scope==="ezber")sync();};
+  window.addEventListener("lumen-library-prefs",onPrefs);
+  window.addEventListener("storage",sync);
+  return()=>{window.removeEventListener("lumen-library-prefs",onPrefs);window.removeEventListener("storage",sync);};
+ },[]);
  const [items,setItems]=useState<SavedMemorization[]>([]);
  const [expanded,setExpanded]=useState<string|null>(null);
  const [nodes,setNodes]=useState<Record<string,{id:string;title:string|null;sort_order:number;text_content?:string|null;secondary_text?:string|null;translation?:string|null}[]>>({});
@@ -34,8 +45,7 @@ export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(i
  };
  const selected=items.find(item=>item.id===expanded);
  return <section className="savedMemorizationPage">
-  <button type="button" className="savedMemorizationBack" onClick={()=>expanded?setExpanded(null):onBack()}>‹ Geri</button>
-  <h2>{selected?.title || "Ezber Listem"}</h2>
+  <SectionHeader title={selected?.title || "Ezber Listem"} showMenu={false} onBack={()=>expanded?setExpanded(null):onBack()} showTodo onTodo={onTodo} showMemorize={Boolean(selected)} onMemorize={()=>{if(selected)onOpen(selected,selected.indices[0]??0);}} onSaveMemorization={onBack} showFullscreen={Boolean(selected)} onFullscreen={()=>{if(selected)onOpen(selected,selected.indices[0]??0);}} onSettings={()=>window.dispatchEvent(new Event("lumen-open-library-settings"))} />
   {!selected ? (
     <>
       <p>Ezberlemek istediğin duayı veya sûreyi seç.</p>
@@ -55,9 +65,9 @@ export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(i
       {nodes[selected.id]?.map((node,index)=>selected.indices.length&&!selected.indices.includes(index)?null:(
         <button type="button" key={node.id} className="savedMemorizationSection" onClick={()=>onOpen(selected,index)}>
           <strong className="savedMemorizationSectionNumber">{index+1}. Bölüm</strong>
-          {node.secondary_text&&<span className="savedMemorizationArabic" dir="rtl">{node.secondary_text}</span>}
-          {node.text_content&&<span className="savedMemorizationLatin">{node.text_content}</span>}
-          {node.translation&&<span className="savedMemorizationTranslation">{node.translation}</span>}
+          {visibility.arabic&&node.secondary_text&&<span className="savedMemorizationArabic" dir="rtl">{node.secondary_text}</span>}
+          {visibility.latin&&node.text_content&&<span className="savedMemorizationLatin">{node.text_content}</span>}
+          {visibility.turkish&&node.translation&&<span className="savedMemorizationTranslation">{node.translation}</span>}
           {!node.secondary_text&&!node.text_content&&!node.translation&&<span>{node.title || "Bölümü aç"}</span>}
         </button>
       ))}

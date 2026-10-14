@@ -7351,3 +7351,9 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
 .savedMemorizationArabic { text-align:right; font-size:clamp(20px,3vw,28px); line-height:1.9; white-space:pre-wrap; overflow-wrap:anywhere; }
 .savedMemorizationLatin { font-size:16px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
 .savedMemorizationTranslation { opacity:.85; font-size:14px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+
+/* Saved ezber pages reuse the same compact toolbar, without a second back row. */
+.savedMemorizationPage { padding-top:12px; }
+.savedMemorizationPage > .v2SharedHeader { margin-bottom:14px!important; }
+.savedMemorizationPage .v2HeaderTitle { margin:10px 0 0!important; }
+.savedMemorizationPage .savedMemorizationSections { margin-top:12px; }
