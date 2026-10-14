@@ -7250,3 +7250,43 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
 .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { gap:2px!important; }
 .v2SharedHeader .v2HeaderCompactRow button { width:clamp(29px,8vw,35px)!important; height:34px!important; min-height:34px!important; font-size:17px!important; }
 }
+
+/* Override older sidebarClosed two-row grid rules: one toolbar row. */
+@media(max-width:760px) {
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderToolbar.v2HeaderCompactRow {
+ display:flex!important; flex-direction:row!important; flex-wrap:nowrap!important;
+ justify-content:space-between!important; align-items:center!important;
+ gap:3px!important; width:100%!important; min-width:0!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation {
+ display:flex!important; flex-direction:row!important; flex-wrap:nowrap!important;
+ justify-content:flex-start!important; align-items:center!important;
+ width:auto!important; height:38px!important; min-height:0!important;
+ max-height:none!important; padding:0 0 0 62px!important; margin:0!important;
+ gap:4px!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions {
+ display:flex!important; flex-direction:row!important; flex-wrap:nowrap!important;
+ justify-content:flex-end!important; align-items:center!important;
+ width:auto!important; height:38px!important; min-height:0!important;
+ max-height:none!important; padding:0!important; margin:0 0 0 auto!important;
+ gap:3px!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow button {
+ flex:0 0 34px!important; width:34px!important; min-width:34px!important;
+ max-width:34px!important; height:34px!important; min-height:34px!important;
+ padding:0!important; font-size:17px!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderSaveButton {
+ margin-left:0!important; max-width:34px!important;
+}
+}
+@media(max-width:390px) {
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderNavigation {
+ padding-left:51px!important; gap:2px!important;
+}
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow .v2HeaderActions { gap:2px!important; }
+.appShell.sidebarClosed .v2SharedHeader .v2HeaderCompactRow button {
+ flex-basis:30px!important; width:30px!important; min-width:30px!important; max-width:30px!important;
+}
+}
