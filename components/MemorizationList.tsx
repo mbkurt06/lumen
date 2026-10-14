@@ -17,7 +17,7 @@ export function saveMemorization(userId:string,item:SavedMemorization){
 export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(item:SavedMemorization,index:number)=>void;onBack:()=>void}){
  const [items,setItems]=useState<SavedMemorization[]>([]);
  const [expanded,setExpanded]=useState<string|null>(null);
- const [nodes,setNodes]=useState<Record<string,{id:string;title:string|null;sort_order:number}[]>>({});
+ const [nodes,setNodes]=useState<Record<string,{id:string;title:string|null;sort_order:number;text_content?:string|null;secondary_text?:string|null;translation?:string|null}[]>>({});
  const [loading,setLoading]=useState<string|null>(null);
  useEffect(()=>{const refresh=()=>setItems(readSavedMemorization(userId));refresh();window.addEventListener("lumen-memorization-list-changed",refresh);return()=>window.removeEventListener("lumen-memorization-list-changed",refresh);},[userId]);
  const open=async(id:string)=>{
@@ -27,24 +27,41 @@ export function MemorizationList({userId,onOpen,onBack}:{userId:string;onOpen:(i
    setLoading(id);
    try{
      let rows=await getCachedContentByDocument(id);
-     if(!rows.length&&navigator.onLine){const result=await supabase.from("content_nodes").select("id,title,sort_order").eq("document_id",id).order("sort_order");rows=(result.data||[]) as typeof rows;}
-     setNodes(old=>({...old,[id]:rows.map(r=>({id:r.id,title:r.title,sort_order:r.sort_order}))}));
+     if(!rows.length&&navigator.onLine){const result=await supabase.from("content_nodes").select("id,title,sort_order,text_content,secondary_text,translation").eq("document_id",id).order("sort_order");rows=(result.data||[]) as typeof rows;}
+     setNodes(old=>({...old,[id]:rows.map(r=>({id:r.id,title:r.title,sort_order:r.sort_order,text_content:r.text_content,secondary_text:r.secondary_text,translation:r.translation}))}));
    }catch{setNodes(old=>({...old,[id]:[]}));}
    finally{setLoading(null);}
  };
- return <section style={{padding:"66px 16px 30px",maxWidth:900,margin:"auto"}}>
-  <button onClick={onBack} style={{marginBottom:14}}>‹ Geri</button><h2>Ezber Listem</h2>
-  <p>Eklediğin dualar ve sûreler. Bir bölümü seçerek tek sayfalık ezber ekranında çalışabilirsin.</p>
-  {items.length===0?<p>Henüz bir içerik eklemedin. Ezber bölümünden bir dua açıp “Ezber Listeme Ekle” düğmesini kullan.</p>:items.map(item=><article key={item.id} style={{border:"1px solid #ccc",borderRadius:12,padding:14,marginBottom:12}}>
-   <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
-    <button style={{flex:1,textAlign:"left",fontWeight:700}} onClick={()=>void open(item.id)} aria-expanded={expanded===item.id}>{item.title} {expanded===item.id?"⌃":"⌄"}</button>
-    <button aria-label={item.title+" listeden kaldır"} onClick={()=>{if(!window.confirm("Bu içeriği yalnızca Ezber Listem'den kaldırmak istiyor musun?"))return;localStorage.setItem(key(userId),JSON.stringify(items.filter(row=>row.id!==item.id)));setItems(readSavedMemorization(userId));}}>Kaldır</button>
-   </div>
-   {expanded===item.id&&<div style={{display:"grid",gap:6,marginTop:12}}>
-    {loading===item.id&&<span>Bölümler yükleniyor…</span>}
-    {nodes[item.id]?.length===0&&<span>Bölümler çevrimdışı bulunamadı. İçeriği çevrimiçiyken bir kez açıp senkronize et.</span>}
-    {nodes[item.id]?.map((node,index)=>item.indices.length&& !item.indices.includes(index)?null:<button key={node.id} onClick={()=>onOpen(item,index)} style={{padding:12,textAlign:"left",border:"1px solid #ddd",borderRadius:8,background:"transparent"}}>{index+1}. Bölüm{node.title? " — "+node.title:""}</button>)}
-   </div>}
-  </article>)}
+ const selected=items.find(item=>item.id===expanded);
+ return <section className="savedMemorizationPage">
+  <button type="button" className="savedMemorizationBack" onClick={()=>expanded?setExpanded(null):onBack()}>‹ Geri</button>
+  <h2>{selected?.title || "Ezber Listem"}</h2>
+  {!selected ? (
+    <>
+      <p>Ezberlemek istediğin duayı veya sûreyi seç.</p>
+      {items.length===0?<p>Henüz bir içerik eklemedin. Ezber bölümünden bir dua açıp “Ezber Listeme Ekle” düğmesini kullan.</p>:(
+        <div className="savedMemorizationItems">
+          {items.map(item=><article key={item.id} className="savedMemorizationItem">
+            <button type="button" className="savedMemorizationOpen" onClick={()=>void open(item.id)}>{item.title}<span aria-hidden="true">›</span></button>
+            <button type="button" className="savedMemorizationRemove" aria-label={item.title+" listeden kaldır"} onClick={()=>{if(!window.confirm("Bu içeriği yalnızca Ezber Listem'den kaldırmak istiyor musun?"))return;localStorage.setItem(key(userId),JSON.stringify(items.filter(row=>row.id!==item.id)));setItems(readSavedMemorization(userId));}}>Kaldır</button>
+          </article>)}
+        </div>
+      )}
+    </>
+  ) : (
+    <div className="savedMemorizationSections">
+      {loading===selected.id&&<p>Bölümler yükleniyor…</p>}
+      {loading!==selected.id&&nodes[selected.id]?.length===0&&<p>Bölümler çevrimdışı bulunamadı. İçeriği çevrimiçiyken bir kez açıp senkronize et.</p>}
+      {nodes[selected.id]?.map((node,index)=>selected.indices.length&&!selected.indices.includes(index)?null:(
+        <button type="button" key={node.id} className="savedMemorizationSection" onClick={()=>onOpen(selected,index)}>
+          <strong className="savedMemorizationSectionNumber">{index+1}. Bölüm</strong>
+          {node.secondary_text&&<span className="savedMemorizationArabic" dir="rtl">{node.secondary_text}</span>}
+          {node.text_content&&<span className="savedMemorizationLatin">{node.text_content}</span>}
+          {node.translation&&<span className="savedMemorizationTranslation">{node.translation}</span>}
+          {!node.secondary_text&&!node.text_content&&!node.translation&&<span>{node.title || "Bölümü aç"}</span>}
+        </button>
+      ))}
+    </div>
+  )}
  </section>;
 }
