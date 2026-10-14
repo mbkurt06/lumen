@@ -44,3 +44,6 @@
 .dashEditTools span{margin-right:auto}.dashEditTools button{padding:4px 10px;font-size:17px}
 .dashGridHelp{padding:10px 14px;border:1px dashed #548d72;border-radius:10px;color:#b8e4ce;font-size:13px}
 @media(max-width:750px){.dashGrid{grid-template-columns:repeat(12,minmax(0,1fr))!important}.dashGrid>.dashCard{grid-column:1 / -1!important}}
+
+.dashGridEditing>.dashCard{position:relative;overflow:visible;padding-bottom:43px}
+.dashResizeHandle{position:absolute;right:5px;bottom:5px;z-index:5;width:35px;height:35px;border:1px solid #83d6af;border-radius:8px;background:#245e48;color:white;font-size:23px;cursor:nwse-resize;touch-action:none;user-select:none}
