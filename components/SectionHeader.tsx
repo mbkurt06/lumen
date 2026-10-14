@@ -68,17 +68,17 @@ export function SectionHeader({
   return (
     <div className={"v2SharedHeader " + (collapsed ? "collapsed" : "")}>
       {!collapsed && <>
-      <div className="v2HeaderToolbar">
+      <div className="v2HeaderToolbar v2HeaderCompactRow">
         {(showMenu || showBack || onSaveMemorization) && <div className="v2HeaderGroup v2HeaderNavigation">
-          {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu}>‹ Menü</button>}
-          {showBack && <button className="v2HeaderButton" onClick={onBack}>‹ Geri</button>}
-          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋ Listeye ekle</button>}
+          {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu} aria-label="Menü" title="Menü">☰</button>}
+          {showBack && <button className="v2HeaderButton v2HeaderBackButton" onClick={onBack} aria-label="Geri" title="Geri">‹</button>}
+          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋</button>}
         </div>}
         <div className="v2HeaderGroup v2HeaderActions">
-          {showTodo && <button className="v2HeaderButton" onClick={onTodo}>+ Todo</button>}
+          {showTodo && <button className="v2HeaderButton" onClick={onTodo} aria-label="Todo ekle" title="Todo ekle">☑</button>}
           {showMemorize && (
-            <button className={"v2HeaderPrimary " + (memorizeActive ? "active" : "")} onClick={onMemorize}>
-              Ezber yap
+            <button className={"v2HeaderPrimary " + (memorizeActive ? "active" : "")} onClick={onMemorize} aria-label="Ezber yap" title="Ezber yap">
+              ◉
             </button>
           )}
           {showFullscreen && (
