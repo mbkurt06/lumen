@@ -7392,3 +7392,12 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
  .calendarToolbarRight { justify-content:flex-start; }
  .calendarViewSwitch { overflow-x:auto; flex-wrap:nowrap; width:100%; }
 }
+
+/* Calendar: today's full date matches the range heading and has breathing room. */
+.calendarToolbarTitles { gap:22px; }
+.calendarCurrentDate { margin-left:12px; padding-left:22px; }
+.calendarCurrentDate strong { font-size:clamp(16px,2.2vw,23px); line-height:1.25; font-weight:800; }
+@media(max-width:900px) {
+ .calendarToolbarTitles { gap:12px; }
+ .calendarCurrentDate { margin-left:10px; padding-left:0; }
+}
