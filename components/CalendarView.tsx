@@ -213,6 +213,18 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     return { authorization: `Bearer ${token}`, "content-type": "application/json" };
   }, []);
 
+  const calendarFetch = useCallback(async (url:string, init:RequestInit={}) => {
+    const firstHeaders=await authHeaders();
+    let response=await fetch(url,{...init,headers:{...firstHeaders,...(init.headers as Record<string,string>||{})}});
+    if(response.status===401){
+      const refreshed=await supabase.auth.refreshSession();
+      if(refreshed.data.session?.access_token){
+        response=await fetch(url,{...init,headers:{...firstHeaders,...(init.headers as Record<string,string>||{}),authorization:`Bearer ${refreshed.data.session.access_token}`}});
+      }
+    }
+    return response;
+  },[authHeaders]);
+
   const applyCalendarPreferences = useCallback((prefs:Record<string,unknown>) => {
     const hidden = Array.isArray(prefs.calendarHiddenKeys) ? prefs.calendarHiddenKeys.filter(x => typeof x === "string") as string[] : [];
     setHiddenKeys(new Set(hidden));
@@ -347,9 +359,9 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
       }
 
       const headers = await authHeaders();
-      const response = await fetch("/api/google-calendar/accounts", { headers });
+      const response = await calendarFetch("/api/google-calendar/accounts");
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Google takvim hesapları alınamadı.");
+      if (!response.ok) throw new Error(response.status===401?"Takvim oturumu doğrulanamadı. Çıkış yapıp yeniden giriş yapın.":json.error || "Google takvim hesapları alınamadı.");
       const rows=(json.accounts || []) as CalendarAccount[];
       setAccounts(rows);
       await offlineCacheSet(cacheKey,rows);
@@ -359,7 +371,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     } finally {
       setLoadingAccounts(false);
     }
-  }, [authHeaders,user.id]);
+  }, [authHeaders,calendarFetch,user.id]);
 
   useEffect(() => {
     void loadPreferences();
@@ -482,9 +494,9 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
         timeMax: range.end.toISOString(),
       });
       for (const calendar of visibleCalendars) params.append("calendar", calendar.key);
-      const response = await fetch(`/api/google-calendar/events?${params.toString()}`, { headers });
+      const response = await calendarFetch(`/api/google-calendar/events?${params.toString()}`);
       const json = await response.json();
-      if (!response.ok) throw new Error(json.error || "Etkinlikler alınamadı.");
+      if (!response.ok) throw new Error(response.status===401?"Takvim oturumu doğrulanamadı. Çıkış yapıp yeniden giriş yapın.":json.error || "Etkinlikler alınamadı.");
       const nextEvents = (json.events || []) as CalendarEvent[];
       setEvents(nextEvents);
       await offlineCacheSet(eventCacheKey,nextEvents);
@@ -509,7 +521,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
     } finally {
       setLoadingEvents(false);
     }
-  }, [authHeaders, user.id, range.start.getTime(), range.end.getTime(), visibleCalendars.map(x => x.key).join("§")]);
+  }, [authHeaders,calendarFetch, user.id, range.start.getTime(), range.end.getTime(), visibleCalendars.map(x => x.key).join("§")]);
 
   useEffect(() => {
     if (!loadingAccounts) void loadEvents();

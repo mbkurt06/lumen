@@ -44,7 +44,7 @@ export async function authenticatedUser(request: Request) {
 
   const client = createClient(
     required("NEXT_PUBLIC_SUPABASE_URL"),
-    required("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { authorization: `Bearer ${token}` } } }
   );
   const { data, error } = await client.auth.getUser(token);
