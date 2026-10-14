@@ -24,6 +24,7 @@ export function LibraryHubView({
   initialSection = null,
   initialEzberRoot = null,
   onOpenListening,
+  onOpenSaved,
   onSectionChange,
 }: {
   user: User;
@@ -31,6 +32,7 @@ export function LibraryHubView({
   initialSection?: SectionKey | null;
   initialEzberRoot?: EzberItem | null;
   onOpenListening?: () => void;
+  onOpenSaved?: () => void;
   onSectionChange?: (section: SectionKey | null) => void;
 }) {
   const [section, setSection] = useState<SectionKey | null>(initialSection);
@@ -129,6 +131,7 @@ export function LibraryHubView({
             onOpenItem={onOpenItem}
             initialRoot={initialEzberRoot}
             onOpenListening={onOpenListening}
+            onOpenSaved={onOpenSaved}
           />
         </div>
       )}
