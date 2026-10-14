@@ -1852,9 +1852,9 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
             <button onClick={() => move(1)}>›</button>
             <div className="calendarToolbarTitles">
               <h1>{title}</h1>
-              <div className="calendarCurrentDate" title="Bugünün tarihi">
+              {view !== "day" && <div className="calendarCurrentDate" title="Bugünün tarihi">
                 <strong>{todayLabel}</strong>
-              </div>
+              </div>}
             </div>
           </div>
           <div className="calendarToolbarRight">
