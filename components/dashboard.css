@@ -59,3 +59,12 @@
 .dashReminderSettings{border:1px solid #4b7564;border-radius:10px;background:#102c27;padding:12px;margin:8px 0 12px}
 .dashReminderSettings h3{margin:0 0 10px;font-size:14px}
 .dashReminderSettings p{margin:7px 0 0}
+
+/* Reliable dashboard layout controls */
+.dashGridEditing .dashMoveHandle{cursor:grab;user-select:none;touch-action:none;padding:7px 12px;border:1px dashed #67b69b;border-radius:7px;background:#20493c;color:#ddfff0;display:inline-flex;align-items:center}
+.dashGridEditing .dashMoveHandle:active{cursor:grabbing}
+.dashGridEditing .dashCard{transition:border-color .15s,box-shadow .15s}
+.dashGridEditing .dashResizeHandle{width:40px!important;height:40px!important;min-width:40px;min-height:40px;cursor:nwse-resize!important;touch-action:none;background:#27684e!important;color:white!important;border:2px solid #8ce0b9!important;border-radius:10px!important;z-index:15}
+.dashGridEditing .dashEditTools{z-index:12}
+.dashGridEditing .dashEditTools button{min-width:34px;min-height:34px}
+.dashGridEditing .dashCard{overflow:visible}
