@@ -7202,3 +7202,21 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
     overflow-wrap:break-word!important;
   }
 }
+
+/* Responsive ezber navigation and section preview */
+.v2SharedHeader { width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
+.v2SharedHeader .v2HeaderToolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.v2SharedHeader .v2HeaderGroup { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+.v2SharedHeader .v2HeaderTitle { overflow-wrap:anywhere; }
+.memorizeSegmentIndex { padding:12px 16px; display:grid; gap:10px; max-height:65vh; overflow-y:auto; }
+.memorizeSectionCard { display:flex; flex-direction:column; align-items:stretch; gap:8px; width:100%; padding:14px; border:1px solid #9aa9bd; border-radius:12px; background:transparent; color:inherit; text-align:left; cursor:pointer; }
+.memorizeSectionCard.active { border-color:#4683d5; box-shadow:inset 3px 0 #4683d5; }
+.memorizeSectionNumber { font-size:15px; font-weight:800; }
+.memorizeSectionArabic { font-size:23px; line-height:1.9; text-align:right; white-space:pre-wrap; overflow-wrap:anywhere; }
+.memorizeSectionText { font-size:16px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+.memorizeSectionTranslation { font-size:14px; line-height:1.55; opacity:.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:760px) {
+.v2SharedHeader .v2HeaderToolbar { flex-direction:column; align-items:stretch; }
+.v2SharedHeader .v2HeaderGroup { width:100%; justify-content:flex-start; }
+.memorizeSegmentIndex { padding:8px 10px; max-height:62vh; }
+}

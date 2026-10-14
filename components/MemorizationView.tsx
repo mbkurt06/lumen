@@ -569,19 +569,23 @@ export function MemorizationView({
         <button type="button" className="v2HeaderButton" aria-pressed={visibleLanguages.translation} onClick={()=>toggleLanguage("translation")}>Meal {visibleLanguages.translation ? "✓" : "○"}</button>
       </div>
       {!singleSectionMode && segmentListOpen && nodes.length>0 && (
-        <div className="memorizeSegmentIndex" style={{padding:"0 16px 12px",display:"grid",gap:6,maxHeight:260,overflowY:"auto"}}>
+        <div className="memorizeSegmentIndex" role="list" aria-label="Ezber bölümleri">
           {nodes.map((part,index)=>(
             <button
               type="button"
+              role="listitem"
               key={part.id}
-              className={"legacyCategoryRow " + (active===index ? "active" : "")}
+              className={"memorizeSectionCard " + (active===index ? "active" : "")}
               aria-current={active===index ? "step" : undefined}
               onClick={()=>{setActive(index);setSegmentListOpen(false);}}
-              style={{display:"flex",textAlign:"left",alignItems:"center",gap:12,width:"100%",padding:"9px 12px"}}
             >
-              <strong style={{minWidth:32}}>{index+1}.</strong>
-              <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"normal",overflowWrap:"anywhere"}}>{(visibleLanguages.latin && part.text_content) || (visibleLanguages.arabic && part.secondary_text) || (visibleLanguages.translation && part.translation) || part.title || "Cümle "+(index+1)}</span>
-              <span>›</span>
+              <strong className="memorizeSectionNumber">{index+1}. Bölüm</strong>
+              {part.secondary_text && <span className="memorizeSectionArabic" dir="rtl">{part.secondary_text}</span>}
+              {part.text_content && <span className="memorizeSectionText">{part.text_content}</span>}
+              {part.translation && <span className="memorizeSectionTranslation">{part.translation}</span>}
+              {!part.secondary_text && !part.text_content && !part.translation && (
+                <span className="memorizeSectionText">{part.title || "Metin bulunamadı"}</span>
+              )}
             </button>
           ))}
         </div>
