@@ -526,6 +526,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     const { meta, target, count, done } = stateFor(todo, selectedDate);
     return (
       <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
+        <button type="button" title="Bu görev için süre başlat" onClick={()=>window.dispatchEvent(new CustomEvent("lumen-start-timer",{detail:{name:todo.title}}))}>▶ Süre</button>
         <button className="todoOpen todoNavigate" onClick={() => onOpenTodo?.(todo)}>
           {done && <div className="todoCompletedCheck">✓</div>}
           <div className="todoMain">

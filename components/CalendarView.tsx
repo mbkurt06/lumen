@@ -2063,6 +2063,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
             </div>
 
             <div className="calendarQuickActions">
+              <button type="button" onClick={()=>window.dispatchEvent(new CustomEvent("lumen-start-timer",{detail:{name:event.summary}}))}>▶ Süre başlat</button>
               <span className="calendarQuickSource">
                 <i style={meta?.backgroundColor?{backgroundColor:meta.backgroundColor}:undefined}/>
                 {meta?.summary || "Takvim"}
