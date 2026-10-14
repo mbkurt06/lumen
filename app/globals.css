@@ -7220,3 +7220,13 @@ body[data-reader-show-play="0"] .compactPlaybackPanel{
 .v2SharedHeader .v2HeaderGroup { width:100%; justify-content:flex-start; }
 .memorizeSegmentIndex { padding:8px 10px; max-height:62vh; }
 }
+
+/* Quran reading bookmark management */
+.quranBookmarkManageToolbar { display:flex; justify-content:flex-end; margin:0 0 8px; }
+.quranBookmarkManageToolbar button,.quranBookmarkActions button,.quranBookmarkRename button { padding:7px 12px; border:1px solid #64776d; border-radius:9px; background:transparent; color:inherit; cursor:pointer; }
+.quranBookmarkEditable { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.quranBookmarkOpen { display:flex; flex:1 1 270px; min-width:0; flex-direction:column; gap:5px; text-align:left; border:0; background:transparent; color:inherit; cursor:pointer; padding:0; }
+.quranBookmarkActions { display:flex; gap:8px; flex-wrap:wrap; }
+.quranBookmarkActions .danger { border-color:#b65c5c; color:#e88b8b; }
+.quranBookmarkRename { display:flex; gap:8px; flex:1 1 100%; flex-wrap:wrap; }
+.quranBookmarkRename input { flex:1 1 160px; min-width:0; padding:8px; border-radius:8px; border:1px solid #64776d; background:transparent; color:inherit; }
