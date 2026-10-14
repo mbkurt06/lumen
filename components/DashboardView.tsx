@@ -1,6 +1,6 @@
 "use client";
 import "./dashboard.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase/client";
 type Timer={name:string;start:number;elapsed:number;running:boolean;target:number};
 type Reminder={id:number;name:string;end:number;alerted?:boolean};
@@ -22,7 +22,7 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  const [freePositions,setFreePositions]=useState<Record<string,{x:number;y:number;w:number;h:number}>>({});
  const freeKey="lumen-dashboard-free-v1:"+userId;
  const [freeHeight,setFreeHeight]=useState(0);
- const freeRef=React.useRef<HTMLDivElement|null>(null);
+ const freeRef=useRef<HTMLDivElement|null>(null);
  useEffect(()=>{setFreePositions(read(freeKey,{}))},[freeKey]);
  function persistFree(next:Record<string,{x:number;y:number;w:number;h:number}>){setFreePositions(next);localStorage.setItem(freeKey,JSON.stringify(next));setFreeHeight(Math.max(600,...Object.values(next).map(p=>p.y+p.h+24)))}
  function beginFree(e:React.PointerEvent<HTMLElement>,id:string,resize=false){if(!editGrid)return;e.preventDefault();e.stopPropagation();const grid=freeRef.current,card=grid?.querySelector<HTMLElement>('[data-widget="'+id+'"]');if(!grid||!card)return;const g=grid.getBoundingClientRect(),r=card.getBoundingClientRect();const base=freePositions[id]||{x:r.left-g.left,y:r.top-g.top,w:r.width,h:r.height};const sx=e.clientX,sy=e.clientY;const move=(ev:PointerEvent)=>{const dx=ev.clientX-sx,dy=ev.clientY-sy;const p=resize?{...base,w:Math.max(180,Math.min(g.width-base.x,Math.round((base.w+dx)/20)*20)),h:Math.max(160,Math.round((base.h+dy)/20)*20)}:{...base,x:Math.max(0,Math.min(g.width-base.w,Math.round((base.x+dx)/20)*20)),y:Math.max(0,Math.round((base.y+dy)/20)*20)};card.style.left=p.x+"px";card.style.top=p.y+"px";card.style.width=p.w+"px";card.style.height=p.h+"px";card.dataset.freePosition=JSON.stringify(p)};const end=()=>{window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",end);window.removeEventListener("pointercancel",end);const p=card.dataset.freePosition?JSON.parse(card.dataset.freePosition):base;persistFree({...freePositions,[id]:p})};window.addEventListener("pointermove",move);window.addEventListener("pointerup",end);window.addEventListener("pointercancel",end)}
