@@ -72,7 +72,6 @@ export function SectionHeader({
         {(showMenu || showBack || onSaveMemorization) && <div className="v2HeaderGroup v2HeaderNavigation">
           {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu} aria-label="Menü" title="Menü">☰</button>}
           {showBack && <button className="v2HeaderButton v2HeaderBackButton" onClick={onBack} aria-label="Geri" title="Geri">‹</button>}
-          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋</button>}
         </div>}
         <div className="v2HeaderGroup v2HeaderActions">
           {showTodo && <button className="v2HeaderButton" onClick={onTodo} aria-label="Todo ekle" title="Todo ekle">☑</button>}
@@ -81,6 +80,7 @@ export function SectionHeader({
               ◉
             </button>
           )}
+          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋</button>}
           {showFullscreen && (
             <button
               className="v2HeaderToolButton"
@@ -105,7 +105,9 @@ export function SectionHeader({
               ▣
             </button>
           )}
-          {showSettings && (
+
+        </div>
+        <div className="v2HeaderGroup v2HeaderSettings">          {showSettings && (
             <button
               className="v2HeaderToolButton"
               onClick={onSettings || (() => window.dispatchEvent(new Event("lumen-open-library-settings")))}
