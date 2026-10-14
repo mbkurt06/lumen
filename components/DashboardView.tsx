@@ -1,7 +1,7 @@
 "use client";
 import "./dashboard.css";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client"; from "react";
+import { supabase } from "@/lib/supabase/client";
 type Timer={name:string;start:number;elapsed:number;running:boolean;target:number};
 type Reminder={id:number;name:string;end:number};
 const read=(key:string,fallback:any)=>{try{return JSON.parse(localStorage.getItem(key)||"null")??fallback}catch{return fallback}};
