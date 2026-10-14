@@ -7,6 +7,7 @@ import { MemorizationList, saveMemorization, type SavedMemorization } from "@/co
 import { type EzberItem } from "@/components/CollectionHomeView";
 import { LibraryHubView, type SectionKey } from "@/components/LibraryHubView";
 import { LibrarySettingsModal } from "@/components/LibrarySettingsModal";
+import { DashboardView } from "@/components/DashboardView";
 import { TodoList } from "@/components/TodoList";
 import { SettingsView } from "@/components/SettingsView";
 import { MediaEmbed } from "@/components/MediaEmbed";
@@ -19,7 +20,7 @@ import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { importQuranMushafDocx } from "@/lib/documentImport";
 import { getCachedContentByDocument, getCachedContentNode, getCachedLibraryChildren, getCachedLibraryItem } from "@/lib/localContentDb";
 
-type Tab = "todos" | "library" | "calendar" | "settings";
+type Tab = "dashboard" | "todos" | "library" | "calendar" | "settings";
 type LibraryMode = "hub" | "read" | "memorize" | "listening" | "saved";
 type RightPanelMode = "todo" | "calendar";
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
@@ -31,7 +32,7 @@ export function AppShell({
   user: User;
   onSignOut: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("library");
+  const [tab, setTab] = useState<Tab>("dashboard");
   const [libraryMode, setLibraryMode] = useState<LibraryMode>("hub");
   const [selectedItem, setSelectedItem] = useState<EzberItem | null>(null);
   const [siblings, setSiblings] = useState<EzberItem[]>([]);
@@ -250,7 +251,7 @@ export function AppShell({
         if(saved){
           try{
             const state=JSON.parse(saved);
-            if(state.tab) setTab(state.tab);
+            // Dashboard is always the opening screen; do not restore a previous tab.
             if(state.libraryMode) setLibraryMode(state.libraryMode);
             if(state.selectedItem) setSelectedItem(state.selectedItem);
             if(Array.isArray(state.siblings)) setSiblings(state.siblings);
@@ -770,6 +771,7 @@ export function AppShell({
         </div>
 
         <nav className="nav">
+          <button className={"navButton " + (tab === "dashboard" ? "active" : "")} onClick={() => {setTab("dashboard"); if(window.innerWidth<=800)setSidebarOpen(false);}}><span className="navIcon">⌂</span><span>Dashboard</span></button>
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => { setTab("todos"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
@@ -803,7 +805,7 @@ export function AppShell({
       <main className="mainPane">
         {tab !== "library" && tab !== "calendar" && (
           <header className="topbar">
-            <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>
+            <h1 className="pageTitle">{tab === "dashboard" ? "Dashboard" : tab === "todos" ? "TODO" : "Ayarlar"}</h1>
             <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
           </header>
         )}
@@ -825,6 +827,7 @@ export function AppShell({
         )}
 
         <div className={tab === "library" || tab === "calendar" ? "" : "pageWrap"}>
+          {tab === "dashboard" && <DashboardView userId={user.id} onNavigate={setTab} />}
           {tab === "todos" && <TodoList onOpenTodo={openTodoSource} />}
 
           {tab === "library" && libraryMode === "hub" && (
