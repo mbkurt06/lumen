@@ -827,7 +827,7 @@ export function AppShell({
         )}
 
         <div className={tab === "library" || tab === "calendar" ? "" : "pageWrap"}>
-          {tab === "dashboard" && <DashboardView userId={user.id} onNavigate={setTab} />}
+          <div hidden={tab !== "dashboard"}><DashboardView userId={user.id} onNavigate={setTab} /></div>
           {tab === "todos" && <TodoList onOpenTodo={openTodoSource} />}
 
           {tab === "library" && libraryMode === "hub" && (
