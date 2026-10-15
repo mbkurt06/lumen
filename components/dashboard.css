@@ -300,6 +300,10 @@
 .lumenDashboard .dashPlanNav strong{min-width:190px;text-align:center;font-size:15px;text-transform:capitalize}
 .lumenDashboard .dashPlanNav button{width:36px;height:36px;padding:0;border-radius:11px;background:#18352c;border-color:#397862;font-size:25px;line-height:1}
 .lumenDashboard .dashPlanNav button:hover{background:#28634d}
+.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:10px;font-size:16px}
+.lumenDashboard .dashNewTimerForm{display:flex;gap:8px;align-items:center;margin:0 0 10px;padding:10px;border:1px solid #39735f;border-radius:12px;background:#0c2721}
+.lumenDashboard .dashNewTimerForm input{flex:1;min-width:0;background:#102e27;color:#effff7;border:1px solid #4a806d;border-radius:9px;padding:9px 10px}
+.lumenDashboard .dashNewTimerForm button{padding:8px 11px}
 @media(max-width:750px){.lumenDashboard .dashGrid>.dashHero,.lumenDashboard .dashGrid>.dashDailyPlan,.lumenDashboard .dashGrid>.dashCard[data-widget="todos"]{grid-column:1 / -1!important}}
 
 /* Focus-first dashboard: the header/help copy is intentionally omitted. */
