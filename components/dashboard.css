@@ -213,3 +213,10 @@
 .lumenDashboard .dashCard[data-widget="timer"] .dashActions{border-bottom:0!important}
 .lumenDashboard .dashCard[data-widget="timer"]{border-radius:24px}
 @media(max-width:480px){.lumenDashboard .dashTimerTools{margin-right:9px}.lumenDashboard .dashCard[data-widget="timer"] .dashActions{gap:10px}}
+
+/* Minimal timer widget: compact idle state and inset header tools */
+.lumenDashboard .dashTimerHeader{justify-content:flex-end!important;min-height:40px}
+.lumenDashboard .dashTimerTools{margin-right:2px!important}
+.lumenDashboard .dashTimerStartIcon{width:52px!important;height:48px!important;min-width:52px!important;padding:8px!important;font-size:24px!important;border-radius:15px!important;display:inline-flex;align-items:center;justify-content:center}
+.lumenDashboard .dashCombinedUsage:not(:has(.dashManual)){display:none!important}
+.lumenDashboard .dashCombinedUsage:has(.dashManual){border:0!important;margin-top:10px!important;padding-top:0!important}
