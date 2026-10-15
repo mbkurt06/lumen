@@ -188,3 +188,14 @@
 .lumenDashboard .dashUsageCompact button{min-width:38px;min-height:38px;font-size:23px;padding:4px 10px}
 .lumenDashboard .dashActions button[aria-label="Duraklat"],.lumenDashboard .dashActions button[aria-label="Devam et"],.lumenDashboard .dashActions button[aria-label="Bitir ve kaydet"]{min-width:46px;min-height:44px;font-size:22px;padding:7px 12px}
 @media(max-width:700px){.lumenDashboard .dashCombinedUsage{padding-top:12px;margin-top:14px}.lumenDashboard .dashActions{gap:8px;flex-wrap:wrap}.lumenDashboard .dashUsageCompact .dashDigits{font-size:24px}}
+
+/* Timer header actions stay inside card bounds on narrow screens. */
+.lumenDashboard .dashTimerHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-right:0!important}
+.lumenDashboard .dashTimerHeader h2{min-width:0;font-size:clamp(16px,2.8vw,21px);line-height:1.2}
+.lumenDashboard .dashTimerTools{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.lumenDashboard .dashTimerTools .dashWidgetGear{position:static!important;inset:auto!important;transform:none!important;margin:0!important;min-width:36px;min-height:36px;padding:4px 7px!important}
+.lumenDashboard .dashTimerAdd{min-width:36px;min-height:36px;padding:4px 8px!important;font-size:21px}
+.lumenDashboard .dashActions button[aria-label="Hedef süreye 15 dakika ekle"]{font-size:14px!important;min-width:46px;min-height:42px;padding:7px 10px!important;font-weight:700}
+.lumenDashboard .dashCombinedUsage{border-top:0;margin-top:8px;padding-top:0}
+.lumenDashboard .dashCombinedUsage:empty{display:none}
+@media(max-width:480px){.lumenDashboard .dashTimerHeader h2{font-size:16px}.lumenDashboard .dashTimerTools{gap:3px}.lumenDashboard .dashTimerTools button{min-width:32px;min-height:32px}}
