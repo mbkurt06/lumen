@@ -178,3 +178,13 @@
 .dashDialogActions{display:flex;justify-content:flex-end;gap:10px}
 .lumenDashboard .dashDialogActions button{border-radius:10px;padding:11px 20px;background:#273d34;border:1px solid #446858}
 .lumenDashboard .dashDialogActions .dashPrimary{background:linear-gradient(135deg,#23976a,#177652);border-color:#41ae80;color:#fff}
+
+/* Compact timer card: icon controls and properly positioned settings */
+.lumenDashboard .dashWidget[data-widget="timer"] .dashCardTop{position:relative;padding-right:42px}
+.lumenDashboard .dashWidget[data-widget="timer"] .dashWidgetGear{position:absolute;right:0;top:0;z-index:2}
+.lumenDashboard .dashUsageCompact{display:flex;align-items:center;gap:10px;padding-right:0!important}
+.lumenDashboard .dashUsageCompact h3{margin:0;font-size:19px}
+.lumenDashboard .dashUsageCompact .dashDigits{font-size:clamp(20px,3vw,30px);margin:0;flex:1;white-space:nowrap}
+.lumenDashboard .dashUsageCompact button{min-width:38px;min-height:38px;font-size:23px;padding:4px 10px}
+.lumenDashboard .dashActions button[aria-label="Duraklat"],.lumenDashboard .dashActions button[aria-label="Devam et"],.lumenDashboard .dashActions button[aria-label="Bitir ve kaydet"]{min-width:46px;min-height:44px;font-size:22px;padding:7px 12px}
+@media(max-width:700px){.lumenDashboard .dashCombinedUsage{padding-top:12px;margin-top:14px}.lumenDashboard .dashActions{gap:8px;flex-wrap:wrap}.lumenDashboard .dashUsageCompact .dashDigits{font-size:24px}}
