@@ -81,7 +81,6 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  const demoTasks=[["08:00","Kızları okula bırak","🚙"],["09:00","Almanca çalış (B2)","📖"],["11:30","İş başvurularını kontrol et","💼"],["14:00","Alışveriş","🛒"],["16:00","Doktor randevusu","🩺"],["18:00","Akşam yemeği","☾"],["20:00","Dua ezberi","📚"],["21:30","Günlük değerlendirme","▤"]];
  const demoNotes=["Mantar rotalarını araştır","Ev arama – Immo Job randevusu","Zikirmatik modeline bak","Sardunya için yeni içerik fikri","Almanca B2 kaynak listesi"];
  const today=new Intl.DateTimeFormat("tr-TR",{dateStyle:"full"}).format(now);
- const greeting=now%86400000<43200000?"Günaydın":now%86400000<64800000?"İyi günler":"İyi akşamlar";
  const todayEntries=history.filter(h=>new Date(h.date).toDateString()===new Date(now).toDateString());
  return <div className="lumenDashboard">
  {dialog&&<div className="dashDialogOverlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setDialog(null)}}><section className="dashDialog" role="alertdialog" aria-modal="true" aria-labelledby="dash-dialog-title"><div className="dashDialogIcon" aria-hidden="true">◷</div><h2 id="dash-dialog-title">Onay gerekiyor</h2><p>{dialog.message}</p><div className="dashDialogActions"><button type="button" onClick={()=>setDialog(null)}>Vazgeç</button><button type="button" className="dashPrimary" autoFocus onClick={()=>{const action=dialog.accept;setDialog(null);action()}}>Onayla</button></div></section></div>}

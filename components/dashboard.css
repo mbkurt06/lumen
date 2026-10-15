@@ -261,9 +261,7 @@
 @media(max-width:767px){.lumenDashboard .dashGrid>[data-widget]>.dashWidgetGear{top:8px!important;right:8px!important;min-width:40px;min-height:40px}.lumenDashboard .dashCardTop .dashWidgetGear{min-width:40px;min-height:40px}}
 
 /* Modern focus layout: timer and planning stay above secondary widgets. */
-.lumenDashboard .dashDate{color:#a9c0b5;font-size:clamp(16px,1.25vw,21px);font-weight:500;letter-spacing:-.02em;margin-bottom:3px}
 .lumenDashboard .dashHeader h1{font-size:clamp(30px,3vw,48px);line-height:1.05;margin:0;letter-spacing:-.055em}
-.lumenDashboard .dashHeader h1 span{color:#6ce8b3;font-size:.7em;margin-left:5px}
 .lumenDashboard .dashHeader p{color:#9db5a9;margin-top:8px}
 .lumenDashboard .dashGrid>.dashHero{grid-column:span 7!important;min-height:300px!important;border-radius:22px!important;background:radial-gradient(ellipse at 18% 5%,#1a684f80,transparent 52%),linear-gradient(135deg,#0d332a,#0d211e 78%)!important}
 .lumenDashboard .dashGrid>.dashWeekly{grid-column:span 5!important;min-height:300px!important}
@@ -285,6 +283,5 @@
   .lumenDashboard .dashGrid>.dashCard{grid-column:1 / -1!important;min-height:170px!important}
   .lumenDashboard .dashGrid>.dashHero{min-height:260px!important}
   .lumenDashboard .dashGrid>.dashHero .dashDigits{font-size:54px}
-  .lumenDashboard .dashDate{font-size:15px}
   .lumenDashboard .dashHeader h1{font-size:32px}
 }
