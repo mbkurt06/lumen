@@ -285,3 +285,19 @@
   .lumenDashboard .dashGrid>.dashHero .dashDigits{font-size:54px}
   .lumenDashboard .dashHeader h1{font-size:32px}
 }
+
+/* Minimal dashboard: date, calendar plan, focus timer and todos only. */
+.lumenDashboard .dashStats,.lumenDashboard>.dashSectionLabel{display:none!important}
+.lumenDashboard .dashHeaderActions>button:first-child,.lumenDashboard .dashHeaderActions>label,.lumenDashboard .dashHeaderActions>button:nth-last-child(-n+3){display:none!important}
+.lumenDashboard .dashGrid>[data-widget="reminders"],
+.lumenDashboard .dashGrid>[data-widget="weekly"],
+.lumenDashboard .dashGrid>[data-widget="notes"],
+.lumenDashboard .dashGrid>[data-widget="projects"],
+.lumenDashboard .dashGrid>[data-widget="habits"]{display:none!important}
+.lumenDashboard .dashGrid>.dashHero,.lumenDashboard .dashGrid>.dashCard[data-widget="todos"]{grid-column:span 6!important}
+.lumenDashboard .dashGrid>.dashDailyPlan{grid-column:span 6!important;min-height:320px!important}
+.lumenDashboard .dashPlanNav{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 14px;color:#c5ded2}
+.lumenDashboard .dashPlanNav strong{min-width:190px;text-align:center;font-size:15px;text-transform:capitalize}
+.lumenDashboard .dashPlanNav button{width:36px;height:36px;padding:0;border-radius:11px;background:#18352c;border-color:#397862;font-size:25px;line-height:1}
+.lumenDashboard .dashPlanNav button:hover{background:#28634d}
+@media(max-width:750px){.lumenDashboard .dashGrid>.dashHero,.lumenDashboard .dashGrid>.dashDailyPlan,.lumenDashboard .dashGrid>.dashCard[data-widget="todos"]{grid-column:1 / -1!important}}
