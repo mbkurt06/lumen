@@ -151,6 +151,11 @@
 .lumenDashboard .dashCard h2{font-size:clamp(16px,1.1vw,21px)!important;color:#f8fffc!important}
 .lumenDashboard .dashCard .dashRow{padding:10px 2px!important;border-bottom:1px solid #8db9a51f!important}
 .lumenDashboard .dashCard .dashRow:hover{background:#3cc68a0e}
+.lumenDashboard .dashCheckButton{flex:0 0 30px!important;min-width:30px!important;width:30px;min-height:30px!important;padding:0!important;border-radius:9px!important;color:#b9d9cc;background:#18382f;border-color:#477b68;font-size:17px;line-height:1}
+.lumenDashboard .dashCheckButton:hover{background:#2b795c;color:#fff}
+.lumenDashboard .dashDoneRow{opacity:.68}
+.lumenDashboard .dashDoneRow>span:not(.dashInlineTimer),.lumenDashboard .dashDoneRow .dashTimelineTitle{ text-decoration:line-through;text-decoration-color:#65c49d80}
+.lumenDashboard .dashTimelineRow .dashCheckButton{margin-left:2px}
 .lumenDashboard .dashCard .dashRow button{border-radius:9px!important;min-width:33px}
 .lumenDashboard .dashCard .dashProgress{height:10px;background:#ffffff17;border-radius:30px}
 .lumenDashboard .dashCard .dashProgress i{background:linear-gradient(90deg,#219f73,#53f3ad);border-radius:30px}
