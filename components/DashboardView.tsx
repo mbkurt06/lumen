@@ -20,13 +20,13 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  const [selectedWeekday,setSelectedWeekday]=useState<number|null>(null);
  const [widgetSettings,setWidgetSettings]=useState<string|null>(null);
  const [widgetPicker,setWidgetPicker]=useState(false);
- const widgetNames:Record<string,string>={timer:"Zaman Sayacı",reminders:"Hızlı Hatırlatmalar",todos:"Yapılacaklar",plan:"Bugünün Planı",weekly:"Haftalık Takvim",notes:"Hızlı Notlar",projects:"Projelerim",habits:"Alışkanlıklar"};
+ const widgetNames:Record<string,string>={timer:"Zaman Sayacı",reminders:"Hatırlatmalar",todos:"Yapılacaklar",plan:"Bugünün Planı",weekly:"Haftalık Takvim",notes:"Hızlı Notlar",projects:"Projeler",habits:"Alışkanlıklar"};
  const [dashboardMode,setDashboardMode]=useState<"mobile"|"desktop">("desktop");
  const [hiddenWidgets,setHiddenWidgets]=useState<string[]>([]);
  const visibilityKey="lumen-dashboard-hidden-v1:"+userId+":"+dashboardMode;
  useEffect(()=>{const update=()=>setDashboardMode(window.matchMedia("(max-width: 767px)").matches?"mobile":"desktop");update();window.addEventListener("resize",update);return()=>window.removeEventListener("resize",update)},[]);
  useEffect(()=>{setHiddenWidgets(read(visibilityKey,[]))},[visibilityKey]);
- function setWidgetHidden(id:string,hidden:boolean){setHiddenWidgets(old=>{const next=hidden?Array.from(new Set([...old,id])):old.filter(x=>x!==id);localStorage.setItem(visibilityKey,JSON.stringify(next));return next});setWidgetSettings(null)}
+ function setWidgetHidden(id:string,hidden:boolean){const next=hidden?Array.from(new Set([...hiddenWidgets,id])):hiddenWidgets.filter(x=>x!==id);setHiddenWidgets(next);localStorage.setItem(visibilityKey,JSON.stringify(next));setWidgetSettings(null);setWidgetPicker(false)}
  
  const widgetIds=["timer","reminders","todos","plan","weekly","notes","projects","habits"];
  const defaultGrid:Record<string,{order:number;span:number}>={timer:{order:0,span:5},reminders:{order:1,span:3},plan:{order:2,span:4},todos:{order:3,span:4},weekly:{order:4,span:4},projects:{order:5,span:4},habits:{order:6,span:6},notes:{order:7,span:6}};
