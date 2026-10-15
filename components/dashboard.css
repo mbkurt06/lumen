@@ -252,3 +252,10 @@
 .lumenDashboard .dashWidgetPicker button{background:#24694f;color:#f4fff9;border:1px solid #3c9671;border-radius:10px;padding:8px 12px;cursor:pointer}
 .lumenDashboard .dashWidgetPicker button:hover{background:#308363}
 .lumenDashboard .dashWidgetSettingsPanel button{margin:6px;border-radius:10px;padding:10px 14px;background:#255b48;color:#fff;border:1px solid #3e8b69}
+
+/* Mobile widget settings remain visible and tappable. */
+.lumenDashboard .dashGrid>[data-widget]{position:relative}
+.lumenDashboard .dashGrid>[data-widget][hidden]{display:none!important}
+.lumenDashboard .dashGrid>[data-widget]>.dashWidgetGear{position:absolute!important;top:10px!important;right:10px!important;left:auto!important;z-index:30!important;display:flex!important;align-items:center;justify-content:center;min-width:36px;min-height:36px;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+.lumenDashboard .dashCardTop .dashWidgetGear{right:0!important;top:0!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
+@media(max-width:767px){.lumenDashboard .dashGrid>[data-widget]>.dashWidgetGear{top:8px!important;right:8px!important;min-width:40px;min-height:40px}.lumenDashboard .dashCardTop .dashWidgetGear{min-width:40px;min-height:40px}}
