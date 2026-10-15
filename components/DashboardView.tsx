@@ -29,10 +29,10 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  function setWidgetHidden(id:string,hidden:boolean){const next=hidden?Array.from(new Set([...hiddenWidgets,id])):hiddenWidgets.filter(x=>x!==id);setHiddenWidgets(next);localStorage.setItem(visibilityKey,JSON.stringify(next));setWidgetSettings(null);setWidgetPicker(false)}
  
  const widgetIds=["timer","reminders","todos","plan","weekly","notes","projects","habits"];
- const defaultGrid:Record<string,{order:number;span:number}>={timer:{order:0,span:5},reminders:{order:1,span:3},plan:{order:2,span:4},todos:{order:3,span:4},weekly:{order:4,span:4},projects:{order:5,span:4},habits:{order:6,span:6},notes:{order:7,span:6}};
+ const defaultGrid:Record<string,{order:number;span:number}>={timer:{order:0,span:7},weekly:{order:1,span:5},plan:{order:2,span:7},projects:{order:3,span:5},habits:{order:4,span:5},reminders:{order:5,span:4},todos:{order:6,span:8},notes:{order:7,span:4}};
  const [gridLayout,setGridLayout]=useState<Record<string,{order:number;span:number}>>(defaultGrid);
  const [freePositions,setFreePositions]=useState<Record<string,{x:number;y:number;w:number;h:number}>>({});
- const freeKey="lumen-dashboard-free-v1:"+userId;
+ const freeKey="lumen-dashboard-free-v2:"+userId;
  const [freeHeight,setFreeHeight]=useState(0);
  const freeRef=useRef<HTMLDivElement|null>(null);
  useEffect(()=>{setFreePositions(read(freeKey,{}))},[freeKey]);
@@ -46,7 +46,7 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  useEffect(()=>setWidgetHeights(read(heightKey,{})),[heightKey]);
  function resizeHeight(id:string,delta:number){setWidgetHeights(old=>{const next={...old,[id]:Math.max(170,Math.min(1200,(old[id]||240)+delta))};localStorage.setItem(heightKey,JSON.stringify(next));return next})}
  function startCornerResize(e:React.PointerEvent<HTMLButtonElement>,id:string){e.preventDefault();e.stopPropagation();const el=e.currentTarget.closest<HTMLElement>("[data-widget]");if(!el)return;const startX=e.clientX,startY=e.clientY,startWidth=el.getBoundingClientRect().width,startHeight=el.getBoundingClientRect().height;const grid=el.parentElement;const gap=grid?parseFloat(getComputedStyle(grid).columnGap)||12:12;const step=grid?(grid.getBoundingClientRect().width+gap)/12:70;const originalSpan=gridLayout[id]?.span??defaultGrid[id].span;const onMove=(ev:PointerEvent)=>{const span=Math.max(2,Math.min(12,originalSpan+Math.round((ev.clientX-startX)/Math.max(1,step))));const height=Math.max(170,Math.min(1200,Math.round((startHeight+ev.clientY-startY)/20)*20));el.style.gridColumn="span "+span;el.style.minHeight=height+"px";el.style.height=height+"px"};const onEnd=(ev:PointerEvent)=>{window.removeEventListener("pointermove",onMove);window.removeEventListener("pointerup",onEnd);window.removeEventListener("pointercancel",onEnd);const span=Math.max(2,Math.min(12,originalSpan+Math.round((ev.clientX-startX)/Math.max(1,step))));const height=Math.max(170,Math.min(1200,Math.round((startHeight+ev.clientY-startY)/20)*20));saveLayout({...gridLayout,[id]:{...(gridLayout[id]||defaultGrid[id]),span}});setWidgetHeights(old=>{const next={...old,[id]:height};localStorage.setItem(heightKey,JSON.stringify(next));return next})};window.addEventListener("pointermove",onMove);window.addEventListener("pointerup",onEnd);window.addEventListener("pointercancel",onEnd)}
- const gridKey="lumen-dashboard-layout:"+userId;
+ const gridKey="lumen-dashboard-layout-v2:"+userId;
  useEffect(()=>{const saved=read(gridKey,{});if(saved&&typeof saved==="object")setGridLayout({...defaultGrid,...saved})},[gridKey]);
  function saveLayout(next:Record<string,{order:number;span:number}>){setGridLayout(next);localStorage.setItem(gridKey,JSON.stringify(next))}
  function resizeWidget(id:string,delta:number){const old=gridLayout[id]||defaultGrid[id];saveLayout({...gridLayout,[id]:{...old,span:Math.max(2,Math.min(12,old.span+delta))}})}
@@ -81,6 +81,7 @@ export function DashboardView({userId,onNavigate}:{userId:string;onNavigate:(tab
  const demoTasks=[["08:00","Kızları okula bırak","🚙"],["09:00","Almanca çalış (B2)","📖"],["11:30","İş başvurularını kontrol et","💼"],["14:00","Alışveriş","🛒"],["16:00","Doktor randevusu","🩺"],["18:00","Akşam yemeği","☾"],["20:00","Dua ezberi","📚"],["21:30","Günlük değerlendirme","▤"]];
  const demoNotes=["Mantar rotalarını araştır","Ev arama – Immo Job randevusu","Zikirmatik modeline bak","Sardunya için yeni içerik fikri","Almanca B2 kaynak listesi"];
  const today=new Intl.DateTimeFormat("tr-TR",{dateStyle:"full"}).format(now);
+ const greeting=now%86400000<43200000?"Günaydın":now%86400000<64800000?"İyi günler":"İyi akşamlar";
  const todayEntries=history.filter(h=>new Date(h.date).toDateString()===new Date(now).toDateString());
  return <div className="lumenDashboard">
  {dialog&&<div className="dashDialogOverlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setDialog(null)}}><section className="dashDialog" role="alertdialog" aria-modal="true" aria-labelledby="dash-dialog-title"><div className="dashDialogIcon" aria-hidden="true">◷</div><h2 id="dash-dialog-title">Onay gerekiyor</h2><p>{dialog.message}</p><div className="dashDialogActions"><button type="button" onClick={()=>setDialog(null)}>Vazgeç</button><button type="button" className="dashPrimary" autoFocus onClick={()=>{const action=dialog.accept;setDialog(null);action()}}>Onayla</button></div></section></div>}
