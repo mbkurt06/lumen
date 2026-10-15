@@ -301,6 +301,7 @@
 .lumenDashboard .dashPlanNav button{width:36px;height:36px;padding:0;border-radius:11px;background:#18352c;border-color:#397862;font-size:25px;line-height:1}
 .lumenDashboard .dashPlanNav button:hover{background:#28634d}
 .lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:10px;font-size:16px}
+.lumenDashboard .dashPlanNav .dashLayoutCloseButton{width:auto;padding:0 12px;font-size:12px;white-space:nowrap;background:#3d8c6d;border-color:#63c69a}
 .lumenDashboard .dashNewTimerForm{display:flex;gap:8px;align-items:center;margin:0 0 10px;padding:10px;border:1px solid #39735f;border-radius:12px;background:#0c2721}
 .lumenDashboard .dashNewTimerForm input{flex:1;min-width:0;background:#102e27;color:#effff7;border:1px solid #4a806d;border-radius:9px;padding:9px 10px}
 .lumenDashboard .dashNewTimerForm button{padding:8px 11px}
@@ -313,11 +314,12 @@
 .lumenDashboard .dashTimerStackHead strong{font-size:17px;color:#72e8b5}
 .lumenDashboard .dashTimerStackHead button{padding:7px 11px;background:#287b5d;border-color:#55b58c}
 .lumenDashboard .dashTimerCards{display:flex;gap:10px;overflow-x:auto;padding-bottom:2px}
-.lumenDashboard .dashTimerCard{flex:0 0 min(260px,72vw);display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:center;padding:12px 14px;border:1px solid #3f7d68;border-radius:14px;background:#102d26;box-shadow:inset 0 1px #ffffff12}
-.lumenDashboard .dashTimerCardName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b9d9cc;font-size:13px}
-.lumenDashboard .dashTimerCard>strong{font-size:23px;color:#6ce6b2;font-variant-numeric:tabular-nums;white-space:nowrap}
-.lumenDashboard .dashTimerCard>div:last-child{grid-column:1 / -1;display:flex;gap:7px}
+.lumenDashboard .dashTimerCard{flex:0 0 min(190px,72vw);min-height:126px;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;border:1px solid #3f7d68;border-radius:12px;background:linear-gradient(145deg,#15382e,#0e2923);box-shadow:inset 0 1px #ffffff12;cursor:grab;user-select:none}
+.lumenDashboard .dashTimerCard:active{cursor:grabbing}
+.lumenDashboard .dashTimerCardName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a9cdbf;font-size:11px;letter-spacing:.02em;text-transform:uppercase}
+.lumenDashboard .dashTimerCard>strong{font-size:26px;color:#6ce6b2;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.04em}
+.lumenDashboard .dashTimerCard>div:last-child{display:flex;gap:7px;margin-top:auto}
 .lumenDashboard .dashTimerCard button{min-width:34px;min-height:32px;padding:4px 9px}
 .lumenDashboard .dashTimerEmpty{margin:0;color:#a6c5b8;font-size:13px}
 .lumenDashboard .dashGrid>[data-widget="timer"]{display:none!important}
-@media(max-width:750px){.lumenDashboard .dashTimerStack{top:6px;margin-left:-2px;margin-right:-2px;padding:12px}.lumenDashboard .dashTimerCard{flex-basis:230px}}
+@media(max-width:750px){.lumenDashboard .dashTimerStack{top:6px;margin-left:-2px;margin-right:-2px;padding:12px}.lumenDashboard .dashTimerCard{flex-basis:180px}}
