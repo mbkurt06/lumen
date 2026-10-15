@@ -231,3 +231,16 @@
 .lumenDashboard .dashTimerInlineForm>div{display:flex;justify-content:flex-end;gap:8px}
 .lumenDashboard .dashTimerInlineForm button{border-radius:10px;padding:9px 14px;background:#236c55;color:white;border:1px solid #4b9078}
 .lumenDashboard .dashManual{display:grid;gap:9px}
+
+/* Unified timer control: compact idle state and inline date/time editor */
+.lumenDashboard .dashTimerIdentity{font-size:25px;display:inline-flex;align-items:center;justify-content:center;min-width:34px;color:#5ce1ad}
+.lumenDashboard .dashTimerHeader{padding-top:3px}
+.lumenDashboard .dashTimerStartIcon{margin-top:20px!important}
+.lumenDashboard .dashTimerIdle{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0 2px;color:#a8d5c6;font-size:13px}
+.lumenDashboard .dashTimerIdle span{font-size:23px;color:#59d9a9}
+.lumenDashboard .dashTimerIdle strong{font-weight:600}
+.lumenDashboard .dashTimerIdle small{flex-basis:100%;font-size:12px;opacity:.8}
+.lumenDashboard .dashTimerFormTitle{font-weight:700;color:#65e2b2}
+.lumenDashboard .dashTimerInlineForm select{width:100%;min-width:0;box-sizing:border-box;background:#102b27;color:#f0faf5;border:1px solid #447366;border-radius:10px;padding:10px}
+.lumenDashboard .dashTimerInlineForm .dashTimerCheck{display:flex;align-items:center;gap:9px;font-size:14px}
+.lumenDashboard .dashTimerInlineForm .dashTimerCheck input{width:18px;height:18px;accent-color:#4ed8a3}
