@@ -224,6 +224,8 @@ function eventTime(event: CalendarEvent) {
 export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: Todo) => void | Promise<void>; compact?: boolean }) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
+  const todayKey = dateKey(new Date());
+  const todayLabel = new Date(todayKey + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", weekday: "long" });
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarStates, setCalendarStates] = useState<Record<string, boolean>>({});
   const [calendarNames, setCalendarNames] = useState<Record<string,{summary:string;color:string|null}>>({});
@@ -807,6 +809,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     <section className={"todoPage card " + (compact ? "todoPageCompact" : "")} onPointerDown={e => { if (e.target === e.currentTarget) setEditMenu(null); }}>
       <div className="todoPageHead">
         <h2>Günlük Todo</h2>
+        <button type="button" className="todoTodayButton" onClick={() => setSelectedDate(todayKey)} aria-label="Bugünün todo listesine dön">{todayLabel}</button>
         <span>{completedCount} / {totalCount}</span>
       </div>
 
