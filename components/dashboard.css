@@ -328,3 +328,6 @@
 .lumenDashboard .dashTimerEmpty{margin:0;color:#a6c5b8;font-size:13px}
 .lumenDashboard .dashGrid>[data-widget="timer"]{display:none!important}
 @media(max-width:750px){.lumenDashboard .dashTimerStack{top:6px;margin-left:-2px;margin-right:-2px;padding:12px}.lumenDashboard .dashTimerCard{flex-basis:180px}}
+
+/* Dashboard background: flat black, without the green radial wash. */
+.dashboardFullWidth,.dashboardFullWidth>div,.dashboardFullWidth .lumenDashboard{background:#000!important}
