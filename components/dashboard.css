@@ -343,6 +343,8 @@
 .lumenDashboard .dashCard button:not(.dashDanger):hover,.lumenDashboard .dashTimerStack button:hover,.lumenDashboard .dashWidgetPicker button:hover,.lumenDashboard .dashWidgetSettingsPanel button:hover,.lumenDashboard .dashPlanNav button:hover,.lumenDashboard .dashWidgetGear:hover{background:linear-gradient(145deg,#2f73bd,#20528f)!important}
 .lumenDashboard .dashGrid>.dashCard[data-widget]{background:#000!important}
 .lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:30px!important}
+.lumenDashboard .dashCardTop>button:not(.dashWidgetGear){height:34px;min-height:34px;margin:0 3px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center}
+.lumenDashboard .dashCardTop .dashWidgetGear{width:34px;height:34px;min-width:34px;min-height:34px;margin:0;padding:0!important;display:flex;align-items:center;justify-content:center}
 .lumenDashboard .dashTimerCards{display:flex;flex-wrap:wrap;overflow:visible}
 .lumenDashboard .dashTimerCard{flex:0 0 190px;width:190px}
 @media(max-width:800px){.dashboardTopbar .topbarToday{font-size:17px}.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:18px!important}.lumenDashboard .dashTimerCard{flex-basis:180px;width:180px}}
