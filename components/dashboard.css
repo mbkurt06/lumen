@@ -331,3 +331,4 @@
 
 /* Dashboard background: flat black, without the green radial wash. */
 .dashboardFullWidth,.dashboardFullWidth>div,.dashboardFullWidth .lumenDashboard{background:#000!important}
+.lumenDashboard .dashGrid>.dashCard,.lumenDashboard .dashTimerStack,.lumenDashboard .dashTimerCard{background:#000!important}
