@@ -336,3 +336,6 @@
 .dashboardTopbar .topbarToday{font-size:16px;font-weight:700;color:var(--text);text-transform:capitalize}
 .dashboardTopbar>.muted{position:absolute;right:24px}
 @media(max-width:800px){.dashboardTopbar>.muted{right:16px}.dashboardTopbar .topbarToday{font-size:14px}}
+.lumenDashboard .dashGrid>.dashCard,.lumenDashboard .dashTimerStack,.lumenDashboard .dashTimerCard,.lumenDashboard .dashWidgetPicker,.lumenDashboard .dashWidgetSettingsPanel,.lumenDashboard .dashNewTimerForm,.lumenDashboard .dashTimerInlineForm{background:#000!important}
+.lumenDashboard .dashCard button:not(.dashDanger),.lumenDashboard .dashTimerStack button,.lumenDashboard .dashWidgetPicker button,.lumenDashboard .dashWidgetSettingsPanel button,.lumenDashboard .dashPlanNav button,.lumenDashboard .dashWidgetGear{background:linear-gradient(145deg,#245a9a,#173d70)!important;border-color:#3e75b6!important;color:#f4f8ff!important}
+.lumenDashboard .dashCard button:not(.dashDanger):hover,.lumenDashboard .dashTimerStack button:hover,.lumenDashboard .dashWidgetPicker button:hover,.lumenDashboard .dashWidgetSettingsPanel button:hover,.lumenDashboard .dashPlanNav button:hover,.lumenDashboard .dashWidgetGear:hover{background:linear-gradient(145deg,#2f73bd,#20528f)!important}
