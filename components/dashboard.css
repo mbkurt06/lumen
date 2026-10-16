@@ -344,7 +344,7 @@
 .lumenDashboard .dashCard button:not(.dashDanger),.lumenDashboard .dashTimerStack button,.lumenDashboard .dashWidgetPicker button,.lumenDashboard .dashWidgetSettingsPanel button,.lumenDashboard .dashPlanNav button,.lumenDashboard .dashWidgetGear{background:linear-gradient(145deg,#245a9a,#173d70)!important;border-color:#3e75b6!important;color:#f4f8ff!important}
 .lumenDashboard .dashCard button:not(.dashDanger):hover,.lumenDashboard .dashTimerStack button:hover,.lumenDashboard .dashWidgetPicker button:hover,.lumenDashboard .dashWidgetSettingsPanel button:hover,.lumenDashboard .dashPlanNav button:hover,.lumenDashboard .dashWidgetGear:hover{background:linear-gradient(145deg,#2f73bd,#20528f)!important}
 .lumenDashboard .dashGrid>.dashCard[data-widget]{background:#000!important}
-.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:48px!important}
+.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:72px!important}
 .lumenDashboard .dashPlanNav strong{font-size:18px}
 .lumenDashboard .dashCardTop>button:not(.dashWidgetGear){height:34px;min-height:34px;margin:0 3px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center}
 .lumenDashboard .dashCardTop .dashWidgetGear{width:34px;height:34px;min-width:34px;min-height:34px;margin:0;padding:0!important;display:flex;align-items:center;justify-content:center}
@@ -355,4 +355,4 @@
 .lumenDashboard .dashTimerCardTop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
 .lumenDashboard .dashTimerCardTop .dashTimerCardName{flex:1}
 .lumenDashboard .dashTimerCardGear{width:30px!important;min-width:30px!important;height:30px!important;min-height:30px!important;padding:0!important;margin:0!important;font-size:14px!important;display:flex;align-items:center;justify-content:center}
-@media(max-width:800px){.dashboardTopbar .topbarToday{font-size:17px}.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:28px!important}.lumenDashboard .dashTimerCard{flex-basis:180px;width:180px}.lumenDashboard .dashTimerCard.dashTimerPlaceholder{flex-basis:165px;width:165px}}
+@media(max-width:800px){.dashboardTopbar .topbarToday{font-size:17px}.lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:44px!important}.lumenDashboard .dashTimerCard{flex-basis:180px;width:180px}.lumenDashboard .dashTimerCard.dashTimerPlaceholder{flex-basis:165px;width:165px}}
