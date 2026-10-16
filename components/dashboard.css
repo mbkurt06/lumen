@@ -333,7 +333,8 @@
 .dashboardFullWidth,.dashboardFullWidth>div,.dashboardFullWidth .lumenDashboard{background:#000!important}
 .lumenDashboard .dashGrid>.dashCard,.lumenDashboard .dashTimerStack,.lumenDashboard .dashTimerCard{background:#000!important}
 .dashboardTopbar{position:relative;justify-content:center!important}
-.dashboardTopbar .topbarToday{font-size:16px;font-weight:700;color:var(--text);text-transform:capitalize}
+.dashboardTopbar .topbarToday{font-size:16px;font-weight:700;color:var(--text);text-transform:capitalize;background:transparent;border:0;padding:6px 12px;border-radius:8px}
+.dashboardTopbar .topbarToday:hover{background:#1f4f8f;color:#fff}
 .dashboardTopbar>.muted{position:absolute;right:24px}
 @media(max-width:800px){.dashboardTopbar>.muted{right:16px}.dashboardTopbar .topbarToday{font-size:14px}}
 .lumenDashboard .dashGrid>.dashCard,.lumenDashboard .dashTimerStack,.lumenDashboard .dashTimerCard,.lumenDashboard .dashWidgetPicker,.lumenDashboard .dashWidgetSettingsPanel,.lumenDashboard .dashNewTimerForm,.lumenDashboard .dashTimerInlineForm{background:#000!important}

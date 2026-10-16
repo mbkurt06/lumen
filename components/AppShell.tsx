@@ -813,7 +813,7 @@ export function AppShell({
       <main className="mainPane">
         {tab !== "library" && tab !== "calendar" && (
           <header className={"topbar" + (tab === "dashboard" ? " dashboardTopbar" : "")}>
-            {tab === "dashboard" ? <time className="topbarToday">{todayLabel}</time> : <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>}
+            {tab === "dashboard" ? <button type="button" className="topbarToday" onClick={()=>window.dispatchEvent(new Event("lumen-go-today"))} aria-label="Bugünün planına dön">{todayLabel}</button> : <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>}
             <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
           </header>
         )}
