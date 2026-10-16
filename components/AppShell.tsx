@@ -52,6 +52,14 @@ export function AppShell({
     message:string;
     percent?:number;
   } | null>(null);
+  const [todayLabel,setTodayLabel] = useState("");
+
+  useEffect(() => {
+    const update = () => setTodayLabel(new Intl.DateTimeFormat("tr-TR", { dateStyle: "full" }).format(new Date()));
+    update();
+    const id = window.setInterval(update, 60000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     // Ask the browser to keep Lumen's IndexedDB/cache data persistent when the
@@ -804,8 +812,8 @@ export function AppShell({
 
       <main className="mainPane">
         {tab !== "library" && tab !== "calendar" && (
-          <header className="topbar">
-            <h1 className="pageTitle">{tab === "dashboard" ? "Dashboard" : tab === "todos" ? "TODO" : "Ayarlar"}</h1>
+          <header className={"topbar" + (tab === "dashboard" ? " dashboardTopbar" : "")}>
+            {tab === "dashboard" ? <time className="topbarToday">{todayLabel}</time> : <h1 className="pageTitle">{tab === "todos" ? "TODO" : "Ayarlar"}</h1>}
             <span className="muted" style={{ fontSize: 13 }}>{user.email}</span>
           </header>
         )}

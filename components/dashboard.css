@@ -332,3 +332,7 @@
 /* Dashboard background: flat black, without the green radial wash. */
 .dashboardFullWidth,.dashboardFullWidth>div,.dashboardFullWidth .lumenDashboard{background:#000!important}
 .lumenDashboard .dashGrid>.dashCard,.lumenDashboard .dashTimerStack,.lumenDashboard .dashTimerCard{background:#000!important}
+.dashboardTopbar{position:relative;justify-content:center!important}
+.dashboardTopbar .topbarToday{font-size:16px;font-weight:700;color:var(--text);text-transform:capitalize}
+.dashboardTopbar>.muted{position:absolute;right:24px}
+@media(max-width:800px){.dashboardTopbar>.muted{right:16px}.dashboardTopbar .topbarToday{font-size:14px}}
