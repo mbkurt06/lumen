@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+// UI typeface (latin-ext is needed for Turkish ı, ş, ğ, İ). Reader and Arabic text keep their own fonts.
+const inter = Inter({ subsets: ["latin", "latin-ext"], display: "swap", variable: "--font-ui" });
 
 export const viewport: Viewport = {
   themeColor: "#315b4d",
@@ -63,7 +67,7 @@ try {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="tr" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

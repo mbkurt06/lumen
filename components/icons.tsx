@@ -63,3 +63,175 @@ export const MenuIcon = (props: SVGProps<SVGSVGElement>) => (
     <path d="M4 6.5h16M4 12h16M4 17.5h16" />
   </Icon>
 );
+
+const Filled = ({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) => (
+  <Icon fill="currentColor" strokeWidth="1.2" {...props}>
+    {children}
+  </Icon>
+);
+
+export const PlayIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Filled {...props}>
+    <path d="M8 5.2v13.6a.6.6 0 0 0 .92.5l10.6-6.8a.6.6 0 0 0 0-1L8.92 4.7A.6.6 0 0 0 8 5.2Z" />
+  </Filled>
+);
+
+export const PauseIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Filled {...props}>
+    <rect x="6.5" y="5" width="4" height="14" rx="1.2" />
+    <rect x="13.5" y="5" width="4" height="14" rx="1.2" />
+  </Filled>
+);
+
+export const StopIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Filled {...props}>
+    <rect x="6" y="6" width="12" height="12" rx="2.4" />
+  </Filled>
+);
+
+export const PlusIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
+export const MinusIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M5 12h14" />
+  </Icon>
+);
+
+export const ChevronLeftIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m14.5 6-6 6 6 6" />
+  </Icon>
+);
+
+export const ChevronRightIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m9.5 6 6 6-6 6" />
+  </Icon>
+);
+
+export const ArrowRightIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Icon>
+);
+
+export const ArrowUpRightIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M7 17 17 7M8.5 7H17v8.5" />
+  </Icon>
+);
+
+export const TimerIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 9.5v4l2.5 1.5M9.5 2.8h5" />
+  </Icon>
+);
+
+export const ClockIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Icon>
+);
+
+export const BellIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 1.5h-15Z" />
+    <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+  </Icon>
+);
+
+export const PencilIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m4 20 1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19Z" />
+    <path d="m14.5 6.5 3 3" />
+  </Icon>
+);
+
+export const TargetIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="4.5" />
+    <circle cx="12" cy="12" r=".8" fill="currentColor" />
+  </Icon>
+);
+
+export const RepeatIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H19M16 3l3 3-3 3" />
+    <path d="M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H5M8 21l-3-3 3-3" />
+  </Icon>
+);
+
+export const CheckIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Icon>
+);
+
+export const CircleIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="8" />
+  </Icon>
+);
+
+export const GripIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Filled {...props}>
+    <circle cx="9" cy="6.5" r="1.4" />
+    <circle cx="15" cy="6.5" r="1.4" />
+    <circle cx="9" cy="12" r="1.4" />
+    <circle cx="15" cy="12" r="1.4" />
+    <circle cx="9" cy="17.5" r="1.4" />
+    <circle cx="15" cy="17.5" r="1.4" />
+  </Filled>
+);
+
+export const ResizeIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M14 20h6v-6M10 4H4v6M20 20 13.5 13.5M4 4l6.5 6.5" />
+  </Icon>
+);
+
+export const LayoutGridIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.8" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.8" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.8" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.8" />
+  </Icon>
+);
+
+export const ResetIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M4 12a8 8 0 1 0 2.6-5.9M4 4v4.5h4.5" />
+  </Icon>
+);
+
+export const EyeOffIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M3 3l18 18M10.6 6.2A9.6 9.6 0 0 1 12 6c5 0 8.5 4 9.5 6a12.6 12.6 0 0 1-2.7 3.4M6.5 7.6A12.7 12.7 0 0 0 2.5 12c1 2 4.5 6 9.5 6 1.5 0 2.8-.4 4-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </Icon>
+);
+
+export const XIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Icon>
+);
+
+export const ChevronDownIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m6 9.5 6 6 6-6" />
+  </Icon>
+);
+
+export const ChevronUpIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props}>
+    <path d="m6 14.5 6-6 6 6" />
+  </Icon>
+);

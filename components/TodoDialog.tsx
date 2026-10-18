@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { offlineUpdate, offlineUpsert } from "@/lib/offlineDb";
 import { getOfflineOwnerId } from "@/lib/offlineIdentity";
+import { XIcon } from "@/components/icons";
 
 type Props = {
   open: boolean;
@@ -139,7 +140,7 @@ export function TodoDialog({
       <div className="modalCard" onMouseDown={e => e.stopPropagation()}>
         <div className="modalHead">
           <strong>{editTodo ? "Todo'yu düzenle" : "Todo'ya ekle"}</strong>
-          <button className="modalClose" onClick={onClose}>×</button>
+          <button className="modalClose" onClick={onClose}><XIcon /></button>
         </div>
 
         <div className="todoFormRow">

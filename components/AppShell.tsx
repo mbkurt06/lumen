@@ -13,7 +13,7 @@ import { SettingsView } from "@/components/SettingsView";
 import { MediaEmbed } from "@/components/MediaEmbed";
 import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
-import { BookIcon, CalendarIcon, CheckSquareIcon, HomeIcon, MenuIcon, SettingsIcon } from "@/components/icons";
+import { BookIcon, CalendarIcon, CheckSquareIcon, ChevronLeftIcon, ChevronRightIcon, HomeIcon, MenuIcon, PlusIcon, SettingsIcon } from "@/components/icons";
 import "./ui-refresh.css";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
@@ -832,7 +832,7 @@ export function AppShell({
             aria-label="Kütüphane ayarları"
             title="Kütüphane ayarları"
           >
-            ⚙
+            <SettingsIcon />
           </button>
         )}
 
@@ -927,7 +927,7 @@ export function AppShell({
           aria-label={rightPanelOpen ? "Sağ paneli gizle" : "Sağ paneli aç"}
           title={rightPanelOpen ? "Sağ paneli gizle" : "Sağ paneli aç"}
         >
-          {rightPanelOpen ? "›" : "‹"}
+          {rightPanelOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </button>
 
         {rightPanelOpen && (
@@ -949,9 +949,9 @@ export function AppShell({
                   </button>
                   {rightPanelMenuOpen && (
                     <div className="rightPanelMenu">
-                      <button onClick={() => { setRightPanelMode("todo"); setRightPanelMenuOpen(false); }}>✓ TODO</button>
-                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>⚙ Takvim ayarları</button>
-                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}>＋ Takvim ekle</button>
+                      <button onClick={() => { setRightPanelMode("todo"); setRightPanelMenuOpen(false); }}><CheckSquareIcon /> TODO</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}><SettingsIcon /> Takvim ayarları</button>
+                      <button onClick={() => { setRightPanelMode("calendar"); setRightPanelMenuOpen(false); }}><PlusIcon /> Takvim ekle</button>
                     </div>
                   )}
                 </div>

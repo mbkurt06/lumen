@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import { importQuranMushafDocx } from "@/lib/documentImport";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
 import { offlineHasPending, offlineUpsert, offlineGetOne } from "@/lib/offlineDb";
+import { XIcon } from "@/components/icons";
 
 type ReaderScope = "ezber" | "risale" | "quran" | "he";
 
@@ -303,7 +304,7 @@ export function LibrarySettingsModal({
       <div className="librarySettingsModal">
         <div className="modalHead">
           <strong>{scope === "quran" ? "Kur’an ayarları" : scope === "risale" ? "Risale-i Nur ayarları" : scope === "he" ? "H.E. kitapları ayarları" : "Ezber ayarları"}</strong>
-          <button className="modalClose" onClick={onClose}>×</button>
+          <button className="modalClose" onClick={onClose}><XIcon /></button>
         </div>
 
         {!prefsReady ? (

@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import { offlineCacheGet, offlineCacheSet, offlineDelete, offlineGetOne, offlineGetRows, offlineHasPending, offlinePutRows, offlineUpsert } from "@/lib/offlineDb";
 import { readLocalReaderPrefs, writeLocalReaderPrefs } from "@/lib/readerPrefs";
+import { ChevronLeftIcon, ChevronRightIcon, SettingsIcon, XIcon } from "@/components/icons";
 
 type ViewMode = "year" | "month" | "week" | "3day" | "day" | "list";
 type ListRange = "day" | "week" | "month" | "year" | "remainingYear" | "custom";
@@ -1802,7 +1803,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
           title={sourcePanelOpen ? "Takvim panelini gizle" : "Takvim panelini aç"}
           aria-label={sourcePanelOpen ? "Takvim panelini gizle" : "Takvim panelini aç"}
         >
-          {sourcePanelOpen ? "›" : "‹"}
+          {sourcePanelOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </button>
         <div className="calendarSourcesHead">
           <strong>Takvimler</strong>
@@ -1851,7 +1852,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
           title="Takvim panelini aç"
           aria-label="Takvim panelini aç"
         >
-          ‹
+          <ChevronLeftIcon />
         </button>
       )}
 
@@ -1860,8 +1861,8 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
           <div className="calendarToolbarLeft">
             {!externalSources && <button className="calendarSourcesToggle" onClick={toggleSourcesPanel} title="Takvimleri göster/gizle">☷ <span>Takvimler</span></button>}
             <button className="calendarToday" onClick={goToday}>Bugün</button>
-            <button onClick={() => move(-1)}>‹</button>
-            <button onClick={() => move(1)}>›</button>
+            <button onClick={() => move(-1)}><ChevronLeftIcon /></button>
+            <button onClick={() => move(1)}><ChevronRightIcon /></button>
             <div className="calendarToolbarTitles">
               <h1>{title}</h1>
               {view !== "day" && <div className="calendarCurrentDate" title="Bugünün tarihi">
@@ -1870,7 +1871,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
             </div>
           </div>
           <div className="calendarToolbarRight">
-            <button className="calendarPrefsButton" onClick={() => setCalendarPrefsOpen(open => !open)} title="Takvim görünüm ayarları">⚙</button>
+            <button className="calendarPrefsButton" onClick={() => setCalendarPrefsOpen(open => !open)} title="Takvim görünüm ayarları"><SettingsIcon /></button>
             <button className="calendarCreate" onClick={event => {
               const rect=event.currentTarget.getBoundingClientRect();
               openNewEvent(anchor,{x:rect.left,y:rect.bottom+6});
@@ -1908,7 +1909,7 @@ export function CalendarView({ user, externalSources = false }: { user: User; ex
           <div className="calendarViewPrefs">
             <div className="calendarViewPrefsHead">
               <strong>Görünüm ayarları</strong>
-              <button onClick={() => setCalendarPrefsOpen(false)}>×</button>
+              <button onClick={() => setCalendarPrefsOpen(false)}><XIcon /></button>
             </div>
             <label>
               <span>Hafta</span>

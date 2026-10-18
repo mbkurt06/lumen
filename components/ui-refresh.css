@@ -225,3 +225,176 @@ html body.dark .todoCard.done{background:var(--panel)}
   outline:2px solid var(--accent-bright);
   outline-offset:2px;
 }
+
+/* =====================================================================
+   Modern pass — typography, spacing, icon buttons, sidebar, dashboard
+   ===================================================================== */
+
+/* ---------- typography (UI chrome only; reader / Arabic fonts are untouched) ---------- */
+html body :is(.sidebar,.topbar,.dashboardTopbar,.lumenDashboard,.todoPageWrap,.settingsCard,.modalCard,.dashDialog,.dashWidgetSettingsPanel,.calendarPage){
+  font-family:var(--font-ui),system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  font-feature-settings:"cv11","ss01";
+}
+html body .lumenDashboard{font-family:var(--font-ui),system-ui,-apple-system,"Segoe UI",sans-serif!important}
+html body :is(.lumenDashboard,.todoPageWrap) :is(.dashDigits,.dashTimerCard>strong,time,.dashEventTime,.dashRow strong){font-variant-numeric:tabular-nums}
+
+/* ---------- icons sit nicely next to text and inside buttons ---------- */
+html body :is(.lumenDashboard,.todoPageWrap,.modalCard,.dashDialog,.dashWidgetSettingsPanel,.calendarPage) svg{flex:none}
+html body .lumenDashboard :is(button,h2,h3,.dashTimerFormTitle,.dashTimerStackHead strong){
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+html body .lumenDashboard :is(h2,h3) svg{width:18px;height:18px;color:var(--accent-bright);opacity:.95}
+html body .lumenDashboard button svg{width:18px;height:18px}
+html body .lumenDashboard .dashInlineTimer{display:inline-flex;align-items:center;gap:4px}
+html body .lumenDashboard .dashInlineTimer svg{width:13px;height:13px}
+html body .lumenDashboard .dashTimerIdentity svg,
+html body .lumenDashboard .dashTimerIdle span svg{width:22px;height:22px}
+
+/* icon-only buttons: one size, one shape */
+html body .lumenDashboard button:has(>svg:only-child):not(.dashResizeHandle):not(.dashCheckButton){
+  width:36px;
+  height:36px;
+  min-width:36px;
+  min-height:36px;
+  padding:0!important;
+  justify-content:center;
+  border-radius:10px!important;
+}
+html body .lumenDashboard :is(.dashTimerCardGear,.dashCardTop .dashWidgetGear){width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important}
+html body .lumenDashboard .dashResizeHandle svg{width:18px;height:18px}
+
+/* ---------- dashboard layout ---------- */
+html body .dashboardFullWidth .lumenDashboard.lumenDashboard{
+  max-width:1440px!important;
+  margin:0 auto!important;
+  padding:clamp(14px,2vw,32px)!important;
+}
+html body .lumenDashboard .dashGrid{gap:16px}
+html body .lumenDashboard .dashGrid>.dashCard.dashCard[data-widget]{
+  padding:clamp(16px,1.6vw,24px)!important;
+  border-radius:20px!important;
+  box-shadow:var(--shadow-sm)!important;
+  border-color:color-mix(in srgb,var(--border) 75%,transparent)!important;
+  transition:border-color .2s,box-shadow .2s;
+}
+html body .lumenDashboard .dashGrid>.dashCard.dashCard[data-widget]:hover{box-shadow:var(--shadow-md)!important}
+html body .lumenDashboard .dashCard h2{
+  margin:0!important;
+  font-size:16px!important;
+  font-weight:650;
+  letter-spacing:-.01em;
+}
+html body .lumenDashboard .dashCardTop{margin-bottom:14px;padding-right:0}
+
+/* timers: a responsive grid instead of a left-aligned strip */
+html body .lumenDashboard .dashTimerStack.dashTimerStack{padding:16px 18px;border-radius:20px!important;top:12px}
+html body .lumenDashboard .dashTimerStackHead{margin-bottom:12px}
+html body .lumenDashboard .dashTimerStackHead strong{font-size:15px;font-weight:650;letter-spacing:-.01em;color:var(--text)}
+html body .lumenDashboard .dashTimerStackHead strong svg{color:var(--accent-bright)}
+html body .lumenDashboard .dashTimerCards{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  gap:12px;
+  overflow:visible;
+}
+html body .lumenDashboard .dashTimerCard.dashTimerCard{
+  width:auto;
+  flex:none;
+  min-height:0;
+  padding:14px 16px;
+  gap:10px;
+}
+html body .lumenDashboard .dashTimerCard>strong{font-size:30px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+html body .lumenDashboard .dashTimerCardName{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+html body .lumenDashboard .dashTimerCard>div:last-child{gap:8px}
+
+/* date navigator: label centred, settings button no longer floats away */
+html body .lumenDashboard .dashPlanNav{gap:8px;margin:2px 0 18px}
+html body .lumenDashboard .dashPlanNav strong{min-width:150px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+html body .lumenDashboard .dashPlanNav .dashDashboardSettingsButton{margin-left:8px!important}
+
+/* plan + todo rows */
+html body .lumenDashboard .dashTimelineRow{gap:12px;min-height:58px;padding:10px 4px}
+html body .lumenDashboard .dashTimelineRow time{font-size:12px;font-weight:600;min-width:44px;font-variant-numeric:tabular-nums}
+html body .lumenDashboard .dashTimelineTitle{font-size:14px;font-weight:600}
+html body .lumenDashboard .dashTimelineTitle small{font-size:12px;color:var(--muted)}
+html body .lumenDashboard .dashTimelineDot{width:8px;height:8px;box-shadow:none}
+html body .lumenDashboard .dashCard .dashRow{min-height:54px;padding:8px 4px!important;gap:12px}
+html body .lumenDashboard .dashCard .dashRow>span{font-size:14px;font-weight:550}
+html body .lumenDashboard .dashCardFooter{color:var(--muted);font-size:12px}
+
+/* round check buttons: empty ring when open, filled accent when done */
+html body .lumenDashboard .dashCheckButton{
+  width:26px!important;
+  height:26px!important;
+  min-width:26px!important;
+  min-height:26px!important;
+  flex:0 0 26px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  border:1.5px solid var(--border)!important;
+  background:transparent!important;
+  color:#fff!important;
+  justify-content:center;
+}
+html body .lumenDashboard .dashCheckButton svg{width:15px;height:15px;stroke-width:2.4}
+html body .lumenDashboard .dashCheckButton svg circle{display:none}
+html body .lumenDashboard .dashCheckButton:hover{border-color:var(--accent-bright)!important;background:var(--accent-soft)!important;color:var(--accent-bright)!important}
+html body .lumenDashboard .dashDoneRow .dashCheckButton{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+html body .lumenDashboard .dashDoneRow{opacity:.6}
+
+/* habit dots */
+html body .lumenDashboard .dashHabitRow i{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;color:var(--muted)}
+html body .lumenDashboard .dashHabitRow i svg{width:13px;height:13px}
+html body .lumenDashboard .dashHabitRow i.done{background:var(--accent);color:#fff!important;text-shadow:none}
+html body .lumenDashboard .dashHabitRow i:not(.done) svg{stroke-width:1.5;opacity:.5}
+
+/* ---------- sidebar + top bar ---------- */
+html body .sidebar{padding-top:20px}
+html body .brand{font-size:22px;font-weight:750;letter-spacing:-.03em}
+html body .nav{gap:4px}
+html body .navButton{
+  padding:10px 12px;
+  font-size:14.5px;
+  font-weight:550;
+  transition:background-color .15s,color .15s;
+}
+html body .navButton:hover{background:var(--accent-soft);color:var(--text)}
+html body .navButton.active{background:var(--accent-soft);color:var(--accent-bright);font-weight:650}
+html body .navButton.active .navIcon{color:var(--accent-bright)}
+html body .sidebarCollapseButton,
+html body .sidebarReopen{border-radius:var(--r-md);box-shadow:var(--shadow-sm)}
+html body .topbar,
+html body .dashboardTopbar{backdrop-filter:blur(12px)}
+html body .dashboardTopbar .topbarToday{font-size:16px;font-weight:650;letter-spacing:-.01em}
+
+/* right panel handle + shared header / calendar icon buttons */
+html body .globalRightPanelToggle svg,
+html body .v2HeaderButton svg,
+html body .calendarPage button svg{width:18px;height:18px}
+html body .v2HeaderButton{display:inline-grid;place-items:center}
+html body .modalClose{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;font-size:0}
+html body .modalClose:hover{background:var(--accent-soft)}
+html body .modalClose svg{width:20px;height:20px}
+
+/* ---------- TODO page ---------- */
+html body .todoCard{border-radius:14px;transition:border-color .15s,background-color .15s}
+html body .todoCheck,
+html body .todoCompletedCheck{display:inline-grid;place-items:center}
+html body .todoCheck svg,
+html body .todoCompletedCheck svg{width:16px;height:16px;stroke-width:2.4}
+html body .todoDelete{display:inline-grid;place-items:center}
+html body .todoDelete svg{width:18px;height:18px}
+html body .todoCalendarBadge{display:inline-flex;align-items:center;gap:4px}
+html body .todoCalendarBadge svg{width:13px;height:13px}
+html body .todoDateNav .secondary{display:inline-grid;place-items:center;min-width:38px}
+html body .todoDateNav .secondary svg{width:18px;height:18px}
+html body .todoMain strong{font-weight:600}
+
+/* ---------- motion preferences ---------- */
+@media (prefers-reduced-motion:reduce){
+  html body *{transition:none!important;animation:none!important}
+}

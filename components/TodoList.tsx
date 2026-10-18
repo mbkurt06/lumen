@@ -5,6 +5,7 @@ import { TodoDialog } from "@/components/TodoDialog";
 import { offlineCacheGet, offlineCacheSet, offlineDelete, offlineGetOne, offlineGetRows, offlinePutRows, offlineReplaceRows, offlineUpsert } from "@/lib/offlineDb";
 import { getOfflineOwnerId } from "@/lib/offlineIdentity";
 import { readLocalReaderPrefs } from "@/lib/readerPrefs";
+import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlayIcon, XIcon } from "@/components/icons";
 
 type Todo = {
   id: string;
@@ -528,9 +529,9 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
     const { meta, target, count, done } = stateFor(todo, selectedDate);
     return (
       <article className={"todoCard " + (done ? "done" : "")} key={todo.id}>
-        <button type="button" title="Bu görev için süre başlat" onClick={()=>window.dispatchEvent(new CustomEvent("lumen-start-timer",{detail:{name:todo.title}}))}>▶ Süre</button>
+        <button type="button" title="Bu görev için süre başlat" onClick={()=>window.dispatchEvent(new CustomEvent("lumen-start-timer",{detail:{name:todo.title}}))}><PlayIcon /> Süre</button>
         <button className="todoOpen todoNavigate" onClick={() => onOpenTodo?.(todo)}>
-          {done && <div className="todoCompletedCheck">✓</div>}
+          {done && <div className="todoCompletedCheck"><CheckIcon /></div>}
           <div className="todoMain">
             <strong>{todo.title}</strong>
             {meta.quran?.tracking && meta.quran.position && (
@@ -554,7 +555,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
             {target}/{count}
           </div>
         </button>
-        <button className="todoDelete" onClick={() => remove(todo.id)}>×</button>
+        <button className="todoDelete" onClick={() => remove(todo.id)}><XIcon /></button>
       </article>
     );
   }
@@ -782,7 +783,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
           onClick={() => void toggleCalendarDone(event)}
           aria-label={done ? "Tamamlandı işaretini kaldır" : "Tamamlandı olarak işaretle"}
         >
-          {done ? "✓" : ""}
+          {done ? <CheckIcon /> : null}
         </button>
         <div className="calendarTodoTime">{event.allDay ? "Tüm gün" : eventTime(event)}</div>
         <div className="calendarTodoContent">
@@ -791,7 +792,7 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
             <strong>{event.summary}</strong>
           </div>
           {event.location && <p className="calendarTodoLocation">⌖ {event.location}</p>}
-          <span className="todoCalendarBadge">▦ {meta?.summary || "Takvim"}</span>
+          <span className="todoCalendarBadge"><CalendarIcon /> {meta?.summary || "Takvim"}</span>
         </div>
       </article>
     );
@@ -814,9 +815,9 @@ export function TodoList({ onOpenTodo, compact = false }: { onOpenTodo?: (todo: 
       </div>
 
       <div className="todoDateNav">
-        <button className="secondary" onClick={() => shift(-1)}>‹</button>
+        <button className="secondary" onClick={() => shift(-1)}><ChevronLeftIcon /></button>
         <input className="input" type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} />
-        <button className="secondary" onClick={() => shift(1)}>›</button>
+        <button className="secondary" onClick={() => shift(1)}><ChevronRightIcon /></button>
         <button className="secondary" onClick={() => setSelectedDate(dateKey(new Date()))}>Bugün</button>
       </div>
 

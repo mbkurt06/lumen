@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { CheckSquareIcon, ChevronDownIcon, ChevronLeftIcon, ChevronUpIcon, MenuIcon, PlusIcon, SettingsIcon } from "@/components/icons";
 
 export function SectionHeader({
   title,
@@ -70,17 +71,17 @@ export function SectionHeader({
       {!collapsed && <>
       <div className="v2HeaderToolbar v2HeaderCompactRow">
         {(showMenu || showBack || onSaveMemorization) && <div className="v2HeaderGroup v2HeaderNavigation">
-          {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu} aria-label="Menü" title="Menü">☰</button>}
-          {showBack && <button className="v2HeaderButton v2HeaderBackButton" onClick={onBack} aria-label="Geri" title="Geri">‹</button>}
+          {showMenu && <button className="v2HeaderButton v2HeaderMenuButton" onClick={onMenu} aria-label="Menü" title="Menü"><MenuIcon /></button>}
+          {showBack && <button className="v2HeaderButton v2HeaderBackButton" onClick={onBack} aria-label="Geri" title="Geri"><ChevronLeftIcon /></button>}
         </div>}
         <div className="v2HeaderGroup v2HeaderActions">
-          {showTodo && <button className="v2HeaderButton" onClick={onTodo} aria-label="Todo ekle" title="Todo ekle">☑</button>}
+          {showTodo && <button className="v2HeaderButton" onClick={onTodo} aria-label="Todo ekle" title="Todo ekle"><CheckSquareIcon /></button>}
           {showMemorize && (
             <button className={"v2HeaderPrimary " + (memorizeActive ? "active" : "")} onClick={onMemorize} aria-label="Ezber yap" title="Ezber yap">
               ◉
             </button>
           )}
-          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle">＋</button>}
+          {onSaveMemorization && <button className="v2HeaderButton v2HeaderSaveButton" onClick={onSaveMemorization} title="Ezber Listeme Ekle" aria-label="Ezber Listeme Ekle"><PlusIcon /></button>}
           {showFullscreen && (
             <button
               className="v2HeaderToolButton"
@@ -114,7 +115,7 @@ export function SectionHeader({
               aria-label="Okuma ayarları"
               title="Okuma ayarları"
             >
-              ⚙
+              <SettingsIcon />
             </button>
           )}
         </div>
@@ -129,7 +130,7 @@ export function SectionHeader({
         aria-label={collapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}
         title={collapsed ? "Üst menüyü göster" : "Üst menüyü gizle"}
       >
-        {collapsed ? "▾" : "▴"}
+        {collapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
       </button>
     </div>
   );
