@@ -13,6 +13,8 @@ import { SettingsView } from "@/components/SettingsView";
 import { MediaEmbed } from "@/components/MediaEmbed";
 import { CalendarView } from "@/components/CalendarView";
 import { CalendarSidePanel } from "@/components/CalendarSidePanel";
+import { BookIcon, CalendarIcon, CheckSquareIcon, HomeIcon, MenuIcon, SettingsIcon } from "@/components/icons";
+import "./ui-refresh.css";
 import { supabase } from "@/lib/supabase/client";
 import { syncStaticContentInBackground } from "@/lib/contentSync";
 import { flushOfflineOutbox, offlineCacheGet, offlineCacheSet, offlineGetOne, offlineHasPending, offlineUpdate, syncPersonalOfflineData } from "@/lib/offlineDb";
@@ -768,44 +770,44 @@ export function AppShell({
       )}
 
       {!sidebarOpen && (
-        <button className="sidebarReopen" onClick={() => setSidebarOpen(true)} aria-label="Menüyü aç" title="Menüyü aç">☰</button>
+        <button className="sidebarReopen" onClick={() => setSidebarOpen(true)} aria-label="Menüyü aç" title="Menüyü aç"><MenuIcon /></button>
       )}
       {sidebarOpen && <button className="sidebarBackdrop" onClick={() => setSidebarOpen(false)} aria-label="Menüyü kapat" />}
 
       <aside className="sidebar">
         <div className="brandRow">
           <div className="brand">Lumen</div>
-          <button className="sidebarCollapseButton" onClick={() => setSidebarOpen(false)} aria-label="Menüyü gizle" title="Menüyü gizle">☰</button>
+          <button className="sidebarCollapseButton" onClick={() => setSidebarOpen(false)} aria-label="Menüyü gizle" title="Menüyü gizle"><MenuIcon /></button>
         </div>
 
         <nav className="nav">
-          <button className={"navButton " + (tab === "dashboard" ? "active" : "")} onClick={() => {setTab("dashboard"); if(window.innerWidth<=800)setSidebarOpen(false);}}><span className="navIcon">⌂</span><span>Dashboard</span></button>
+          <button className={"navButton " + (tab === "dashboard" ? "active" : "")} onClick={() => {setTab("dashboard"); if(window.innerWidth<=800)setSidebarOpen(false);}}><span className="navIcon"><HomeIcon /></span><span>Dashboard</span></button>
           <button
             className={"navButton " + (tab === "todos" ? "active" : "")}
             onClick={() => { setTab("todos"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
-            <span className="navIcon">✓</span><span>TODO</span>
+            <span className="navIcon"><CheckSquareIcon /></span><span>TODO</span>
           </button>
 
           <button
             className={"navButton " + (tab === "library" ? "active" : "")}
             onClick={() => { openLibraryHome(); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
-            <span className="navIcon">▤</span><span>Kütüphane</span>
+            <span className="navIcon"><BookIcon /></span><span>Kütüphane</span>
           </button>
 
           <button
             className={"navButton " + (tab === "calendar" ? "active" : "")}
             onClick={() => { setTab("calendar"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
-            <span className="navIcon">▦</span><span>Takvim</span>
+            <span className="navIcon"><CalendarIcon /></span><span>Takvim</span>
           </button>
 
           <button
             className={"navButton " + (tab === "settings" ? "active" : "")}
             onClick={() => { setTab("settings"); if (window.innerWidth <= 800) setSidebarOpen(false); }}
           >
-            <span className="navIcon">⚙</span><span>Ayarlar</span>
+            <span className="navIcon"><SettingsIcon /></span><span>Ayarlar</span>
           </button>
         </nav>
       </aside>

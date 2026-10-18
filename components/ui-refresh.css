@@ -1,0 +1,227 @@
+/*
+  Lumen UI refresh — a single, token-based layer loaded after every other stylesheet.
+
+  Goals
+  - One palette: the dashboard and TODO page follow the same --bg / --panel / --text /
+    --border / --accent tokens as the library, reader and settings (light AND dark).
+  - One accent: green. The blue button gradients and the six per-widget border colours
+    are replaced by neutral surfaces.
+  - One radius / shadow scale.
+
+  This file only overrides; delete the import in AppShell.tsx to revert completely.
+  The `html body` prefix and doubled classes are there to out-rank the older
+  `!important` rules in globals.css and dashboard.css without touching them.
+*/
+
+/* ---------- tokens (declared on body so they follow the active theme) ---------- */
+html body{
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --shadow-sm:0 1px 2px #0000000d,0 2px 8px #0000000a;
+  --shadow-md:0 8px 28px #00000014;
+  --panel-2:color-mix(in srgb,var(--panel) 90%,var(--text) 10%);
+  --accent-bright:var(--accent);
+  --accent-soft:color-mix(in srgb,var(--accent) 14%,transparent);
+  --danger:#b54a42;
+}
+html body.dark,
+html.pre-dark body{
+  --shadow-sm:0 1px 2px #0000004d;
+  --shadow-md:0 10px 30px #00000066;
+  --panel-2:color-mix(in srgb,var(--panel) 86%,var(--text) 14%);
+  --accent-bright:#7fd1ae;
+  --accent-soft:color-mix(in srgb,#7fd1ae 16%,transparent);
+  --danger:#e08a82;
+}
+
+/* ---------- sidebar icons ---------- */
+.navIcon{display:grid;place-items:center;width:22px;min-width:22px;font-size:0}
+.navIcon svg{width:20px;height:20px}
+.sidebarCollapseButton svg,
+.sidebarReopen svg{width:20px;height:20px}
+.navButton{border-radius:var(--r-md)}
+
+/* ---------- dashboard: surfaces ---------- */
+html body .dashboardFullWidth,
+html body .dashboardFullWidth>div,
+html body .dashboardFullWidth .lumenDashboard,
+html body .lumenDashboard{
+  background:var(--bg)!important;
+  color:var(--text);
+  --dashMint:var(--accent-bright);
+  --dashBorder:var(--border);
+}
+html body .dashboardTopbar{
+  background:color-mix(in srgb,var(--bg) 92%,transparent)!important;
+  border-color:var(--border)!important;
+}
+html body .dashboardTopbar .topbarToday{color:var(--text)!important;-webkit-text-fill-color:var(--text)}
+html body .dashboardTopbar .topbarToday:hover{background:var(--accent-soft);color:var(--text)}
+
+html body .lumenDashboard .dashGrid>.dashCard.dashCard[data-widget],
+html body .lumenDashboard .dashGrid>.dashCard.dashCard,
+html body .lumenDashboard .dashTimerStack.dashTimerStack,
+html body .lumenDashboard .dashTimerCard.dashTimerCard,
+html body .lumenDashboard .dashWidgetPicker.dashWidgetPicker,
+html body .lumenDashboard .dashWidgetSettingsPanel.dashWidgetSettingsPanel,
+html body .dashWidgetSettingsPanel.dashWidgetSettingsPanel,
+html body .lumenDashboard .dashNewTimerForm.dashNewTimerForm,
+html body .lumenDashboard .dashTimerInlineForm.dashTimerInlineForm,
+html body .lumenDashboard .dashReminderSettings.dashReminderSettings{
+  background:var(--panel)!important;
+  border:1px solid var(--border)!important;
+  border-radius:var(--r-lg)!important;
+  box-shadow:var(--shadow-sm)!important;
+  color:var(--text)!important;
+  backdrop-filter:none;
+}
+html body .lumenDashboard .dashTimerCard.dashTimerCard,
+html body .lumenDashboard .dashTimerInlineForm.dashTimerInlineForm,
+html body .lumenDashboard .dashNewTimerForm.dashNewTimerForm{
+  background:var(--panel-2)!important;
+  border-radius:var(--r-md)!important;
+  box-shadow:none!important;
+}
+html body .lumenDashboard .dashGrid>.dashCard.dashCard[data-widget]:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))!important}
+html body .lumenDashboard .dashGridEditing>.dashCard.dashCard{outline:1px dashed color-mix(in srgb,var(--accent) 60%,transparent)}
+html body .dashDialog{
+  background:var(--panel);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  box-shadow:var(--shadow-md);
+}
+html body .dashDialogIcon{background:var(--accent-soft);color:var(--accent-bright)}
+html body .lumenDashboard .dashDialog p{color:var(--muted)}
+
+/* ---------- dashboard: text ---------- */
+html body .lumenDashboard .dashCard h2,
+html body .lumenDashboard .dashCard h3,
+html body .lumenDashboard .dashTimerStackHead{color:var(--text)!important}
+html body .lumenDashboard .dashCard h2:first-letter{color:inherit}
+html body .lumenDashboard .dashCard[data-widget] h2:first-letter{color:inherit}
+html body .lumenDashboard .dashCard :is(p,small),
+html body .lumenDashboard .dashTimerEmpty,
+html body .lumenDashboard .dashTimerCardName,
+html body .lumenDashboard .dashTimerIdle,
+html body .lumenDashboard .dashPlanNav,
+html body .lumenDashboard .dashHeader p{color:var(--muted)}
+html body .lumenDashboard .dashTimerStackHead strong,
+html body .lumenDashboard .dashTimerIdentity,
+html body .lumenDashboard .dashTimerIdle span,
+html body .lumenDashboard .dashTimerFormTitle,
+html body .lumenDashboard .dashEventTime,
+html body .lumenDashboard .dashRow strong,
+html body .lumenDashboard .dashTimerCard>strong,
+html body .lumenDashboard .dashInlineTimer{color:var(--accent-bright)}
+html body .lumenDashboard .dashCard .dashDigits{color:var(--accent-bright);text-shadow:none}
+html body .lumenDashboard .dashWorkDuration{color:var(--muted)}
+html body .lumenDashboard .dashPlanNav strong{color:var(--text)}
+
+/* ---------- dashboard: rows, progress, small parts ---------- */
+html body .lumenDashboard .dashCard .dashRow,
+html body .lumenDashboard .dashTimelineRow{border-bottom:1px solid var(--border)!important}
+html body .lumenDashboard .dashCard .dashRow:hover{background:var(--accent-soft)}
+html body .lumenDashboard .dashTimelineRow time{color:var(--muted)}
+html body .lumenDashboard .dashTimelineRow .dashTimelineDot{background:var(--accent-bright);box-shadow:0 0 0 3px var(--accent-soft)}
+html body .lumenDashboard .dashCard .dashProgress{background:var(--panel-2)}
+html body .lumenDashboard .dashCard .dashProgress i,
+html body .lumenDashboard .dashProjectRow i{background:var(--accent-bright)}
+html body .lumenDashboard .dashCard .dashPill{background:var(--accent-soft);border-color:transparent;color:var(--accent-bright)}
+html body .lumenDashboard .dashWeekDays>div.selected{background:var(--accent)!important;color:#fff!important;box-shadow:none}
+html body .lumenDashboard .dashWeekDays>div:hover{background:var(--accent-soft);border-color:var(--accent)}
+html body .lumenDashboard .dashDoneRow>span:not(.dashInlineTimer),
+html body .lumenDashboard .dashDoneRow .dashTimelineTitle{text-decoration-color:var(--muted)}
+
+/* ---------- dashboard: form controls ---------- */
+html body .lumenDashboard :is(input,select,textarea){
+  background:var(--panel-2)!important;
+  color:var(--text)!important;
+  border:1px solid var(--border)!important;
+  border-radius:var(--r-sm)!important;
+}
+html body .lumenDashboard :is(input,select,textarea):focus-visible{
+  outline:2px solid var(--accent-bright);
+  outline-offset:1px;
+}
+html body .lumenDashboard :is(input[type="checkbox"],input[type="radio"]){accent-color:var(--accent)}
+
+/* ---------- dashboard: buttons (flat, one accent instead of blue gradients) ---------- */
+html body .lumenDashboard :is(.dashCard,.dashTimerStack,.dashWidgetPicker,.dashWidgetSettingsPanel,.dashPlanNav,.dashNewTimerForm,.dashTimerInlineForm) button:not(.dashDanger):not(.dashResizeHandle),
+html body .lumenDashboard .dashWidgetGear,
+html body .dashWidgetSettingsPanel button:not(.dashDanger){
+  background:var(--panel-2)!important;
+  background-image:none!important;
+  border:1px solid var(--border)!important;
+  color:var(--text)!important;
+  box-shadow:none!important;
+  border-radius:var(--r-sm);
+  transition:background-color .15s,border-color .15s;
+}
+html body .lumenDashboard :is(.dashCard,.dashTimerStack,.dashWidgetPicker,.dashWidgetSettingsPanel,.dashPlanNav,.dashNewTimerForm,.dashTimerInlineForm) button:not(.dashDanger):not(.dashResizeHandle):hover,
+html body .lumenDashboard .dashWidgetGear:hover,
+html body .dashWidgetSettingsPanel button:not(.dashDanger):hover{
+  background:var(--accent-soft)!important;
+  border-color:var(--accent)!important;
+  filter:none;
+}
+html body .lumenDashboard :is(.dashPrimary,.dashTimerStartIcon,.dashLayoutCloseButton,.dashDialogActions .dashPrimary),
+html body .lumenDashboard .dashCard[data-widget="timer"] .dashActions .dashPrimary{
+  background:var(--accent)!important;
+  border-color:var(--accent)!important;
+  color:#fff!important;
+}
+html body .lumenDashboard :is(.dashPrimary,.dashTimerStartIcon,.dashLayoutCloseButton):hover{
+  background:color-mix(in srgb,var(--accent) 86%,#fff 14%)!important;
+}
+html body .lumenDashboard .dashCard .dashDanger,
+html body .lumenDashboard .dashCard[data-widget="timer"] .dashActions .dashDanger{
+  background:transparent!important;
+  background-image:none!important;
+  border:1px solid var(--danger)!important;
+  color:var(--danger)!important;
+  box-shadow:none!important;
+}
+html body .lumenDashboard .dashCard .dashDanger:hover{background:color-mix(in srgb,var(--danger) 14%,transparent)!important}
+html body .lumenDashboard .dashResizeHandle,
+html body .lumenDashboard .dashGridEditing .dashResizeHandle{
+  background:var(--accent)!important;
+  border-color:var(--accent)!important;
+}
+html body .lumenDashboard .dashGridEditing .dashMoveHandle{
+  background:var(--accent-soft);
+  border-color:var(--accent);
+  color:var(--text);
+}
+html body .lumenDashboard .dashCheckButton{background:var(--panel-2)!important;color:var(--muted)!important}
+html body .lumenDashboard .dashCheckButton:hover{background:var(--accent)!important;color:#fff!important}
+
+/* ---------- TODO page: same palette as the rest of the app in dark mode ---------- */
+html body.dark .todoTopbar{background:color-mix(in srgb,var(--bg) 92%,transparent);border-color:var(--border)}
+html body.dark .todoPageWrap{background:var(--bg)}
+html body.dark .todoPage{background:var(--panel);border-color:var(--border);box-shadow:var(--shadow-sm)}
+html body.dark .todoTodayButton{color:var(--text)}
+html body.dark .todoTodayButton:hover{background:var(--accent-soft);color:var(--text)}
+html body.dark .todoDateNav .secondary,
+html body.dark .todoDateNav .input{background:var(--panel-2);border-color:var(--border)}
+html body.dark .todoSection h3{color:var(--accent-bright)}
+html body.dark .todoCard{background:var(--panel-2);border-color:var(--border);box-shadow:none}
+html body.dark .todoCard:hover{border-color:var(--accent);box-shadow:none}
+html body.dark .todoCheck{background:transparent;border-color:var(--accent-bright);color:var(--accent-bright)}
+html body.dark .todoCard.done{background:var(--panel)}
+
+/* ---------- shared radius scale for common controls ---------- */
+.card,.settingsCard,.modalCard,.todoPage{border-radius:var(--r-lg)}
+.todoCard,.listItem,.segmentTodoButton{border-radius:var(--r-md)}
+.secondary,.input,.primary,.settingButton{border-radius:var(--r-sm)}
+
+/* ---------- keyboard focus ---------- */
+.navButton:focus-visible,
+.sidebarCollapseButton:focus-visible,
+.sidebarReopen:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible{
+  outline:2px solid var(--accent-bright);
+  outline-offset:2px;
+}
