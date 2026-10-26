@@ -12,8 +12,5 @@ dist/
 .idea/
 .vscode/
 npm-debug.log*
-android/app/build/
-android/.gradle/
-android/build/
-android/local.properties
-android/app/src/main/assets/public/
+# android/ her derlemede CI tarafından üretilir (android-overlay/ ve scripts/patch-android.py ile yamalanır)
+android/

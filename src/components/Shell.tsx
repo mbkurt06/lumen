@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { App as CapApp } from "@capacitor/app";
 import { Drawer } from "./Drawer";
 import { Icon } from "./Icon";
 import { UpdateBanner } from "./UpdateBanner";
+import { isNative } from "../lib/update";
 
 const ShellContext = createContext<{ openMenu: () => void }>({ openMenu: () => {} });
 export const useShell = () => useContext(ShellContext);
@@ -18,7 +20,21 @@ export const TABS = [
 export function Shell() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   useEffect(() => setOpen(false), [pathname]);
+
+  // Android geri tuşu: menü açıksa kapat, alt sayfadaysa geri git, ana sayfadaysa uygulamadan çık.
+  useEffect(() => {
+    if (!isNative()) return;
+    const sub = CapApp.addListener("backButton", () => {
+      if (open) setOpen(false);
+      else if (pathname !== "/") navigate(-1);
+      else CapApp.exitApp();
+    });
+    return () => {
+      sub.then((h) => h.remove());
+    };
+  }, [open, pathname, navigate]);
   return (
     <ShellContext.Provider value={{ openMenu: () => setOpen(true) }}>
       <div className="shell">
