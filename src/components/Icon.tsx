@@ -70,6 +70,25 @@ const P: Record<string, ReactNode> = {
   ),
   menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
+  back: <path d="m15 6-6 6 6 6" />,
+  dots: (
+    <>
+      <circle cx="12" cy="5.5" r="1.2" />
+      <circle cx="12" cy="12" r="1.2" />
+      <circle cx="12" cy="18.5" r="1.2" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  chevdown: <path d="m6 9 6 6 6-6" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" />
+    </>
+  ),
+  lines: <path d="M4 7h16M4 12h10M4 17h6" />,
+  folder: <path d="M3.5 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
 };
 
 export function Icon({ name, size = 22 }: { name: keyof typeof P | string; size?: number }) {

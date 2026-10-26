@@ -2,10 +2,11 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
-import { Library } from "./pages/Library";
+import { Collection, LibraryHome, LibraryItem } from "./pages/Library";
 import { Namaz } from "./pages/Namaz";
 import { Placeholder } from "./pages/Placeholder";
 import { Todo } from "./pages/Todo";
+import { TodoDetail } from "./pages/TodoDetail";
 import { Settings } from "./pages/Settings";
 import { Update } from "./pages/Update";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -21,8 +22,11 @@ function Gate() {
         <Route element={<Shell />}>
           <Route index element={<Dashboard />} />
           <Route path="yapilacaklar" element={<Todo />} />
-          <Route path="kutuphane" element={<Library />} />
-          <Route path="kutuphane/:id" element={<Library />} />
+          <Route path="yapilacaklar/l/:listId" element={<Todo />} />
+          <Route path="yapilacaklar/g/:id" element={<TodoDetail />} />
+          <Route path="kutuphane" element={<LibraryHome />} />
+          <Route path="kutuphane/c/:col" element={<Collection />} />
+          <Route path="kutuphane/:id" element={<LibraryItem />} />
           <Route path="namaz" element={<Namaz />} />
           <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
           <Route path="takvim" element={<Placeholder title="Takvim" />} />

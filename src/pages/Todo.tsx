@@ -1,104 +1,165 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
+import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
+import { AskDialog } from "../components/Dialog";
+import { TodoSheet } from "./TodoSheet";
+import { TodoMenu } from "./TodoMenu";
+import { bumpCount, inToday, isDoneToday, isOverdue, planDayIndex, todayCount, useTodos, type TList, type Todo as T } from "../lib/todo";
 
-type Todo = {
-  id: string;
-  title: string;
-  is_completed: boolean;
-  due_at: string | null;
-  list_id: string | null;
-  priority: number;
-  created_at: string;
-};
-type List = { id: string; title: string };
-type View = "gunum" | "hepsi" | "bitti";
-
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
 export function Todo() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [lists, setLists] = useState<List[]>([]);
-  const [view, setView] = useState<View>("gunum");
-  const [listId, setListId] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [err, setErr] = useState("");
+  const { listId } = useParams();
+  const nav = useNavigate();
+  const { todos, lists, groups, err, reload, setTodos } = useTodos();
+  const [menu, setMenu] = useState(false);
+  const [sp] = useSearchParams();
+  const [sheet, setSheet] = useState(sp.get("ekle") === "tekrar");
+  const [ask, setAsk] = useState<null | "list" | "group">(null);
+  const [fold, setFold] = useState<Record<string, boolean>>({});
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const [doneOpen, setDoneOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    const [t, l] = await Promise.all([
-      supabase.from("todos").select("id,title,is_completed,due_at,list_id,priority,created_at").order("created_at", { ascending: false }).limit(500),
-      supabase.from("todo_lists").select("id,title").order("sort_order").order("created_at"),
-    ]);
-    if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as Todo[]);
-    if (!l.error) setLists((l.data ?? []) as List[]);
-  }, []);
-  useEffect(() => { void load(); }, [load]);
+  const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
+  const kids = useMemo(() => {
+    const m = new Map<string, T[]>();
+    for (const t of todos) if (t.parent_todo_id) m.set(t.parent_todo_id, [...(m.get(t.parent_todo_id) ?? []), t]);
+    return m;
+  }, [todos]);
 
-  const add = async () => {
-    const title = text.trim();
-    if (!title) return;
-    setText("");
-    const due = view === "gunum" ? new Date().toISOString() : null;
-    const { error } = await supabase.from("todos").insert({ title, due_at: due, list_id: listId });
-    if (error) setErr(error.message);
-    void load();
-  };
-  const toggle = async (t: Todo) => {
-    setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, is_completed: !x.is_completed } : x)));
-    await supabase.from("todos").update({ is_completed: !t.is_completed, completed_at: t.is_completed ? null : new Date().toISOString() }).eq("id", t.id);
-  };
-  const remove = async (t: Todo) => {
-    setTodos((s) => s.filter((x) => x.id !== t.id));
-    await supabase.from("todos").delete().eq("id", t.id);
-  };
-  const addList = async () => {
-    const name = window.prompt("Liste adı");
-    if (!name?.trim()) return;
-    await supabase.from("todo_lists").insert({ title: name.trim() });
-    void load();
+  const current: TList | undefined = listId ? listOf.get(listId) : undefined;
+  const today = todos.filter(inToday);
+  const overdue = today.filter(isOverdue);
+  const normalToday = today.filter((t) => !isOverdue(t));
+  const doneCount = today.filter(isDoneToday).length;
+
+  const listTodos = listId ? todos.filter((t) => t.list_id === listId && !t.parent_todo_id) : [];
+  const listActive = listTodos.filter((t) => !t.is_completed);
+  const listDone = listTodos.filter((t) => t.is_completed);
+
+  const circle = async (t: T) => {
+    if (t.kind === "tekrar" && t.plan) {
+      const plan = await bumpCount(t, isDoneToday(t) ? -t.plan.daily : 1);
+      if (plan) setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, plan } : x)));
+      return;
+    }
+    const done = !t.is_completed;
+    setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, is_completed: done, completed_at: done ? new Date().toISOString() : null } : x)));
+    await supabase.from("todos").update({ is_completed: done, completed_at: done ? new Date().toISOString() : null }).eq("id", t.id);
   };
 
-  const eod = new Date(startOfDay(new Date()).getTime() + 86400000);
-  let shown = todos.filter((t) => (listId ? t.list_id === listId : true));
-  if (view === "gunum") shown = shown.filter((t) => !t.is_completed && t.due_at && new Date(t.due_at) < eod);
-  else if (view === "hepsi") shown = shown.filter((t) => !t.is_completed);
-  else shown = shown.filter((t) => t.is_completed);
-
-  const overdue = (t: Todo) => !t.is_completed && t.due_at && new Date(t.due_at) < startOfDay(new Date());
-
-  return (
-    <>
-      <PageHeader title="Yapılacaklar" subtitle={new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })} />
-      <div className="tabs2">
-        <button className={"chip" + (view === "gunum" ? " on" : "")} onClick={() => setView("gunum")}>Günüm</button>
-        <button className={"chip" + (view === "hepsi" ? " on" : "")} onClick={() => setView("hepsi")}>Tümü</button>
-        <button className={"chip" + (view === "bitti" ? " on" : "")} onClick={() => setView("bitti")}>Biten</button>
-      </div>
-      <div className="tabs2">
-        <button className={"chip" + (listId === null ? " on" : "")} onClick={() => setListId(null)}>Tüm listeler</button>
-        {lists.map((l) => (
-          <button key={l.id} className={"chip" + (listId === l.id ? " on" : "")} onClick={() => setListId(l.id)}>{l.title}</button>
-        ))}
-        <button className="chip" onClick={addList}>＋ Liste</button>
-      </div>
-      <div className="addbar">
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void add()} placeholder={view === "gunum" ? "Bugüne görev ekle…" : "Görev ekle…"} />
-        <button onClick={() => void add()}>Ekle</button>
-      </div>
-      {err && <p className="error" style={{ padding: "0 16px" }}>{err}</p>}
-      <div className="card" style={{ margin: "10px 16px", padding: 0 }}>
-        {shown.length === 0 && <p className="muted" style={{ padding: "14px 16px", margin: 0 }}>{view === "gunum" ? "Bugün için görev yok." : "Görev yok."}</p>}
-        {shown.map((t) => (
-          <div key={t.id} className="trow">
-            <button className={"tcheck" + (t.is_completed ? " on" : "")} onClick={() => void toggle(t)} aria-label="Tamamla">{t.is_completed ? "✓" : ""}</button>
-            <div className={"ttitle" + (t.is_completed ? " done" : "")}>
-              {t.title}
-              {overdue(t) && <div className="small late">Gecikmiş · {new Date(t.due_at!).toLocaleDateString("tr-TR")}</div>}
-            </div>
-            <button className="tdel" onClick={() => void remove(t)} aria-label="Sil">×</button>
+  const Row = ({ t }: { t: T }) => {
+    const l = t.list_id ? listOf.get(t.list_id) : undefined;
+    const sub =
+      t.kind === "tekrar" && t.plan ? `${l?.title ?? "Tekrar"} · Gün ${Math.max(1, planDayIndex(t.plan))} / ${t.plan.days}`
+      : t.kind === "okuma" ? `${l?.title ?? "Okuma"}${t.notes ? " · " + t.notes : ""}`
+      : t.due_at ? `${trDate(t.due_at)}${l ? " · " + l.title : ""}` : (l?.title ?? "");
+    const done = isDoneToday(t);
+    const cnt = t.plan ? todayCount(t) : 0;
+    const sub2 = kids.get(t.id) ?? [];
+    return (
+      <div className="tcard">
+        <div className="trow2">
+          <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
+          <div className="tmain" onClick={() => nav(`/yapilacaklar/g/${t.id}`)}>
+            <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
+            {sub && <div className="tsub">{sub}</div>}
+          </div>
+          {t.kind === "tekrar" && t.plan && <div className="tcount">{cnt} / {t.plan.daily}</div>}
+          {t.kind === "okuma" && t.related_library_item_id && <button className="devam" onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Devam et</button>}
+        </div>
+        {t.kind === "tekrar" && t.plan && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / t.plan.daily) * 100)}%` }} /></div>}
+        {sub2.map((c) => (
+          <div key={c.id} className="trow2 subrow">
+            <button className={"tcircle small" + (c.is_completed ? " on" : "")} onClick={() => void circle(c)}>{c.is_completed ? <Icon name="check" size={12} /> : null}</button>
+            <div className={"tmain" + (c.is_completed ? " done" : "")}>{c.title}</div>
           </div>
         ))}
       </div>
+    );
+  };
+
+  const Section = ({ id, title, items }: { id: string; title: string; items: T[] }) => {
+    if (!items.length) return null;
+    const closed = fold[id];
+    return (
+      <>
+        <button className="sec" onClick={() => setFold({ ...fold, [id]: !closed })}>
+          <span>{title}</span>
+          <Icon name={closed ? "chevron" : "chevdown"} size={18} />
+        </button>
+        {!closed && items.map((t) => <Row key={t.id} t={t} />)}
+      </>
+    );
+  };
+
+  const title = current ? current.title : "Günüm";
+  const groupTitle = current?.group_id ? groups.find((g) => g.id === current.group_id)?.title : undefined;
+  const subtitle = current
+    ? `${groupTitle ?? "Liste"} · ${listActive.length} görev`
+    : `${new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" })} · ${doneCount} / ${today.length} tamamlandı`;
+
+  const addList = async (name: string) => { await supabase.from("todo_lists").insert({ title: name }); void reload(); };
+  const addGroup = async (name: string) => { await supabase.from("todo_groups").insert({ title: name }); void reload(); };
+
+  return (
+    <>
+      <PageHeader
+        title={title}
+        subtitle={subtitle}
+        right={<button className="iconbtn" onClick={() => setMenu(true)} aria-label="Liste menüsü"><Icon name="dots" size={26} /></button>}
+      />
+      {!current && <div className="gbar"><i style={{ width: `${today.length ? (doneCount / today.length) * 100 : 0}%` }} /></div>}
+      {err && <p className="error" style={{ padding: "0 16px" }}>{err}</p>}
+
+      {!current ? (
+        <>
+          {overdue.length > 0 && (
+            <>
+              <button className="sec late" onClick={() => setOverdueOpen(!overdueOpen)}>
+                <span>TARİHİ GEÇENLER · {overdue.length}</span>
+                <Icon name={overdueOpen ? "chevdown" : "chevron"} size={18} />
+              </button>
+              {overdueOpen && overdue.map((t) => <Row key={t.id} t={t} />)}
+            </>
+          )}
+          <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => t.kind === "tekrar" || t.kind === "okuma")} />
+          <Section id="nova" title="NOVA" items={normalToday.filter((t) => t.kind === "nova")} />
+          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !["tekrar", "okuma", "nova"].includes(t.kind))} />
+          {today.length === 0 && <p className="muted" style={{ padding: "24px 20px", textAlign: "center" }}>Bugün için görev yok. Sağ alttaki + ile ekleyebilirsin.</p>}
+        </>
+      ) : (
+        <>
+          {listActive.map((t) => <Row key={t.id} t={t} />)}
+          {listActive.length === 0 && <p className="muted" style={{ padding: "24px 20px", textAlign: "center" }}>Bu listede görev yok.</p>}
+          {listDone.length > 0 && (
+            <>
+              <button className="sec" onClick={() => setDoneOpen(!doneOpen)}>
+                <span>Tamamlananlar · {listDone.length}</span>
+                <Icon name={doneOpen ? "chevdown" : "chevron"} size={18} />
+              </button>
+              {doneOpen && listDone.map((t) => <Row key={t.id} t={t} />)}
+            </>
+          )}
+        </>
+      )}
+      <div style={{ height: 110 }} />
+      <button className="fab" onClick={() => setSheet(true)} aria-label="Görev ekle"><Icon name="plus" size={30} /></button>
+
+      <TodoMenu
+        open={menu}
+        onClose={() => setMenu(false)}
+        todos={todos}
+        lists={lists}
+        groups={groups}
+        activeListId={listId}
+        onNewList={() => { setMenu(false); setAsk("list"); }}
+        onNewGroup={() => { setMenu(false); setAsk("group"); }}
+      />
+      {sheet && <TodoSheet initialTab={sp.get("ekle") === "tekrar" ? "tekrar" : "normal"} lists={lists} groups={groups} defaultListId={listId ?? null} onClose={() => setSheet(false)} onSaved={() => { setSheet(false); void reload(); }} />}
+      {ask && <AskDialog title={ask === "list" ? "Yeni liste" : "Yeni grup"} placeholder="Ad" onClose={() => setAsk(null)} onSubmit={(v) => void (ask === "list" ? addList(v) : addGroup(v))} />}
     </>
   );
 }
