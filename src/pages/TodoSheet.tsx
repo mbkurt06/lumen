@@ -3,16 +3,16 @@ import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { ymd, type TGroup, type TList } from "../lib/todo";
 
-type Tab = "tekrar" | "okuma" | "normal";
+export type Tab = "tekrar" | "okuma" | "normal";
 type Lib = { id: string; title: string };
 
 // "Görev ekle" alt sayfası (tasarım: Ekle / Normal): Tekrar · Okuma · Normal.
-export function TodoSheet({ initialTab = "normal", lists, groups, defaultListId, onClose, onSaved }: {
-  initialTab?: Tab; lists: TList[]; groups: TGroup[]; defaultListId: string | null; onClose: () => void; onSaved: () => void;
+export function TodoSheet({ initialTab = "normal", prefill, lists, groups, defaultListId, onClose, onSaved }: {
+  initialTab?: Tab; prefill?: { lib: Lib; notes?: string }; lists: TList[]; groups: TGroup[]; defaultListId: string | null; onClose: () => void; onSaved: () => void;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [title, setTitle] = useState("");
-  const [lib, setLib] = useState<Lib | null>(null);
+  const [lib, setLib] = useState<Lib | null>(prefill?.lib ?? null);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Lib[]>([]);
   const [daily, setDaily] = useState(1);
@@ -57,6 +57,7 @@ export function TodoSheet({ initialTab = "normal", lists, groups, defaultListId,
       kind: tab,
       list_id: lid,
       related_library_item_id: lib?.id ?? null,
+      notes: prefill?.notes || null,
       due_at: tab !== "tekrar" && due ? new Date(due + "T12:00:00").toISOString() : null,
       plan: tab === "tekrar" ? { daily, days, start: ymd(), done: {} } : null,
     };

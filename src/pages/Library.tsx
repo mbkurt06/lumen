@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { ITEM_COLS, useResume, useRoots, type Item } from "../lib/library";
 import { Reader } from "./Reader";
+import { Tesbihlar } from "./Tesbih";
 import { ymd } from "../lib/todo";
 
 /* ── ortak parçalar ── */
@@ -86,6 +87,7 @@ export function Collection() {
     case "kuran": return <Kuran />;
     case "dualar": return <Dualar />;
     case "diger": return <Diger />;
+    case "tesbihat": return <Tesbihlar />;
     default: return <PageHeader back title="Bulunamadı" />;
   }
 }
@@ -133,7 +135,7 @@ function Ibadet() {
     <>
       <PageHeader back title="İbadet" subtitle="Kütüphane" />
       <div className="clist" style={{ marginTop: 8 }}>
-        <CRow icon to={r("Tesbihat")} title="Tesbihatlar" sub="Sabah, öğle, ikindi, akşam, yatsı" />
+        <CRow icon to="/kutuphane/c/tesbihat" title="Tesbihatlar" sub="Sabah, öğle, ikindi, akşam, yatsı" />
         <CRow icon to="/kutuphane/c/dualar" title="Dualar" sub="Namaz, sofra, ezan" />
         <CRow icon to={r("Sûreler")} title="Namaz Sureleri" sub="Fâtiha, Fîl'den Nâs'a" />
         <CRow icon to={r("İslam İlmihali")} title="İlmihal" sub="Konu başlıkları" />

@@ -3,6 +3,7 @@ import { Shell } from "./components/Shell";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
 import { Collection, LibraryHome, LibraryItem } from "./pages/Library";
+import { TesbihCounter } from "./pages/Tesbih";
 import { Namaz } from "./pages/Namaz";
 import { Placeholder } from "./pages/Placeholder";
 import { Todo } from "./pages/Todo";
@@ -26,6 +27,7 @@ function Gate() {
           <Route path="yapilacaklar/g/:id" element={<TodoDetail />} />
           <Route path="kutuphane" element={<LibraryHome />} />
           <Route path="kutuphane/c/:col" element={<Collection />} />
+          <Route path="kutuphane/tesbih/:id" element={<TesbihCounter />} />
           <Route path="kutuphane/:id" element={<LibraryItem />} />
           <Route path="namaz" element={<Namaz />} />
           <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
