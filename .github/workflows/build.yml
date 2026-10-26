@@ -2,15 +2,12 @@ name: Build check
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

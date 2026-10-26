@@ -1,0 +1,11 @@
+{
+  "framework": "vite",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/((?!version\\.json|assets/|icon\\.svg).*)", "destination": "/index.html" }],
+  "headers": [
+    { "source": "/version.json", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
+    { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+  ]
+}
