@@ -1,29 +1,17 @@
 import { NavLink } from "react-router-dom";
 import { Icon } from "./Icon";
 import { useAuth } from "../lib/auth";
-import { supabase } from "../lib/supabase";
-import { CURRENT } from "../lib/update";
 
 type Item = { to: string; label: string; icon: string; sub?: string; end?: boolean; chevron?: boolean; meta?: string };
 
 const PAGES: Item[] = [
   { to: "/", label: "Dashboard", icon: "home", end: true },
-  { to: "/yapilacaklar", label: "Yapılacaklar", icon: "todo", chevron: true },
-  { to: "/kutuphane", label: "Kütüphane", icon: "library", chevron: true },
+  { to: "/yapilacaklar", label: "Yapılacaklar", icon: "todo" },
+  { to: "/kutuphane", label: "Kütüphane", icon: "library" },
   { to: "/namaz", label: "Namaz", icon: "moon" },
+  { to: "/nova", label: "Nova", icon: "sparkle" },
   { to: "/takvim", label: "Takvim", icon: "calendar" },
-];
-const SHORTCUTS: Item[] = [
-  { to: "/ara", label: "Ara", icon: "search" },
-  { to: "/notlar", label: "Notlarım", icon: "pencil" },
-  { to: "/yer-isaretleri", label: "Yer işaretlerim", icon: "bookmark" },
-  { to: "/kelime-defteri", label: "Kelime defterim", icon: "bookopen" },
-];
-const SETTINGS: Item[] = [
-  { to: "/ayarlar", label: "Ayarlar", icon: "sliders", sub: "Genel · Bildirimler · Namaz · Okuma · Google" },
-  { to: "/cihazlar", label: "Cihazlarım", icon: "phone" },
-  { to: "/esitleme", label: "Eşitleme ve yedek", icon: "sync" },
-  { to: "/guncelleme", label: "Güncelleme · Hakkında", icon: "download", meta: "v" + CURRENT.version },
+  { to: "/ayarlar", label: "Ayarlar", icon: "sliders" },
 ];
 
 function Row({ it }: { it: Item }) {
@@ -61,27 +49,10 @@ export function Drawer({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
         </div>
         <div className="dscroll">
-          <div className="dsection">SAYFALAR</div>
           {PAGES.map((i) => (
             <Row key={i.to} it={i} />
           ))}
-          <div className="dsection">KISAYOLLAR</div>
-          {SHORTCUTS.map((i) => (
-            <Row key={i.to} it={i} />
-          ))}
-          <div className="dsep" />
-          {SETTINGS.map((i) => (
-            <Row key={i.to} it={i} />
-          ))}
         </div>
-        <button className="drow logout" onClick={() => supabase.auth.signOut()}>
-          <span className="dicon">
-            <Icon name="logout" />
-          </span>
-          <span className="dtext">
-            <span className="dlabel">Çıkış yap</span>
-          </span>
-        </button>
       </aside>
     </>
   );

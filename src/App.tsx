@@ -20,6 +20,7 @@ function Gate() {
           <Route path="yapilacaklar" element={<Placeholder title="Yapılacaklar" />} />
           <Route path="kutuphane" element={<Placeholder title="Kütüphane" note="Veritabanında Kur'an-ı Kerim, Risale-i Nur, HE Eserleri ve ibadet içerikleri hazır; ekranlar sıradaki adımlarda." />} />
           <Route path="namaz" element={<Placeholder title="Namaz" />} />
+          <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
           <Route path="takvim" element={<Placeholder title="Takvim" />} />
           <Route path="ara" element={<Placeholder title="Ara" />} />
           <Route path="notlar" element={<Placeholder title="Notlarım" />} />

@@ -62,6 +62,12 @@ const P: Record<string, ReactNode> = {
   download: <path d="M12 3.5v11M7 10l5 5 5-5M4.5 20.5h15" />,
   logout: <path d="M9 21H5.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2H9M15.5 17l5-5-5-5M20.5 12H9" />,
   chevron: <path d="m9 6 6 6-6 6" />,
+  sparkle: (
+    <>
+      <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z" />
+      <path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
+    </>
+  ),
   menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
 };
