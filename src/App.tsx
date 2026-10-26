@@ -2,7 +2,10 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { Library } from "./pages/Library";
+import { Namaz } from "./pages/Namaz";
 import { Placeholder } from "./pages/Placeholder";
+import { Todo } from "./pages/Todo";
 import { Settings } from "./pages/Settings";
 import { Update } from "./pages/Update";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -17,9 +20,10 @@ function Gate() {
       <Routes>
         <Route element={<Shell />}>
           <Route index element={<Dashboard />} />
-          <Route path="yapilacaklar" element={<Placeholder title="Yapılacaklar" />} />
-          <Route path="kutuphane" element={<Placeholder title="Kütüphane" note="Veritabanında Kur'an-ı Kerim, Risale-i Nur, HE Eserleri ve ibadet içerikleri hazır; ekranlar sıradaki adımlarda." />} />
-          <Route path="namaz" element={<Placeholder title="Namaz" />} />
+          <Route path="yapilacaklar" element={<Todo />} />
+          <Route path="kutuphane" element={<Library />} />
+          <Route path="kutuphane/:id" element={<Library />} />
+          <Route path="namaz" element={<Namaz />} />
           <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
           <Route path="takvim" element={<Placeholder title="Takvim" />} />
           <Route path="ara" element={<Placeholder title="Ara" />} />

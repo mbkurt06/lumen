@@ -105,3 +105,46 @@ h1 { margin: 0; }
 .banner button { background: var(--accent); color: #0f1115; border: 0; border-radius: 10px; padding: 6px 14px; font-weight: 700; cursor: pointer; }
 
 .secondary { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: none; color: var(--text); font-weight: 600; cursor: pointer; }
+
+/* Namaz */
+.nrow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.nname { flex: 1; font-weight: 600; font-size: 17px; }
+.ntime { font-variant-numeric: tabular-nums; font-size: 18px; }
+.ncheck { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background: none; color: #0f1115; font-weight: 700; cursor: pointer; padding: 0; }
+.ncheck.on { background: var(--accent); border-color: var(--accent); }
+
+/* Yapılacaklar */
+.tabs2 { display: flex; gap: 8px; padding: 6px 16px; overflow-x: auto; }
+.chip { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border); background: none; white-space: nowrap; cursor: pointer; }
+.chip.on { background: var(--highlight); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.addbar { display: flex; gap: 8px; padding: 6px 16px; }
+.addbar input, .field { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; min-width: 0; }
+.addbar button { padding: 0 16px; border-radius: 12px; border: 0; background: var(--accent); color: #0f1115; font-weight: 700; cursor: pointer; }
+.trow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.trow:last-child { border-bottom: 0; }
+.tcheck { flex: none; width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--muted); background: none; color: #0f1115; font-weight: 700; cursor: pointer; padding: 0; }
+.tcheck.on { background: var(--accent); border-color: var(--accent); }
+.ttitle { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ttitle.done { text-decoration: line-through; color: var(--muted); }
+.tdel { background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.late { color: var(--danger); }
+
+/* Kütüphane */
+.lgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 16px; }
+.lcard { display: block; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; min-height: 84px; }
+.lcard b { display: block; font-size: 16px; }
+.lrow { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--text); }
+.lrow .pct { margin-left: auto; color: var(--accent); font-size: 13px; }
+.crumbs { padding: 0 16px; font-size: 13px; color: var(--muted); }
+.crumbs a { color: var(--accent); text-decoration: none; }
+.reader { padding: 8px 20px 80px; line-height: 1.7; }
+.reader .ar { direction: rtl; text-align: right; font-size: 1.5em; line-height: 2.1; font-family: "Amiri", "Noto Naskh Arabic", "Traditional Arabic", serif; margin: 10px 0 4px; }
+.reader h2 { font-size: 1.25em; margin: 1.4em 0 .4em; }
+.reader h3 { font-size: 1.1em; margin: 1.2em 0 .3em; color: var(--gold); }
+.reader p { margin: .6em 0; }
+.reader .note { font-size: .85em; color: var(--muted); border-left: 3px solid var(--border); padding-left: 10px; }
+.reader .vno { color: var(--gold); font-size: .8em; margin-right: 6px; }
+.reader .tr { color: var(--muted); }
+.rbar { display: flex; gap: 8px; padding: 6px 16px; }
+.rbar button { padding: 6px 14px; border-radius: 10px; border: 1px solid var(--border); background: none; cursor: pointer; }
+.morebtn { margin: 16px; width: calc(100% - 32px); }
