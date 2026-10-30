@@ -532,6 +532,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 }
 
 /* Sayfa ayarları (tasarım: Sayac) — yalnız bu sayfa için geçerli */
+/* Yazı boyutu kademeleri: %80 → %720 (eski en büyük %180'in 4 katı) */
+export const SIZES = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.65, 1.8, 2, 2.25, 2.5, 2.75, 3, 3.4, 3.8, 4.2, 4.7, 5.2, 5.8, 6.5, 7.2];
+const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(SIZES[best] - v) ? i : best), 0);
+
 export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
 }) {
@@ -562,7 +566,12 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />
         <div className="srow col"><span>Yazı boyutu</span>
-          <div className="sl"><small>A</small><input type="range" min={0.8} max={1.8} step={0.05} value={rs.size} onChange={(e) => onChange({ ...rs, size: Number(e.target.value) })} /><b>A</b></div>
+          <div className="sl">
+            <button className="szb" onClick={() => onChange({ ...rs, size: SIZES[Math.max(0, sizeIdx(rs.size) - 1)] })} aria-label="Küçült">A−</button>
+            <input type="range" min={0} max={SIZES.length - 1} step={1} value={sizeIdx(rs.size)} onChange={(e) => onChange({ ...rs, size: SIZES[Number(e.target.value)] })} />
+            <button className="szb" onClick={() => onChange({ ...rs, size: SIZES[Math.min(SIZES.length - 1, sizeIdx(rs.size) + 1)] })} aria-label="Büyüt">A+</button>
+          </div>
+          <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round(rs.size * 100)}</div>
         </div>
         <div className="srow col"><span>Aydınlatma</span>
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>

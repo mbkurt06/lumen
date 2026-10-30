@@ -409,3 +409,6 @@ body.focus .bookpage { width: 100%; max-width: none; }
 .toc a { display: flex; align-items: baseline; gap: 10px; padding: .55em 0; color: var(--pg-fg); text-decoration: none; font-family: Georgia, "Times New Roman", serif; font-size: 1em; line-height: 1.35; }
 .toc a::before { content: counter(t) "."; min-width: 1.8em; color: color-mix(in srgb, var(--pg-fg) 55%, transparent); }
 .toc .tt { flex: 1; }
+.szb { flex: none; min-width: 44px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-weight: 700; cursor: pointer; }
+/* çok büyük yazıda uzun Arapça kelimeler sayfadan taşmasın */
+.bpbody { overflow-wrap: anywhere; }
