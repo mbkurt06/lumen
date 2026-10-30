@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
@@ -77,6 +77,39 @@ function paginate(blocks: Block[], budget: number): Block[][] {
   return pages.length ? pages : [[]];
 }
 
+/* Eski Lumen'deki kitap sayfası bölmesiyle aynı: her sayfa sabit bir metin yükü taşır. */
+function nodeWeight(n: Node) {
+  const title = (n.title || "").length, text = (n.text_content || "").length;
+  const arabic = (n.secondary_text || "").length, tr = (n.translation || "").length;
+  return text + tr + Math.round(arabic * 1.25) + title * 2.2 + (n.title ? 180 : 40);
+}
+function fixedPages(nodes: Node[], target = 2250): Node[][] {
+  const pages: Node[][] = [];
+  let cur: Node[] = [];
+  let w = 0;
+  for (const n of nodes) {
+    const nw = nodeWeight(n);
+    const heading = !!n.title && !n.text_content && !n.secondary_text;
+    if (cur.length && (w + nw > target || (heading && w > target * 0.78))) { pages.push(cur); cur = []; w = 0; }
+    cur.push(n);
+    w += nw;
+    if (heading && w > target * 0.9) { pages.push(cur); cur = []; w = 0; }
+  }
+  if (cur.length) pages.push(cur);
+  return pages.length ? pages : [[]];
+}
+/* Kur'an: mushaf sayfası (604 sayfalık İstanbul dizgisi) birebir bir ekran sayfası. */
+function quranPages(nodes: Node[]): Node[][] {
+  const pages: Node[][] = [];
+  let last: unknown = undefined;
+  for (const n of nodes) {
+    const pg = md(n).page;
+    if (!pages.length || pg !== last) { pages.push([]); last = pg; }
+    pages[pages.length - 1].push(n);
+  }
+  return pages.length ? pages : [[]];
+}
+
 const nidsOf = (b: Block) => (b.t === "quote" ? b.ns.map((n) => n.id) : [b.n.id]);
 
 export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }) {
@@ -134,17 +167,21 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   const isDua = useMemo(() => nodes.some((n) => n.kind === "phrase"), [nodes]);
   const pages = useMemo(() => paginate(toBlocks(nodes), isDua ? 650 : 2200), [nodes, isDua]);
 
-  /* ── Sabit sayfa (kitap) düzeni: Risale, HE, diğer düz metinler ── */
+  /* ── Sabit kitap sayfası: Kur'an (mushaf sayfası), Risale, HE, diğer kitaplar ──
+     Sayfa sınırları içerikten bir kez hesaplanır; yazı boyutu, ekran ya da cihaz değişse de
+     aynı sayfada aynı metin kalır. Sayfa sığmazsa aşağı kayar, metin sonraki sayfaya taşmaz. */
   const paged = !loading && !isDua && nodes.length > 0;
   const loc = useLocation();
-  const vpRef = useRef<HTMLDivElement>(null);
-  const flowRef = useRef<HTMLDivElement>(null);
-  const [geo, setGeo] = useState({ w: 0, h: 0 });
   const [pp, setPp] = useState(0);
-  const [pc, setPc] = useState(1);
   const [siblings, setSiblings] = useState<string[]>([]);
-  const GAP = 48;
-  const allBlocks = useMemo(() => toBlocks(nodes), [nodes]);
+  const isQuran = useMemo(() => nodes.some((n) => n.kind === "verse" && md(n).page != null), [nodes]);
+  const bookPages = useMemo(() => (isQuran ? quranPages(nodes) : fixedPages(nodes)), [nodes, isQuran]);
+  const pc = bookPages.length;
+  const pageLabel = (i: number) => {
+    if (!isQuran) return String(i + 1);
+    const pg = Number(md(bookPages[i]?.[0] ?? ({} as Node)).page ?? 0);
+    return String(Math.max(0, pg - 1)); // Fâtiha 0. sayfa
+  };
 
   useEffect(() => {
     if (!doc.parent_id) return;
@@ -152,42 +189,17 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
       .then(({ data }) => setSiblings(((data ?? []) as { id: string }[]).map((r) => r.id)));
   }, [doc.parent_id]);
 
-  useLayoutEffect(() => {
-    if (!paged) return;
-    // Sayfa alanı esnek düzenle (flex) ekrana yerleşir; burada yalnız ölçülür.
-    const measure = () => {
-      const vp = vpRef.current;
-      if (!vp) return;
-      const w = vp.clientWidth, h = vp.clientHeight;
-      if (w > 0 && h > 0) setGeo((g) => (g.w === w && g.h === h ? g : { w, h }));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (vpRef.current) ro.observe(vpRef.current);
-    return () => ro.disconnect();
-  }, [paged, focus]);
-
   const startedAt = useRef(false);
-  useLayoutEffect(() => {
-    if (!paged || !geo.w) return;
-    const calc = () => {
-      const f = flowRef.current;
-      if (!f) return;
-      const n = Math.max(1, Math.round((f.scrollWidth + GAP) / (geo.w + GAP)));
-      setPc(n);
-      if (!startedAt.current) {
-        startedAt.current = true;
-        const st = loc.state as { atEnd?: boolean } | null;
-        if (st?.atEnd) setPp(n - 1);
-        else if (mark) {
-          const el = document.getElementById("n" + mark);
-          if (el) setPp(Math.min(n - 1, Math.max(0, Math.floor(el.offsetLeft / (geo.w + GAP)))));
-        }
-      } else setPp((x) => Math.min(x, n - 1));
-    };
-    calc();
-    void document.fonts?.ready.then(calc);
-  }, [paged, geo, rs.size, rs.ar, rs.latin, rs.tr, notes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!paged || startedAt.current) return;
+    startedAt.current = true;
+    const st = loc.state as { atEnd?: boolean } | null;
+    if (st?.atEnd) { setPp(pc - 1); return; }
+    if (mark) {
+      const i = bookPages.findIndex((pg) => pg.some((n) => n.id === mark));
+      if (i >= 0) { setPp(i); setTimeout(() => document.getElementById("n" + mark)?.scrollIntoView({ block: "center" }), 80); }
+    }
+  }, [paged]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sIdx = siblings.indexOf(doc.id);
   const prevDoc = sIdx > 0 ? siblings[sIdx - 1] : null;
@@ -199,6 +211,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: { atEnd: true } }); return; }
     if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true }); return; }
     setPp(t);
+    document.querySelector(".content")?.scrollTo(0, 0);
   };
   const touchX = useRef<number | null>(null);
   useEffect(() => {
@@ -290,8 +303,8 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 
   const setR = (s: RSettings) => { setRs(s); saveRS(doc.id, s); };
   const sysDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  const defTheme = isDua ? "dark" : "paper";
-  const th = rs.theme === "default" ? defTheme : rs.theme;
+  const defTheme = "dark";
+  const th = rs.theme === "default" || rs.theme === "paper" ? defTheme : rs.theme;
   const rt = th === "auto" ? (sysDark ? "dark" : "light") : th;
 
   useEffect(() => {
@@ -410,43 +423,63 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   );
 
   if (paged) {
+    const pageNodes = bookPages[Math.min(pp, pc - 1)] ?? [];
+    const label = pageLabel(Math.min(pp, pc - 1));
+    const firstVerse = pageNodes.find((n) => n.kind === "verse");
     return (
       <div className="rpage paged" data-rt={rt}>
         {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
         <header className="rhead">
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
-          <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {pp + 1}</span></div>
+          <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {label}</span></div>
           <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
           <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
           <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
         </header>
         <div className="rprog"><i style={{ width: `${((pp + 1) / pc) * 100}%` }} /></div>
-        <div className="paper">
-          <div className="phd"><span>{parentTitle ?? doc.title}</span><span>{pp + 1}</span></div>
-          <div
-            className="vp"
-            ref={vpRef}
-            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
-            onTouchEnd={(e) => {
-              const x0 = touchX.current;
-              touchX.current = null;
-              if (x0 === null || window.getSelection()?.toString()) return;
-              const dx = e.changedTouches[0].clientX - x0;
-              if (dx < -50) turn(1); else if (dx > 50) turn(-1);
-            }}
-          >
-            <div
-              className="reader2 flow"
-              lang="tr"
-              ref={(el) => { flowRef.current = el; bodyRef.current = el; }}
-              style={{ fontSize: `${rs.size}em`, columnWidth: geo.w ? `${geo.w}px` : undefined, columnGap: `${GAP}px`, height: geo.h || undefined, transform: `translateX(-${pp * (geo.w + GAP)}px)` }}
-            >
-              {allBlocks.map(renderBlock)}
+        <div
+          className="bookwrap"
+          onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const x0 = touchX.current;
+            touchX.current = null;
+            if (x0 === null || window.getSelection()?.toString()) return;
+            const dx = e.changedTouches[0].clientX - x0;
+            if (Math.abs(dx) > 60) turn(isQuran ? (dx > 0 ? 1 : -1) : (dx < 0 ? 1 : -1));
+          }}
+        >
+          <article className="bookpage" data-pc={rs.paper}>
+            <div className="bphead">
+              <span>{isQuran ? `${doc.title}${firstVerse && md(firstVerse).juz ? " · Cüz " + String(md(firstVerse).juz) : ""}` : (parentTitle ?? doc.title)}</span>
+              <span>{label}</span>
             </div>
-          </div>
-          <div className="pfoot">{pp + 1}</div>
+            {isQuran ? (
+              <div className="bpbody quran" dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+                {pageNodes.map((n) => {
+                  const no = Number(md(n).ayah_no ?? String(n.title ?? "").split(":")[1] ?? 0);
+                  return (
+                    <span key={n.id}>
+                      {no === 1 && <span className="sure">{doc.title}</span>}
+                      <span id={"n" + n.id} data-nid={n.id} className={n.id === mark ? "mk" : undefined}>{n.secondary_text}</span>
+                      <span className="ayah"> ﴿{no.toLocaleString("ar-EG")}﴾ </span>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bpbody reader2" lang="tr" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+                {pp === 0 && <h1 className="bptitle">{doc.title}</h1>}
+                {toBlocks(pageNodes).map(renderBlock)}
+              </div>
+            )}
+            {isQuran && rs.tr && pageNodes.some((n) => n.translation) && (
+              <div className="bpmeal">{pageNodes.filter((n) => n.translation).map((n) => (<p key={n.id}><b>{String(n.title ?? "").split(":")[1]}.</b> {n.translation}</p>))}</div>
+            )}
+            <div className="bpfoot">{label}</div>
+          </article>
         </div>
-        <div className="pnav inflow">
+        <div style={{ height: 96 }} />
+        <div className="pnav">
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)}>{pp === 0 ? "‹ Önceki bölüm" : "‹ Önceki sayfa"}</button>
           <span className="small muted">{pp + 1} / {pc}</span>
           <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)}>{pp >= pc - 1 ? "Sonraki bölüm ›" : "Sonraki sayfa ›"}</button>
@@ -506,7 +539,14 @@ function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onR
       <div style={{ padding: "0 16px" }}>
         <div className="srow col"><span>Gece modu</span>
           <div className="seg3">
-            {(["dark", "light", "paper", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t || (rs.theme === "default" && t === defTheme) ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : t === "paper" ? "Kâğıt" : "Telefonla aynı"}</button>))}
+            {(["dark", "light", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t || ((rs.theme === "default" || rs.theme === "paper") && t === defTheme) ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : "Telefonla aynı"}</button>))}
+          </div>
+        </div>
+        <div className="srow col"><span>Sayfa rengi</span>
+          <div className="swatches">
+            {([["cream", "Kâğıt"], ["sepia", "Sepya"], ["white", "Beyaz"], ["dark", "Koyu"]] as const).map(([k, l]) => (
+              <button key={k} className={"sw" + (rs.paper === k ? " on" : "")} data-pc={k} onClick={() => onChange({ ...rs, paper: k })}><i />{l}</button>
+            ))}
           </div>
         </div>
         <Tog k="ar" label="Arapça" />

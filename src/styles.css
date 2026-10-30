@@ -336,3 +336,37 @@ body.focus .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 .pnav.inflow { position: static; flex: none; padding: 10px 16px 8px; }
 .dim { position: fixed; inset: 0; background: #000; pointer-events: none; z-index: 60; }
 .reader2.flow p { word-spacing: normal; }
+
+/* ── Kitap sayfası (sabit sayfa sınırları; sığmazsa sayfa uzar ve aşağı kayar) ── */
+.rpage.paged { height: auto; display: block; overflow: visible; }
+.bookwrap { padding: 10px 12px 0; }
+.bookpage { --pg-bg: #f4e7b5; --pg-fg: #211b13; width: min(820px, 100%); aspect-ratio: 11906 / 16838; margin: 0 auto; display: flex; flex-direction: column;
+  background: var(--pg-bg); color: var(--pg-fg); border-radius: 4px; box-shadow: 0 8px 28px rgba(0,0,0,.4); padding: 34px 40px 22px; }
+.bookpage[data-pc="sepia"], .sw[data-pc="sepia"] { --pg-bg: #ead49b; --pg-fg: #261d11; }
+.bookpage[data-pc="white"], .sw[data-pc="white"] { --pg-bg: #ffffff; --pg-fg: #171717; }
+.bookpage[data-pc="dark"], .sw[data-pc="dark"] { --pg-bg: #23251f; --pg-fg: #f1ead8; }
+.sw { --pg-bg: #f4e7b5; --pg-fg: #211b13; }
+.bookpage .reader2, .bookpage .bpbody { --text: var(--pg-fg); --muted: color-mix(in srgb, var(--pg-fg) 60%, transparent); --gold: color-mix(in srgb, var(--pg-fg) 70%, #8a6a1f); --border: color-mix(in srgb, var(--pg-fg) 18%, transparent); --highlight: color-mix(in srgb, var(--pg-fg) 14%, transparent); --card: color-mix(in srgb, var(--pg-fg) 7%, transparent); }
+.bphead, .bpfoot { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; font-weight: 600; color: color-mix(in srgb, var(--pg-fg) 60%, transparent); font-family: Inter, system-ui, sans-serif; }
+.bphead { padding-bottom: 10px; border-bottom: 1px solid color-mix(in srgb, var(--pg-fg) 16%, transparent); }
+.bpfoot { justify-content: center; padding-top: 12px; margin-top: auto; }
+.bpbody { flex: 1; padding: 18px 0 8px; font-family: Georgia, "Times New Roman", serif; font-size: 17px; line-height: 1.58; }
+.bpbody.reader2 { padding-left: 0; padding-right: 0; }
+.bpbody.reader2 p { font-family: Georgia, "Times New Roman", serif; font-size: 1em; line-height: 1.58; margin: 0 0 .72em; text-align: justify; hyphens: auto; -webkit-hyphens: auto; }
+.bpbody.reader2 h2, .bpbody.reader2 h3 { text-align: center; font-size: 1.1em; line-height: 1.3; margin: .9em 0 .55em; color: inherit; font-family: Georgia, "Times New Roman", serif; }
+.bpbody.reader2 .ar { text-align: center; font-size: 1.16em; line-height: 1.9; margin: .2em 0 .6em; font-family: "Noto Naskh Arabic", "Geeza Pro", "Traditional Arabic", serif; }
+.bptitle { text-align: center; font-size: 1.3em; line-height: 1.25; margin: 0 0 .7em; font-family: Georgia, "Times New Roman", serif; }
+.bpbody.quran { text-align: justify; text-align-last: center; font-family: "KFGQPC Uthmanic Script HAFS", "Amiri Quran", "Amiri", "Noto Naskh Arabic", "Traditional Arabic", serif; font-size: 26px; line-height: 2.15; }
+.bpbody.quran .ayah { color: color-mix(in srgb, var(--pg-fg) 70%, #8a6a1f); font-size: .8em; white-space: nowrap; }
+.bpbody.quran .sure { display: block; text-align: center; margin: .2em 0 .4em; padding: .1em 0; border-top: 1px solid color-mix(in srgb, var(--pg-fg) 20%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--pg-fg) 20%, transparent); font-family: Georgia, serif; font-size: .7em; }
+.bpbody .mk { background: color-mix(in srgb, var(--pg-fg) 14%, transparent); border-radius: 4px; }
+.bpmeal { border-top: 1px solid color-mix(in srgb, var(--pg-fg) 16%, transparent); padding-top: 10px; font-size: 14px; line-height: 1.5; }
+@media (max-width: 760px) {
+  .bookpage { padding: 22px 20px 16px; }
+  .bpbody { font-size: 15px; padding: 14px 0 8px; }
+  .bpbody.quran { font-size: 22px; }
+}
+.swatches { display: flex; gap: 8px; }
+.sw { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 12px; border: 1px solid var(--border); background: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+.sw i { width: 34px; height: 44px; border-radius: 4px; background: var(--pg-bg); border: 1px solid rgba(0,0,0,.2); }
+.sw.on { border-color: var(--accent); color: var(--accent); }
