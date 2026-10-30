@@ -154,16 +154,17 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 
   useLayoutEffect(() => {
     if (!paged) return;
+    // Sayfa alanı esnek düzenle (flex) ekrana yerleşir; burada yalnız ölçülür.
     const measure = () => {
       const vp = vpRef.current;
       if (!vp) return;
-      const top = vp.getBoundingClientRect().top;
-      const reserve = 122 + (focus ? 0 : 62);
-      setGeo({ w: vp.clientWidth, h: Math.max(220, Math.floor(window.innerHeight - top - reserve)) });
+      const w = vp.clientWidth, h = vp.clientHeight;
+      if (w > 0 && h > 0) setGeo((g) => (g.w === w && g.h === h ? g : { w, h }));
     };
     measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    const ro = new ResizeObserver(measure);
+    if (vpRef.current) ro.observe(vpRef.current);
+    return () => ro.disconnect();
   }, [paged, focus]);
 
   const startedAt = useRef(false);
@@ -410,7 +411,8 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 
   if (paged) {
     return (
-      <div className="rpage paged" data-rt={rt} style={{ filter: rs.light < 1 ? `brightness(${rs.light})` : undefined }}>
+      <div className="rpage paged" data-rt={rt}>
+        {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
         <header className="rhead">
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
           <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {pp + 1}</span></div>
@@ -424,7 +426,6 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
           <div
             className="vp"
             ref={vpRef}
-            style={{ height: geo.h || undefined }}
             onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
             onTouchEnd={(e) => {
               const x0 = touchX.current;
@@ -436,6 +437,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
           >
             <div
               className="reader2 flow"
+              lang="tr"
               ref={(el) => { flowRef.current = el; bodyRef.current = el; }}
               style={{ fontSize: `${rs.size}em`, columnWidth: geo.w ? `${geo.w}px` : undefined, columnGap: `${GAP}px`, height: geo.h || undefined, transform: `translateX(-${pp * (geo.w + GAP)}px)` }}
             >
@@ -444,7 +446,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
           </div>
           <div className="pfoot">{pp + 1}</div>
         </div>
-        <div className="pnav">
+        <div className="pnav inflow">
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)}>{pp === 0 ? "‹ Önceki bölüm" : "‹ Önceki sayfa"}</button>
           <span className="small muted">{pp + 1} / {pc}</span>
           <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)}>{pp >= pc - 1 ? "Sonraki bölüm ›" : "Sonraki sayfa ›"}</button>
@@ -455,7 +457,8 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   }
 
   return (
-    <div className="rpage" data-rt={rt} style={{ filter: rs.light < 1 ? `brightness(${rs.light})` : undefined }}>
+    <div className="rpage" data-rt={rt}>
+      {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
       <header className="rhead">
         <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
         <div className="rtitle">{doc.title}{parentTitle && !isDua ? <span>{parentTitle}</span> : null}</div>

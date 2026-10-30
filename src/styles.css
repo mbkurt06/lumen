@@ -328,3 +328,11 @@ body.focus .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 .reader2.flow .ar { text-align: center; font-size: 1.35em; line-height: 1.9; margin: .3em 0; break-inside: avoid; }
 .reader2.flow .fn { font-size: .82em; }
 .pfoot { text-align: center; padding: 6px 0 4px; font-size: 13px; color: var(--muted); font-family: Georgia, "Times New Roman", serif; }
+
+/* sabit sayfa: esnek yerleşim — kâğıt kalan alanı doldurur, alt çubuk akışta */
+.rpage.paged { height: 100%; display: flex; flex-direction: column; }
+.rpage.paged .paper { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0; }
+.rpage.paged .vp { flex: 1; min-height: 0; }
+.pnav.inflow { position: static; flex: none; padding: 10px 16px 8px; }
+.dim { position: fixed; inset: 0; background: #000; pointer-events: none; z-index: 60; }
+.reader2.flow p { word-spacing: normal; }
