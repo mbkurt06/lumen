@@ -4,7 +4,8 @@ import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { ITEM_COLS, useResume, useRoots, type Item } from "../lib/library";
-import { Reader } from "./Reader";
+import { Reader, ReaderSettings } from "./Reader";
+import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
 import { ymd } from "../lib/todo";
 
@@ -223,6 +224,7 @@ export function LibraryItem() {
   const [kids, setKids] = useState<Item[]>([]);
   const [counts, setCounts] = useState<Record<string, { folders: number; docs: number }>>({});
   const [loading, setLoading] = useState(true);
+  const [root, setRoot] = useState<Item | null>(null);
 
   useEffect(() => {
     let off = false;
@@ -234,6 +236,13 @@ export function LibraryItem() {
       if (cur?.parent_id) {
         const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", cur.parent_id).maybeSingle();
         par = data as Item | null;
+      }
+      // kök koleksiyonu bul (ayarlar bölüm bölüm tutulur)
+      let top: Item | null = par ?? cur;
+      for (let i = 0; top?.parent_id && i < 6; i++) {
+        const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", top.parent_id).maybeSingle();
+        if (!data) break;
+        top = data as Item;
       }
       let list: Item[] = [];
       const cnt: Record<string, { folders: number; docs: number }> = {};
@@ -249,12 +258,22 @@ export function LibraryItem() {
           }
         }
       }
-      if (!off) { setItem(cur); setParent(par); setKids(list); setCounts(cnt); setLoading(false); }
+      if (!off) { setItem(cur); setParent(par); setRoot(top); setKids(list); setCounts(cnt); setLoading(false); }
     })();
     return () => { off = true; };
   }, [id]);
 
-  if (item?.kind === "document") return <Reader key={item.id} doc={item} parentTitle={parent?.title} />;
+  const scope = scopeOf(root?.title);
+  if (item?.kind === "document") return <Reader key={item.id} doc={item} parentTitle={parent?.title} scope={scope} />;
+  // geri: bir üst seviyeye (koleksiyon sayfası sanal olanlar için kendi sayfasına)
+  const backTo = !parent ? "/kutuphane"
+    : parent.title.startsWith("Kur") && !parent.parent_id ? "/kutuphane/c/kuran"
+    : parent.title === "Tesbihat" && !parent.parent_id ? "/kutuphane/c/tesbihat"
+    : `/kutuphane/${parent.id}`;
+  // Kitap (bölümleri belge olan klasör): içindekiler kitap sayfası görünümünde
+  if (item && !loading && kids.length > 0 && kids.every((k) => k.kind === "document") && scope !== "ibadet") {
+    return <BookToc item={item} parentTitle={parent?.title} kids={kids} scope={scope} backTo={backTo} />;
+  }
   const isRisale = item?.title === "Risale-i Nur";
   const sub = (k: Item) => {
     if (k.subtitle) return k.subtitle;
@@ -266,7 +285,7 @@ export function LibraryItem() {
   };
   return (
     <>
-      <PageHeader back="/kutuphane" title={item?.title ?? (loading ? "Yükleniyor…" : "Bulunamadı")} subtitle={parent?.title ?? "Kütüphane"} />
+      <PageHeader back={backTo} title={item?.title ?? (loading ? "Yükleniyor…" : "Bulunamadı")} subtitle={parent?.title ?? "Kütüphane"} />
       {item && <div style={{ padding: "0 16px" }}><Resume scopeId={item.id} /></div>}
       {isRisale && <Label>KİTAPLAR · {kids.length}</Label>}
       <div className="clist" style={{ marginTop: isRisale ? 0 : 8 }}>
@@ -275,5 +294,40 @@ export function LibraryItem() {
       </div>
       <div style={{ height: 24 }} />
     </>
+  );
+}
+
+/* Kitabın içindekiler sayfası: okuyucuyla aynı kâğıt, yazı boyutu ve renk ayarları (bölüme göre) */
+function BookToc({ item, parentTitle, kids, scope, backTo }: { item: Item; parentTitle?: string; kids: Item[]; scope: Scope; backTo: string }) {
+  const nav = useNavigate();
+  const [rs, setRs] = useState<RSettings>(() => loadRS(scope));
+  const [show, setShow] = useState(false);
+  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(r); }); }, [scope]);
+  const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
+  if (show) return <ReaderSettings title={item.title} defTheme="dark" rs={rs} onChange={setR} onBack={() => setShow(false)} onApplyAll={() => applyAll(rs)} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} />;
+  const rt = rs.theme === "light" ? "light" : "dark";
+  return (
+    <div className="rpage paged" data-rt={rt}>
+      {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
+      <header className="rhead">
+        <button className="iconbtn" onClick={() => nav(backTo)} aria-label="Geri"><Icon name="back" size={24} /></button>
+        <div className="rtitle">{item.title}<span>{parentTitle ?? "Kütüphane"} · İçindekiler</span></div>
+        <button className="iconbtn" onClick={() => setShow(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
+      </header>
+      <div className="bookwrap">
+        <article className="bookpage" data-pc={rs.paper}>
+          <div className="bphead"><span>{parentTitle ?? ""}</span><span>İçindekiler</span></div>
+          <div className="bpbody reader2" lang="tr" style={{ fontSize: `${rs.size}em` }}>
+            <h1 className="bptitle">{item.title}</h1>
+            <ol className="toc">
+              {kids.map((k) => (
+                <li key={k.id}><Link to={`/kutuphane/${k.id}`}><span className="tt">{k.title}</span><span className="dots" /></Link></li>
+              ))}
+            </ol>
+          </div>
+        </article>
+      </div>
+      <div style={{ height: 24 }} />
+    </div>
   );
 }

@@ -401,3 +401,11 @@ body.focus .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
 }
 body.focus .bookwrap { padding-left: 4px; padding-right: 4px; }
 body.focus .bookpage { width: 100%; max-width: none; }
+
+/* Kitap içindekiler (kâğıt sayfa) */
+.toc { list-style: none; margin: .4em 0 0; padding: 0; counter-reset: t; }
+.toc li { counter-increment: t; border-bottom: 1px dotted color-mix(in srgb, var(--pg-fg) 22%, transparent); }
+.toc li:last-child { border-bottom: 0; }
+.toc a { display: flex; align-items: baseline; gap: 10px; padding: .55em 0; color: var(--pg-fg); text-decoration: none; font-family: Georgia, "Times New Roman", serif; font-size: 1em; line-height: 1.35; }
+.toc a::before { content: counter(t) "."; min-width: 1.8em; color: color-mix(in srgb, var(--pg-fg) 55%, transparent); }
+.toc .tt { flex: 1; }

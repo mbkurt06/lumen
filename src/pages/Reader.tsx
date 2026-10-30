@@ -5,7 +5,7 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { useTodos, ymd } from "../lib/todo";
-import { applyAll, loadRS, resetRS, saveRS, type RSettings } from "../lib/readerSettings";
+import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet } from "./TodoSheet";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 
@@ -105,7 +105,7 @@ function fixedPages(nodes: Node[], target = PAGE_LOAD): Node[][] {
 
 const nidsOf = (b: Block) => (b.t === "quote" ? b.ns.map((n) => n.id) : [b.n.id]);
 
-export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }) {
+export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: string; scope: Scope }) {
   const nav = useNavigate();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +114,8 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [rs, setRs] = useState<RSettings>(() => loadRS(doc.id));
+  const [rs, setRs] = useState<RSettings>(() => loadRS(scope));
+  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(r); }); }, [scope]);
   const [showSettings, setShowSettings] = useState(false);
   const [focus, setFocus] = useState(false);
   const [sel, setSel] = useState<{ x: number; y: number; nid: string; text: string } | null>(null);
@@ -305,7 +306,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     else { setNotes((s) => [...s, data as Note]); flash("Not eklendi"); }
   };
 
-  const setR = (s: RSettings) => { setRs(s); saveRS(doc.id, s); };
+  const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
   const sysDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   const defTheme = "dark";
   const th = rs.theme === "default" || rs.theme === "paper" ? defTheme : rs.theme;
@@ -322,7 +323,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   // Not: tarayıcı kendi tam ekranından çıksa (ör. iPad'de kaydırınca) okuyucu tam sayfada kalır;
   // çıkış yalnız sağ üstteki ✕ ile.
 
-  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Diğer sayfalara uygulandı"); }} onReset={() => { resetRS(doc.id); setRs(loadRS(doc.id)); }} onGeneral={() => nav("/ayarlar")} />;
+  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Tüm bölümlere uygulandı"); }} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} />;
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
@@ -530,7 +531,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 }
 
 /* Sayfa ayarları (tasarım: Sayac) — yalnız bu sayfa için geçerli */
-function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
+export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
 }) {
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr"; label: string }) => (
@@ -542,7 +543,7 @@ function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onR
         <button className="iconbtn" onClick={onBack} aria-label="Geri"><Icon name="back" size={26} /></button>
         <div className="ptitle"><h1>Ayarlar</h1><p>{title}</p></div>
       </header>
-      <div className="infoline">Sadece bu sayfa için geçerli.</div>
+      <div className="infoline">Bu bölümün tüm kitapları için geçerli (ör. HE Eserleri). Diğer bölümler kendi ayarını tutar.</div>
       <div style={{ padding: "0 16px" }}>
         <div className="srow col"><span>Gece modu</span>
           <div className="seg3">
@@ -565,7 +566,7 @@ function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onR
         <div className="srow col"><span>Aydınlatma</span>
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>
         </div>
-        <button className="secondary" style={{ marginTop: 24 }} onClick={onApplyAll}>⇄ Diğer sayfalara uygula</button>
+        <button className="secondary" style={{ marginTop: 24 }} onClick={onApplyAll}>⇄ Tüm bölümlere uygula</button>
         <div className="seg" style={{ marginTop: 10 }}>
           <button onClick={onReset}>↺ Sıfırla</button>
           <button onClick={onGeneral}>Genel ayarlar</button>
