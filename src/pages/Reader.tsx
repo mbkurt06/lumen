@@ -83,7 +83,10 @@ function nodeWeight(n: Node) {
   const arabic = (n.secondary_text || "").length, tr = (n.translation || "").length;
   return text + tr + Math.round(arabic * 1.25) + title * 2.2 + (n.title ? 180 : 40);
 }
-function fixedPages(nodes: Node[], target = 2250): Node[][] {
+// Eski uygulamada senin yazı ölçeğin 0.8 idi: 2250 / 0.8^1.65 ≈ 3250. Örnek gönderdiğin sayfalar bu değerle bölünmüştü;
+// artık yazı boyutundan bağımsız sabit tutuluyor.
+const PAGE_LOAD = 3250;
+function fixedPages(nodes: Node[], target = PAGE_LOAD): Node[][] {
   const pages: Node[][] = [];
   let cur: Node[] = [];
   let w = 0;
