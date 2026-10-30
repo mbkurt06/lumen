@@ -177,7 +177,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     void ensureMushafFont().then(setFontOk);
   }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const paged = !loading && !isDua && (nodes.length > 0 || isQuran);
+  // Kitap bölümleri yüklenirken de kâğıt sayfa görünür (arada koyu ekran yanıp sönmesin)
+  const paged = !isDua && (loading ? scope !== "ibadet" : nodes.length > 0 || isQuran);
   const loc = useLocation();
   const [pp, setPp] = useState(0);
   const [siblings, setSiblings] = useState<string[]>([]);
@@ -193,7 +194,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 
   const startedAt = useRef(false);
   useEffect(() => {
-    if (!paged || startedAt.current) return;
+    if (!paged || loading || startedAt.current) return;
     if (isQuran && !mpages) return;
     startedAt.current = true;
     const st = loc.state as { atEnd?: boolean } | null;
@@ -204,7 +205,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         : bookPages.findIndex((pg) => pg.some((n) => n.id === mark));
       if (i >= 0) { setPp(i); setTimeout(() => document.getElementById("n" + mark)?.scrollIntoView({ block: "center" }), 80); }
     }
-  }, [paged, mpages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paged, loading, mpages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sIdx = siblings.indexOf(doc.id);
   const prevDoc = sIdx > 0 ? siblings[sIdx - 1] : null;

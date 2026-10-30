@@ -271,9 +271,10 @@ export function LibraryItem() {
     : parent.title === "Tesbihat" && !parent.parent_id ? "/kutuphane/c/tesbihat"
     : `/kutuphane/${parent.id}`;
   // Kitap (bölümleri belge olan klasör): içindekiler kitap sayfası görünümünde
-  if (item && !loading && kids.length > 0 && kids.every((k) => k.kind === "document") && scope !== "ibadet") {
+  if (item && kids.length > 0 && kids.every((k) => k.kind === "document") && scope !== "ibadet") {
     return <BookToc item={item} parentTitle={parent?.title} kids={kids} scope={scope} backTo={backTo} />;
   }
+  if (loading && !item) return <div className="rpage" />;
   const isRisale = item?.title === "Risale-i Nur";
   const sub = (k: Item) => {
     if (k.subtitle) return k.subtitle;
