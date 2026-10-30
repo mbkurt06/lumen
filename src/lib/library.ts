@@ -27,7 +27,7 @@ export function useResume(scopeId?: string) {
   useEffect(() => {
     let off = false;
     (async () => {
-      const { data } = await supabase.from("reading_state").select("document_id,last_opened_at").order("last_opened_at", { ascending: false }).limit(30);
+      const { data } = await supabase.from("reading_state").select("document_id,last_opened_at").not("last_content_node_id", "is", null).order("last_opened_at", { ascending: false }).limit(30);
       const ids = ((data ?? []) as { document_id: string }[]).map((r) => r.document_id);
       if (!ids.length) { if (!off) setRows([]); return; }
       const byId = new Map<string, Item>();

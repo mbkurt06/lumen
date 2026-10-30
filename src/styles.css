@@ -312,3 +312,19 @@ body.focus .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 .bigcount span { color: var(--muted); font-size: 18px; }
 .bigcount.done { background: var(--accent); color: #0f1115; }
 .bigcount.done span { color: #0f1115; }
+
+/* ── Sabit sayfa (kitap) okuyucu: Risale-i Nur, HE ── */
+.rpage.paged { height: 100%; overflow: hidden; }
+.paper { margin: 8px 12px 0; padding: 12px 18px 4px; border-radius: 6px; background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.rpage[data-rt="paper"] .paper { background: #f2e7c3; color: #2b2416; border-color: #e0d3a6; box-shadow: 0 6px 22px rgba(0,0,0,.35);
+  --text: #2b2416; --muted: #6f6550; --gold: #8a6a1f; --highlight: #e6d698; --border: #d8c995; --card: #eadcae; }
+.phd { display: flex; justify-content: space-between; padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid var(--border); color: var(--muted); font-family: Georgia, "Times New Roman", serif; font-size: 13px; font-weight: 600; }
+.vp { position: relative; overflow: hidden; }
+.reader2.flow { position: relative; padding: 0; column-fill: auto; will-change: transform; transition: transform .18s ease; }
+.reader2.flow p { font-family: Georgia, "Times New Roman", serif; font-size: 1.05em; line-height: 1.55; margin: 0 0 .65em; text-align: justify; hyphens: auto; -webkit-hyphens: auto; orphans: 2; widows: 2; }
+.reader2.flow h2, .reader2.flow h3 { font-family: Georgia, "Times New Roman", serif; text-align: center; color: inherit; break-after: avoid; margin: .3em 0 .6em; }
+.reader2.flow h2 { font-size: 1.25em; }
+.reader2.flow h3 { font-size: 1.08em; }
+.reader2.flow .ar { text-align: center; font-size: 1.35em; line-height: 1.9; margin: .3em 0; break-inside: avoid; }
+.reader2.flow .fn { font-size: .82em; }
+.pfoot { text-align: center; padding: 6px 0 4px; font-size: 13px; color: var(--muted); font-family: Georgia, "Times New Roman", serif; }

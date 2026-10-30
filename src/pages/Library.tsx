@@ -254,7 +254,7 @@ export function LibraryItem() {
     return () => { off = true; };
   }, [id]);
 
-  if (item?.kind === "document") return <Reader doc={item} parentTitle={parent?.title} />;
+  if (item?.kind === "document") return <Reader key={item.id} doc={item} parentTitle={parent?.title} />;
   const isRisale = item?.title === "Risale-i Nur";
   const sub = (k: Item) => {
     if (k.subtitle) return k.subtitle;

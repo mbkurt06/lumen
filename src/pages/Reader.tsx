@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
@@ -132,6 +132,79 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   const isDua = useMemo(() => nodes.some((n) => n.kind === "phrase"), [nodes]);
   const pages = useMemo(() => paginate(toBlocks(nodes), isDua ? 650 : 2200), [nodes, isDua]);
 
+  /* ── Sabit sayfa (kitap) düzeni: Risale, HE, diğer düz metinler ── */
+  const paged = !loading && !isDua && nodes.length > 0;
+  const loc = useLocation();
+  const vpRef = useRef<HTMLDivElement>(null);
+  const flowRef = useRef<HTMLDivElement>(null);
+  const [geo, setGeo] = useState({ w: 0, h: 0 });
+  const [pp, setPp] = useState(0);
+  const [pc, setPc] = useState(1);
+  const [siblings, setSiblings] = useState<string[]>([]);
+  const GAP = 48;
+  const allBlocks = useMemo(() => toBlocks(nodes), [nodes]);
+
+  useEffect(() => {
+    if (!doc.parent_id) return;
+    void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id).eq("kind", "document").order("sort_order").order("title").limit(2000)
+      .then(({ data }) => setSiblings(((data ?? []) as { id: string }[]).map((r) => r.id)));
+  }, [doc.parent_id]);
+
+  useLayoutEffect(() => {
+    if (!paged) return;
+    const measure = () => {
+      const vp = vpRef.current;
+      if (!vp) return;
+      const top = vp.getBoundingClientRect().top;
+      const reserve = 122 + (focus ? 0 : 62);
+      setGeo({ w: vp.clientWidth, h: Math.max(220, Math.floor(window.innerHeight - top - reserve)) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [paged, focus]);
+
+  const startedAt = useRef(false);
+  useLayoutEffect(() => {
+    if (!paged || !geo.w) return;
+    const calc = () => {
+      const f = flowRef.current;
+      if (!f) return;
+      const n = Math.max(1, Math.round((f.scrollWidth + GAP) / (geo.w + GAP)));
+      setPc(n);
+      if (!startedAt.current) {
+        startedAt.current = true;
+        const st = loc.state as { atEnd?: boolean } | null;
+        if (st?.atEnd) setPp(n - 1);
+        else if (mark) {
+          const el = document.getElementById("n" + mark);
+          if (el) setPp(Math.min(n - 1, Math.max(0, Math.floor(el.offsetLeft / (geo.w + GAP)))));
+        }
+      } else setPp((x) => Math.min(x, n - 1));
+    };
+    calc();
+    void document.fonts?.ready.then(calc);
+  }, [paged, geo, rs.size, rs.ar, rs.latin, rs.tr, notes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sIdx = siblings.indexOf(doc.id);
+  const prevDoc = sIdx > 0 ? siblings[sIdx - 1] : null;
+  const nextDoc = sIdx >= 0 && sIdx < siblings.length - 1 ? siblings[sIdx + 1] : null;
+  const turn = (d: number) => {
+    const t = pp + d;
+    window.getSelection()?.removeAllRanges();
+    setSel(null);
+    if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: { atEnd: true } }); return; }
+    if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true }); return; }
+    setPp(t);
+  };
+  const touchX = useRef<number | null>(null);
+  useEffect(() => {
+    if (!paged) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "ArrowRight") turn(1); else if (e.key === "ArrowLeft") turn(-1); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   // açılışta: kaldığım yer varsa o sayfaya git (yalnızca senin kaydettiğin yer)
   const jumped = useRef(false);
   useEffect(() => {
@@ -214,14 +287,16 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 
   const setR = (s: RSettings) => { setRs(s); saveRS(doc.id, s); };
   const sysDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  const rt = rs.theme === "auto" ? (sysDark ? "dark" : "light") : rs.theme;
+  const defTheme = isDua ? "dark" : "paper";
+  const th = rs.theme === "default" ? defTheme : rs.theme;
+  const rt = th === "auto" ? (sysDark ? "dark" : "light") : th;
 
   useEffect(() => {
     document.body.classList.toggle("focus", focus);
     return () => document.body.classList.remove("focus");
   }, [focus]);
 
-  if (showSettings) return <ReaderSettings title={doc.title} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Diğer sayfalara uygulandı"); }} onReset={() => { resetRS(doc.id); setRs(loadRS(doc.id)); }} onGeneral={() => nav("/ayarlar")} />;
+  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Diğer sayfalara uygulandı"); }} onReset={() => { resetRS(doc.id); setRs(loadRS(doc.id)); }} onGeneral={() => nav("/ayarlar")} />;
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
@@ -307,6 +382,75 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     );
   };
 
+  const overlays = (
+    <>
+      {sel && (
+        <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
+          <button className="g" onClick={() => void saveMark()} aria-label="Kaldığım yer"><Icon name="bookmark" size={22} /></button>
+          <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); setSel(null); }} aria-label="Not"><Icon name="pencil" size={22} /></button>
+          <button className="a" onClick={() => { setTodo({ notes: sel.text.slice(0, 300) }); setSel(null); }} aria-label="Todo"><Icon name="plusbox" size={22} /></button>
+        </div>
+      )}
+      {toast && <div className="toast">{toast}</div>}
+      {ask && <AskDialog title="Not ekle" placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
+      {todo && (
+        <TodoSheet
+          initialTab={isDua ? "tekrar" : "okuma"}
+          prefill={{ lib: { id: doc.id, title: doc.title }, notes: todo.notes }}
+          lists={lists} groups={groups} defaultListId={null}
+          onClose={() => setTodo(null)}
+          onSaved={() => { setTodo(null); flash("Todo'ya eklendi"); }}
+        />
+      )}
+    </>
+  );
+
+  if (paged) {
+    return (
+      <div className="rpage paged" data-rt={rt} style={{ filter: rs.light < 1 ? `brightness(${rs.light})` : undefined }}>
+        <header className="rhead">
+          <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
+          <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {pp + 1}</span></div>
+          <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
+          <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
+          <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
+        </header>
+        <div className="rprog"><i style={{ width: `${((pp + 1) / pc) * 100}%` }} /></div>
+        <div className="paper">
+          <div className="phd"><span>{parentTitle ?? doc.title}</span><span>{pp + 1}</span></div>
+          <div
+            className="vp"
+            ref={vpRef}
+            style={{ height: geo.h || undefined }}
+            onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              const x0 = touchX.current;
+              touchX.current = null;
+              if (x0 === null || window.getSelection()?.toString()) return;
+              const dx = e.changedTouches[0].clientX - x0;
+              if (dx < -50) turn(1); else if (dx > 50) turn(-1);
+            }}
+          >
+            <div
+              className="reader2 flow"
+              ref={(el) => { flowRef.current = el; bodyRef.current = el; }}
+              style={{ fontSize: `${rs.size}em`, columnWidth: geo.w ? `${geo.w}px` : undefined, columnGap: `${GAP}px`, height: geo.h || undefined, transform: `translateX(-${pp * (geo.w + GAP)}px)` }}
+            >
+              {allBlocks.map(renderBlock)}
+            </div>
+          </div>
+          <div className="pfoot">{pp + 1}</div>
+        </div>
+        <div className="pnav">
+          <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)}>{pp === 0 ? "‹ Önceki bölüm" : "‹ Önceki sayfa"}</button>
+          <span className="small muted">{pp + 1} / {pc}</span>
+          <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)}>{pp >= pc - 1 ? "Sonraki bölüm ›" : "Sonraki sayfa ›"}</button>
+        </div>
+        {overlays}
+      </div>
+    );
+  }
+
   return (
     <div className="rpage" data-rt={rt} style={{ filter: rs.light < 1 ? `brightness(${rs.light})` : undefined }}>
       <header className="rhead">
@@ -334,31 +478,14 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
         <span className="small muted">{page + 1} / {pages.length}</span>
         <button disabled={page >= pages.length - 1} onClick={() => go(page + 1)}>Sonraki ›</button>
       </div>
-      {sel && (
-        <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
-          <button className="g" onClick={() => void saveMark()} aria-label="Kaldığım yer"><Icon name="bookmark" size={22} /></button>
-          <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); setSel(null); }} aria-label="Not"><Icon name="pencil" size={22} /></button>
-          <button className="a" onClick={() => { setTodo({ notes: sel.text.slice(0, 300) }); setSel(null); }} aria-label="Todo"><Icon name="plusbox" size={22} /></button>
-        </div>
-      )}
-      {toast && <div className="toast">{toast}</div>}
-      {ask && <AskDialog title="Not ekle" placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
-      {todo && (
-        <TodoSheet
-          initialTab={isDua ? "tekrar" : "okuma"}
-          prefill={{ lib: { id: doc.id, title: doc.title }, notes: todo.notes }}
-          lists={lists} groups={groups} defaultListId={null}
-          onClose={() => setTodo(null)}
-          onSaved={() => { setTodo(null); flash("Todo'ya eklendi"); }}
-        />
-      )}
+      {overlays}
     </div>
   );
 }
 
 /* Sayfa ayarları (tasarım: Sayac) — yalnız bu sayfa için geçerli */
-function ReaderSettings({ title, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
-  title: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
+function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
+  title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
 }) {
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
@@ -373,7 +500,7 @@ function ReaderSettings({ title, rs, onChange, onBack, onApplyAll, onReset, onGe
       <div style={{ padding: "0 16px" }}>
         <div className="srow col"><span>Gece modu</span>
           <div className="seg3">
-            {(["dark", "light", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : "Telefonla aynı"}</button>))}
+            {(["dark", "light", "paper", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t || (rs.theme === "default" && t === defTheme) ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : t === "paper" ? "Kâğıt" : "Telefonla aynı"}</button>))}
           </div>
         </div>
         <Tog k="ar" label="Arapça" />

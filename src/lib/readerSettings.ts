@@ -1,5 +1,5 @@
-export type RSettings = { theme: "dark" | "light" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number };
-export const DEFAULT_RS: RSettings = { theme: "dark", ar: true, latin: true, tr: true, size: 1, light: 1 };
+export type RSettings = { theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number };
+export const DEFAULT_RS: RSettings = { theme: "default", ar: true, latin: true, tr: true, size: 1, light: 1 };
 
 const get = (k: string): Partial<RSettings> | null => {
   try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as Partial<RSettings>) : null; } catch { return null; }
