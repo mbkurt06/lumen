@@ -571,7 +571,7 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
             <input type="range" min={0} max={SIZES.length - 1} step={1} value={sizeIdx(rs.size)} onChange={(e) => onChange({ ...rs, size: SIZES[Number(e.target.value)] })} />
             <button className="szb" onClick={() => onChange({ ...rs, size: SIZES[Math.min(SIZES.length - 1, sizeIdx(rs.size) + 1)] })} aria-label="Büyüt">A+</button>
           </div>
-          <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round(rs.size * 100)}</div>
+          <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round((rs.size / SIZES[SIZES.length - 1]) * 100)}</div>
         </div>
         <div className="srow col"><span>Aydınlatma</span>
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>
