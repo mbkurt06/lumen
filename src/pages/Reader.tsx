@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
@@ -179,6 +179,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 
   // Kitap bölümleri yüklenirken de kâğıt sayfa görünür (arada koyu ekran yanıp sönmesin)
   const paged = !isDua && (loading ? scope !== "ibadet" : nodes.length > 0 || isQuran);
+  const [surahNames, setSurahNames] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!isQuran || !doc.parent_id) return;
+    void supabase.from("library_items").select("title,sort_order").eq("parent_id", doc.parent_id).lt("sort_order", 1000).then(({ data }) => {
+      const m: Record<number, string> = {};
+      for (const r of (data ?? []) as { title: string; sort_order: number }[]) m[r.sort_order] = r.title;
+      setSurahNames(m);
+    });
+  }, [isQuran, doc.parent_id]);
+  const articleRef = useRef<HTMLElement>(null);
+  const [fitSize, setFitSize] = useState<number | null>(null);
+
   const loc = useLocation();
   const [pp, setPp] = useState(0);
   const [siblings, setSiblings] = useState<string[]>([]);
@@ -226,6 +238,34 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+
+  // "Sayfayı ekrana sığdır": yazı boyutunu sayfa tek ekrana sığacak şekilde ayarla
+  useLayoutEffect(() => {
+    if (!paged || !rs.fit) { setFitSize(null); return; }
+    const art = articleRef.current, body = bodyRef.current;
+    if (!art || !body) return;
+    const sc = document.querySelector(".content");
+    const limit = () => window.innerHeight - (focus ? 56 : 128);
+    const run = () => {
+      let f = rs.size;
+      body.style.fontSize = `${f}em`;
+      for (let i = 0; i < 6; i++) {
+        const r = art.getBoundingClientRect();
+        const top = r.top + (sc?.scrollTop ?? 0);
+        const over = top + r.height - limit();
+        if (Math.abs(over) < 4) break;
+        const bh = body.getBoundingClientRect().height || 1;
+        f = Math.max(0.3, Math.min(SIZES[SIZES.length - 1], f * ((bh - over) / bh)));
+        body.style.fontSize = `${f}em`;
+      }
+      setFitSize(Math.round(f * 100) / 100);
+    };
+    run();
+    void document.fonts?.ready.then(run);
+    window.addEventListener("resize", run);
+    return () => window.removeEventListener("resize", run);
+  }, [paged, rs.fit, rs.size, pp, mpages, nodes, focus, fontOk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // açılışta: kaldığım yer varsa o sayfaya git (yalnızca senin kaydettiğin yer)
   const jumped = useRef(false);
@@ -438,13 +478,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const pageNodes = isQuran ? [] : (bookPages[Math.min(pp, pc - 1)] ?? []);
     const mp = isQuran ? mpages?.[Math.min(pp, pc - 1)] : undefined;
     const label = pageLabel(Math.min(pp, pc - 1));
+    const surahLabel = mp?.surah_numbers?.length ? mp.surah_numbers.map((n) => surahNames[n]).filter(Boolean).map((t) => t + " Suresi").join(" · ") : doc.title;
+    const quranSub = mp ? `${mp.display_page} / Cüz ${mp.juz ?? ""}` : "";
+    const size = rs.fit && fitSize ? fitSize : rs.size;
     return (
       <div className="rpage paged" data-rt={rt}>
         {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
         {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
         {!focus && <header className="rhead">
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
-          <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {label}</span></div>
+          <div className="rtitle">{isQuran ? surahLabel : doc.title}<span>{isQuran ? quranSub : `${parentTitle ? parentTitle + " · " : ""}Sayfa ${label}`}</span></div>
           <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
           <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
           <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
@@ -461,13 +504,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
             if (Math.abs(dx) > 60) turn(isQuran ? (dx > 0 ? 1 : -1) : (dx < 0 ? 1 : -1));
           }}
         >
-          <article className="bookpage" data-pc={rs.paper}>
+          <article className={"bookpage" + (rs.fit ? " fit" : "")} data-pc={rs.paper} ref={articleRef}>
             <div className="bphead">
-              <span>{isQuran ? `${doc.title}${mp?.juz ? " · Cüz " + mp.juz : ""}` : (parentTitle ?? doc.title)}</span>
+              <span>{isQuran ? surahLabel : (parentTitle ?? doc.title)}</span>
               <span>{label}</span>
             </div>
             {isQuran ? (
-              <div className={"bpbody mushaf" + (fontOk ? " exact" : "")} dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+              <div className={"bpbody mushaf" + (fontOk ? " exact" : "")} dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${size}em` }}>
                 {!mp && <p className="muted" style={{ direction: "ltr" }}>Yükleniyor…</p>}
                 {mp?.rich_content.paragraphs.map((p, pi) => (
                   <p key={pi} className={"mp mp-" + p.style}>
@@ -478,7 +521,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
                 ))}
               </div>
             ) : (
-              <div className="bpbody reader2" lang="tr" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+              <div className="bpbody reader2" lang="tr" ref={bodyRef} style={{ fontSize: `${size}em` }}>
                 {pp === 0 && <h1 className="bptitle">{doc.title}</h1>}
                 {toBlocks(pageNodes).map(renderBlock)}
               </div>
@@ -539,7 +582,7 @@ const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < M
 export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
 }) {
-  const Tog = ({ k, label }: { k: "ar" | "latin" | "tr"; label: string }) => (
+  const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
   );
   return (
@@ -562,6 +605,7 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
             ))}
           </div>
         </div>
+        <Tog k="fit" label="Sayfayı ekrana sığdır" />
         <Tog k="ar" label="Arapça" />
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />

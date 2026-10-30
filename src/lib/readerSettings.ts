@@ -1,8 +1,8 @@
 import { supabase } from "./supabase";
 
 export type Paper = "cream" | "sepia" | "white" | "dark";
-export type RSettings = { paper: Paper; theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number };
-export const DEFAULT_RS: RSettings = { paper: "cream", theme: "default", ar: true, latin: true, tr: true, size: 1, light: 1 };
+export type RSettings = { paper: Paper; theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number; fit: boolean };
+export const DEFAULT_RS: RSettings = { paper: "cream", theme: "default", ar: true, latin: true, tr: true, size: 1, light: 1, fit: false };
 
 /** Okuma ayarları bölüm bölüm ayrı tutulur. */
 export type Scope = "he" | "kuran" | "risale" | "diger" | "ibadet";

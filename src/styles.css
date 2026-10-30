@@ -414,3 +414,8 @@ body.focus .bookpage { width: 100%; max-width: none; }
 .bpbody { overflow-wrap: anywhere; }
 /* âyet numarası (Latin rakam, Word'deki süslü işaret) metinden küçük */
 .bpbody.mushaf .mr-mshfAyetNo { font-size: .68em; }
+/* Sayfayı ekrana sığdır: A4 oranı zorlanmaz, sayfa içeriğe göre kısalır */
+.bookpage.fit { aspect-ratio: auto; }
+.bphead { flex-wrap: nowrap; align-items: baseline; }
+.bphead span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bphead span:last-child { flex: none; }

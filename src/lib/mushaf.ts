@@ -50,13 +50,13 @@ export function ensureMushafFont(): Promise<boolean> {
 }
 
 export type MRun = { text: string; runStyle?: string; nodeId?: string; marker?: boolean; ayahNo?: number };
-export type MPage = { display_page: number; juz: number | null; rich_content: { paragraphs: { style: string; runs: MRun[] }[] } };
+export type MPage = { display_page: number; juz: number | null; surah_numbers: number[] | null; rich_content: { paragraphs: { style: string; runs: MRun[] }[] } };
 
 /** Word sayfa aralığındaki mushaf sayfaları (Word sayfası = gösterilen sayfa + 1). */
 export async function loadMushafPages(startWordPage: number, endWordPage: number): Promise<MPage[]> {
   const { data } = await supabase
     .from("quran_mushaf_pages")
-    .select("display_page,juz,rich_content")
+    .select("display_page,juz,surah_numbers,rich_content")
     .gte("word_page", startWordPage)
     .lte("word_page", endWordPage)
     .order("word_page");
