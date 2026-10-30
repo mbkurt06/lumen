@@ -24,6 +24,8 @@ type Block =
 type Note = { id: string; node_id: string | null; note: string; quote: string | null };
 
 const md = (n: Node) => n.metadata ?? {};
+/** Metnin çoğu Arap harfiyse true. */
+const isAr = (t: string | null | undefined) => { if (!t) return false; const a = (t.match(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/g) ?? []).length; const l = (t.match(/[A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]/g) ?? []).length; return a > l; };
 const len = (b: Block) => (b.t === "quote" ? b.ns.reduce((a, n) => a + (n.text_content?.length ?? 0), 0) : (b.n.text_content?.length ?? 0) + (b.n.secondary_text?.length ?? 0) + (b.n.translation?.length ?? 0)) + 40;
 
 function toBlocks(nodes: Node[]): Block[] {
@@ -354,6 +356,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     }
     if (b.t === "instr") return <div key={i}><p className="instr" id={"n" + n.id} data-nid={n.id}>{n.text_content}</p><NoteBoxes nid={n.id} /></div>;
     if (b.t === "fn") return <div key={i}><p className="fn" id={"n" + n.id} data-nid={n.id}>{n.text_content}</p><NoteBoxes nid={n.id} /></div>;
+    if ((b.t === "h2" || b.t === "h3") && isAr(n.text_content ?? n.title)) return rs.ar ? <div key={i} className="ar" id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</div> : null;
     if (b.t === "h2") return <h2 key={i} id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</h2>;
     if (b.t === "h3") return <h3 key={i} id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</h3>;
     if (b.t === "verse") {
@@ -367,7 +370,7 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
       );
     }
     if (b.t === "custom") return <p key={i} id={"n" + n.id} data-nid={n.id}><b>{n.title}</b>{n.text_content ? " — " + n.text_content : ""}</p>;
-    const arabic = md(n).lang === "ar" || (n.secondary_text && !n.text_content);
+    const arabic = md(n).lang === "ar" || (n.secondary_text && !n.text_content) || isAr(n.text_content);
     return (
       <div key={i}>
         {arabic ? (rs.ar && <div className="ar" id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.secondary_text}</div>) : (
