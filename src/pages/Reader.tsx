@@ -312,8 +312,18 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
 
   useEffect(() => {
     document.body.classList.toggle("focus", focus);
+    try {
+      if (focus && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => {});
+      if (!focus && document.fullscreenElement) void document.exitFullscreen?.().catch(() => {});
+    } catch { /* desteklenmiyorsa yalnız arayüz gizlenir */ }
     return () => document.body.classList.remove("focus");
   }, [focus]);
+  // tarayıcıdan (geri/ESC) tam ekrandan çıkılırsa arayüzü geri getir
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setFocus(false); };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
 
   if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Diğer sayfalara uygulandı"); }} onReset={() => { resetRS(doc.id); setRs(loadRS(doc.id)); }} onGeneral={() => nav("/ayarlar")} />;
 
@@ -432,14 +442,15 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     return (
       <div className="rpage paged" data-rt={rt}>
         {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
-        <header className="rhead">
+        {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
+        {!focus && <header className="rhead">
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
           <div className="rtitle">{doc.title}<span>{parentTitle ? parentTitle + " · " : ""}Sayfa {label}</span></div>
           <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
           <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
           <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
-        </header>
-        <div className="rprog"><i style={{ width: `${((pp + 1) / pc) * 100}%` }} /></div>
+        </header>}
+        {!focus && <div className="rprog"><i style={{ width: `${((pp + 1) / pc) * 100}%` }} /></div>}
         <div
           className="bookwrap"
           onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
@@ -481,11 +492,11 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
             <div className="bpfoot">{label}</div>
           </article>
         </div>
-        <div style={{ height: 96 }} />
-        <div className="pnav">
-          <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)}>{pp === 0 ? "‹ Önceki bölüm" : "‹ Önceki sayfa"}</button>
-          <span className="small muted">{pp + 1} / {pc}</span>
-          <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)}>{pp >= pc - 1 ? "Sonraki bölüm ›" : "Sonraki sayfa ›"}</button>
+        <div style={{ height: 64 }} />
+        <div className="pnav mini">
+          <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name="back" size={22} /></button>
+          <span>{pp + 1} / {pc}</span>
+          <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name="chevron" size={22} /></button>
         </div>
         {overlays}
       </div>
@@ -495,15 +506,16 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   return (
     <div className="rpage" data-rt={rt}>
       {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
-      <header className="rhead">
+      {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
+      {!focus && <header className="rhead">
         <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
         <div className="rtitle">{doc.title}{parentTitle && !isDua ? <span>{parentTitle}</span> : null}</div>
         {pageCounters.length > 0 && <button className="iconbtn" onClick={resetPage} aria-label="Sayaçları sıfırla"><Icon name="reset" size={22} /></button>}
         <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
         <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
         <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
-      </header>
-      <div className="rprog"><i style={{ width: `${((page + 1) / pages.length) * 100}%` }} /></div>
+      </header>}
+      {!focus && <div className="rprog"><i style={{ width: `${((page + 1) / pages.length) * 100}%` }} /></div>}
       {loading && <p className="muted" style={{ padding: "12px 20px" }}>Yükleniyor…</p>}
       <div className={"reader2" + (isDua ? " dua" : "")} style={{ fontSize: `${rs.size}em` }} ref={bodyRef}>
         {cur.map(renderBlock)}
