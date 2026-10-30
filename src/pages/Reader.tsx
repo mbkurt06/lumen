@@ -630,7 +630,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
                   <div className="dcontent">
                     <div className="dtext">
                       {rs.ar && n.secondary_text && <div className="dar" dir="rtl">{n.secondary_text}</div>}
-                      {(rs.latin || instr) && n.text_content && <div className={(instr ? "dins" : "dlat") + (isMarked(n.id) ? " mk" : "")}>{n.text_content}</div>}
+                      {(rs.latin || instr) && n.text_content && <div className={(instr ? "dins" : "dlat") + (isMarked(n.id) ? " mk" : "")}>{n.text_content}{m.end_symbol === "dua" && <span className="endsym" title="Dua edilir"> 🤲</span>}{m.end_symbol === "face" && <FaceHands />}</div>}
                       {rs.tr && n.translation && <div className="dtr">{n.translation}</div>}
                       <NoteBoxes nid={n.id} />
                     </div>
@@ -657,6 +657,21 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}
       {overlays}
     </div>
+  );
+}
+
+/* Eller yüze sürülür işareti (hazır emoji olmadığı için çizildi): yüz ve iki yanından gelen eller */
+function FaceHands() {
+  return (
+    <span className="endsym" title="Eller yüze sürülür">
+      {" "}
+      <svg width="1.25em" height="1.1em" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-label="Eller yüze sürülür" style={{ verticalAlign: "-0.18em" }}>
+        <ellipse cx="14" cy="11" rx="5.2" ry="6.6" />
+        <path d="M2.5 21c1.2-4.2 2.6-7.8 5.6-9.6M4.6 14.2c.9-.9 2-1.5 3.3-1.6" />
+        <path d="M25.5 21c-1.2-4.2-2.6-7.8-5.6-9.6M23.4 14.2c-.9-.9-2-1.5-3.3-1.6" />
+        <path d="M12 9.6h.01M16 9.6h.01M12.3 13.6c1 .8 2.4.8 3.4 0" />
+      </svg>
+    </span>
   );
 }
 
