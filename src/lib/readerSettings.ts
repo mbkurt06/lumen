@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { deviceId, deviceName } from "./device";
 
 export type Paper = "cream" | "sepia" | "white" | "dark";
 export type RSettings = { paper: Paper; theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number; fit: boolean };
@@ -24,14 +25,19 @@ const putLocal = (s: Scope, v: RSettings | null) => {
   try { if (v === null) localStorage.removeItem(LK(s)); else localStorage.setItem(LK(s), JSON.stringify(v)); } catch { /* yok say */ }
 };
 
-/** Cihazdaki kayıt (hemen açılış için). */
+/** Bu cihazdaki kayıt. */
 export function loadRS(scope: Scope): RSettings { return { ...DEFAULT_RS, ...(getLocal(scope) ?? {}) }; }
 
-/** Hesaptaki kayıt (diğer cihazlarla eşit). */
+/* Ayarlar CİHAZ BAŞINA tutulur: her cihaz (iPad, iPhone, Android uygulaması, bilgisayar) kendi
+   ayarını cihazda saklar; hesapta da yalnız o cihazın kimliği altında yedeklenir, başka cihaza geçmez. */
+type DevPrefs = { name?: string; lastSeen?: string; reader?: Partial<Record<Scope, Partial<RSettings>>> };
+
+/** Bu cihazın hesaptaki yedeği (cihazdaki kayıt silinmişse geri gelir). */
 export async function pullRS(scope: Scope): Promise<RSettings | null> {
+  if (getLocal(scope)) return null; // cihazdaki kayıt esastır
   const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
-  const all = ((data as { preferences?: Record<string, unknown> } | null)?.preferences?.readerSettings ?? {}) as Partial<Record<Scope, Partial<RSettings>>>;
-  const r = all[scope];
+  const devs = ((data as { preferences?: Record<string, unknown> } | null)?.preferences?.devices ?? {}) as Record<string, DevPrefs>;
+  const r = devs[deviceId()]?.reader?.[scope];
   if (!r) return null;
   const merged = { ...DEFAULT_RS, ...r };
   putLocal(scope, merged);
@@ -45,9 +51,14 @@ async function pushRemote() {
   pending = {};
   const { data } = await supabase.from("user_preferences").select("preferences").maybeSingle();
   const prefs = { ...(((data as { preferences?: Record<string, unknown> } | null)?.preferences) ?? {}) } as Record<string, unknown>;
-  const rsAll = { ...((prefs.readerSettings ?? {}) as Record<string, unknown>) };
-  for (const [k, v] of Object.entries(upd)) { if (v === null) delete rsAll[k]; else rsAll[k] = v; }
-  prefs.readerSettings = rsAll;
+  const devs = { ...((prefs.devices ?? {}) as Record<string, DevPrefs>) };
+  const id = deviceId();
+  const me: DevPrefs = { ...(devs[id] ?? {}), name: deviceName(), lastSeen: new Date().toISOString() };
+  const reader = { ...(me.reader ?? {}) } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(upd)) { if (v === null) delete reader[k]; else reader[k] = v; }
+  me.reader = reader as DevPrefs["reader"];
+  devs[id] = me;
+  prefs.devices = devs;
   await supabase.from("user_preferences").upsert({ preferences: prefs, updated_at: new Date().toISOString() }, { onConflict: "owner_id" });
 }
 function queue(scope: Scope, v: RSettings | null) {
