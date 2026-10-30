@@ -505,10 +505,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           }}
         >
           <article className={"bookpage" + (rs.fit ? " fit" : "")} data-pc={rs.paper} ref={articleRef}>
-            <div className="bphead">
-              <span>{isQuran ? surahLabel : (parentTitle ?? doc.title)}</span>
-              <span>{label}</span>
-            </div>
+            {isQuran ? (
+              <div className="bphead q3">
+                <span>{surahLabel}</span>
+                <span className="mid">{mp?.juz ? `${mp.juz}. Cüz` : ""}</span>
+                <span>{label}</span>
+              </div>
+            ) : (
+              <div className="bphead">
+                <span>{parentTitle ?? doc.title}</span>
+                <span>{label}</span>
+              </div>
+            )}
             {isQuran ? (
               <div className={"bpbody mushaf" + (fontOk ? " exact" : "")} dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${size}em` }}>
                 {!mp && <p className="muted" style={{ direction: "ltr" }}>Yükleniyor…</p>}

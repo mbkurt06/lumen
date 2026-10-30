@@ -419,3 +419,7 @@ body.focus .bookpage { width: 100%; max-width: none; }
 .bphead { flex-wrap: nowrap; align-items: baseline; }
 .bphead span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bphead span:last-child { flex: none; }
+/* Kur'an sayfa başlığı: sure adı · ortada cüz · sayfa numarası */
+.bphead.q3 { display: grid; grid-template-columns: 1fr auto 1fr; }
+.bphead.q3 .mid { text-align: center; }
+.bphead.q3 span:last-child { text-align: right; }
