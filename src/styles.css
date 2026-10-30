@@ -379,3 +379,17 @@ body.focus .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 .fsexit { position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 8px; z-index: 40; width: 32px; height: 32px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; background: rgba(0,0,0,.35); color: #fff; cursor: pointer; opacity: .75; }
 body.focus .bookwrap { padding-top: calc(46px + env(safe-area-inset-top)); }
 body.focus .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
+
+/* ── Kur'an: Diyanet Word dosyasının yazı tipi ve sayfa düzeni ── */
+.bpbody.mushaf { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", "Traditional Arabic", serif; font-size: 26.67px; line-height: 1.72; color: var(--pg-fg);
+  font-synthesis: none; font-kerning: normal; font-feature-settings: "ccmp" 1, "rlig" 1, "liga" 1, "calt" 1, "mark" 1, "mkmk" 1; padding-top: 12px; }
+.bpbody.mushaf .mp { margin: 0; direction: rtl; unicode-bidi: embed; white-space: pre-wrap; text-align: justify; text-align-last: auto; }
+.bpbody.mushaf .mp span { direction: inherit; unicode-bidi: normal; }
+.bpbody.mushaf .mp-mshfSureBal, .bpbody.mushaf .mp-mshfBesmele { text-align: center; text-align-last: center; }
+.bpbody.mushaf .mp-mshfSureBal { margin: .2em 0 .35em; }
+.bpbody.mushaf .mp-mshfBesmele { margin: .08em 0 .22em; }
+.bpbody.mushaf .mr-mshfAyetNo { color: #c0392b; }
+.bpbody.mushaf .mr-mshfSureAd { color: #993300; }
+.bookpage[data-pc="dark"] .bpbody.mushaf .mr-mshfAyetNo { color: #e8857a; }
+.bookpage[data-pc="dark"] .bpbody.mushaf .mr-mshfSureAd { color: #d49772; }
+@media (max-width: 760px) { .bpbody.mushaf { font-size: 25px; line-height: 1.8; } }

@@ -7,6 +7,7 @@ import type { Item } from "../lib/library";
 import { useTodos, ymd } from "../lib/todo";
 import { applyAll, loadRS, resetRS, saveRS, type RSettings } from "../lib/readerSettings";
 import { TodoSheet } from "./TodoSheet";
+import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 
 type Node = {
   id: string;
@@ -101,17 +102,6 @@ function fixedPages(nodes: Node[], target = PAGE_LOAD): Node[][] {
   if (cur.length) pages.push(cur);
   return pages.length ? pages : [[]];
 }
-/* Kur'an: mushaf sayfası (604 sayfalık İstanbul dizgisi) birebir bir ekran sayfası. */
-function quranPages(nodes: Node[]): Node[][] {
-  const pages: Node[][] = [];
-  let last: unknown = undefined;
-  for (const n of nodes) {
-    const pg = md(n).page;
-    if (!pages.length || pg !== last) { pages.push([]); last = pg; }
-    pages[pages.length - 1].push(n);
-  }
-  return pages.length ? pages : [[]];
-}
 
 const nidsOf = (b: Block) => (b.t === "quote" ? b.ns.map((n) => n.id) : [b.n.id]);
 
@@ -173,18 +163,26 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   /* ── Sabit kitap sayfası: Kur'an (mushaf sayfası), Risale, HE, diğer kitaplar ──
      Sayfa sınırları içerikten bir kez hesaplanır; yazı boyutu, ekran ya da cihaz değişse de
      aynı sayfada aynı metin kalır. Sayfa sığmazsa aşağı kayar, metin sonraki sayfaya taşmaz. */
-  const paged = !loading && !isDua && nodes.length > 0;
+  // Kur'an: Word (Diyanet) dosyasındaki sayfa düzeni ve yazı tipi
+  const qm = (doc.metadata ?? {}) as Record<string, unknown>;
+  const qRange = typeof qm.start_page === "number" && typeof qm.end_page === "number" && String(qm.arabic_source ?? "").includes("mushaf")
+    ? [qm.start_page as number, qm.end_page as number] as const : null;
+  const isQuran = !!qRange;
+  const [mpages, setMpages] = useState<MPage[] | null>(null);
+  const [fontOk, setFontOk] = useState(false);
+  useEffect(() => {
+    if (!qRange) return;
+    void loadMushafPages(qRange[0], qRange[1]).then(setMpages);
+    void ensureMushafFont().then(setFontOk);
+  }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const paged = !loading && !isDua && (nodes.length > 0 || isQuran);
   const loc = useLocation();
   const [pp, setPp] = useState(0);
   const [siblings, setSiblings] = useState<string[]>([]);
-  const isQuran = useMemo(() => nodes.some((n) => n.kind === "verse" && md(n).page != null), [nodes]);
-  const bookPages = useMemo(() => (isQuran ? quranPages(nodes) : fixedPages(nodes)), [nodes, isQuran]);
-  const pc = bookPages.length;
-  const pageLabel = (i: number) => {
-    if (!isQuran) return String(i + 1);
-    const pg = Number(md(bookPages[i]?.[0] ?? ({} as Node)).page ?? 0);
-    return String(Math.max(0, pg - 1)); // Fâtiha 0. sayfa
-  };
+  const bookPages = useMemo(() => fixedPages(nodes), [nodes]);
+  const pc = isQuran ? Math.max(1, mpages?.length ?? 1) : bookPages.length;
+  const pageLabel = (i: number) => (isQuran ? String(mpages?.[i]?.display_page ?? "") : String(i + 1));
 
   useEffect(() => {
     if (!doc.parent_id) return;
@@ -195,14 +193,17 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   const startedAt = useRef(false);
   useEffect(() => {
     if (!paged || startedAt.current) return;
+    if (isQuran && !mpages) return;
     startedAt.current = true;
     const st = loc.state as { atEnd?: boolean } | null;
     if (st?.atEnd) { setPp(pc - 1); return; }
     if (mark) {
-      const i = bookPages.findIndex((pg) => pg.some((n) => n.id === mark));
+      const i = isQuran
+        ? (mpages ?? []).findIndex((pg) => pg.rich_content.paragraphs.some((p) => p.runs.some((r) => r.nodeId === mark)))
+        : bookPages.findIndex((pg) => pg.some((n) => n.id === mark));
       if (i >= 0) { setPp(i); setTimeout(() => document.getElementById("n" + mark)?.scrollIntoView({ block: "center" }), 80); }
     }
-  }, [paged]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paged, mpages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sIdx = siblings.indexOf(doc.id);
   const prevDoc = sIdx > 0 ? siblings[sIdx - 1] : null;
@@ -436,9 +437,9 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
   );
 
   if (paged) {
-    const pageNodes = bookPages[Math.min(pp, pc - 1)] ?? [];
+    const pageNodes = isQuran ? [] : (bookPages[Math.min(pp, pc - 1)] ?? []);
+    const mp = isQuran ? mpages?.[Math.min(pp, pc - 1)] : undefined;
     const label = pageLabel(Math.min(pp, pc - 1));
-    const firstVerse = pageNodes.find((n) => n.kind === "verse");
     return (
       <div className="rpage paged" data-rt={rt}>
         {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
@@ -464,30 +465,25 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
         >
           <article className="bookpage" data-pc={rs.paper}>
             <div className="bphead">
-              <span>{isQuran ? `${doc.title}${firstVerse && md(firstVerse).juz ? " · Cüz " + String(md(firstVerse).juz) : ""}` : (parentTitle ?? doc.title)}</span>
+              <span>{isQuran ? `${doc.title}${mp?.juz ? " · Cüz " + mp.juz : ""}` : (parentTitle ?? doc.title)}</span>
               <span>{label}</span>
             </div>
             {isQuran ? (
-              <div className="bpbody quran" dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
-                {pageNodes.map((n) => {
-                  const no = Number(md(n).ayah_no ?? String(n.title ?? "").split(":")[1] ?? 0);
-                  return (
-                    <span key={n.id}>
-                      {no === 1 && <span className="sure">{doc.title}</span>}
-                      <span id={"n" + n.id} data-nid={n.id} className={n.id === mark ? "mk" : undefined}>{n.secondary_text}</span>
-                      <span className="ayah"> ﴿{no.toLocaleString("ar-EG")}﴾ </span>
-                    </span>
-                  );
-                })}
+              <div className={"bpbody mushaf" + (fontOk ? " exact" : "")} dir="rtl" lang="ar" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+                {!mp && <p className="muted" style={{ direction: "ltr" }}>Yükleniyor…</p>}
+                {mp?.rich_content.paragraphs.map((p, pi) => (
+                  <p key={pi} className={"mp mp-" + p.style}>
+                    {p.runs.map((r, ri) => (
+                      <span key={ri} id={r.nodeId && ri === p.runs.findIndex((x) => x.nodeId === r.nodeId) ? "n" + r.nodeId : undefined} data-nid={r.nodeId} className={[r.runStyle ? "mr-" + r.runStyle : "", r.nodeId && r.nodeId === mark ? "mk" : ""].join(" ").trim() || undefined}>{r.text}</span>
+                    ))}
+                  </p>
+                ))}
               </div>
             ) : (
               <div className="bpbody reader2" lang="tr" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
                 {pp === 0 && <h1 className="bptitle">{doc.title}</h1>}
                 {toBlocks(pageNodes).map(renderBlock)}
               </div>
-            )}
-            {isQuran && rs.tr && pageNodes.some((n) => n.translation) && (
-              <div className="bpmeal">{pageNodes.filter((n) => n.translation).map((n) => (<p key={n.id}><b>{String(n.title ?? "").split(":")[1]}.</b> {n.translation}</p>))}</div>
             )}
             <div className="bpfoot">{label}</div>
           </article>
