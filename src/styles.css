@@ -457,7 +457,8 @@ body.focus .bookpage { width: 100%; max-width: none; }
 @media (max-width: 760px) {
   .duapage { padding: 22px 20px 20px; }
   .duabody { font-size: 16px; }
-  .dcontent { grid-template-columns: 1fr; gap: 7px; }
+  .dcontent { gap: 10px; } /* sayaçlar telefonda da yazının sağında (eski Lumen gibi) */
+  .dcnt .pill { min-width: 52px; padding: 5px 8px; }
 }
 @media (pointer: coarse) { .duapage { width: 100%; } }
 /* yüzen sayaç */
