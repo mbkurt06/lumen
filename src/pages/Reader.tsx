@@ -319,12 +319,8 @@ export function Reader({ doc, parentTitle }: { doc: Item; parentTitle?: string }
     } catch { /* desteklenmiyorsa yalnız arayüz gizlenir */ }
     return () => document.body.classList.remove("focus");
   }, [focus]);
-  // tarayıcıdan (geri/ESC) tam ekrandan çıkılırsa arayüzü geri getir
-  useEffect(() => {
-    const onFs = () => { if (!document.fullscreenElement) setFocus(false); };
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
-  }, []);
+  // Not: tarayıcı kendi tam ekranından çıksa (ör. iPad'de kaydırınca) okuyucu tam sayfada kalır;
+  // çıkış yalnız sağ üstteki ✕ ile.
 
   if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Diğer sayfalara uygulandı"); }} onReset={() => { resetRS(doc.id); setRs(loadRS(doc.id)); }} onGeneral={() => nav("/ayarlar")} />;
 

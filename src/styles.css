@@ -393,3 +393,11 @@ body.focus .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
 .bookpage[data-pc="dark"] .bpbody.mushaf .mr-mshfAyetNo { color: #e8857a; }
 .bookpage[data-pc="dark"] .bpbody.mushaf .mr-mshfSureAd { color: #d49772; }
 @media (max-width: 760px) { .bpbody.mushaf { font-size: 25px; line-height: 1.8; } }
+
+/* Dokunmatik cihazlarda (tablet/telefon) sayfa tüm genişliği kullanır; yanlarda boşluk kalmaz */
+@media (pointer: coarse) {
+  .bookwrap { padding-left: 6px; padding-right: 6px; }
+  .bookpage { width: 100%; }
+}
+body.focus .bookwrap { padding-left: 4px; padding-right: 4px; }
+body.focus .bookpage { width: 100%; max-width: none; }
