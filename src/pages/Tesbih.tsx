@@ -46,10 +46,14 @@ export function Tesbihlar() {
   useEffect(() => { void loadT(); }, []);
 
   useEffect(() => {
-    const root = roots["Tesbihat"];
-    if (!root) return;
+    // Eski uygulamadaki tesbihat: Dua Ezber › Tesbihat (Arapça, okunuş ve Türkçe anlamlı sürüm)
+    const de = roots["Dua Ezber"];
+    if (!de) return;
     (async () => {
-      const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", root.id).order("sort_order");
+      const { data: f } = await supabase.from("library_items").select("id").eq("parent_id", de.id).eq("title", "Tesbihat").maybeSingle();
+      const folderId = (f as { id: string } | null)?.id ?? roots["Tesbihat"]?.id;
+      if (!folderId) return;
+      const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", folderId).order("sort_order");
       const ds = (data ?? []) as Item[];
       setDocs(ds);
       const { data: cn } = await supabase.from("content_nodes").select("id,document_id,metadata").in("document_id", ds.map((d) => d.id)).not("metadata->>target", "is", null);
@@ -94,8 +98,9 @@ export function Tesbihlar() {
       <div className="lbl">NAMAZ TESBİHATLARI</div>
       <div className="clist">
         {namaz.map((d) => <Row key={d.id} d={d} label={d.title.replace(" Tesbihatı", "").replace("Namazı", "namazı")} />)}
-        {other.map((d) => <Row key={d.id} d={d} />)}
       </div>
+      {other.length > 0 && <div className="lbl">DİĞER TESBİHATLAR</div>}
+      {other.length > 0 && <div className="clist">{other.map((d) => <Row key={d.id} d={d} />)}</div>}
       <div className="lbl">İSİMLER VE ÇOK ÇEKİLENLER</div>
       {esma && (
         <div className="clist" style={{ marginBottom: 10 }}>

@@ -7,6 +7,9 @@ import type { Item } from "../lib/library";
 import { useTodos, ymd } from "../lib/todo";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet } from "./TodoSheet";
+import { BookmarkDialog } from "../components/BookmarkDialog";
+import { FloatCounter, FullTasbih } from "../components/FloatCounter";
+import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 
 type Node = {
@@ -107,10 +110,11 @@ const nidsOf = (b: Block) => (b.t === "quote" ? b.ns.map((n) => n.id) : [b.n.id]
 
 export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: string; scope: Scope }) {
   const nav = useNavigate();
+  const loc0 = useLocation();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [mark, setMark] = useState<string | null>(null);
+  const [mark, setMark] = useState<string | null>(() => (loc0.state as { nid?: string } | null)?.nid ?? null); // ayraçtan açılınca gidilecek yer
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -124,6 +128,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [toast, setToast] = useState("");
   const { lists, groups } = useTodos();
   const bodyRef = useRef<HTMLDivElement>(null);
+  const [fsT, setFsT] = useState(false);
+
+  // Ayraçlar (çoklu, isimli). Kur'an'da tüm Kur'an ayraçları, diğerlerinde bu kitabınkiler.
+  const [bms, setBms] = useState<Bookmark[]>([]);
+  const bookId = scope === "kuran" ? null : doc.parent_id;
+  const reloadBms = useCallback(async () => { setBms(await listBookmarks(scope, bookId)); }, [scope, bookId]);
+  useEffect(() => { void reloadBms(); }, [reloadBms]);
+  const markedIds = useMemo(() => new Set(bms.filter((b) => b.node_id && (scope === "kuran" || b.document_id === doc.id)).map((b) => b.node_id as string)), [bms, scope, doc.id]);
+  const isMarked = (id?: string | null) => !!id && markedIds.has(id);
+  const [bmDraft, setBmDraft] = useState<BookmarkDraft | null>(null);
 
   // içerik + kaldığım yer + sayaçlar + notlar
   useEffect(() => {
@@ -139,7 +153,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       }
       const counterIds = all.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0).map((n) => n.id);
       const [rsq, msq, nq] = await Promise.all([
-        supabase.from("reading_state").select("last_content_node_id").eq("document_id", doc.id).maybeSingle(),
+        Promise.resolve({ data: null }),
         counterIds.length ? supabase.from("memorization_state").select("content_node_id,repeat_count,last_practiced_at").in("content_node_id", counterIds) : Promise.resolve({ data: [] as unknown[] }),
         supabase.from("reader_notes").select("id,node_id,note,quote").eq("document_id", doc.id).order("created_at"),
       ]);
@@ -152,7 +166,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       setNodes(all);
       setCounts(c);
       setNotes((nq.data ?? []) as Note[]);
-      setMark((rsq.data as { last_content_node_id: string | null } | null)?.last_content_node_id ?? null);
       setLoading(false);
     })();
     return () => { off = true; };
@@ -329,16 +342,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   }, []);
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2200); };
-  const saveMark = async () => {
+  const saveMark = () => {
     if (!sel) return;
-    const { error } = await supabase.from("reading_state").upsert(
-      { document_id: doc.id, last_content_node_id: sel.nid, scroll_anchor: sel.text.slice(0, 300), last_opened_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-      { onConflict: "owner_id,document_id" },
-    );
-    setMark(sel.nid);
+    let page: number | null = null;
+    let auto = doc.title;
+    if (isQuran) {
+      for (const pg of mpages ?? []) for (const p of pg.rich_content.paragraphs) for (const r of p.runs) {
+        if (page === null && r.nodeId === sel.nid) { page = pg.display_page; auto = `${surahNames[r.surahNo ?? 0] ?? doc.title} ${r.ayahNo ?? ""}. âyet · Sayfa ${pg.display_page}`; }
+      }
+    } else if (paged) auto = `${doc.title} · Sayfa ${pp + 1}`;
+    setBmDraft({ scope, book_id: bookId, document_id: doc.id, node_id: sel.nid, mushaf_page: page, quote: sel.text, autoTitle: auto });
     window.getSelection()?.removeAllRanges();
     setSel(null);
-    flash(error ? "Kaydedilemedi: " + error.message : "Kaldığım yer kaydedildi");
   };
   const addNote = async (text: string) => {
     if (!ask) return;
@@ -368,7 +383,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
-    <span key={n.id} id={"n" + n.id} data-nid={n.id} className={n.id === mark ? "mk" : notesOf(n.id).length ? "ul" : undefined}>{text} </span>
+    <span key={n.id} id={"n" + n.id} data-nid={n.id} className={isMarked(n.id) ? "mk" : notesOf(n.id).length ? "ul" : undefined}>{text} </span>
   );
   const NoteBoxes = ({ nid }: { nid: string }) => <>{notesOf(nid).map((x) => (<div key={x.id} className="ubox">Not: {x.note}</div>))}</>;
 
@@ -410,7 +425,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           <div className={"crow2" + (isAct ? " act" : "")} onClick={() => setActive(n.id)}>
             <div className="ctext" id={"n" + n.id} data-nid={n.id}>
               {rs.ar && n.secondary_text && <div className="ar">{n.secondary_text}</div>}
-              {rs.latin && <span className={n.id === mark ? "mk" : undefined}>{n.text_content}</span>}
+              {rs.latin && <span className={isMarked(n.id) ? "mk" : undefined}>{n.text_content}</span>}
               {rs.tr && n.translation && <div className="trn">{n.translation}</div>}
             </div>
             <button className={"pill" + (done ? " done" : isAct ? " act" : "")} onClick={(e) => { e.stopPropagation(); setActive(n.id); tap(b); }}>{b.target}/{c}</button>
@@ -428,7 +443,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (b.t === "verse") {
       const no = String(n.title ?? "").split(":")[1];
       return (
-        <div key={i} id={"n" + n.id} data-nid={n.id} className={n.id === mark ? "mk" : undefined}>
+        <div key={i} id={"n" + n.id} data-nid={n.id} className={isMarked(n.id) ? "mk" : undefined}>
           {rs.ar && n.secondary_text && <div className="ar">{n.secondary_text} <span className="vno">﴿{no}﴾</span></div>}
           {rs.tr && (n.translation || n.text_content) && <p className="trn">{no}. {n.translation ?? n.text_content}</p>}
           <NoteBoxes nid={n.id} />
@@ -440,7 +455,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     return (
       <div key={i}>
         {arabic ? (rs.ar && <div className="ar" id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.secondary_text}</div>) : (
-          <p id={"n" + n.id} data-nid={n.id} className={n.id === mark ? "mk" : notesOf(n.id).length ? "ul" : undefined}>
+          <p id={"n" + n.id} data-nid={n.id} className={isMarked(n.id) ? "mk" : notesOf(n.id).length ? "ul" : undefined}>
             {rs.ar && n.secondary_text && <span className="ar blk">{n.secondary_text}</span>}
             {rs.latin && n.text_content}
             {rs.tr && n.translation && <span className="trn blk">{n.translation}</span>}
@@ -455,12 +470,22 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     <>
       {sel && (
         <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
-          <button className="g" onClick={() => void saveMark()} aria-label="Kaldığım yer"><Icon name="bookmark" size={22} /></button>
+          <button className="g" onClick={saveMark} aria-label="Ayraç ekle"><Icon name="bookmark" size={22} /></button>
           <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); setSel(null); }} aria-label="Not"><Icon name="pencil" size={22} /></button>
           <button className="a" onClick={() => { setTodo({ notes: sel.text.slice(0, 300) }); setSel(null); }} aria-label="Todo"><Icon name="plusbox" size={22} /></button>
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
+      {bmDraft && (
+        <BookmarkDialog
+          autoTitle={bmDraft.autoTitle}
+          list={bms}
+          onClose={() => setBmDraft(null)}
+          onNew={async (name) => { const d = bmDraft; setBmDraft(null); const { error } = await addBookmark(d, name); if (error) flash("Kaydedilemedi: " + error.message); else { setMark(d.node_id); flash("Ayraç kaydedildi"); void reloadBms(); } }}
+          onUpdate={async (bm) => { const d = bmDraft; setBmDraft(null); const { error } = await moveBookmark(bm.id, d); if (error) flash("Güncellenemedi: " + error.message); else { flash(`“${bm.title}” güncellendi`); void reloadBms(); } }}
+          onDelete={async (bm) => { await deleteBookmark(bm.id); void reloadBms(); }}
+        />
+      )}
       {ask && <AskDialog title="Not ekle" placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
       {todo && (
         <TodoSheet
@@ -523,7 +548,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
                 {mp?.rich_content.paragraphs.map((p, pi) => (
                   <p key={pi} className={"mp mp-" + p.style}>
                     {p.runs.map((r, ri) => (
-                      <span key={ri} id={r.nodeId && ri === p.runs.findIndex((x) => x.nodeId === r.nodeId) ? "n" + r.nodeId : undefined} data-nid={r.nodeId} className={[r.runStyle ? "mr-" + r.runStyle : "", r.nodeId && r.nodeId === mark ? "mk" : ""].join(" ").trim() || undefined}>{r.text}</span>
+                      <span key={ri} id={r.nodeId && ri === p.runs.findIndex((x) => x.nodeId === r.nodeId) ? "n" + r.nodeId : undefined} data-nid={r.nodeId} className={[r.runStyle ? "mr-" + r.runStyle : "", isMarked(r.nodeId) ? "mk" : ""].join(" ").trim() || undefined}>{r.text}</span>
                     ))}
                   </p>
                 ))}
@@ -548,35 +573,88 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     );
   }
 
+  /* ── Tesbihat / dua: eski Lumen'deki tek parça kâğıt sayfa, blok sayaçları, yüzen sayaç ── */
+  const counters = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0);
+  const tgt = (n: Node) => Number(md(n).target ?? 0);
+  const actNode = counters.find((n) => n.id === active && (counts[n.id] ?? 0) < tgt(n)) ?? counters.find((n) => (counts[n.id] ?? 0) < tgt(n));
+  const shown = actNode ?? counters[counters.length - 1];
+  const shownT = shown ? tgt(shown) : 0;
+  const shownC = shown ? counts[shown.id] ?? 0 : 0;
+  const setCount = (n: Node, v: number) => {
+    const t = tgt(n);
+    const val = Math.max(0, Math.min(t, v));
+    setCounts((s) => ({ ...s, [n.id]: val }));
+    void saveCount(n.id, t, val);
+    return val;
+  };
+  const inc = () => {
+    if (!actNode) return;
+    const v = setCount(actNode, (counts[actNode.id] ?? 0) + 1);
+    try { navigator.vibrate?.(v === tgt(actNode) ? [30, 60, 30] : 12); } catch { /* yok say */ }
+    if (v >= tgt(actNode)) setActive(null);
+  };
+  const dec = () => { if (shown) setCount(shown, (counts[shown.id] ?? 0) - 1); };
+  const resetAll = () => {
+    if (!counters.length || !window.confirm("Bu metindeki bütün sayaçlar sıfırlansın mı?")) return;
+    for (const n of counters) setCount(n, 0);
+    setActive(null);
+  };
   return (
     <div className="rpage" data-rt={rt}>
       {rs.light < 1 && <div className="dim" style={{ opacity: Math.min(0.7, 1 - rs.light) }} />}
       {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
       {!focus && <header className="rhead">
         <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
-        <div className="rtitle">{doc.title}{parentTitle && !isDua ? <span>{parentTitle}</span> : null}</div>
-        {pageCounters.length > 0 && <button className="iconbtn" onClick={resetPage} aria-label="Sayaçları sıfırla"><Icon name="reset" size={22} /></button>}
-        <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
+        <div className="rtitle">{doc.title}{parentTitle ? <span>{parentTitle}</span> : null}</div>
+        {counters.length > 0 && <button className="iconbtn" onClick={resetAll} aria-label="Sayaçları sıfırla"><Icon name="reset" size={22} /></button>}
+        {counters.length > 0 && <button className="iconbtn" onClick={() => setFsT(true)} aria-label="Tam ekran tesbih"><Icon name="expand" size={22} /></button>}
         <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
         <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
       </header>}
-      {!focus && <div className="rprog"><i style={{ width: `${((page + 1) / pages.length) * 100}%` }} /></div>}
-      {loading && <p className="muted" style={{ padding: "12px 20px" }}>Yükleniyor…</p>}
-      <div className={"reader2" + (isDua ? " dua" : "")} style={{ fontSize: `${rs.size}em` }} ref={bodyRef}>
-        {cur.map(renderBlock)}
-        {!loading && nodes.length === 0 && <p className="muted">Bu belgenin içeriği henüz yok.</p>}
+      <div className="bookwrap">
+        <section className="duapage" data-pc={rs.paper}>
+          <header className="duahead"><strong>{doc.title}</strong><span>{parentTitle ?? "Tesbihat"}</span></header>
+          {loading && <p className="muted">Yükleniyor…</p>}
+          <div className="duabody" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+            {nodes.map((n) => {
+              const m = md(n);
+              const note = typeof m.note === "string" ? m.note : "";
+              const instr = m.instruction === true || n.kind === "note";
+              const t = tgt(n);
+              const c = counts[n.id] ?? 0;
+              const isAct = !!actNode && actNode.id === n.id;
+              return (
+                <article key={n.id} id={"n" + n.id} data-nid={n.id} className={"dblock" + (note ? " dsec" : "") + (instr ? " dinstr" : "") + (isAct ? " act" : "")}>
+                  {note && <div className="dnote">{note}</div>}
+                  {n.title && n.kind !== "phrase" && <h3>{n.title}</h3>}
+                  <div className="dcontent">
+                    <div className="dtext">
+                      {rs.ar && n.secondary_text && <div className="dar" dir="rtl">{n.secondary_text}</div>}
+                      {(rs.latin || instr) && n.text_content && <div className={(instr ? "dins" : "dlat") + (isMarked(n.id) ? " mk" : "")}>{n.text_content}</div>}
+                      {rs.tr && n.translation && <div className="dtr">{n.translation}</div>}
+                      <NoteBoxes nid={n.id} />
+                    </div>
+                    {t > 0 && (
+                      <div className="dcnt">
+                        <button className={"pill" + (c >= t ? " done" : isAct ? " act" : "")} onClick={() => setActive(n.id)} title="Bu sayacı seç">{t}/{c}</button>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {!loading && nodes.length === 0 && <p className="muted">Bu metnin içeriği henüz yok.</p>}
+          </div>
+          <footer className="duafoot">{doc.title}</footer>
+        </section>
       </div>
+      <nav className="dpager">
+        <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true })}>‹ Önceki</button>
+        <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>
+      </nav>
       <div style={{ height: 90 }} />
-      {pageCounters.length > 0 && (
-        <button className={"cfab" + (act ? "" : " done")} onClick={() => tap(act)} aria-label="Say">
-          {act ? (counts[act.n.id] ?? 0) : <Icon name="check" size={34} />}
-        </button>
-      )}
-      <div className="pnav">
-        <button disabled={page === 0} onClick={() => go(page - 1)}>‹ Önceki</button>
-        <span className="small muted">{page + 1} / {pages.length}</span>
-        <button disabled={page >= pages.length - 1} onClick={() => go(page + 1)}>Sonraki ›</button>
-      </div>
+      {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" />}
+      {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}
       {overlays}
     </div>
   );

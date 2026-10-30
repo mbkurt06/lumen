@@ -19,13 +19,13 @@ function Resume({ scopeId }: { scopeId?: string }) {
       <div className="reshead"><span>KALDIĞIN YERLER</span><span>{rows.length} kayıt</span></div>
       <div className="resbody">
         {rows.map((r, i) => (
-          <div key={r.docId} className="resrow">
+          <div key={r.id} className="resrow">
             <span className="bm"><Icon name="bookmark" size={20} /></span>
             <div className="resmain">
-              {r.parentTitle && <div className="small muted">{r.parentTitle} · kaldığım yer</div>}
+              <div className="small muted">{r.parentTitle ? r.parentTitle + " · " : ""}{r.docTitle}</div>
               <b>{r.title}</b>
             </div>
-            <button className={i === 0 ? "devam" : "devam alt"} onClick={() => nav(`/kutuphane/${r.docId}`)}>Devam et</button>
+            <button className={i === 0 ? "devam" : "devam alt"} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam et</button>
           </div>
         ))}
       </div>

@@ -19,19 +19,19 @@ export function useRoots() {
   return { roots, ready };
 }
 
-export type Resume = { docId: string; title: string; parentTitle: string; ancestors: string[] };
+export type Resume = { id: string; docId: string; nodeId: string | null; title: string; docTitle: string; parentTitle: string; ancestors: string[] };
 
-/** "Kaldığın yerler": en son açılan belgeler; scopeId verilirse yalnız o klasörün altındakiler. */
+/** "Kaldığın yerler": senin eklediğin ayraçlar (en son güncellenen önce); scopeId verilirse yalnız o klasörün altındakiler. */
 export function useResume(scopeId?: string) {
   const [rows, setRows] = useState<Resume[]>([]);
   useEffect(() => {
     let off = false;
     (async () => {
-      const { data } = await supabase.from("reading_state").select("document_id,last_opened_at").not("last_content_node_id", "is", null).order("last_opened_at", { ascending: false }).limit(30);
-      const ids = ((data ?? []) as { document_id: string }[]).map((r) => r.document_id);
-      if (!ids.length) { if (!off) setRows([]); return; }
+      const { data } = await supabase.from("reader_bookmarks").select("id,title,document_id,node_id,updated_at").order("updated_at", { ascending: false }).limit(60);
+      const bms = (data ?? []) as { id: string; title: string; document_id: string; node_id: string | null }[];
+      if (!bms.length) { if (!off) setRows([]); return; }
       const byId = new Map<string, Item>();
-      let frontier = ids;
+      let frontier = [...new Set(bms.map((b) => b.document_id))];
       for (let d = 0; d < 6 && frontier.length; d++) {
         const { data: its } = await supabase.from("library_items").select(ITEM_COLS).in("id", frontier);
         const got = (its ?? []) as Item[];
@@ -39,16 +39,16 @@ export function useResume(scopeId?: string) {
         frontier = [...new Set(got.map((g) => g.parent_id).filter((p): p is string => !!p && !byId.has(p)))];
       }
       const out: Resume[] = [];
-      for (const id of ids) {
-        const it = byId.get(id);
+      for (const b of bms) {
+        const it = byId.get(b.document_id);
         if (!it) continue;
         const anc: string[] = [];
         let p = it.parent_id ? byId.get(it.parent_id) : undefined;
         while (p) { anc.push(p.id); p = p.parent_id ? byId.get(p.parent_id) : undefined; }
         if (scopeId && !anc.includes(scopeId)) continue;
-        out.push({ docId: id, title: it.title, parentTitle: it.parent_id ? (byId.get(it.parent_id)?.title ?? "") : "", ancestors: anc });
+        out.push({ id: b.id, docId: b.document_id, nodeId: b.node_id, title: b.title, docTitle: it.title, parentTitle: it.parent_id ? (byId.get(it.parent_id)?.title ?? "") : "", ancestors: anc });
       }
-      if (!off) setRows(out.slice(0, 8));
+      if (!off) setRows(out.slice(0, 20));
     })();
     return () => { off = true; };
   }, [scopeId]);

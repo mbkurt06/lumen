@@ -49,7 +49,7 @@ export function ensureMushafFont(): Promise<boolean> {
   return loading;
 }
 
-export type MRun = { text: string; runStyle?: string; nodeId?: string; marker?: boolean; ayahNo?: number };
+export type MRun = { text: string; runStyle?: string; nodeId?: string; marker?: boolean; ayahNo?: number; surahNo?: number };
 export type MPage = { display_page: number; juz: number | null; surah_numbers: number[] | null; rich_content: { paragraphs: { style: string; runs: MRun[] }[] } };
 
 /** Word sayfa aralığındaki mushaf sayfaları (Word sayfası = gösterilen sayfa + 1). */
