@@ -152,7 +152,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const dt = Number(((doc.metadata ?? {}) as Record<string, unknown>).target ?? 0);
       if (dt > 0 && !all.some((n) => Number(md(n).target ?? 0) > 0)) {
         const i = all.findIndex((n) => n.kind === "phrase");
-        if (i >= 0) all = all.map((n, j) => (j === i ? { ...n, metadata: { ...(n.metadata ?? {}), target: dt } } : n));
+        // sayacın yanındaki metin listedeki gibi "Yâ …" ile yazılır
+        const ya = doc.subtitle && /^Y[aâ]\s/i.test(doc.subtitle) ? doc.subtitle : null;
+        if (i >= 0) all = all.map((n, j) => (j === i ? { ...n, text_content: ya ?? n.text_content, metadata: { ...(n.metadata ?? {}), target: dt } } : n));
       }
       setNodes(all);
       setLoading(false); // metin hazır: sayfa hemen açılsın; notlar ve sayaçlar arkadan
