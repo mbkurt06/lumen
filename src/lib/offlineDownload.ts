@@ -2,6 +2,7 @@ import { ensureMushafFont, loadMushafPages } from "./mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames, loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems, loadRootsList, loadTesbihatDocs } from "./loaders";
 import type { Item } from "./library";
 import { supabase } from "./supabase";
+import { setForceNetwork } from "./offlineFetch";
 
 /* Koleksiyonları cihaza indirir: sayfaların kullandığı sorguların hepsini sırayla çalıştırır,
    yanıtlar offlineFetch ile cihazda saklanır. */
@@ -22,6 +23,10 @@ async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>, onTic
 }
 
 export async function downloadCollection(key: CollectionKey, onProgress: (p: Progress) => void, signal?: { cancel: boolean }) {
+  setForceNetwork(true);
+  try { return await downloadCollectionInner(key, onProgress, signal); } finally { setForceNetwork(false); }
+}
+async function downloadCollectionInner(key: CollectionKey, onProgress: (p: Progress) => void, signal?: { cancel: boolean }) {
   const cfg = COLLECTIONS.find((c) => c.key === key)!;
   const p: Progress = { done: 0, total: 1, failed: 0 };
   const tick = () => { p.done++; onProgress({ ...p }); };
@@ -75,6 +80,10 @@ export async function downloadCollection(key: CollectionKey, onProgress: (p: Pro
 /* ── Farkları indir: son indirmeden beri değişen belgeler ve klasörler ──
    İçerik tablolarındaki "updated_at" zamanına bakılır; yalnız değişenler yeniden çekilir. */
 export async function downloadChanges(key: CollectionKey, since: string, onProgress: (p: Progress) => void): Promise<{ changed: number; serverNow: string } | null> {
+  setForceNetwork(true);
+  try { return await downloadChangesInner(key, since, onProgress); } finally { setForceNetwork(false); }
+}
+async function downloadChangesInner(key: CollectionKey, since: string, onProgress: (p: Progress) => void): Promise<{ changed: number; serverNow: string } | null> {
   const startedAt = new Date().toISOString();
   const [nodesQ, itemsQ, mushafQ] = await Promise.all([
     supabase.from("content_nodes").select("document_id").gt("updated_at", since).limit(20000),
