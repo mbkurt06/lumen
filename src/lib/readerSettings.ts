@@ -2,8 +2,8 @@ import { supabase } from "./supabase";
 import { deviceId, deviceName } from "./device";
 
 export type Paper = "cream" | "sepia" | "white" | "dark";
-export type RSettings = { paper: Paper; theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number; fit: boolean; cnt: number };
-export const DEFAULT_RS: RSettings = { paper: "cream", theme: "default", ar: true, latin: true, tr: true, size: 1, light: 1, fit: false, cnt: 1 };
+export type RSettings = { paper: Paper; theme: "default" | "dark" | "light" | "paper" | "auto"; ar: boolean; latin: boolean; tr: boolean; size: number; light: number; fit: boolean; cnt: number; pill: number };
+export const DEFAULT_RS: RSettings = { paper: "cream", theme: "default", ar: true, latin: true, tr: true, size: 1, light: 1, fit: false, cnt: 1, pill: 1 };
 
 /** Okuma ayarları bölüm bölüm ayrı tutulur. */
 export type Scope = "he" | "kuran" | "risale" | "diger" | "ibadet";

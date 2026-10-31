@@ -620,7 +620,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <section className="duapage" data-pc={rs.paper}>
           <header className="duahead"><strong>{doc.title}</strong><span>{parentTitle ?? "Tesbihat"}</span></header>
           {loading && <p className="muted">Yükleniyor…</p>}
-          <div className="duabody" ref={bodyRef} style={{ fontSize: `${rs.size}em`, ["--cs" as string]: rs.cnt }}>
+          <div className="duabody" ref={bodyRef} style={{ fontSize: `${rs.size}em`, ["--cs" as string]: rs.pill }}>
             {nodes.map((n) => {
               const m = md(n);
               const note = typeof m.note === "string" ? m.note : "";
@@ -684,7 +684,7 @@ function FaceHands() {
 /* Yazı boyutu kademeleri: %80 → %720 (eski en büyük %180'in 4 katı) */
 export const SIZES = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.65, 1.8, 2, 2.25, 2.5, 2.75, 3, 3.4, 3.8, 4.2, 4.7, 5.2, 5.8, 6.5, 7.2];
 /* Sayaç boyutu kademeleri (yüzen sayaç + satırdaki elips sayaçlar) */
-const CNT = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.4, 2.8];
+const CNT = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.3, 2.6, 3, 3.5, 4];
 const cntIdx = (v: number) => CNT.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(CNT[best] - v) ? i : best), 0);
 const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(SIZES[best] - v) ? i : best), 0);
 
@@ -693,6 +693,16 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
 }) {
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
+  );
+  const CntRow = ({ label, k }: { label: string; k: "cnt" | "pill" }) => (
+    <div className="srow col"><span>{label}</span>
+      <div className="sl">
+        <button className="szb" onClick={() => onChange({ ...rs, [k]: CNT[Math.max(0, cntIdx(rs[k]) - 1)] })} aria-label="Küçült">−</button>
+        <input type="range" min={0} max={CNT.length - 1} step={1} value={cntIdx(rs[k])} onChange={(e) => onChange({ ...rs, [k]: CNT[Number(e.target.value)] })} />
+        <button className="szb" onClick={() => onChange({ ...rs, [k]: CNT[Math.min(CNT.length - 1, cntIdx(rs[k]) + 1)] })} aria-label="Büyüt">+</button>
+      </div>
+      <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round((rs[k] / CNT[CNT.length - 1]) * 100)}</div>
+    </div>
   );
   return (
     <>
@@ -727,14 +737,10 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
           <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round((rs.size / SIZES[SIZES.length - 1]) * 100)}</div>
         </div>
         {counters && (
-          <div className="srow col"><span>Sayaç boyutu</span>
-            <div className="sl">
-              <button className="szb" onClick={() => onChange({ ...rs, cnt: CNT[Math.max(0, cntIdx(rs.cnt) - 1)] })} aria-label="Küçült">−</button>
-              <input type="range" min={0} max={CNT.length - 1} step={1} value={cntIdx(rs.cnt)} onChange={(e) => onChange({ ...rs, cnt: CNT[Number(e.target.value)] })} />
-              <button className="szb" onClick={() => onChange({ ...rs, cnt: CNT[Math.min(CNT.length - 1, cntIdx(rs.cnt) + 1)] })} aria-label="Büyüt">+</button>
-            </div>
-            <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round(rs.cnt * 100)} · yüzen sayaç ve satır sayaçları</div>
-          </div>
+          <>
+            <CntRow label="Yuvarlak sayaç boyutu" k="cnt" />
+            <CntRow label="Satır sayaçları boyutu" k="pill" />
+          </>
         )}
         <div className="srow col"><span>Aydınlatma</span>
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>
