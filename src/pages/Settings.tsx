@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { clearOfflineData } from "../lib/offlineFetch";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { CURRENT } from "../lib/update";
 
@@ -14,7 +15,7 @@ const MODES: { id: ThemeMode; label: string }[] = [
 
 const LINKS = [
   { to: "/cihazlar", label: "Cihazlarım", icon: "phone" },
-  { to: "/esitleme", label: "Eşitleme ve yedek", icon: "sync" },
+  { to: "/esitleme", label: "Çevrimdışı ve eşitleme", icon: "sync" },
   { to: "/guncelleme", label: "Güncelleme · Hakkında", icon: "download", meta: "v" + CURRENT.version },
 ];
 
@@ -49,7 +50,7 @@ export function Settings() {
       <div className="card" style={{ margin: "12px 16px" }}>
         <div className="cardtitle">Hesap</div>
         <p className="muted small" style={{ margin: "4px 0 12px" }}>{session?.user.email}</p>
-        <button className="secondary" onClick={() => supabase.auth.signOut()}>Çıkış yap</button>
+        <button className="secondary" onClick={() => { void clearOfflineData(); void supabase.auth.signOut(); }}>Çıkış yap</button>
       </div>
 
       <p className="muted small" style={{ margin: "4px 20px 24px" }}>Bildirimler, Namaz, Okuma ve Google ayarları ilgili sayfalar geliştirilirken eklenecek.</p>

@@ -6,6 +6,7 @@ import { Collection, LibraryHome, LibraryItem } from "./pages/Library";
 import { TesbihCounter } from "./pages/Tesbih";
 import { Namaz } from "./pages/Namaz";
 import { Placeholder } from "./pages/Placeholder";
+import { Offline } from "./pages/Offline";
 import { Todo } from "./pages/Todo";
 import { TodoDetail } from "./pages/TodoDetail";
 import { Settings } from "./pages/Settings";
@@ -38,7 +39,7 @@ function Gate() {
           <Route path="kelime-defteri" element={<Placeholder title="Kelime defterim" />} />
           <Route path="ayarlar" element={<Settings />} />
           <Route path="cihazlar" element={<Placeholder title="Cihazlarım" />} />
-          <Route path="esitleme" element={<Placeholder title="Eşitleme ve yedek" />} />
+          <Route path="esitleme" element={<Offline />} />
           <Route path="guncelleme" element={<Update />} />
           <Route path="*" element={<Placeholder title="Sayfa bulunamadı" note="Bu adres yok." />} />
         </Route>

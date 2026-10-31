@@ -39,6 +39,7 @@ export function Shell() {
     <ShellContext.Provider value={{ openMenu: () => setOpen(true) }}>
       <div className="shell">
         <UpdateBanner />
+        <OfflineBar />
         <main className="content">
           <Outlet />
         </main>
@@ -54,4 +55,17 @@ export function Shell() {
       </div>
     </ShellContext.Provider>
   );
+}
+
+/* İnternet yokken ince bir uyarı: kayıtlı içerik gösteriliyor. */
+function OfflineBar() {
+  const [off, setOff] = useState(typeof navigator !== "undefined" && navigator.onLine === false);
+  useEffect(() => {
+    const on = () => setOff(navigator.onLine === false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", on);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", on); };
+  }, []);
+  if (!off) return null;
+  return <div className="offbar">Çevrimdışı · cihazda kayıtlı içerik gösteriliyor</div>;
 }

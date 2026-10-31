@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { ITEM_COLS, useRoots, type Item } from "../lib/library";
 import { ymd } from "../lib/todo";
+import { loadTesbihatDocs } from "../lib/loaders";
 
 type Tesbih = { id: string; title: string; target: number; count: number; count_date: string | null };
 const todayCount = (t: Tesbih) => (t.count_date === ymd() ? t.count : 0);
@@ -50,15 +51,8 @@ export function Tesbihlar() {
     const de = roots["Dua Ezber"];
     if (!de) return;
     (async () => {
-      const { data: f } = await supabase.from("library_items").select("id").eq("parent_id", de.id).eq("title", "Tesbihat").maybeSingle();
-      const folderId = (f as { id: string } | null)?.id ?? roots["Tesbihat"]?.id;
-      if (!folderId) return;
-      const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", folderId).order("sort_order");
-      const ds = (data ?? []) as Item[];
+      const { docs: ds, counters, states: ms } = await loadTesbihatDocs(de.id, roots["Tesbihat"]?.id);
       setDocs(ds);
-      const { data: cn } = await supabase.from("content_nodes").select("id,document_id,metadata").in("document_id", ds.map((d) => d.id)).not("metadata->>target", "is", null);
-      const counters = (cn ?? []) as { id: string; document_id: string; metadata: { target?: number } }[];
-      const { data: ms } = counters.length ? await supabase.from("memorization_state").select("content_node_id,repeat_count,last_practiced_at").in("content_node_id", counters.map((c) => c.id)) : { data: [] };
       const today = ymd();
       const cnt = new Map<string, number>();
       for (const m of (ms ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) if (m.last_practiced_at && ymd(new Date(m.last_practiced_at)) === today) cnt.set(m.content_node_id, m.repeat_count);

@@ -11,6 +11,7 @@ import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
 import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
+import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
 
 type Node = {
   id: string;
@@ -144,13 +145,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     let off = false;
     (async () => {
       setLoading(true);
-      const all: Node[] = [];
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase.from("content_nodes").select("id,kind,title,text_content,secondary_text,translation,metadata").eq("document_id", doc.id).order("sort_order").range(from, from + 999);
-        if (error || !data) break;
-        all.push(...(data as Node[]));
-        if (data.length < 1000) break;
-      }
+      const all = (await fetchDocNodes(doc.id)) as Node[];
       const counterIds = all.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0).map((n) => n.id);
       const [rsq, msq, nq] = await Promise.all([
         Promise.resolve({ data: null }),
@@ -195,11 +190,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [surahNames, setSurahNames] = useState<Record<number, string>>({});
   useEffect(() => {
     if (!isQuran || !doc.parent_id) return;
-    void supabase.from("library_items").select("title,sort_order").eq("parent_id", doc.parent_id).lt("sort_order", 1000).then(({ data }) => {
-      const m: Record<number, string> = {};
-      for (const r of (data ?? []) as { title: string; sort_order: number }[]) m[r.sort_order] = r.title;
-      setSurahNames(m);
-    });
+    void fetchSurahNames(doc.parent_id).then(setSurahNames);
   }, [isQuran, doc.parent_id]);
   const articleRef = useRef<HTMLElement>(null);
   const [fitSize, setFitSize] = useState<number | null>(null);
@@ -213,8 +204,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 
   useEffect(() => {
     if (!doc.parent_id) return;
-    void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id).eq("kind", "document").order("sort_order").order("title").limit(2000)
-      .then(({ data }) => setSiblings(((data ?? []) as { id: string }[]).map((r) => r.id)));
+    void fetchSiblings(doc.parent_id).then(setSiblings);
   }, [doc.parent_id]);
 
   const startedAt = useRef(false);

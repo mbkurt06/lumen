@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { ITEM_COLS, useResume, useRoots, type Item } from "../lib/library";
+import { useResume, useRoots, type Item } from "../lib/library";
+import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
 import { Reader, ReaderSettings } from "./Reader";
 import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
@@ -128,7 +129,7 @@ function Ibadet() {
   const [cevsen, setCevsen] = useState<Item[]>([]);
   useEffect(() => {
     if (!roots["Dua Ezber"]) return;
-    void supabase.from("library_items").select(ITEM_COLS).eq("parent_id", roots["Dua Ezber"].id).in("title", ["Cevşen-i Kebîr", "Tevhidname"]).then(({ data }) => setCevsen((data ?? []) as Item[]));
+    void loadIbadetExtras(roots["Dua Ezber"].id).then(setCevsen);
   }, [roots]);
   const r = (t: string) => (roots[t] ? `/kutuphane/${roots[t].id}` : "/kutuphane");
   const c = (t: string) => { const x = cevsen.find((i) => i.title === t); return x ? `/kutuphane/${x.id}` : "/kutuphane"; };
@@ -154,8 +155,8 @@ function Dualar() {
   useEffect(() => {
     const names = ["Namaz Duaları", "Günlük Dualar"].filter((n) => roots[n]);
     if (!names.length) return;
-    void Promise.all(names.map((n) => supabase.from("library_items").select(ITEM_COLS).eq("parent_id", roots[n].id).order("sort_order"))).then((res) =>
-      setGroups(res.map((r, i) => ({ title: names[i], items: (r.data ?? []) as Item[] }))));
+    void Promise.all(names.map((n) => loadChildrenBySort(roots[n].id))).then((res) =>
+      setGroups(res.map((items, i) => ({ title: names[i], items }))));
   }, [roots]);
   return (
     <>
@@ -177,7 +178,7 @@ function Kuran() {
   useEffect(() => {
     const root = roots["Kur’an-ı Kerim"];
     if (!root) return;
-    void supabase.from("library_items").select(ITEM_COLS).eq("parent_id", root.id).order("sort_order").limit(300).then(({ data }) => setItems((data ?? []) as Item[]));
+    void loadKuranItems(root.id).then(setItems);
   }, [roots]);
   const sures = useMemo(() => items.filter((i) => i.sort_order < 1000), [items]);
   const cuzler = useMemo(() => items.filter((i) => i.sort_order >= 1000), [items]);
@@ -230,35 +231,8 @@ export function LibraryItem() {
     let off = false;
     (async () => {
       setLoading(true);
-      const { data: me } = await supabase.from("library_items").select(ITEM_COLS).eq("id", id!).maybeSingle();
-      const cur = me as Item | null;
-      let par: Item | null = null;
-      if (cur?.parent_id) {
-        const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", cur.parent_id).maybeSingle();
-        par = data as Item | null;
-      }
-      // kök koleksiyonu bul (ayarlar bölüm bölüm tutulur)
-      let top: Item | null = par ?? cur;
-      for (let i = 0; top?.parent_id && i < 6; i++) {
-        const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", top.parent_id).maybeSingle();
-        if (!data) break;
-        top = data as Item;
-      }
-      let list: Item[] = [];
-      const cnt: Record<string, { folders: number; docs: number }> = {};
-      if (cur && cur.kind !== "document") {
-        const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", cur.id).order("sort_order").order("title").limit(1000);
-        list = (data ?? []) as Item[];
-        const ids = list.filter((k) => k.kind !== "document").map((k) => k.id);
-        for (let i = 0; i < ids.length; i += 150) {
-          const { data: g } = await supabase.from("library_items").select("parent_id,kind").in("parent_id", ids.slice(i, i + 150)).limit(5000);
-          for (const r of (g ?? []) as { parent_id: string; kind: string }[]) {
-            const c = (cnt[r.parent_id] ??= { folders: 0, docs: 0 });
-            if (r.kind === "document") c.docs++; else c.folders++;
-          }
-        }
-      }
-      if (!off) { setItem(cur); setParent(par); setRoot(top); setKids(list); setCounts(cnt); setLoading(false); }
+      const v = await loadItemView(id!);
+      if (!off) { setItem(v.item); setParent(v.parent); setRoot(v.root); setKids(v.kids); setCounts(v.counts); setLoading(false); }
     })();
     return () => { off = true; };
   }, [id]);

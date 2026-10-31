@@ -485,3 +485,4 @@ body.focus .floatcnt { bottom: calc(24px + env(safe-area-inset-bottom)); }
 .bmtxt span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bmup { flex: none; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--accent); background: none; color: var(--accent); font-weight: 700; cursor: pointer; }
 .endsym { white-space: nowrap; color: color-mix(in srgb, var(--pg-fg) 80%, transparent); }
+.offbar { padding: calc(4px + env(safe-area-inset-top)) 16px 4px; background: #3a3320; color: #e6c77a; font-size: 12px; font-weight: 600; text-align: center; }

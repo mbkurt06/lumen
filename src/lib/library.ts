@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { loadRootsList } from "./loaders";
 
 export type Item = { id: string; parent_id: string | null; kind: string; title: string; subtitle: string | null; sort_order: number; metadata: Record<string, unknown> | null };
 export const ITEM_COLS = "id,parent_id,kind,title,subtitle,sort_order,metadata";
@@ -9,9 +10,9 @@ export function useRoots() {
   const [roots, setRoots] = useState<Record<string, Item>>({});
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    void supabase.from("library_items").select(ITEM_COLS).is("parent_id", null).then(({ data }) => {
+    void loadRootsList().then((data) => {
       const m: Record<string, Item> = {};
-      for (const r of (data ?? []) as Item[]) m[r.title] = r;
+      for (const r of data) m[r.title] = r;
       setRoots(m);
       setReady(true);
     });
