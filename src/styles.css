@@ -37,7 +37,10 @@ button { font: inherit; color: inherit; }
 h1 { margin: 0; }
 
 .shell { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
-.content { flex: 1; overflow-y: auto; padding-top: env(safe-area-inset-top); }
+.content { flex: 1; overflow-y: auto; }
+/* Çentik boşluğu kaydırılan alanın dışında: yapışkan başlıkların üstünde metin görünmesin */
+.shell { padding-top: env(safe-area-inset-top); }
+.shell:has(> .banner), body:not(.reading) .shell:has(> .offbar) { padding-top: 0; }
 
 /* Üst başlık */
 .phead { display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; }
@@ -486,3 +489,17 @@ body.focus .floatcnt { bottom: calc(24px + env(safe-area-inset-bottom)); }
 .bmup { flex: none; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--accent); background: none; color: var(--accent); font-weight: 700; cursor: pointer; }
 .endsym { white-space: nowrap; color: color-mix(in srgb, var(--pg-fg) 80%, transparent); }
 .offbar { padding: calc(4px + env(safe-area-inset-top)) 16px 4px; background: #3a3320; color: #e6c77a; font-size: 12px; font-weight: 600; text-align: center; }
+
+/* Okuyucu: alt çubuk ve çevrimdışı şeridi gizli (yer açılır), çevrimdışı bilgisi başlıkta */
+body.reading .offbar, body.reading .tabbar { display: none; }
+body.reading .pnav { bottom: env(safe-area-inset-bottom); }
+body.reading .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
+body.reading .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
+body.reading .floatcnt { bottom: calc(24px + env(safe-area-inset-bottom)); }
+body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+.offtag { font-style: normal; color: #e6c77a; }
+/* Sayaç boyutu (ayarlardan) */
+.floatcnt span { font-size: calc(26px * var(--cs, 1)); }
+.floatcnt small { font-size: calc(12px * var(--cs, 1)); }
+.dcnt .pill { font-size: calc(12px * var(--cs, 1)); min-width: calc(58px * var(--cs, 1)); padding: calc(5px * var(--cs, 1)) calc(10px * var(--cs, 1)); }
+.cntreset { z-index: 32; }

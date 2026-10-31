@@ -5,6 +5,7 @@ import { Drawer } from "./Drawer";
 import { Icon } from "./Icon";
 import { UpdateBanner } from "./UpdateBanner";
 import { isNative } from "../lib/update";
+import { useOffline } from "../lib/online";
 
 const ShellContext = createContext<{ openMenu: () => void }>({ openMenu: () => {} });
 export const useShell = () => useContext(ShellContext);
@@ -57,15 +58,9 @@ export function Shell() {
   );
 }
 
-/* İnternet yokken ince bir uyarı: kayıtlı içerik gösteriliyor. */
+/* İnternet yokken ince bir uyarı: kayıtlı içerik gösteriliyor (okuyucuda başlığa taşınır). */
 function OfflineBar() {
-  const [off, setOff] = useState(typeof navigator !== "undefined" && navigator.onLine === false);
-  useEffect(() => {
-    const on = () => setOff(navigator.onLine === false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", on);
-    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", on); };
-  }, []);
+  const off = useOffline();
   if (!off) return null;
   return <div className="offbar">Çevrimdışı · cihazda kayıtlı içerik gösteriliyor</div>;
 }

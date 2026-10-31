@@ -9,6 +9,7 @@ import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope }
 import { TodoSheet } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
+import { useOffline } from "../lib/online";
 import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
@@ -145,8 +146,14 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     let off = false;
     (async () => {
       setLoading(true);
-      const all = (await fetchDocNodes(doc.id)) as Node[];
+      let all = (await fetchDocNodes(doc.id)) as Node[];
       if (off) return;
+      // Esmâü'l-Hüsnâ gibi tek isimli belgelerde çekilecek sayı belgenin kendisinde tutulur
+      const dt = Number(((doc.metadata ?? {}) as Record<string, unknown>).target ?? 0);
+      if (dt > 0 && !all.some((n) => Number(md(n).target ?? 0) > 0)) {
+        const i = all.findIndex((n) => n.kind === "phrase");
+        if (i >= 0) all = all.map((n, j) => (j === i ? { ...n, metadata: { ...(n.metadata ?? {}), target: dt } } : n));
+      }
       setNodes(all);
       setLoading(false); // metin hazır: sayfa hemen açılsın; notlar ve sayaçlar arkadan
       const counterIds = all.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0).map((n) => n.id);
@@ -249,7 +256,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const art = articleRef.current, body = bodyRef.current;
     if (!art || !body) return;
     const sc = document.querySelector(".content");
-    const limit = () => window.innerHeight - (focus ? 56 : 128);
+    const limit = () => window.innerHeight - (focus ? 56 : 80);
     const run = () => {
       let f = rs.size;
       body.style.fontSize = `${f}em`;
@@ -358,6 +365,14 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const th = rs.theme === "default" || rs.theme === "paper" ? defTheme : rs.theme;
   const rt = th === "auto" ? (sysDark ? "dark" : "light") : th;
 
+  // okurken alt çubuk ve çevrimdışı şeridi gizlenir (yer açılsın); çevrimdışı bilgisi başlıkta görünür
+  useEffect(() => {
+    document.body.classList.add("reading");
+    return () => document.body.classList.remove("reading");
+  }, []);
+  const offline = useOffline();
+  const offTag = offline ? <em className="offtag"> · çevrimdışı</em> : null;
+
   useEffect(() => {
     document.body.classList.toggle("focus", focus);
     try {
@@ -369,7 +384,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // Not: tarayıcı kendi tam ekranından çıksa (ör. iPad'de kaydırınca) okuyucu tam sayfada kalır;
   // çıkış yalnız sağ üstteki ✕ ile.
 
-  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Tüm bölümlere uygulandı"); }} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} />;
+  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Tüm bölümlere uygulandı"); }} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} counters={scope === "ibadet"} />;
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
@@ -502,7 +517,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
         {!focus && <header className="rhead">
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
-          <div className="rtitle">{isQuran ? surahLabel : doc.title}<span>{isQuran ? quranSub : `${parentTitle ? parentTitle + " · " : ""}Sayfa ${label}`}</span></div>
+          <div className="rtitle">{isQuran ? surahLabel : doc.title}<span>{isQuran ? quranSub : `${parentTitle ? parentTitle + " · " : ""}Sayfa ${label}`}{offTag}</span></div>
           <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
           <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
           <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
@@ -595,7 +610,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       {focus && <button className="fsexit" onClick={() => setFocus(false)} aria-label="Tam sayfadan çık"><Icon name="close" size={18} /></button>}
       {!focus && <header className="rhead">
         <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
-        <div className="rtitle">{doc.title}{parentTitle ? <span>{parentTitle}</span> : null}</div>
+        <div className="rtitle">{doc.title}{parentTitle || offTag ? <span>{parentTitle}{offTag}</span> : null}</div>
         {counters.length > 0 && <button className="iconbtn" onClick={resetAll} aria-label="Sayaçları sıfırla"><Icon name="reset" size={22} /></button>}
         {counters.length > 0 && <button className="iconbtn" onClick={() => setFsT(true)} aria-label="Tam ekran tesbih"><Icon name="expand" size={22} /></button>}
         <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
@@ -605,7 +620,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <section className="duapage" data-pc={rs.paper}>
           <header className="duahead"><strong>{doc.title}</strong><span>{parentTitle ?? "Tesbihat"}</span></header>
           {loading && <p className="muted">Yükleniyor…</p>}
-          <div className="duabody" ref={bodyRef} style={{ fontSize: `${rs.size}em` }}>
+          <div className="duabody" ref={bodyRef} style={{ fontSize: `${rs.size}em`, ["--cs" as string]: rs.cnt }}>
             {nodes.map((n) => {
               const m = md(n);
               const note = typeof m.note === "string" ? m.note : "";
@@ -643,7 +658,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>
       </nav>
       <div style={{ height: 90 }} />
-      {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" />}
+      {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" scale={rs.cnt} />}
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}
       {overlays}
     </div>
@@ -668,10 +683,13 @@ function FaceHands() {
 /* Sayfa ayarları (tasarım: Sayac) — yalnız bu sayfa için geçerli */
 /* Yazı boyutu kademeleri: %80 → %720 (eski en büyük %180'in 4 katı) */
 export const SIZES = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.65, 1.8, 2, 2.25, 2.5, 2.75, 3, 3.4, 3.8, 4.2, 4.7, 5.2, 5.8, 6.5, 7.2];
+/* Sayaç boyutu kademeleri (yüzen sayaç + satırdaki elips sayaçlar) */
+const CNT = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.4, 2.8];
+const cntIdx = (v: number) => CNT.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(CNT[best] - v) ? i : best), 0);
 const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(SIZES[best] - v) ? i : best), 0);
 
-export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral }: {
-  title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void;
+export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters }: {
+  title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
 }) {
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
@@ -708,6 +726,16 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
           </div>
           <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round((rs.size / SIZES[SIZES.length - 1]) * 100)}</div>
         </div>
+        {counters && (
+          <div className="srow col"><span>Sayaç boyutu</span>
+            <div className="sl">
+              <button className="szb" onClick={() => onChange({ ...rs, cnt: CNT[Math.max(0, cntIdx(rs.cnt) - 1)] })} aria-label="Küçült">−</button>
+              <input type="range" min={0} max={CNT.length - 1} step={1} value={cntIdx(rs.cnt)} onChange={(e) => onChange({ ...rs, cnt: CNT[Number(e.target.value)] })} />
+              <button className="szb" onClick={() => onChange({ ...rs, cnt: CNT[Math.min(CNT.length - 1, cntIdx(rs.cnt) + 1)] })} aria-label="Büyüt">+</button>
+            </div>
+            <div className="small muted" style={{ textAlign: "center", fontWeight: 400 }}>%{Math.round(rs.cnt * 100)} · yüzen sayaç ve satır sayaçları</div>
+          </div>
+        )}
         <div className="srow col"><span>Aydınlatma</span>
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>
         </div>

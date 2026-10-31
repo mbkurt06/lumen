@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 /* Eski Lumen sayacı: dokun → say, basılı tut → Sıfırla, sürükle → taşı (yer hatırlanır). */
-export function FloatCounter({ count, target, onInc, onReset, posKey = "default" }: {
-  count: number; target: number; onInc: () => void; onReset: () => void; posKey?: string;
+export function FloatCounter({ count, target, onInc, onReset, posKey = "default", scale = 1 }: {
+  count: number; target: number; onInc: () => void; onReset: () => void; posKey?: string; scale?: number;
 }) {
+  const sz = Math.round(78 * scale);
   const key = "lumen.counterpos." + posKey;
   const [pos, setPos] = useState<{ x: number; y: number } | null>(() => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
@@ -11,7 +12,7 @@ export function FloatCounter({ count, target, onInc, onReset, posKey = "default"
   const [menu, setMenu] = useState(false);
   const st = useRef({ pressed: false, drag: false, long: false, sx: 0, sy: 0, ox: 0, oy: 0 });
   const timer = useRef<number | undefined>(undefined);
-  const clamp = (p: { x: number; y: number }) => ({ x: Math.min(Math.max(8, p.x), window.innerWidth - 86), y: Math.min(Math.max(8, p.y), window.innerHeight - 86) });
+  const clamp = (p: { x: number; y: number }) => ({ x: Math.min(Math.max(8, p.x), window.innerWidth - sz - 8), y: Math.min(Math.max(8, p.y), window.innerHeight - sz - 8) });
 
   useEffect(() => {
     if (!menu) return;
@@ -27,7 +28,7 @@ export function FloatCounter({ count, target, onInc, onReset, posKey = "default"
       )}
       <button
         className={"floatcnt" + (target > 0 && count >= target ? " done" : "")}
-        style={pos ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" } : undefined}
+        style={{ ["--cs" as string]: scale, width: sz, height: sz, ...(pos ? { left: Math.min(pos.x, window.innerWidth - sz - 8), top: Math.min(pos.y, window.innerHeight - sz - 8), right: "auto", bottom: "auto" } : {}) }}
         onPointerDown={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           st.current = { pressed: true, drag: false, long: false, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top };

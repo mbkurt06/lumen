@@ -265,7 +265,10 @@ export function LibraryItem() {
       {isRisale && <Label>KİTAPLAR · {kids.length}</Label>}
       <div className="clist" style={{ marginTop: isRisale ? 0 : 8 }}>
         {!loading && kids.length === 0 && <p className="muted" style={{ padding: 16, margin: 0 }}>Bu klasör boş.</p>}
-        {kids.map((k) => (<CRow key={k.id} to={`/kutuphane/${k.id}`} title={k.title} sub={sub(k)} />))}
+        {kids.map((k) => {
+          const t = Number(((k.metadata ?? {}) as Record<string, unknown>).target ?? 0);
+          return <CRow key={k.id} to={`/kutuphane/${k.id}`} title={k.title} sub={sub(k)} meta={t > 0 ? String(t) : undefined} />;
+        })}
       </div>
       <div style={{ height: 24 }} />
     </>
