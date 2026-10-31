@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { COLLECTIONS, downloadCollection, type CollectionKey, type Progress } from "../lib/offlineDownload";
+import { COLLECTIONS, downloadChanges, downloadCollection, type CollectionKey, type Progress } from "../lib/offlineDownload";
 import { clearOfflineData } from "../lib/offlineFetch";
 
 const DONE_KEY = (k: string) => "lumen.offline.done." + k;
@@ -14,6 +14,7 @@ export function Offline() {
   const [usage, setUsage] = useState<{ usage?: number; quota?: number }>({});
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
+  const [msg, setMsg] = useState("");
   const cancel = useRef({ cancel: false });
 
   const refreshUsage = () => { void navigator.storage?.estimate?.().then((e) => setUsage({ usage: e.usage, quota: e.quota })); };
@@ -25,15 +26,25 @@ export function Offline() {
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", on); };
   }, []);
 
-  const run = async (keys: CollectionKey[]) => {
+  const run = async (keys: CollectionKey[], full = false) => {
+    setMsg("");
     try { if (navigator.storage?.persist) setPersisted(await navigator.storage.persist()); } catch { /* yok say */ }
     cancel.current = { cancel: false };
     for (const k of keys) {
       if (cancel.current.cancel) break;
       setBusy(k); setProg({ done: 0, total: 1, failed: 0 });
-      await downloadCollection(k, setProg, cancel.current);
+      const prev = readDone(k);
+      let t = new Date().toISOString();
+      if (prev && !full) {
+        // daha önce indirildi: yalnız farklar
+        const r = await downloadChanges(k, prev, setProg);
+        if (!r) { setMsg("İnternete ulaşılamadı."); break; }
+        t = r.serverNow;
+        setMsg(r.changed ? `${r.changed} değişiklik indirildi.` : "Her şey güncel, indirilecek değişiklik yok.");
+      } else {
+        await downloadCollection(k, setProg, cancel.current);
+      }
       if (!cancel.current.cancel) {
-        const t = new Date().toISOString();
         try { localStorage.setItem(DONE_KEY(k), t); } catch { /* yok say */ }
         setDone((s) => ({ ...s, [k]: t }));
       }
@@ -76,12 +87,14 @@ export function Offline() {
       <div style={{ padding: "12px 16px", display: "grid", gap: 10 }}>
         {busy
           ? <button className="secondary" onClick={() => { cancel.current.cancel = true; }}>Durdur</button>
-          : <button className="primary" disabled={!online} onClick={() => void run(COLLECTIONS.map((c) => c.key))}>Hepsini indir</button>}
+          : <button className="primary" disabled={!online} onClick={() => void run(COLLECTIONS.map((c) => c.key))}>{COLLECTIONS.every((c) => done[c.key]) ? "Hepsini güncelle (yalnız farklar)" : "Hepsini indir"}</button>}
+        {msg && <div className="small" style={{ color: "var(--accent)" }}>{msg}</div>}
         <div className="small muted">
           Cihazda kullanılan: {fmtMB(usage.usage)}{usage.quota ? ` / ${fmtMB(usage.quota)}` : ""}
           {persisted === true ? " · kalıcı depolama açık" : persisted === false ? " · tarayıcı yer azalınca silebilir" : ""}
         </div>
         <div className="small muted">Kur'an yaklaşık 5 MB, İbadet 10 MB, Risale-i Nur 25 MB, HE Eserleri 50 MB yer kaplar. İnternetsizken yapılan kayıtlar (sayaç, ayraç, görev) için şimdilik internet gerekir.</div>
+        <button className="secondary" disabled={!!busy || !online} onClick={() => void run(COLLECTIONS.map((c) => c.key), true)}>Baştan tamamen indir</button>
         <button className="secondary" disabled={!!busy} onClick={() => void clearAll()} style={{ color: "var(--danger)" }}>Çevrimdışı verileri sil</button>
       </div>
     </>
