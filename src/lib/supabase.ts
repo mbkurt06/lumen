@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../config";
-import { looksOffline, offlineFetch } from "./offlineFetch";
+import { looksOffline, netLog, offlineFetch } from "./offlineFetch";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
@@ -21,10 +21,13 @@ function storedSession() {
 }
 const origGetSession = supabase.auth.getSession.bind(supabase.auth);
 supabase.auth.getSession = (async () => {
+  const t0 = performance.now();
+  const note = (how: string) => { netLog.unshift({ t: Date.now(), path: "oturum", how, ms: Math.round(performance.now() - t0) }); if (netLog.length > 60) netLog.length = 60; };
   const fallback = () => ({ data: { session: storedSession() }, error: null });
-  if (looksOffline()) return fallback();
-  return Promise.race([
-    origGetSession(),
-    new Promise((res) => setTimeout(() => res(fallback()), 4000)),
+  if (looksOffline()) { note("kayıtlı"); return fallback(); }
+  const r = await Promise.race([
+    origGetSession().then((x) => { note("normal"); return x; }),
+    new Promise((res) => setTimeout(() => { note("4sn-kayıtlı"); res(fallback()); }, 4000)),
   ]);
+  return r;
 }) as typeof supabase.auth.getSession;

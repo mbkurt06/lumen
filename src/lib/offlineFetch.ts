@@ -29,6 +29,19 @@ const keyOf = (req: Request) => {
 };
 const hasCaches = () => typeof caches !== "undefined";
 
+/* Tanılama: son isteklerin nereden geldiği ve süresi (Ayarlar › Çevrimdışı'da görünür) */
+export type NetLog = { t: number; path: string; how: string; ms: number };
+export const netLog: NetLog[] = [];
+function log(url: string, how: string, start: number) {
+  const u = new URL(url);
+  netLog.unshift({ t: Date.now(), path: u.pathname.replace("/rest/v1/", "").replace("/auth/v1/", "auth/"), how, ms: Math.round(performance.now() - start) });
+  if (netLog.length > 60) netLog.length = 60;
+}
+export async function cacheInfo() {
+  if (!hasCaches()) return { caches: false, entries: 0 };
+  try { const keys = await (await caches.open(CACHE)).keys(); return { caches: true, entries: keys.length }; } catch { return { caches: true, entries: -1 }; }
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 }
@@ -48,17 +61,18 @@ async function network(req: Request, key: string, ms: number): Promise<Response>
 
 export const offlineFetch: typeof fetch = async (input, init) => {
   const req = new Request(input, init);
+  const t0 = performance.now();
 
   // Oturum (auth) istekleri: internet yokken uzun beklemesin
   if (req.url.includes("/auth/v1/")) {
-    if (looksOffline()) throw new TypeError("offline");
-    try { const r = await withTimeout(fetch(req), AUTH_TIMEOUT_MS); markUp(); return r; }
-    catch (e) { markDown(); throw e; }
+    if (looksOffline()) { log(req.url, "auth-atla", t0); throw new TypeError("offline"); }
+    try { const r = await withTimeout(fetch(req), AUTH_TIMEOUT_MS); markUp(); log(req.url, "auth-ağ", t0); return r; }
+    catch (e) { markDown(); log(req.url, "auth-hata", t0); throw e; }
   }
 
   const cacheable = req.method === "GET" && req.url.includes("/rest/v1/") && hasCaches();
   if (!cacheable) {
-    if (looksOffline() && req.url.includes("/rest/v1/")) throw new TypeError("offline");
+    if (looksOffline() && req.url.includes("/rest/v1/")) { log(req.url, "yazma-atla", t0); throw new TypeError("offline"); }
     return fetch(req);
   }
   const key = keyOf(req);
@@ -68,19 +82,21 @@ export const offlineFetch: typeof fetch = async (input, init) => {
     const hit = await fromCache(key);
     if (hit) {
       if (!looksOffline()) void network(req.clone(), key, 15000).catch(markDown); // arka planda tazele
+      log(req.url, "cihaz", t0);
       return hit;
     }
-    if (looksOffline()) throw new TypeError("offline");
-    try { return await network(req, key, 15000); } catch (e) { markDown(); throw e; }
+    if (looksOffline()) { log(req.url, "cihazda-yok", t0); throw new TypeError("offline"); }
+    try { const r = await network(req, key, 15000); log(req.url, "ağ", t0); return r; } catch (e) { markDown(); log(req.url, "ağ-hata", t0); throw e; }
   }
 
   // kişisel veriler (ve indirme sırasında içerik): önce ağ, olmazsa kayıt
   if (!looksOffline() || forceNetwork) {
-    try { return await network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS); }
+    try { const r = await network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS); log(req.url, "ağ", t0); return r; }
     catch { markDown(); }
   }
   const hit = await fromCache(key);
-  if (hit) return hit;
+  if (hit) { log(req.url, "cihaz", t0); return hit; }
+  log(req.url, "cihazda-yok", t0);
   throw new TypeError("offline");
 };
 

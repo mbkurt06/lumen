@@ -146,9 +146,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     (async () => {
       setLoading(true);
       const all = (await fetchDocNodes(doc.id)) as Node[];
+      if (off) return;
+      setNodes(all);
+      setLoading(false); // metin hazır: sayfa hemen açılsın; notlar ve sayaçlar arkadan
       const counterIds = all.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0).map((n) => n.id);
-      const [rsq, msq, nq] = await Promise.all([
-        Promise.resolve({ data: null }),
+      const [msq, nq] = await Promise.all([
         counterIds.length ? supabase.from("memorization_state").select("content_node_id,repeat_count,last_practiced_at").in("content_node_id", counterIds) : Promise.resolve({ data: [] as unknown[] }),
         supabase.from("reader_notes").select("id,node_id,note,quote").eq("document_id", doc.id).order("created_at"),
       ]);
@@ -158,10 +160,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       for (const r of (msq.data ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) {
         if (r.last_practiced_at && ymd(new Date(r.last_practiced_at)) === today) c[r.content_node_id] = r.repeat_count;
       }
-      setNodes(all);
       setCounts(c);
       setNotes((nq.data ?? []) as Note[]);
-      setLoading(false);
     })();
     return () => { off = true; };
   }, [doc.id]);

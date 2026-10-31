@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { COLLECTIONS, downloadChanges, downloadCollection, type CollectionKey, type Progress } from "../lib/offlineDownload";
-import { clearOfflineData } from "../lib/offlineFetch";
+import { cacheInfo, clearOfflineData, looksOffline, netLog, type NetLog } from "../lib/offlineFetch";
 
 const DONE_KEY = (k: string) => "lumen.offline.done." + k;
 const readDone = (k: string) => { try { return localStorage.getItem(DONE_KEY(k)); } catch { return null; } };
@@ -16,6 +16,8 @@ export function Offline() {
   const [online, setOnline] = useState(navigator.onLine);
   const [msg, setMsg] = useState("");
   const cancel = useRef({ cancel: false });
+  const [diag, setDiag] = useState<{ log: NetLog[]; info: { caches: boolean; entries: number }; onLine: boolean; off: boolean } | null>(null);
+  const showDiag = async () => setDiag({ log: [...netLog], info: await cacheInfo(), onLine: navigator.onLine, off: looksOffline() });
 
   const refreshUsage = () => { void navigator.storage?.estimate?.().then((e) => setUsage({ usage: e.usage, quota: e.quota })); };
   useEffect(() => {
@@ -96,6 +98,23 @@ export function Offline() {
         <div className="small muted">Kur'an yaklaşık 5 MB, İbadet 10 MB, Risale-i Nur 25 MB, HE Eserleri 50 MB yer kaplar. İnternetsizken yapılan kayıtlar (sayaç, ayraç, görev) için şimdilik internet gerekir.</div>
         <button className="secondary" disabled={!!busy || !online} onClick={() => void run(COLLECTIONS.map((c) => c.key), true)}>Baştan tamamen indir</button>
         <button className="secondary" disabled={!!busy} onClick={() => void clearAll()} style={{ color: "var(--danger)" }}>Çevrimdışı verileri sil</button>
+        <button className="secondary" onClick={() => void showDiag()}>Tanılama (son istekler)</button>
+        {diag && (
+          <div className="card" style={{ fontSize: 12, padding: 10 }}>
+            <div>Tarayıcı çevrimiçi diyor: <b>{diag.onLine ? "evet" : "hayır"}</b> · Uygulama çevrimdışı sayıyor: <b>{diag.off ? "evet" : "hayır"}</b></div>
+            <div>Cihaz deposu: <b>{diag.info.caches ? "var" : "YOK"}</b> · Kayıtlı yanıt: <b>{diag.info.entries}</b></div>
+            <div style={{ marginTop: 6, maxHeight: 320, overflowY: "auto", fontFamily: "ui-monospace, monospace" }}>
+              {diag.log.length === 0 && <div className="muted">Henüz istek yok. Bir kitap açıp buraya geri gel.</div>}
+              {diag.log.map((l, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, borderTop: "1px solid var(--border)", padding: "2px 0" }}>
+                  <span style={{ width: 52, textAlign: "right", color: l.ms > 1500 ? "var(--danger)" : "var(--muted)" }}>{l.ms} ms</span>
+                  <span style={{ width: 78 }}>{l.how}</span>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.path}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
