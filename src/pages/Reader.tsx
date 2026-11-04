@@ -590,13 +590,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const shownC = shown ? counts[shown.id] ?? 0 : 0;
   const setCount = (n: Node, v: number) => {
     const t = tgt(n);
-    const val = Math.max(0, cumulative ? v : Math.min(t, v)); // birikenlerde hedefi geçince de sayar
+    const val = Math.max(0, Math.min(t, v)); // hedefe gelince durur
     setCounts((s) => ({ ...s, [n.id]: val }));
     void saveCount(n.id, t, val);
     return val;
   };
   const inc = () => {
-    if (!actNode) return;
+    if (!actNode || (counts[actNode.id] ?? 0) >= tgt(actNode)) return; // hedef doldu: saymaz
     const v = setCount(actNode, (counts[actNode.id] ?? 0) + 1);
     try { navigator.vibrate?.(v === tgt(actNode) ? [30, 60, 30] : 12); } catch { /* yok say */ }
     if (v >= tgt(actNode) && !cumulative) setActive(null);

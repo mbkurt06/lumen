@@ -134,6 +134,7 @@ export function TesbihCounter() {
   if (!t) return <PageHeader back title="Yükleniyor…" />;
   const c = todayCount(t);
   const set = (v: number) => {
+    if (v > t.target) return; // hedefe gelince durur
     const nt = { ...t, count: Math.max(0, v), count_date: ymd() };
     setT(nt);
     try { navigator.vibrate?.(v === t.target ? [30, 60, 30] : 12); } catch { /* yok say */ }
