@@ -4,12 +4,13 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { useTodos, ymd } from "../lib/todo";
+import { useTodos } from "../lib/todo";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
 import { useOffline } from "../lib/online";
+import { pickNewer, putCount, todayOnly } from "../lib/countStore";
 import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
@@ -111,6 +112,8 @@ function fixedPages(nodes: Node[], target = PAGE_LOAD): Node[][] {
 const nidsOf = (b: Block) => (b.t === "quote" ? b.ns.map((n) => n.id) : [b.n.id]);
 
 export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: string; scope: Scope }) {
+  // namaz tesbihatı sayaçları her gün sıfırlanır; diğer tesbihler (Esmâ, salavat…) birikir, elle sıfırlanır
+  const cumulative = scope === "ibadet" && !/Namazı Tesbihatı/.test(doc.title);
   const nav = useNavigate();
   const loc0 = useLocation();
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -164,11 +167,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         supabase.from("reader_notes").select("id,node_id,note,quote").eq("document_id", doc.id).order("created_at"),
       ]);
       if (off) return;
-      const today = ymd();
+      // hesaptaki ile cihazdaki kayıttan yenisi; namaz tesbihatı her gün sıfırdan, diğerleri birikir
+      const srv = new Map<string, { v: number; at: string | null }>();
+      for (const r of (msq.data ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) srv.set(r.content_node_id, { v: r.repeat_count, at: r.last_practiced_at });
       const c: Record<string, number> = {};
-      for (const r of (msq.data ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) {
-        if (r.last_practiced_at && ymd(new Date(r.last_practiced_at)) === today) c[r.content_node_id] = r.repeat_count;
-      }
+      for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); }
       setCounts(c);
       setNotes((nq.data ?? []) as Note[]);
     })();
@@ -300,12 +303,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     document.querySelector(".content")?.scrollTo(0, 0);
   };
 
-  const saveCount = useCallback(async (nid: string, target: number, value: number) => {
-    await supabase.from("memorization_state").upsert(
-      { content_node_id: nid, repeat_count: value, repeat_target: target, last_practiced_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-      { onConflict: "owner_id,content_node_id" },
-    );
-  }, []);
+  // önce cihaza yazılır, internet varsa hesaba gönderilir (yoksa bağlantı gelince)
+  const saveCount = useCallback((nid: string, target: number, value: number) => { putCount(nid, target, value); }, []);
 
   const tap = (b?: Extract<Block, { t: "counter" }>) => {
     if (!b) { if (page < pages.length - 1) go(page + 1); return; }
@@ -583,13 +582,15 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   /* ── Tesbihat / dua: eski Lumen'deki tek parça kâğıt sayfa, blok sayaçları, yüzen sayaç ── */
   const counters = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0);
   const tgt = (n: Node) => Number(md(n).target ?? 0);
-  const actNode = counters.find((n) => n.id === active && (counts[n.id] ?? 0) < tgt(n)) ?? counters.find((n) => (counts[n.id] ?? 0) < tgt(n));
+  const actNode = cumulative
+    ? counters.find((n) => n.id === active) ?? counters.find((n) => (counts[n.id] ?? 0) < tgt(n)) ?? counters[counters.length - 1]
+    : counters.find((n) => n.id === active && (counts[n.id] ?? 0) < tgt(n)) ?? counters.find((n) => (counts[n.id] ?? 0) < tgt(n));
   const shown = actNode ?? counters[counters.length - 1];
   const shownT = shown ? tgt(shown) : 0;
   const shownC = shown ? counts[shown.id] ?? 0 : 0;
   const setCount = (n: Node, v: number) => {
     const t = tgt(n);
-    const val = Math.max(0, Math.min(t, v));
+    const val = Math.max(0, cumulative ? v : Math.min(t, v)); // birikenlerde hedefi geçince de sayar
     setCounts((s) => ({ ...s, [n.id]: val }));
     void saveCount(n.id, t, val);
     return val;
@@ -598,7 +599,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!actNode) return;
     const v = setCount(actNode, (counts[actNode.id] ?? 0) + 1);
     try { navigator.vibrate?.(v === tgt(actNode) ? [30, 60, 30] : 12); } catch { /* yok say */ }
-    if (v >= tgt(actNode)) setActive(null);
+    if (v >= tgt(actNode) && !cumulative) setActive(null);
   };
   const dec = () => { if (shown) setCount(shown, (counts[shown.id] ?? 0) - 1); };
   const resetAll = () => {

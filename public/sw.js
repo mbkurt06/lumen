@@ -1,6 +1,6 @@
 /* Lumen service worker: uygulama kabuğunu (sayfa, kod, simgeler) cihazda tutar; internetsiz açılır.
    Veriler (kitaplar vb.) sayfa içindeki offlineFetch ile ayrıca saklanır. */
-const SHELL = "lumen-shell-v1";
+const SHELL = "lumen-shell-v2";
 const CORE = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -17,7 +17,26 @@ self.addEventListener("install", (e) => {
   })());
 });
 
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("activate", (e) => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k.startsWith("lumen-shell-") && k !== SHELL) await caches.delete(k);
+  await self.clients.claim();
+})()));
+
+/* Sayfanın yeni hâlini al; kullandığı dosyaları da önceden indir, sonra kaydet
+   (böylece bir sonraki açılış internetsiz olsa bile eksik dosya kalmaz). */
+async function refreshShell(req) {
+  const res = await fetch(req, { cache: "no-store" });
+  const type = res.headers.get("content-type") || "";
+  if (!res.ok || res.redirected || !type.includes("text/html")) return res;
+  const html = await res.clone().text();
+  const c = await caches.open(SHELL);
+  const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+  const missing = [];
+  for (const a of assets) if (!(await c.match(a))) missing.push(a);
+  if (missing.length) await c.addAll(missing);
+  await c.put("/index.html", new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
+  return res;
+}
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
@@ -26,17 +45,14 @@ self.addEventListener("fetch", (e) => {
   if (u.origin !== self.location.origin) return;
   if (u.pathname === "/version.json" || u.pathname === "/sw.js") return;
 
-  // sayfa açılışı: önce ağ, olmazsa kayıtlı sayfa
+  // sayfa açılışı: önce cihazdaki sayfa (anında açılır, internet yok uyarısı çıkmaz);
+  // yeni sürüm arka planda alınır ve bir sonraki açılışta gelir
   if (req.mode === "navigate") {
     e.respondWith((async () => {
-      try {
-        const res = await fetch(req);
-        const c = await caches.open(SHELL);
-        c.put("/index.html", res.clone());
-        return res;
-      } catch {
-        return (await caches.match("/index.html")) || (await caches.match("/")) || Response.error();
-      }
+      const cached = (await caches.match("/index.html")) || (await caches.match("/"));
+      const update = refreshShell(req);
+      if (cached) { e.waitUntil(update.catch(() => {})); return cached; }
+      return (await update.catch(() => null)) || Response.error();
     })());
     return;
   }

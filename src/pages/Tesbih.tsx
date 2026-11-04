@@ -6,9 +6,11 @@ import { supabase } from "../lib/supabase";
 import { ITEM_COLS, useRoots, type Item } from "../lib/library";
 import { ymd } from "../lib/todo";
 import { loadTesbihatDocs } from "../lib/loaders";
+import { pickNewer, putCount, todayOnly } from "../lib/countStore";
 
 type Tesbih = { id: string; title: string; target: number; count: number; count_date: string | null };
-const todayCount = (t: Tesbih) => (t.count_date === ymd() ? t.count : 0);
+/* Kendi tesbihlerin birikir (her gün sıfırlanmaz); cihazdaki kayıt daha yeniyse o gösterilir */
+const todayCount = (t: Tesbih) => pickNewer("t:" + t.id, { v: t.count ?? 0, at: t.count_date }).v;
 
 function TesbihForm({ init, onSave, onDelete, onClose }: { init?: Tesbih; onSave: (title: string, target: number) => void; onDelete?: () => void; onClose: () => void }) {
   const [title, setTitle] = useState(init?.title ?? "");
@@ -53,13 +55,15 @@ export function Tesbihlar() {
     (async () => {
       const { docs: ds, counters, states: ms } = await loadTesbihatDocs(de.id, roots["Tesbihat"]?.id);
       setDocs(ds);
-      const today = ymd();
-      const cnt = new Map<string, number>();
-      for (const m of (ms ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) if (m.last_practiced_at && ymd(new Date(m.last_practiced_at)) === today) cnt.set(m.content_node_id, m.repeat_count);
+      const srv = new Map<string, { v: number; at: string | null }>();
+      for (const m of (ms ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) srv.set(m.content_node_id, { v: m.repeat_count, at: m.last_practiced_at });
       const st: Record<string, { sub: string; meta?: string }> = {};
       for (const d of ds) {
         const cs = counters.filter((c) => c.document_id === d.id);
         if (!cs.length) { st[d.id] = { sub: "Okuma" }; continue; }
+        const daily = /Namazı Tesbihatı/.test(d.title);
+        const cnt = new Map(cs.map((c) => { const r = pickNewer(c.id, srv.get(c.id) ?? null); return [c.id, daily ? todayOnly(r) : r.v] as const; }));
+        if (!daily) { const tot = cs.reduce((a, c) => a + (cnt.get(c.id) ?? 0), 0); st[d.id] = { sub: tot ? `Toplam ${tot}` : "Bekliyor" }; continue; }
         const full = cs.filter((c) => (cnt.get(c.id) ?? 0) >= Number(c.metadata.target ?? 0)).length;
         const started = cs.some((c) => (cnt.get(c.id) ?? 0) > 0);
         st[d.id] = full === cs.length ? { sub: "Bugün tamamlandı", meta: "✓" } : started ? { sub: `Bugün ${full} / ${cs.length} sayım`, meta: "Devam" } : { sub: "Bekliyor" };
@@ -133,7 +137,7 @@ export function TesbihCounter() {
     const nt = { ...t, count: Math.max(0, v), count_date: ymd() };
     setT(nt);
     try { navigator.vibrate?.(v === t.target ? [30, 60, 30] : 12); } catch { /* yok say */ }
-    void supabase.from("tesbihs").update({ count: nt.count, count_date: nt.count_date }).eq("id", t.id);
+    putCount("t:" + t.id, t.target, nt.count); // cihaza yazılır, internet varsa hesaba da
   };
   return (
     <>
