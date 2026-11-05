@@ -1,6 +1,6 @@
 /* Lumen service worker: uygulama kabuğunu (sayfa, kod, simgeler) cihazda tutar; internetsiz açılır.
    Veriler (kitaplar vb.) sayfa içindeki offlineFetch ile ayrıca saklanır. */
-const SHELL = "lumen-shell-v2";
+const SHELL = "lumen-shell-v3";
 const CORE = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
@@ -50,7 +50,8 @@ self.addEventListener("fetch", (e) => {
   if (req.mode === "navigate") {
     e.respondWith((async () => {
       const cached = (await caches.match("/index.html")) || (await caches.match("/"));
-      const update = refreshShell(req);
+      // internet yokken ağa hiç gidilmez (iPhone her denemede uyarı gösteriyor)
+      const update = self.navigator.onLine === false && cached ? Promise.resolve(null) : refreshShell(req);
       if (cached) { e.waitUntil(update.catch(() => {})); return cached; }
       return (await update.catch(() => null)) || Response.error();
     })());
@@ -61,6 +62,7 @@ self.addEventListener("fetch", (e) => {
     e.respondWith((async () => {
       const hit = await caches.match(req);
       if (hit) return hit;
+      if (self.navigator.onLine === false) return Response.error();
       const res = await fetch(req);
       if (res.ok) (await caches.open(SHELL)).put(req, res.clone());
       return res;

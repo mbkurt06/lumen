@@ -1,3 +1,4 @@
+import { looksOffline } from "./offlineFetch";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { supabase } from "./supabase";
@@ -58,6 +59,8 @@ export async function checkForUpdate(): Promise<UpdateResult> {
       if (!latest) return { state: "none-published" };
       return latest.versionCode > parseInt(info.build, 10) ? { state: "apk-available", release: latest } : { state: "current" };
     }
+    // internet yokken sorma (iPhone'da "Uçak Modu'nu kapatın" uyarısı çıkmasın)
+    if (looksOffline()) return { state: "error", message: "çevrimdışı" };
     const res = await fetch(`/version.json?ts=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error("Sürüm bilgisi alınamadı (" + res.status + ")");
     const latest = await res.json();

@@ -72,7 +72,8 @@ export const offlineFetch: typeof fetch = async (input, init) => {
 
   const cacheable = req.method === "GET" && req.url.includes("/rest/v1/") && hasCaches();
   if (!cacheable) {
-    if (looksOffline() && req.url.includes("/rest/v1/")) { log(req.url, "yazma-atla", t0); throw new TypeError("offline"); }
+    // internet yokken hiç denenmez (iPhone her denemede "Uçak Modu'nu kapatın" uyarısı çıkarıyor)
+    if (looksOffline()) { log(req.url, "atla", t0); throw new TypeError("offline"); }
     return fetch(req);
   }
   const key = keyOf(req);
