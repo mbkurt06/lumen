@@ -590,3 +590,9 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .resedit { background: none; border: 1px solid var(--border); border-radius: 999px; color: var(--text); font-size: 12px; letter-spacing: 0; padding: 4px 10px; cursor: pointer; }
 .resedit.on { background: var(--accent); color: #0f1115; border-color: var(--accent); }
 .resdel { flex: none; border: 1px solid color-mix(in srgb, var(--danger) 60%, transparent); color: var(--danger); background: none; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+/* Okundu düğmesi (alttaki sayfa çubuğunun ortası) */
+.pnav.mini .readbtn { pointer-events: auto; border: 1px solid var(--border); background: color-mix(in srgb, var(--card) 92%, transparent); color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.pnav.mini .readbtn.on { background: var(--accent); border-color: var(--accent); color: #0f1115; }
+.readmark { color: #3a9d63; font-weight: 800; }
+.resrow.swiped { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.pnav.mini button.readbtn { width: auto; height: 38px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }

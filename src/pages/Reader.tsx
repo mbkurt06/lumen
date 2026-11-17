@@ -5,6 +5,8 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { useTodos, type Todo as TodoT } from "../lib/todo";
+import { useCP } from "../lib/counterPrefs";
+import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet, type PlacePrefill, type Pos } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
@@ -217,6 +219,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [siblings, setSiblings] = useState<string[]>([]);
   const bookPages = useMemo(() => fixedPages(nodes), [nodes]);
   const pc = isQuran ? Math.max(1, mpages?.length ?? 1) : bookPages.length;
+  // "Okundu" işaretleri (kitapta belge içi sayfa no, Kur'an'da mushaf sayfası)
+  const [cp, setCp] = useCP();
+  const reads = usePageReads(isQuran ? "kuran" : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
+  const pageKey = (i: number) => (isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
   const pageLabel = (i: number) => (isQuran ? String(mpages?.[i]?.display_page ?? "") : String(i + 1));
 
   useEffect(() => {
@@ -250,6 +256,22 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true }); return; }
     setPp(t);
     document.querySelector(".content")?.scrollTo(0, 0);
+  };
+  // okundu: işaretle; görevden açıldıysa bağlı ayracı sonraki sayfanın başına taşı; ayara göre sonraki sayfaya geç
+  const markRead = () => {
+    const added = reads.toggle(pageKey(pp));
+    if (!added) return;
+    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    if (taskT?.bookmark_id) {
+      const nextFirst = isQuran ? mpages?.[pp + 1]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp + 1]?.[0]?.id;
+      const curLast = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id;
+      const nid = nextFirst ?? curLast;
+      if (nid) {
+        const w = where(nid);
+        void moveBookmark(taskT.bookmark_id, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
+      }
+    }
+    if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
   };
   const touchX = useRef<number | null>(null);
   useEffect(() => {
@@ -648,13 +670,15 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
                 {toBlocks(pageNodes).map(renderBlock)}
               </div>
             )}
-            <div className="bpfoot">{label}</div>
+            <div className="bpfoot">{label}{reads.read[pageKey(Math.min(pp, pc - 1))] ? <span className="readmark"> ✓</span> : null}</div>
           </article>
         </div>
         <div style={{ height: 64 }} />
         <div className="pnav mini">
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name="back" size={22} /></button>
-          <span>{pp + 1} / {pc}</span>
+          <button className={"readbtn" + (reads.read[pageKey(pp)] ? " on" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
+            {reads.read[pageKey(pp)] ? "✓" : "○"} {pp + 1} / {pc}
+          </button>
           <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name="chevron" size={22} /></button>
         </div>
         {overlays}
@@ -777,6 +801,7 @@ const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < M
 export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
 }) {
+  const [cp, setCp] = useCP();
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
   );
@@ -811,6 +836,7 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
           </div>
         </div>
         <Tog k="fit" label="Sayfayı ekrana sığdır" />
+        <div className="srow"><span>“Okundu” deyince sonraki sayfaya geç</span><button className={"tgl" + (cp.readNext ? " on" : "")} onClick={() => setCp({ ...cp, readNext: !cp.readNext })} aria-pressed={cp.readNext}><i /></button></div>
         <Tog k="ar" label="Arapça" />
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />

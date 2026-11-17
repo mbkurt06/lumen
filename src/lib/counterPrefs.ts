@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /* Sayaç ayarları (bu cihazda): kilit, otomatik kilit süresi, geri al süresi.
    Titreşim ayarları da ileride buraya eklenecek. */
 /** taskBar: görevden açılınca okuyucuda alttaki "Kaldığım yeri buraya taşı" çubuğu */
-export type CounterPrefs = { autoLockSec: number; lockKaza: boolean; lockTesbih: boolean; undoSec: number; taskBar: boolean };
-export const DEFAULT_CP: CounterPrefs = { autoLockSec: 30, lockKaza: true, lockTesbih: false, undoSec: 5, taskBar: true };
+export type CounterPrefs = { autoLockSec: number; lockKaza: boolean; lockTesbih: boolean; undoSec: number; taskBar: boolean; readNext: boolean };
+export const DEFAULT_CP: CounterPrefs = { autoLockSec: 30, lockKaza: true, lockTesbih: false, undoSec: 5, taskBar: true, readNext: true };
 const K = "lumen.counterprefs.v1";
 const EV = "lumen-counterprefs";
 

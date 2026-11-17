@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
@@ -16,6 +16,8 @@ function Resume({ scopeId }: { scopeId?: string }) {
   const [gone, setGone] = useState<string[]>([]);
   const rows = rows0.filter((r) => !gone.includes(r.id));
   const [edit, setEdit] = useState(false);
+  const [swiped, setSwiped] = useState<string | null>(null); // sola kaydırılan satır: Sil görünür
+  const tx = useRef<{ id: string; x: number; y: number } | null>(null);
   const nav = useNavigate();
   const del = async (id: string, name: string) => {
     if (!window.confirm(`“${name}” ayracı silinsin mi? Bu ayraca bağlı görevler kalır, yalnız yer bağlantısı kalkar.`)) return;
@@ -29,7 +31,7 @@ function Resume({ scopeId }: { scopeId?: string }) {
     <div className="card resume">
       <div className="reshead">
         <button className="reshbtn" onClick={toggle} aria-expanded={open}>KALDIĞIN YERLER</button>
-        {open && <button className={"resedit" + (edit ? " on" : "")} onClick={() => setEdit(!edit)}>{edit ? "Bitti" : "Düzenle"}</button>}
+        {open && <button className={"resedit" + (edit ? " on" : "")} onClick={() => { setEdit(!edit); setSwiped(null); }}>{edit ? "Bitti" : "Sil / düzenle"}</button>}
         <button className="resmeta" onClick={toggle}>{rows.length} kayıt <Icon name={open ? "chevdown" : "chevron"} size={18} /></button>
       </div>
       {open && (
@@ -37,16 +39,24 @@ function Resume({ scopeId }: { scopeId?: string }) {
           {rows.map((r, i) => {
             // tekrar yazmayalım: kitap adı · ayraç adı (kitap adıyla aynıysa gösterme) · yer (bölüm · sayfa)
             const book = r.bookTitle ?? r.parentTitle;
-            const where = r.label ?? r.docTitle;
+            // eski ayraçlarda yer bilgisi adın içinde ("Bölüm · Sayfa 1")
+            const where = r.label ?? (r.title.startsWith(r.docTitle) ? r.title : r.docTitle);
             const name = r.title && r.title !== book && !where.startsWith(r.title) ? r.title : "";
             return (
-              <div key={r.id} className="resrow">
+              <div key={r.id} className={"resrow" + (swiped === r.id ? " swiped" : "")}
+                onTouchStart={(e) => { tx.current = { id: r.id, x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+                onTouchEnd={(e) => {
+                  const t0 = tx.current; tx.current = null;
+                  if (!t0 || t0.id !== r.id) return;
+                  const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y;
+                  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) setSwiped(dx < 0 ? r.id : null);
+                }}>
                 <span className="bm"><Icon name="bookmark" size={18} /></span>
                 <div className="resmain">
                   <div className="small muted">{book}{name ? " · " + name : ""}</div>
                   <b>{where}</b>
                 </div>
-                {edit
+                {edit || swiped === r.id
                   ? <button className="resdel" onClick={() => void del(r.id, name || where)} aria-label="Ayracı sil">Sil</button>
                   : <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam</button>}
               </div>
