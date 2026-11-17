@@ -1,0 +1,9 @@
+# Paths only the maintainer may approve.
+# Enforced when the ruleset on main has "Require review from Code Owners" turned on
+# (needs GitHub Pro for private repositories).
+
+/.github/               @mbkurt06
+/AGENTS.md              @mbkurt06
+/CLAUDE.md              @mbkurt06
+/tests/e2e/             @mbkurt06
+/supabase/migrations/   @mbkurt06
