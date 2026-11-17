@@ -70,10 +70,13 @@ jobs:
 
       - name: Claude implements the issue
         if: steps.pick.outputs.agent == 'claude'
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Runs after merges done by GitHub on behalf of the workflow.
+          allowed_bots: "claude[bot],github-actions[bot]"
           prompt: |
             Implement issue #${{ steps.pick.outputs.number }} ("${{ steps.pick.outputs.title }}").
             Read it with `gh issue view ${{ steps.pick.outputs.number }}` and follow AGENTS.md strictly.
@@ -88,3 +91,23 @@ jobs:
           claude_args: |
             --max-turns 80
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(npm install),Bash(npm ci),Bash(npm run build),Bash(npx tsc:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*)"
+
+      # Without a PR the issue would stay "in-progress" and block the queue silently.
+      - name: Escalate when no PR was opened
+        if: always() && steps.pick.outputs.agent == 'claude'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ steps.pick.outputs.number }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "claude/issue-$N" --state open --json number --jq length)
+          labels=$(gh issue view "$N" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(",")')
+          if [ "$prs" != "0" ] || echo "$labels" | grep -q needs-human; then exit 0; fi
+          gh issue edit "$N" --repo "$GITHUB_REPOSITORY" --add-label needs-human
+          gh issue comment "$N" --repo "$GITHUB_REPOSITORY" --body "Claude bu issue için PR açamadı. İnsan gerekiyor: $RUN_URL"
+          [ -z "$TG_TOKEN" ] && exit 0
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="🆘 Lumen: Claude #$N için PR açamadı. $RUN_URL" > /dev/null

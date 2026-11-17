@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { TEST_USER, blockSupabase, seedApprovedDevice } from "./helpers";
+import { blockSupabase, seedApprovedDevice } from "./helpers";
 
 test.describe("Daha önce onaylanmış cihaz (çevrimdışı açılış)", () => {
   test.beforeEach(async ({ page }) => {
@@ -15,7 +15,8 @@ test.describe("Daha önce onaylanmış cihaz (çevrimdışı açılış)", () =>
     for (const label of ["Dashboard", "TODO", "Kütüphane", "Takvim", "Ayarlar"]) {
       await expect(nav.getByRole("button", { name: label })).toBeVisible();
     }
-    await expect(page.getByText(TEST_USER.email)).toBeVisible();
+    // Default screen is the dashboard.
+    await expect(page.getByRole("button", { name: "Bugünün planına dön" })).toBeVisible();
   });
 
   test("menüden TODO ve Ayarlar sayfalarına geçilir", async ({ page }) => {

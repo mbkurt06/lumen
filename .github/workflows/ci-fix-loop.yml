@@ -116,11 +116,15 @@ jobs:
           node-version: 22
 
       - name: Claude fixes the build
+        id: claude
         if: steps.attempts.outputs.stop == 'false'
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The failed build usually comes from a push by Claude itself.
+          allowed_bots: "claude[bot],github-actions[bot]"
           prompt: |
             The "Build check" workflow failed on PR #${{ steps.attempts.outputs.pr }}
             (branch `${{ github.event.workflow_run.head_branch }}`).
@@ -135,3 +139,36 @@ jobs:
           claude_args: |
             --max-turns 40
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(npm install),Bash(npm ci),Bash(npm run build),Bash(npx tsc:*),Bash(gh pr comment:*)"
+
+      # If Claude errored or pushed nothing, no new build will run and the loop would
+      # stall silently. Escalate right away instead.
+      - name: Escalate when no fix was pushed
+        if: always() && steps.attempts.outputs.stop == 'false'
+        id: progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR: ${{ steps.attempts.outputs.pr }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          now=$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --jq .commit.sha)
+          if [ "$now" != "$FAILED_SHA" ]; then
+            echo "New commit pushed ($now), CI will run again."
+            exit 0
+          fi
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-human
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "Otomatik düzeltme bir commit göndermedi (Claude hata verdi ya da çözüm bulamadı). İnsan gerekiyor: $RUN_URL"
+          echo "escalated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Telegram - no progress
+        if: always() && steps.progress.outputs.escalated == 'true'
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.attempts.outputs.pr }}
+        run: |
+          [ -z "$TG_TOKEN" ] && exit 0
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="🆘 Lumen: otomatik düzeltme ilerleme kaydetmedi. Yardım lazım: $PR_URL" > /dev/null
