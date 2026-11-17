@@ -78,7 +78,7 @@ jobs:
               const summary = comments.filter(c => c.user.login === bot && c.body.includes('codex-review-summary')).pop();
               let finished = false;
               if (summary) {
-                const m = summary.body.match(/codex-review-state:v1 (\{.*?\}) -->/);
+                const m = summary.body.match(/codex-review-state:v1 (\{.*\}) -->/);
                 try { finished = JSON.parse(m[1]).code_review.status === 'completed'; } catch {}
               }
 
