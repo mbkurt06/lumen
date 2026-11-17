@@ -38,7 +38,7 @@ jobs:
   gate:
     if: |
       github.event_name != 'issue_comment' ||
-      (github.event.issue.pull_request && contains(github.event.comment.body, 'codex-review-summary'))
+      (github.event.issue.pull_request && contains(github.event.comment.body, 'codex-pull-request-review-summary'))
     runs-on: ubuntu-latest
     concurrency:
       group: review-gate-${{ github.event.pull_request.number || github.event.issue.number || 'all' }}
@@ -75,7 +75,7 @@ jobs:
               ).length;
 
               const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number });
-              const summary = comments.filter(c => c.user.login === bot && c.body.includes('codex-review-summary')).pop();
+              const summary = comments.filter(c => c.user.login === bot && c.body.includes('codex-pull-request-review-summary')).pop();
               let finished = false;
               if (summary) {
                 const m = summary.body.match(/codex-review-state:v1 (\{.*\}) -->/);
