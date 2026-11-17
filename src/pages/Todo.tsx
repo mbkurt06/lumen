@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { bumpCount, inToday, isDoneToday, isOverdue, planDayIndex, refPath, todayCount, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -19,12 +19,14 @@ export function Todo() {
   const [menu, setMenu] = useState(false);
   const [sp] = useSearchParams();
   const [sheet, setSheet] = useState(sp.get("ekle") === "tekrar");
+  const [editT, setEditT] = useState<T | null>(null);
   const [ask, setAsk] = useState<null | "list" | "group">(null);
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
   const [act, setAct] = useState<T | null>(null); // kitaba bağlı görev: menü
-  const goRef = (t: T) => { if (t.reading_ref) nav(refPath(t.reading_ref), { state: { nid: t.reading_ref.node_id, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`); };
+  // kitaptaki yere git: ayraç (güncel yer) ya da sabit yer
+  const goRef = (t: T) => { const pl = placeOf(t); if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`); };
 
   const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
   const kids = useMemo(() => {
@@ -45,9 +47,10 @@ export function Todo() {
 
   const circle = async (t: T) => {
     if (t.kind === "kaza" || t.kind === "kaza_oruc") { nav("/namaz/kaza"); return; }
-    if (t.kind === "tekrar" && t.plan) {
-      const plan = await bumpCount(t, isDoneToday(t) ? -t.plan.daily : 1);
-      if (plan) setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, plan } : x)));
+    if (isRecurring(t)) {
+      // günde N kez: her dokunuş +1; doluysa sıfırla
+      const progress = await bumpProgress(t, isDoneToday(t) ? -doneOn(t) : 1);
+      setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, progress } : x)));
       return;
     }
     const done = !t.is_completed;
@@ -58,27 +61,27 @@ export function Todo() {
   const Row = ({ t }: { t: T }) => {
     const l = t.list_id ? listOf.get(t.list_id) : undefined;
     const kz = t.kind === "kaza" || t.kind === "kaza_oruc";
-    const sub =
-      kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : t.kind === "tekrar" && t.plan ? `${l?.title ?? "Tekrar"} · Gün ${Math.max(1, planDayIndex(t.plan))} / ${t.plan.days}`
-      : t.kind === "okuma" ? `${l?.title ?? "Okuma"}${!t.reading_ref && t.notes ? " · " + t.notes : ""}`
-      : t.due_at ? `${trDate(t.due_at)}${l ? " · " + l.title : ""}` : (l?.title ?? "");
+    const pl = placeOf(t);
+    const rt = recurrenceText(t);
+    const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
+      : [pl?.book ?? pl?.section, rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
-    const cnt = t.plan ? todayCount(t) : 0;
+    const per = Math.max(1, t.per_day);
+    const cnt = isRecurring(t) ? doneOn(t) : 0;
     const sub2 = kids.get(t.id) ?? [];
     return (
       <div className="tcard">
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
-          <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : t.reading_ref ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
+          <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
             <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
             {sub && <div className="tsub">{sub}</div>}
-            {t.reading_ref && <div className="tref">{t.reading_ref.kind === "yer" ? "Kaldığın yer: " : ""}{t.reading_ref.label}</div>}
+            {pl && <div className="tref">{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>}
           </div>
-          {t.kind === "tekrar" && t.plan && <div className="tcount">{cnt} / {t.plan.daily}</div>}
-          {t.kind === "okuma" && (t.reading_ref || t.related_library_item_id) && <button className="devam" onClick={() => goRef(t)}>Devam et</button>}
+          {isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
+          {pl && <button className="devam" onClick={() => goRef(t)}>{pl.live ? "Devam et" : "Git"}</button>}
         </div>
-        {t.kind === "tekrar" && t.plan && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / t.plan.daily) * 100)}%` }} /></div>}
+        {isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
           <div key={c.id} className="trow2 subrow">
             <button className={"tcircle small" + (c.is_completed ? " on" : "")} onClick={() => void circle(c)}>{c.is_completed ? <Icon name="check" size={12} /> : null}</button>
@@ -133,10 +136,10 @@ export function Todo() {
               {overdueOpen && overdue.map((t) => <Row key={t.id} t={t} />)}
             </>
           )}
-          <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => t.kind === "tekrar" || t.kind === "okuma")} />
+          <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => !!(t.bookmark_id || t.reading_ref || t.related_library_item_id) && !t.kind.startsWith("kaza"))} />
           <Section id="nova" title="NOVA" items={normalToday.filter((t) => t.kind === "nova")} />
           <Section id="namaz" title="NAMAZ" items={normalToday.filter((t) => t.kind === "kaza" || t.kind === "kaza_oruc")} />
-          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !["tekrar", "okuma", "nova", "kaza", "kaza_oruc"].includes(t.kind))} />
+          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !(t.bookmark_id || t.reading_ref || t.related_library_item_id) && !["nova", "kaza", "kaza_oruc"].includes(t.kind))} />
           {today.length === 0 && <p className="muted" style={{ padding: "24px 20px", textAlign: "center" }}>Bugün için görev yok. Sağ alttaki + ile ekleyebilirsin.</p>}
         </>
       ) : (
@@ -167,20 +170,22 @@ export function Todo() {
         onNewList={() => { setMenu(false); setAsk("list"); }}
         onNewGroup={() => { setMenu(false); setAsk("group"); }}
       />
-      {sheet && <TodoSheet initialTab={sp.get("ekle") === "tekrar" ? "tekrar" : "normal"} lists={lists} groups={groups} defaultListId={listId ?? null} onClose={() => setSheet(false)} onSaved={() => { setSheet(false); void reload(); }} />}
+      {sheet && <TodoSheet lists={lists} groups={groups} defaultListId={listId ?? null} onClose={() => setSheet(false)} onSaved={() => { setSheet(false); void reload(); }} />}
+      {editT && <TodoSheet edit={editT} lists={lists} groups={groups} defaultListId={null} onClose={() => setEditT(null)} onSaved={() => { setEditT(null); void reload(); }} />}
       {act && (
         <>
           <div className="scrim show" style={{ zIndex: 40 }} onClick={() => setAct(null)} />
           <div className="sheet actsheet" role="dialog" aria-label={act.title}>
             <div className="grab" />
             <div className="sheethead"><h2 style={{ fontSize: 18 }}>{act.title}</h2><button className="iconbtn" onClick={() => setAct(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
-            {act.reading_ref && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{act.reading_ref.label}</b>{act.reading_ref.quote && <span>“{act.reading_ref.quote.slice(0, 140)}”</span>}</div></div>}
+            {(() => { const pl = placeOf(act); return pl && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{[pl.section, pl.book].filter(Boolean).join(" · ")}</b><b>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</b>{pl.quote && <span>“{pl.quote.slice(0, 140)}”</span>}</div></div>; })()}
             <div className="card" style={{ padding: 0, marginTop: 12 }}>
-              <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {act.reading_ref?.kind === "yer" ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
-              <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {act.is_completed ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {isRecurring(act) && Math.max(1, act.per_day) > 1 ? `+1 (bugün ${doneOn(act)}/${act.per_day})` : isDoneToday(act) ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); nav(`/yapilacaklar/g/${t.id}`); }}><Icon name="dots" size={20} /> Ayrıntılar</button>
             </div>
-            <p className="muted small" style={{ margin: "10px 2px 0" }}>Okurken + menüsünden “Görev: kaldığım yer” ile bu görevin yerini güncelleyebilirsin.</p>
+            {placeOf(act)?.live && <p className="muted small" style={{ margin: "10px 2px 0" }}>Okurken ayracı taşıdıkça bu görev de yeni yeri gösterir.</p>}
           </div>
         </>
       )}

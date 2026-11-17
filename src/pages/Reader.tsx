@@ -4,10 +4,10 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { useTodos } from "../lib/todo";
+import { useTodos, type Todo as TodoT } from "../lib/todo";
+import { useCP } from "../lib/counterPrefs";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
-import { TodoSheet } from "./TodoSheet";
-import { ReaderTaskSheet, type Pos } from "../components/ReaderTaskSheet";
+import { TodoSheet, type PlacePrefill, type Pos } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
 import { useOffline } from "../lib/online";
@@ -130,8 +130,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [focus, setFocus] = useState(false);
   const [sel, setSel] = useState<{ x: number; y: number; nid: string; text: string } | null>(null);
   const [ask, setAsk] = useState<null | { nid: string; text: string }>(null);
-  const [todo, setTodo] = useState<null | { notes: string }>(null);
-  const [task, setTask] = useState<null | { pos: Pos; tab: "yer" | "konu" }>(null); // kitaptan görev
+  const [place, setPlace] = useState<PlacePrefill | null>(null); // kitaptan görev (standart form)
+  const lastSel = useRef<{ nid: string; text: string; at: number } | null>(null); // ⊞'ye basınca seçim kaybolsa da kullanılır
+  const [cp] = useCP();
+  const [taskT, setTaskT] = useState<TodoT | null>(null); // görevden açıldıysa o görev
   const [pmenu, setPmenu] = useState(false); // başlıktaki + menüsü
   const [editNote, setEditNote] = useState<Note | null>(null);
   const focusTaskId = (loc0.state as { taskId?: string } | null)?.taskId ?? null; // görevden açıldıysa
@@ -338,7 +340,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const text = s.toString().trim();
       if (!el?.dataset.nid || !text) { setSel(null); return; }
       const rect = r.getBoundingClientRect();
-      setSel({ x: Math.min(Math.max(rect.left + rect.width / 2, 90), window.innerWidth - 90), y: Math.max(rect.top - 60, 60), nid: el.dataset.nid, text });
+      lastSel.current = { nid: el.dataset.nid, text, at: Date.now() };
+      // menü seçimin ALTINDA: telefonun kendi menüsü (Kopyala, Çevir) üstte çıktığı için çakışmasın
+      const below = rect.bottom + 14;
+      const y = below + 60 < window.innerHeight - 70 ? below : Math.max(rect.top - 64, 60);
+      setSel({ x: Math.min(Math.max(rect.left + rect.width / 2, 110), window.innerWidth - 110), y, nid: el.dataset.nid, text });
     };
     document.addEventListener("selectionchange", onSel);
     return () => document.removeEventListener("selectionchange", onSel);
@@ -369,13 +375,24 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const t = n?.text_content ?? document.querySelector(`[data-nid="${nid}"]`)?.textContent ?? "";
     return t.replace(/\s+/g, " ").trim().slice(0, 160);
   };
-  const posOf = (nid: string | null, quote: string): Pos => ({
-    doc_id: doc.id, node_id: nid, book_id: scope === "kuran" ? null : doc.parent_id, scope,
-    label: nid ? where(nid).label : doc.title, quote: quote.slice(0, 300), book_title: scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title,
-  });
+  const bookTitle = scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title;
+  const posOf = (nid: string | null, quote: string): Pos => {
+    const w = nid ? where(nid) : { label: doc.title, page: null };
+    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page };
+  };
   const markAt = (nid: string, quote: string) => {
     const w = where(nid);
-    setBmDraft({ scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote, autoTitle: w.label });
+    setBmDraft({ scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote, autoTitle: w.label, label: w.label, book_title: bookTitle });
+  };
+  // seçili yer (son 30 sn içinde seçildiyse) ya da ekranda görünen ilk satır
+  const hereNid = (): { nid: string; text: string; picked: boolean } | null => {
+    const ls = lastSel.current;
+    if (ls && Date.now() - ls.at < 30000) return { nid: ls.nid, text: ls.text, picked: true };
+    const nid = topNid();
+    return nid ? { nid, text: textOf(nid), picked: false } : null;
+  };
+  const openTask = (nid: string, text: string, mode: "ayrac" | "sabit", bookmarkId?: string | null) => {
+    setPlace({ pos: posOf(nid, text), mode, bookmarks: bms, bookmarkId: bookmarkId ?? taskT?.bookmark_id ?? null });
   };
   const saveMark = () => {
     if (!sel) return;
@@ -397,15 +414,30 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const { error } = await supabase.from("reader_notes").delete().eq("id", n.id);
     if (error) flash("Silinemedi: " + error.message); else { setNotes((s) => s.filter((x) => x.id !== n.id)); flash("Not silindi"); }
   };
-  // başlıktaki + menüsü: seçim yapmadan, ekranda görünen yer için
-  const pageAct = (a: "mark" | "yer" | "konu" | "not") => {
+  // başlıktaki ⊞ menüsü: seçim varsa seçilen yer, yoksa ekranda görünen yer
+  const pageAct = (a: "mark" | "task" | "not") => {
     setPmenu(false);
-    const nid = topNid();
-    if (!nid) return;
-    const q = textOf(nid);
-    if (a === "mark") markAt(nid, q);
-    else if (a === "not") setAsk({ nid, text: "" });
-    else setTask({ pos: posOf(nid, a === "yer" ? q : ""), tab: a });
+    const h = hereNid();
+    if (!h) return;
+    lastSel.current = null;
+    if (a === "mark") markAt(h.nid, h.text);
+    else if (a === "not") setAsk({ nid: h.nid, text: h.picked ? h.text : "" });
+    else openTask(h.nid, h.text, h.picked ? "sabit" : "ayrac");
+  };
+  // görevden açıldıysa: o görevi yükle (alt çubuk için)
+  useEffect(() => {
+    if (!focusTaskId) return;
+    void supabase.from("todos").select("id,title,bookmark_id,per_day,progress,recurrence,is_completed").eq("id", focusTaskId).maybeSingle().then(({ data }) => setTaskT(data as TodoT | null));
+  }, [focusTaskId]);
+  // alt çubuk: bağlı ayracı buraya taşı
+  const moveTaskMark = async () => {
+    if (!taskT?.bookmark_id) return;
+    const h = hereNid();
+    if (!h) return;
+    lastSel.current = null;
+    const w = where(h.nid);
+    const { error } = await moveBookmark(taskT.bookmark_id, { scope, book_id: bookId, document_id: doc.id, node_id: h.nid, mushaf_page: w.page, quote: h.text, autoTitle: w.label, label: w.label, book_title: bookTitle });
+    if (error) flash("Taşınamadı: " + error.message); else { setMark(h.nid); flash(`Kaldığın yer: ${w.label}`); void reloadBms(); }
   };
 
   const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
@@ -524,49 +556,54 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     <>
       {sel && (
         <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
-          <button className="g" onClick={saveMark} aria-label="Ayraç ekle"><Icon name="bookmark" size={22} /></button>
-          <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); setSel(null); }} aria-label="Not"><Icon name="pencil" size={22} /></button>
-          <button className="a" onClick={() => { if (isDua) setTodo({ notes: sel.text.slice(0, 300) }); else setTask({ pos: posOf(sel.nid, sel.text), tab: "konu" }); window.getSelection()?.removeAllRanges(); setSel(null); }} aria-label="Görev"><Icon name="plusbox" size={22} /></button>
+          <button className="g" onClick={saveMark} aria-label="Kaldığım yer"><Icon name="bookmark" size={20} /><span>Kaldığım yer</span></button>
+          <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); lastSel.current = null; setSel(null); }} aria-label="Not"><Icon name="pencil" size={20} /><span>Not</span></button>
+          <button className="a" onClick={() => { openTask(sel.nid, sel.text, "sabit"); lastSel.current = null; window.getSelection()?.removeAllRanges(); setSel(null); }} aria-label="Görev"><Icon name="plusbox" size={20} /><span>Görev</span></button>
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
       {bmDraft && (
         <BookmarkDialog
-          autoTitle={bmDraft.autoTitle}
+          autoTitle={bookTitle}
+          where={bmDraft.label ?? bmDraft.autoTitle}
           list={bms}
           onClose={() => setBmDraft(null)}
-          onNew={async (name) => { const d = bmDraft; setBmDraft(null); const { error } = await addBookmark(d, name); if (error) flash("Kaydedilemedi: " + error.message); else { setMark(d.node_id); flash("Ayraç kaydedildi"); void reloadBms(); } }}
+          onNew={async (name, alsoTask) => {
+            const d = bmDraft; setBmDraft(null);
+            const { data, error } = await addBookmark(d, name);
+            if (error) { flash("Kaydedilemedi: " + error.message); return; }
+            setMark(d.node_id); flash("Ayraç kaydedildi"); void reloadBms();
+            if (alsoTask && d.node_id) { const nb = data as Bookmark; setPlace({ pos: posOf(d.node_id, d.quote), mode: "ayrac", bookmarks: [nb, ...bms], bookmarkId: nb.id }); }
+          }}
           onUpdate={async (bm) => { const d = bmDraft; setBmDraft(null); const { error } = await moveBookmark(bm.id, d); if (error) flash("Güncellenemedi: " + error.message); else { flash(`“${bm.title}” güncellendi`); void reloadBms(); } }}
           onDelete={async (bm) => { await deleteBookmark(bm.id); void reloadBms(); }}
         />
       )}
       {ask && <AskDialog title={ask.text ? "Not ekle" : "Bu sayfaya not ekle"} placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
       {editNote && <AskDialog title="Notu düzenle" initial={editNote.note} onClose={() => setEditNote(null)} onSubmit={(v) => void saveNoteEdit(editNote, v)} onDelete={() => { if (window.confirm("Not silinsin mi?")) { void delNote(editNote); setEditNote(null); } }} />}
-      {task && (
-        <ReaderTaskSheet pos={task.pos} initialTab={task.tab} focusTaskId={focusTaskId} lists={lists} groups={groups}
-          onClose={() => setTask(null)} onDone={(m) => { setTask(null); flash(m); }} />
+      {place && (
+        <TodoSheet place={place} lists={lists} groups={groups} defaultListId={null}
+          onClose={() => setPlace(null)} onSaved={(m) => { setPlace(null); flash(m ?? "Görev eklendi"); void reloadBms(); }} />
+      )}
+      {taskT && cp.taskBar && !focus && (
+        <div className="taskbar">
+          <div className="tbt"><b>{taskT.title}</b><span>{taskT.bookmark_id ? "Görevden açtın" : "Görevin yeri"}</span></div>
+          {taskT.bookmark_id && <button onClick={() => void moveTaskMark()}>Kaldığım yeri buraya taşı</button>}
+          <button className="x" onClick={() => setTaskT(null)} aria-label="Kapat">×</button>
+        </div>
       )}
       {pmenu && (
         <>
           <div className="scrim show" style={{ zIndex: 40, background: "transparent" }} onClick={() => setPmenu(false)} />
           <div className="pmenu">
-            <div className="pmhint">Ekranda görünen yer için · bir cümle seçersen o cümle için</div>
+            <div className="pmhint">{lastSel.current && Date.now() - lastSel.current.at < 30000 ? `Seçtiğin yer: “${lastSel.current.text.slice(0, 40)}”` : "Ekranda görünen yer için · bir kelime/cümle seçersen o yer için"}</div>
             <button onClick={() => pageAct("mark")}><Icon name="bookmark" size={20} /> Kaldığım yeri kaydet (ayraç)</button>
-            <button onClick={() => pageAct("yer")}><Icon name="check" size={20} /> Görev: kaldığım yer</button>
-            <button onClick={() => pageAct("konu")}><Icon name="plusbox" size={20} /> Görev: bu sayfa (araştır, sor…)</button>
-            <button onClick={() => pageAct("not")}><Icon name="pencil" size={20} /> Bu sayfaya not ekle</button>
+            <button onClick={() => pageAct("task")}><Icon name="plusbox" size={20} /> Görev ekle</button>
+            <button onClick={() => pageAct("not")}><Icon name="pencil" size={20} /> Not ekle</button>
           </div>
         </>
       )}
-      {todo && (
-        <TodoSheet
-          initialTab={isDua ? "tekrar" : "okuma"}
-          prefill={{ lib: { id: doc.id, title: doc.title }, notes: todo.notes }}
-          lists={lists} groups={groups} defaultListId={null}
-          onClose={() => setTodo(null)}
-          onSaved={() => { setTodo(null); flash("Todo'ya eklendi"); }}
-        />
-      )}
+
     </>
   );
 
@@ -681,7 +718,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <div className="rtitle">{doc.title}{parentTitle || offTag ? <span>{parentTitle}{offTag}</span> : null}</div>
         {counters.length > 0 && <button className="iconbtn" onClick={resetAll} aria-label="Sayaçları sıfırla"><Icon name="reset" size={22} /></button>}
         {counters.length > 0 && <button className="iconbtn" onClick={() => setFsT(true)} aria-label="Tam ekran tesbih"><Icon name="expand" size={22} /></button>}
-        <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
+        <button className="iconbtn acc" onClick={() => setPmenu(true)} aria-label="Ayraç, görev, not"><Icon name="plusbox" size={24} /></button>
         <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
       </header>}
       <div className="bookwrap">
@@ -759,6 +796,7 @@ const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < M
 export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
 }) {
+  const [cp, setCp] = useCP();
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
   );
@@ -793,6 +831,7 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
           </div>
         </div>
         <Tog k="fit" label="Sayfayı ekrana sığdır" />
+        <div className="srow"><span>Görevden açınca alt çubuk</span><button className={"tgl" + (cp.taskBar ? " on" : "")} onClick={() => setCp({ ...cp, taskBar: !cp.taskBar })} aria-pressed={cp.taskBar}><i /></button></div>
         <Tog k="ar" label="Arapça" />
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />

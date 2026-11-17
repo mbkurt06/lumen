@@ -1,71 +1,95 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
+import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { bumpCount, planDayIndex, planStats, refPath, todayCount, useTodos, ymd } from "../lib/todo";
+import { bumpProgress, doneOn, isRecurring, occursOn, placeOf, recurrenceText, useTodos, ymd } from "../lib/todo";
+import { TodoSheet } from "./TodoSheet";
+
+const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00").getTime() + n * 86400000));
 
 export function TodoDetail() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { todos, lists, loaded, setTodos } = useTodos();
+  const { todos, lists, groups, loaded, setTodos, reload } = useTodos();
+  const [edit, setEdit] = useState(false);
   const t = todos.find((x) => x.id === id);
   if (!t) return (<><PageHeader back title={loaded ? "Görev bulunamadı" : "Yükleniyor…"} /></>);
   const list = lists.find((l) => l.id === t.list_id);
-  const p = t.plan;
-  const cnt = p ? todayCount(t) : 0;
-  const st = p ? planStats(p) : null;
+  const pl = placeOf(t);
+  const rec = isRecurring(t);
+  const per = Math.max(1, t.per_day);
+  const cnt = doneOn(t);
   const bump = async (d: number) => {
-    const plan = await bumpCount(t, d);
-    if (plan) setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, plan } : x)));
+    const progress = await bumpProgress(t, d);
+    setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, progress } : x)));
+  };
+  const toggle = async () => {
+    const done = !t.is_completed;
+    setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, is_completed: done, completed_at: done ? new Date().toISOString() : null } : x)));
+    await supabase.from("todos").update({ is_completed: done, completed_at: done ? new Date().toISOString() : null }).eq("id", t.id);
   };
   const del = async () => {
     if (!window.confirm("Bu görev silinsin mi?")) return;
     await supabase.from("todos").delete().eq("id", t.id);
     nav(-1);
   };
-  const dayCells = p ? Array.from({ length: p.days }, (_, i) => {
-    const day = ymd(new Date((Math.round(Date.UTC(+p.start.slice(0, 4), +p.start.slice(5, 7) - 1, +p.start.slice(8, 10)) / 86400000) + i) * 86400000 + 12 * 3600000));
-    const full = (p.done?.[day] ?? 0) >= p.daily;
-    const idx = planDayIndex(p);
-    return { i: i + 1, cls: full ? "done" : i + 1 === idx ? "today" : i + 1 < idx ? "missed" : "" };
-  }) : [];
+  // son 28 gün: yapılacak günler ve yapılanlar
+  const today = ymd();
+  const days = Array.from({ length: 28 }, (_, i) => addDays(today, i - 27)).filter((d) => occursOn(t, d) || (t.progress?.[d] ?? 0) > 0);
+  const full = days.filter((d) => (t.progress?.[d] ?? 0) >= per).length;
+  let streak = 0;
+  for (let i = 0; i < 400; i++) {
+    const d = addDays(today, -i);
+    if (!occursOn(t, d)) { if (d < (t.start_date ?? today)) break; continue; }
+    if ((t.progress?.[d] ?? 0) >= per) streak++; else if (d !== today) break;
+  }
+
   return (
     <>
-      <PageHeader back title={t.title} subtitle={list?.title} />
-      {p && st ? (
+      <PageHeader back title={t.title} subtitle={[list?.title, rec ? recurrenceText(t) : t.due_at ? "Son tarih " + new Date(t.due_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long" }) : ""].filter(Boolean).join(" · ")}
+        right={<button className="iconbtn" onClick={() => setEdit(true)} aria-label="Düzenle"><Icon name="pencil" size={22} /></button>} />
+      {pl && (
+        <div className="card" style={{ margin: "10px 16px" }}>
+          <div className="muted small">{[pl.section, pl.book].filter(Boolean).join(" · ")}</div>
+          <div style={{ fontWeight: 700, marginTop: 4 }}>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>
+          {pl.quote && <div className="muted small" style={{ marginTop: 4 }}>“{pl.quote}”</div>}
+          <button className="primary" style={{ marginTop: 12 }} onClick={() => pl.docId && nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } })}>{pl.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+        </div>
+      )}
+      {t.notes && <div className="card" style={{ margin: "10px 16px" }}><p className="muted" style={{ margin: 0, whiteSpace: "pre-wrap" }}>{t.notes}</p></div>}
+      {rec ? (
         <>
           <div className="card" style={{ margin: "10px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><b style={{ color: "var(--accent)" }}>{cnt} / {p.daily} tekrar</b></div>
-            <div className="tbar" style={{ margin: "10px 0" }}><i style={{ width: `${Math.min(100, (cnt / p.daily) * 100)}%` }} /></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><b style={{ color: "var(--accent)" }}>{cnt} / {per}</b></div>
+            <div className="tbar" style={{ margin: "10px 0" }}><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>
             <div className="seg">
               <button onClick={() => void bump(-1)}>−1</button>
-              <button className="on" onClick={() => void bump(1)}>+1 tekrar</button>
+              <button className="on" onClick={() => void bump(1)}>+1</button>
             </div>
-            {t.related_library_item_id && <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Kütüphanede aç</button>}
           </div>
-          <div className="card" style={{ margin: "10px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{p.days} günlük plan</b><span className="muted">Gün {Math.max(1, st.idx)}</span></div>
-            <div className="plangrid">{dayCells.map((c) => (<span key={c.i} className={c.cls}>{c.i}</span>))}</div>
-            <div className="legend"><span><i className="done" /> Yapıldı</span><span><i className="missed" /> Kaçırıldı</span><span><i className="today" /> Bugün</span></div>
-          </div>
+          {days.length > 0 && (
+            <div className="card" style={{ margin: "10px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><b>Son 4 hafta</b><span className="muted">{full} / {days.length} gün</span></div>
+              <div className="plangrid">{days.map((d) => { const v = t.progress?.[d] ?? 0; return (<span key={d} title={d} className={v >= per ? "done" : d === today ? "today" : v ? "" : "missed"}>{Number(d.slice(8, 10))}</span>); })}</div>
+              <div className="legend"><span><i className="done" /> Yapıldı</span><span><i className="missed" /> Kaçırıldı</span><span><i className="today" /> Bugün</span></div>
+            </div>
+          )}
           <div className="stats3">
-            <div className="card"><b>{st.streak}</b><span className="muted small">gün seri</span></div>
-            <div className="card"><b>{st.missed}</b><span className="muted small">kaçırılan</span></div>
-            <div className="card"><b>{st.left}</b><span className="muted small">gün kaldı</span></div>
+            <div className="card"><b>{streak}</b><span className="muted small">gün seri</span></div>
+            <div className="card"><b>{Object.values(t.progress ?? {}).reduce((a, b) => a + b, 0)}</b><span className="muted small">toplam</span></div>
+            <div className="card"><b>{t.end_date ? Math.max(0, Math.round((Date.parse(t.end_date) - Date.parse(today)) / 86400000)) : "∞"}</b><span className="muted small">gün kaldı</span></div>
           </div>
         </>
       ) : (
         <div className="card" style={{ margin: "10px 16px" }}>
-          {t.due_at && <p style={{ margin: 0 }}>Son tarih: {new Date(t.due_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}</p>}
-          {t.reading_ref && <div className="posbox" style={{ marginTop: 8 }}><div><b>{t.reading_ref.kind === "yer" ? "Kaldığın yer: " : ""}{t.reading_ref.label}</b>{t.reading_ref.quote && <span>“{t.reading_ref.quote}”</span>}</div></div>}
-          {t.notes && !(t.reading_ref && t.notes === t.reading_ref.quote) && <p className="muted">{t.notes}</p>}
-          {t.reading_ref ? <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(refPath(t.reading_ref!), { state: { nid: t.reading_ref!.node_id, taskId: t.id } })}>{t.reading_ref.kind === "yer" ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
-            : t.related_library_item_id && <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Devam et</button>}
-          {!t.due_at && !t.notes && !t.related_library_item_id && !t.reading_ref && <p className="muted" style={{ margin: 0 }}>Ek bilgi yok.</p>}
+          <button className={t.is_completed ? "secondary" : "primary"} onClick={() => void toggle()}>{t.is_completed ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
         </div>
       )}
       <div className="card" style={{ margin: "10px 16px", padding: 0 }}>
         <button className="rowbtn danger" onClick={() => void del()}>Görevi sil</button>
       </div>
+      {edit && <TodoSheet edit={t} lists={lists} groups={groups} defaultListId={null} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); void reload(); }} />}
     </>
   );
 }

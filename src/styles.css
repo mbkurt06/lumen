@@ -553,3 +553,26 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .undobar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 45; display: flex; align-items: center; gap: 14px; padding: 10px 14px 10px 16px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.45); font-weight: 600; }
 .undobar button { border: 0; background: none; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; }
 .seg button { min-width: 0; }
+
+/* Seçim menüsü: simge + yazı */
+.selbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 600; padding: 4px 8px; }
+/* Standart görev formu */
+.chipwrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipwrap button { padding: 9px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; cursor: pointer; }
+.chipwrap button.on { background: var(--accent); border-color: var(--accent); color: #0f1115; font-weight: 700; }
+.chipwrap.days { margin-top: 8px; }
+.chipwrap.days button { min-width: 44px; }
+.chipwrap.small { margin-top: 6px; }
+.chipwrap.small button { padding: 6px 10px; font-size: 13px; }
+.seg3.three button { font-size: 13px; padding: 9px 4px; }
+.bmrow.pick { cursor: pointer; }
+.bmrow.pick input[type="radio"], .bmrow.pick input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.placebox .posbox { margin-bottom: 8px; }
+.posbox b + b { margin-top: 2px; }
+/* Görevden açılınca alt çubuk */
+.taskbar { position: fixed; left: 10px; right: 10px; bottom: calc(66px + env(safe-area-inset-bottom)); z-index: 25; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 16px; background: color-mix(in srgb, var(--card) 94%, transparent); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 620px; margin: 0 auto; }
+.taskbar .tbt { flex: 1; min-width: 0; }
+.taskbar .tbt b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.taskbar .tbt span { display: block; font-size: 12px; color: var(--muted); }
+.taskbar button { border: 0; border-radius: 12px; padding: 9px 12px; background: var(--accent); color: #0f1115; font-weight: 700; font-size: 13px; cursor: pointer; }
+.taskbar button.x { background: none; color: var(--muted); font-size: 22px; padding: 4px 8px; }

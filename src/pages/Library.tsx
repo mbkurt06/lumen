@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
-import { supabase } from "../lib/supabase";
 import { useResume, useRoots, type Item } from "../lib/library";
 import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
 import { Reader, ReaderSettings } from "./Reader";
 import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
-import { ymd } from "../lib/todo";
+import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } from "../lib/todo";
 
 /* ── ortak parçalar ── */
 function Resume({ scopeId }: { scopeId?: string }) {
@@ -51,16 +50,9 @@ function CRow({ to, title, sub, meta, icon }: { to: string; title: string; sub?:
 export function LibraryHome() {
   const { roots } = useRoots();
   const nav = useNavigate();
-  const [bugun, setBugun] = useState<string>("");
-  useEffect(() => {
-    void supabase.from("todos").select("kind,plan,is_completed").eq("kind", "tekrar").then(({ data }) => {
-      const rows = (data ?? []) as { plan: { daily: number; done: Record<string, number> } | null }[];
-      const d = ymd();
-      const act = rows.filter((r) => r.plan);
-      if (!act.length) return;
-      setBugun(`Bugün ${act.filter((r) => (r.plan!.done?.[d] ?? 0) >= r.plan!.daily).length}/${act.length}`);
-    });
-  }, []);
+  const { todos } = useTodos();
+  const libToday = todos.filter((t) => !t.parent_todo_id && t.related_library_item_id && isRecurring(t) && inToday(t));
+  const bugun = libToday.length ? `Bugün ${libToday.filter(isDoneToday).length}/${libToday.length}` : "";
   const rid = (t: string) => roots[t]?.id;
   return (
     <>
@@ -96,30 +88,26 @@ export function Collection() {
 
 function Ezber() {
   const nav = useNavigate();
-  const [rows, setRows] = useState<{ id: string; title: string; plan: { daily: number; days: number; start: string; done: Record<string, number> } | null; is_completed: boolean }[]>([]);
-  useEffect(() => {
-    void supabase.from("todos").select("id,title,plan,is_completed").eq("kind", "tekrar").is("parent_todo_id", null).order("created_at").then(({ data }) => setRows((data ?? []) as typeof rows));
-  }, []);
-  const d = ymd();
-  const doneToday = rows.filter((r) => r.plan && (r.plan.done?.[d] ?? 0) >= r.plan.daily).length;
-  const idxOf = (p: { start: string }) => Math.round((Date.parse(d) - Date.parse(p.start)) / 86400000) + 1;
+  const { todos } = useTodos();
+  // kütüphaneye bağlı tekrarlayan görevler (ezber modu sonraki adımda ayrı işaretlenecek)
+  const rows = todos.filter((t) => !t.parent_todo_id && !t.is_completed && t.related_library_item_id && isRecurring(t));
+  const todayRows = rows.filter(inToday);
+  const doneToday = todayRows.filter(isDoneToday).length;
   return (
     <>
       <PageHeader back title="Ezber" subtitle="Kütüphane" />
       <div className="card" style={{ margin: "8px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><span className="muted">{doneToday} / {rows.length} tamamlandı</span></div>
-        <div className="tbar" style={{ marginTop: 10 }}><i style={{ width: `${rows.length ? (doneToday / rows.length) * 100 : 0}%` }} /></div>
+        <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><span className="muted">{doneToday} / {todayRows.length} tamamlandı</span></div>
+        <div className="tbar" style={{ marginTop: 10 }}><i style={{ width: `${todayRows.length ? (doneToday / todayRows.length) * 100 : 0}%` }} /></div>
       </div>
-      <Label>EZBERLERİM</Label>
+      <Label>TEKRARLARIM</Label>
       <div className="clist">
-        {rows.length === 0 && <p className="muted" style={{ padding: 16, margin: 0 }}>Henüz ezber planın yok.</p>}
+        {rows.length === 0 && <p className="muted" style={{ padding: 16, margin: 0 }}>Henüz tekrar görevin yok.</p>}
         {rows.map((r) => (
-          <CRow key={r.id} icon to={`/yapilacaklar/g/${r.id}`} title={r.title}
-            sub={r.plan ? `Gün ${Math.max(1, idxOf(r.plan))} / ${r.plan.days}` : undefined}
-            meta={r.plan ? `%${Math.min(100, Math.round((Math.max(0, idxOf(r.plan)) / r.plan.days) * 100))}` : undefined} />
+          <CRow key={r.id} icon to={`/yapilacaklar/g/${r.id}`} title={r.title} sub={recurrenceText(r)} meta={r.per_day > 1 ? `${doneOn(r)}/${r.per_day}` : isDoneToday(r) ? "✓" : undefined} />
         ))}
       </div>
-      <button className="dashed" onClick={() => nav("/yapilacaklar?ekle=tekrar")}>+ Ezbere ekle</button>
+      <button className="dashed" onClick={() => nav("/yapilacaklar?ekle=tekrar")}>+ Tekrar görevi ekle</button>
     </>
   );
 }
