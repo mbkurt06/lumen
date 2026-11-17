@@ -5,7 +5,6 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { useTodos, type Todo as TodoT } from "../lib/todo";
-import { useCP } from "../lib/counterPrefs";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet, type PlacePrefill, type Pos } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
@@ -132,7 +131,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [ask, setAsk] = useState<null | { nid: string; text: string }>(null);
   const [place, setPlace] = useState<PlacePrefill | null>(null); // kitaptan görev (standart form)
   const lastSel = useRef<{ nid: string; text: string; at: number } | null>(null); // ⊞'ye basınca seçim kaybolsa da kullanılır
-  const [cp] = useCP();
   const [taskT, setTaskT] = useState<TodoT | null>(null); // görevden açıldıysa o görev
   const [pmenu, setPmenu] = useState(false); // başlıktaki + menüsü
   const [editNote, setEditNote] = useState<Note | null>(null);
@@ -429,16 +427,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!focusTaskId) return;
     void supabase.from("todos").select("id,title,bookmark_id,per_day,progress,recurrence,is_completed").eq("id", focusTaskId).maybeSingle().then(({ data }) => setTaskT(data as TodoT | null));
   }, [focusTaskId]);
-  // alt çubuk: bağlı ayracı buraya taşı
-  const moveTaskMark = async () => {
-    if (!taskT?.bookmark_id) return;
-    const h = hereNid();
-    if (!h) return;
-    lastSel.current = null;
-    const w = where(h.nid);
-    const { error } = await moveBookmark(taskT.bookmark_id, { scope, book_id: bookId, document_id: doc.id, node_id: h.nid, mushaf_page: w.page, quote: h.text, autoTitle: w.label, label: w.label, book_title: bookTitle });
-    if (error) flash("Taşınamadı: " + error.message); else { setMark(h.nid); flash(`Kaldığın yer: ${w.label}`); void reloadBms(); }
-  };
 
   const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
   const sysDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
@@ -584,13 +572,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       {place && (
         <TodoSheet place={place} lists={lists} groups={groups} defaultListId={null}
           onClose={() => setPlace(null)} onSaved={(m) => { setPlace(null); flash(m ?? "Görev eklendi"); void reloadBms(); }} />
-      )}
-      {taskT && cp.taskBar && !focus && (
-        <div className="taskbar">
-          <div className="tbt"><b>{taskT.title}</b><span>{taskT.bookmark_id ? "Görevden açtın" : "Görevin yeri"}</span></div>
-          {taskT.bookmark_id && <button onClick={() => void moveTaskMark()}>Kaldığım yeri buraya taşı</button>}
-          <button className="x" onClick={() => setTaskT(null)} aria-label="Kapat">×</button>
-        </div>
       )}
       {pmenu && (
         <>
@@ -796,7 +777,6 @@ const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < M
 export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
 }) {
-  const [cp, setCp] = useCP();
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
     <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
   );
@@ -831,7 +811,6 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
           </div>
         </div>
         <Tog k="fit" label="Sayfayı ekrana sığdır" />
-        <div className="srow"><span>Görevden açınca alt çubuk</span><button className={"tgl" + (cp.taskBar ? " on" : "")} onClick={() => setCp({ ...cp, taskBar: !cp.taskBar })} aria-pressed={cp.taskBar}><i /></button></div>
         <Tog k="ar" label="Arapça" />
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />

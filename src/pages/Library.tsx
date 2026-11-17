@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { useResume, useRoots, type Item } from "../lib/library";
+import { deleteBookmark } from "../lib/bookmarks";
 import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
 import { Reader, ReaderSettings } from "./Reader";
 import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
@@ -11,17 +12,26 @@ import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } f
 
 /* ── ortak parçalar ── */
 function Resume({ scopeId }: { scopeId?: string }) {
-  const rows = useResume(scopeId);
+  const rows0 = useResume(scopeId);
+  const [gone, setGone] = useState<string[]>([]);
+  const rows = rows0.filter((r) => !gone.includes(r.id));
+  const [edit, setEdit] = useState(false);
   const nav = useNavigate();
+  const del = async (id: string, name: string) => {
+    if (!window.confirm(`“${name}” ayracı silinsin mi? Bu ayraca bağlı görevler kalır, yalnız yer bağlantısı kalkar.`)) return;
+    const { error } = await deleteBookmark(id);
+    if (error) window.alert("Silinemedi: " + error.message); else setGone((g) => [...g, id]);
+  };
   const [open, setOpen] = useState(() => { try { return localStorage.getItem("lumen.resume.open") !== "0"; } catch { return true; } });
   if (!rows.length) return null;
   const toggle = () => { const v = !open; setOpen(v); try { localStorage.setItem("lumen.resume.open", v ? "1" : "0"); } catch { /* yok say */ } };
   return (
     <div className="card resume">
-      <button className="reshead" onClick={toggle} aria-expanded={open}>
-        <span>KALDIĞIN YERLER</span>
-        <span className="resmeta">{rows.length} kayıt <Icon name={open ? "chevdown" : "chevron"} size={18} /></span>
-      </button>
+      <div className="reshead">
+        <button className="reshbtn" onClick={toggle} aria-expanded={open}>KALDIĞIN YERLER</button>
+        {open && <button className={"resedit" + (edit ? " on" : "")} onClick={() => setEdit(!edit)}>{edit ? "Bitti" : "Düzenle"}</button>}
+        <button className="resmeta" onClick={toggle}>{rows.length} kayıt <Icon name={open ? "chevdown" : "chevron"} size={18} /></button>
+      </div>
       {open && (
         <div className="resbody">
           {rows.map((r, i) => {
@@ -36,7 +46,9 @@ function Resume({ scopeId }: { scopeId?: string }) {
                   <div className="small muted">{book}{name ? " · " + name : ""}</div>
                   <b>{where}</b>
                 </div>
-                <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam</button>
+                {edit
+                  ? <button className="resdel" onClick={() => void del(r.id, name || where)} aria-label="Ayracı sil">Sil</button>
+                  : <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam</button>}
               </div>
             );
           })}
