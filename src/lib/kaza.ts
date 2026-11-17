@@ -54,10 +54,11 @@ export function kazaToday(what: "namaz" | "oruc") {
   return NAMAZ_KINDS.reduce((a, x) => a + (s.today[x.k] ?? 0), 0);
 }
 
-export function addKaza(kind: KazaKind, delta: number) {
-  const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+export function addKaza(kind: KazaKind, delta: number, day = ymd()) { addKazaMany([{ kind, delta }], day); }
+/** Toplu giriş: birden çok vakit, istenen güne. */
+export function addKazaMany(items: { kind: KazaKind; delta: number }[], day = ymd()) {
   const q = read<Pending[]>(QK, []);
-  q.push({ client_id: id, kind, delta, day: ymd() });
+  for (const it of items) if (it.delta) q.push({ client_id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`, kind: it.kind, delta: it.delta, day });
   write(QK, q);
   changed();
   void flushKaza();

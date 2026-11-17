@@ -539,3 +539,8 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .kzlink { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
 .kzlink > div { flex: 1; }
 .kzgo { font-size: 28px; color: var(--muted); }
+.kzacts { display: flex; gap: 10px; margin: 10px 16px 0; }
+.kzacts button { flex: 1; margin: 0; }
+.kzbulk { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.kzbulk label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
+.kzbulk input { width: 100%; }
