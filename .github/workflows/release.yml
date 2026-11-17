@@ -1,0 +1,42 @@
+name: Release to production
+
+# Manual production release. Run it from the GitHub mobile app:
+# Actions → Release to production → Run workflow.
+# It moves the "production" branch to the current main.
+# Vercel must use "production" as its Production Branch (Project → Settings → Environments).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "yayinla" to release main to production'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.inputs.confirm == 'yayinla'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Move production to main
+        run: |
+          # Fast-forward only: fails safely if production has commits that main does not.
+          git push origin HEAD:refs/heads/production
+          echo "Released $(git rev-parse --short HEAD) to production" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Telegram
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -z "$TG_TOKEN" ] && exit 0
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="🚀 Lumen production'a yayınlandı: $(git rev-parse --short HEAD)" > /dev/null

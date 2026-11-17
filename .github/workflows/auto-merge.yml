@@ -1,0 +1,45 @@
+name: Auto-merge agent PRs
+
+# Turns on GitHub auto-merge for PRs opened by agents.
+# GitHub then merges into main ONLY after every required check passes
+# (Build check + Acceptance tests). That needs:
+#   - Settings → General → "Allow auto-merge" turned on
+#   - a ruleset on main with those required status checks (GitHub Pro for private repos)
+# main is staging; production is released by hand with the "Release to production" workflow.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (startsWith(github.event.pull_request.head.ref, 'claude/') ||
+       startsWith(github.event.pull_request.head.ref, 'codex/') ||
+       contains(github.event.pull_request.user.login, 'jules') ||
+       contains(github.event.pull_request.user.login, 'copilot'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip PRs that touch protected paths
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh pr diff "$PR" --repo "$GITHUB_REPOSITORY" --name-only)
+          if echo "$files" | grep -Eq '^(\.github/|tests/e2e/|supabase/migrations/|AGENTS\.md|CLAUDE\.md)'; then
+            echo "protected=true" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "Bu PR korumalı dosyalara dokunuyor; otomatik merge kapalı, insan onayı gerekli."
+          fi
+
+      - name: Enable auto-merge (squash)
+        if: steps.guard.outputs.protected != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "$GITHUB_REPOSITORY" --auto --squash

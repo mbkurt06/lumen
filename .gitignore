@@ -52,3 +52,8 @@ public/lumen-local-ca.crt
 *.p8
 
 public/local-ca.crt
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/

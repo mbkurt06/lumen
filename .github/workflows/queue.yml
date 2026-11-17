@@ -1,0 +1,90 @@
+name: Queue
+
+# Hands out "queued" issues one at a time, oldest first.
+# Runs every hour, after a PR is closed, or by hand (Actions → Queue → Run workflow).
+# Stops while any issue is "in-progress" or anything is "needs-human".
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+concurrency:
+  group: queue
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Pick next issue
+        id: pick
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const list = async (labels) => (await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels, per_page: 50, sort: 'created', direction: 'asc',
+            })).data.filter(i => !i.pull_request);
+
+            // A finished issue whose PR was merged is closed by "Closes #N".
+            // Anything still open and in-progress means work is running or stuck.
+            if ((await list('in-progress')).length) { core.info('Work in progress, waiting.'); return; }
+            if ((await list('needs-human')).length) { core.info('Something needs a human, pausing queue.'); return; }
+
+            const next = (await list('queued'))[0];
+            if (!next) { core.info('Queue empty.'); return; }
+
+            const names = next.labels.map(l => typeof l === 'string' ? l : l.name);
+            const agent = names.includes('agent:jules') ? 'jules' : 'claude';
+
+            await github.rest.issues.removeLabel({ ...context.repo, issue_number: next.number, name: 'queued' }).catch(() => {});
+            await github.rest.issues.addLabels({ ...context.repo, issue_number: next.number, labels: ['in-progress'] });
+
+            if (agent === 'jules') {
+              // The Jules GitHub app reacts to the "jules" label itself.
+              await github.rest.issues.addLabels({ ...context.repo, issue_number: next.number, labels: ['jules'] });
+            }
+            core.setOutput('number', String(next.number));
+            core.setOutput('title', next.title);
+            core.setOutput('agent', agent);
+
+      - uses: actions/checkout@v4
+        if: steps.pick.outputs.agent == 'claude'
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        if: steps.pick.outputs.agent == 'claude'
+        with:
+          node-version: 22
+
+      - name: Claude implements the issue
+        if: steps.pick.outputs.agent == 'claude'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Implement issue #${{ steps.pick.outputs.number }} ("${{ steps.pick.outputs.title }}").
+            Read it with `gh issue view ${{ steps.pick.outputs.number }}` and follow AGENTS.md strictly.
+
+            1. Create a branch named `claude/issue-${{ steps.pick.outputs.number }}`.
+            2. Make the smallest change that meets every acceptance criterion.
+            3. Run `npm install` and `npm run build`; fix until it passes.
+            4. Commit, push, and open a PR with `gh pr create` whose body starts with
+               "Closes #${{ steps.pick.outputs.number }}" and explains what changed and how you verified it.
+            5. If you cannot finish, comment on the issue explaining why and add the label
+               `needs-human` with `gh issue edit ${{ steps.pick.outputs.number }} --add-label needs-human`.
+          claude_args: |
+            --max-turns 80
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(npm install),Bash(npm ci),Bash(npm run build),Bash(npx tsc:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*)"

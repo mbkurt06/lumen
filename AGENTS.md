@@ -9,7 +9,7 @@ Lumen ("Content Workspace") is an offline-first content, practice, scheduling an
 
 - Web app: Next.js 15 (App Router), React 19, TypeScript, installable PWA.
 - Data: Supabase (PostgreSQL, auth, sync) + IndexedDB and Cache Storage for offline use.
-- Hosting: Vercel. Every PR gets a preview deployment; `main` is production.
+- Hosting: Vercel. Every PR gets a preview deployment; `main` is staging; the `production` branch is released by hand.
 - `Lumen/` contains a separate native Swift client. Do not touch it unless the issue explicitly asks.
 
 ## Layout
@@ -30,9 +30,11 @@ Lumen ("Content Workspace") is an offline-first content, practice, scheduling an
 npm install        # install dependencies
 npm run build      # production build; also type-checks the project
 npm run dev        # local dev server on port 3100
+npm run test:e2e   # Playwright acceptance tests (needs `npx playwright install chromium` once)
 ```
 
-CI runs `npm install && npm run build` on every PR. A change is not done until the build passes.
+CI runs the build and the acceptance tests in `tests/e2e/` on every PR. A change is not done until both pass.
+If an acceptance test fails, fix the app, never the test.
 
 ## How to work
 
