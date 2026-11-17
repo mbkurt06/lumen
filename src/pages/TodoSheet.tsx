@@ -95,7 +95,6 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       start_date: recurring ? start : null, end_date: recurring && end ? end : null,
       due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
       bookmark_id, reading_ref, related_library_item_id: related,
-      related_content_node_id: !edit && p ? p.node_id : edit?.reading_ref?.node_id ?? null,
       updated_at: new Date().toISOString(),
     };
     const res = edit
