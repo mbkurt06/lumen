@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Kaza } from "./pages/Kaza";
 import { Shell } from "./components/Shell";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
@@ -31,6 +32,7 @@ function Gate() {
           <Route path="kutuphane/tesbih/:id" element={<TesbihCounter />} />
           <Route path="kutuphane/:id" element={<LibraryItem />} />
           <Route path="namaz" element={<Namaz />} />
+          <Route path="namaz/kaza" element={<Kaza />} />
           <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
           <Route path="takvim" element={<Placeholder title="Takvim" />} />
           <Route path="ara" element={<Placeholder title="Ara" />} />

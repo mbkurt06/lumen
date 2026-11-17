@@ -4,6 +4,8 @@ import { PageHeader } from "../components/PageHeader";
 import { supabase } from "../lib/supabase";
 import { getShared, setShared } from "../lib/sharedPrefs";
 import { ymd } from "../lib/todo";
+import { Link } from "react-router-dom";
+import { FARZ, NAMAZ_KINDS, kazaSure, useKaza } from "../lib/kaza";
 
 type Place = { name: string; lat: number; lng: number };
 const BERLIN: Place = { name: "Berlin", lat: 52.52, lng: 13.405 };
@@ -30,6 +32,8 @@ export function Namaz() {
   const [offset, setOffset] = useState<number>(() => read("lumen.ihtiyat", 0)); // dakika
   const [todayDone, setTodayDone] = useState<Key[]>([]);
   const [msg, setMsg] = useState("");
+  const ks = useKaza();
+  const kz = { tam: Math.min(...FARZ.map((k) => ks.total[k] ?? 0)), oruc: ks.total.oruc ?? 0, today: NAMAZ_KINDS.reduce((a, x) => a + (ks.today[x.k] ?? 0), 0) };
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
@@ -124,6 +128,11 @@ export function Namaz() {
           );
         })}
       </div>
+      <Link to="/namaz/kaza" className="card kzlink" style={{ margin: "10px 16px" }}>
+        <div><div className="cardtitle">Kaza</div>
+          <div className="muted small">Namaz: {kz.tam} tam gün · {kazaSure(kz.tam)}{kz.oruc ? ` · Oruç: ${kz.oruc} gün` : ""}{kz.today ? ` · bugün ${kz.today} vakit` : ""}</div></div>
+        <span className="kzgo">›</span>
+      </Link>
       <div className="card" style={{ margin: "10px 16px" }}>
         <div className="cardtitle">Ayarlar</div>
         <p className="muted small" style={{ margin: "6px 0" }}>Hesaplama: Diyanet (Türkiye) yöntemi. İhtiyat: vakitlere eklenen dakika.</p>

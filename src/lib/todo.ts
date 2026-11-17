@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { kazaToday } from "./kaza";
 
 export type Plan = { daily: number; days: number; start: string; done: Record<string, number> };
 export type Todo = {
@@ -48,6 +49,7 @@ export function planStats(p: Plan, today = ymd()) {
 /** Bugün (Günüm) ekranında görünmeli mi? */
 export function inToday(t: Todo): boolean {
   if (t.parent_todo_id) return false;
+  if (t.kind === "kaza" || t.kind === "kaza_oruc") return !t.is_completed;
   if (t.kind === "tekrar" && t.plan) {
     const idx = planDayIndex(t.plan);
     return idx >= 1 && idx <= t.plan.days && !t.is_completed;
@@ -60,6 +62,7 @@ export function isOverdue(t: Todo): boolean {
   return t.kind !== "tekrar" && !t.is_completed && !!t.due_at && new Date(t.due_at) < startOfToday();
 }
 export function isDoneToday(t: Todo): boolean {
+  if ((t.kind === "kaza" || t.kind === "kaza_oruc") && t.plan) return kazaToday(t.kind === "kaza" ? "namaz" : "oruc") >= t.plan.daily;
   if (t.kind === "tekrar" && t.plan) return todayCount(t) >= t.plan.daily;
   return t.is_completed;
 }

@@ -521,3 +521,21 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .ubox { cursor: pointer; }
 .actsheet .rowbtn { display: flex; align-items: center; gap: 12px; }
 .tref { font-size: 12px; color: var(--gold); margin-top: 2px; }
+
+/* Kaza */
+.kzcard { margin: 0 16px; padding: 4px 0; }
+.kzrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.kzrow:last-child { border-bottom: 0; }
+.kzname { flex: 1; min-width: 0; }
+.kzname b { display: block; font-size: 16px; }
+.kzname span { display: block; font-size: 13px; color: var(--gold); margin-top: 2px; }
+.kzn { min-width: 46px; text-align: center; font-size: 22px; font-weight: 800; }
+.kzplus, .kzminus { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 24px; font-weight: 700; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.kzplus { background: var(--accent); border-color: var(--accent); color: #0f1115; width: 52px; height: 52px; font-size: 28px; }
+.kzminus { width: 34px; height: 34px; font-size: 20px; color: var(--muted); }
+.kzhist { display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.kzhist:last-child { border-bottom: 0; }
+.kzhist .muted { text-align: right; }
+.kzlink { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.kzlink > div { flex: 1; }
+.kzgo { font-size: 28px; color: var(--muted); }

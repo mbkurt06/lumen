@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
+import { kazaToday, useKaza } from "../lib/kaza";
 import { bumpCount, inToday, isDoneToday, isOverdue, planDayIndex, refPath, todayCount, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
@@ -14,6 +15,7 @@ export function Todo() {
   const { listId } = useParams();
   const nav = useNavigate();
   const { todos, lists, groups, err, reload, setTodos } = useTodos();
+  useKaza(); // kaza sayıları değişince Günüm de yenilensin
   const [menu, setMenu] = useState(false);
   const [sp] = useSearchParams();
   const [sheet, setSheet] = useState(sp.get("ekle") === "tekrar");
@@ -42,6 +44,7 @@ export function Todo() {
   const listDone = listTodos.filter((t) => t.is_completed);
 
   const circle = async (t: T) => {
+    if (t.kind === "kaza" || t.kind === "kaza_oruc") { nav("/namaz/kaza"); return; }
     if (t.kind === "tekrar" && t.plan) {
       const plan = await bumpCount(t, isDoneToday(t) ? -t.plan.daily : 1);
       if (plan) setTodos((s) => s.map((x) => (x.id === t.id ? { ...x, plan } : x)));
@@ -54,8 +57,10 @@ export function Todo() {
 
   const Row = ({ t }: { t: T }) => {
     const l = t.list_id ? listOf.get(t.list_id) : undefined;
+    const kz = t.kind === "kaza" || t.kind === "kaza_oruc";
     const sub =
-      t.kind === "tekrar" && t.plan ? `${l?.title ?? "Tekrar"} · Gün ${Math.max(1, planDayIndex(t.plan))} / ${t.plan.days}`
+      kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
+      : t.kind === "tekrar" && t.plan ? `${l?.title ?? "Tekrar"} · Gün ${Math.max(1, planDayIndex(t.plan))} / ${t.plan.days}`
       : t.kind === "okuma" ? `${l?.title ?? "Okuma"}${!t.reading_ref && t.notes ? " · " + t.notes : ""}`
       : t.due_at ? `${trDate(t.due_at)}${l ? " · " + l.title : ""}` : (l?.title ?? "");
     const done = isDoneToday(t);
@@ -65,7 +70,7 @@ export function Todo() {
       <div className="tcard">
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
-          <div className="tmain" onClick={() => (t.reading_ref ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
+          <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : t.reading_ref ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
             <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
             {sub && <div className="tsub">{sub}</div>}
             {t.reading_ref && <div className="tref">{t.reading_ref.kind === "yer" ? "Kaldığın yer: " : ""}{t.reading_ref.label}</div>}
@@ -130,7 +135,8 @@ export function Todo() {
           )}
           <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => t.kind === "tekrar" || t.kind === "okuma")} />
           <Section id="nova" title="NOVA" items={normalToday.filter((t) => t.kind === "nova")} />
-          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !["tekrar", "okuma", "nova"].includes(t.kind))} />
+          <Section id="namaz" title="NAMAZ" items={normalToday.filter((t) => t.kind === "kaza" || t.kind === "kaza_oruc")} />
+          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !["tekrar", "okuma", "nova", "kaza", "kaza_oruc"].includes(t.kind))} />
           {today.length === 0 && <p className="muted" style={{ padding: "24px 20px", textAlign: "center" }}>Bugün için görev yok. Sağ alttaki + ile ekleyebilirsin.</p>}
         </>
       ) : (
