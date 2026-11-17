@@ -13,22 +13,35 @@ import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } f
 function Resume({ scopeId }: { scopeId?: string }) {
   const rows = useResume(scopeId);
   const nav = useNavigate();
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem("lumen.resume.open") !== "0"; } catch { return true; } });
   if (!rows.length) return null;
+  const toggle = () => { const v = !open; setOpen(v); try { localStorage.setItem("lumen.resume.open", v ? "1" : "0"); } catch { /* yok say */ } };
   return (
     <div className="card resume">
-      <div className="reshead"><span>KALDIĞIN YERLER</span><span>{rows.length} kayıt</span></div>
-      <div className="resbody">
-        {rows.map((r, i) => (
-          <div key={r.id} className="resrow">
-            <span className="bm"><Icon name="bookmark" size={20} /></span>
-            <div className="resmain">
-              <div className="small muted">{r.parentTitle ? r.parentTitle + " · " : ""}{r.docTitle}</div>
-              <b>{r.title}</b>
-            </div>
-            <button className={i === 0 ? "devam" : "devam alt"} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam et</button>
-          </div>
-        ))}
-      </div>
+      <button className="reshead" onClick={toggle} aria-expanded={open}>
+        <span>KALDIĞIN YERLER</span>
+        <span className="resmeta">{rows.length} kayıt <Icon name={open ? "chevdown" : "chevron"} size={18} /></span>
+      </button>
+      {open && (
+        <div className="resbody">
+          {rows.map((r, i) => {
+            // tekrar yazmayalım: kitap adı · ayraç adı (kitap adıyla aynıysa gösterme) · yer (bölüm · sayfa)
+            const book = r.bookTitle ?? r.parentTitle;
+            const where = r.label ?? r.docTitle;
+            const name = r.title && r.title !== book && !where.startsWith(r.title) ? r.title : "";
+            return (
+              <div key={r.id} className="resrow">
+                <span className="bm"><Icon name="bookmark" size={18} /></span>
+                <div className="resmain">
+                  <div className="small muted">{book}{name ? " · " + name : ""}</div>
+                  <b>{where}</b>
+                </div>
+                <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

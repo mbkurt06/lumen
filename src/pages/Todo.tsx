@@ -64,7 +64,7 @@ export function Todo() {
     const pl = placeOf(t);
     const rt = recurrenceText(t);
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [pl?.book ?? pl?.section, rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
+      : [pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
@@ -79,7 +79,7 @@ export function Todo() {
             {pl && <div className="tref">{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>}
           </div>
           {isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
-          {pl && <button className="devam" onClick={() => goRef(t)}>{pl.live ? "Devam et" : "Git"}</button>}
+          {pl && <button className="devam sm" onClick={() => goRef(t)}>{pl.live ? "Devam" : "Git"}</button>}
         </div>
         {isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
