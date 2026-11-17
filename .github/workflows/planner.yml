@@ -1,0 +1,70 @@
+name: Planner
+
+# Put the project or feature description in an issue and add the "plan" label.
+# Claude splits it into small issues, each labelled "queued" plus one agent label:
+#   agent:claude  (architecture, larger features)
+#   agent:jules   (small, well-defined fixes)
+# The Queue workflow then hands them out one at a time.
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: planner-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.event.label.name == 'plan'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create queued       --color FBCA04 --description "Waiting in the agent queue" --force
+          gh label create in-progress  --color 1D76DB --description "An agent is working on it" --force
+          gh label create agent:claude --color D4C5F9 --description "Queue: implement with Claude" --force
+          gh label create agent:jules  --color C2E0C6 --description "Queue: implement with Jules" --force
+          gh label create needs-human  --color B60205 --description "Agent is stuck" --force
+          gh label create claude       --color 5319E7 --description "Run Claude now" --force
+          gh label create jules        --color 0E8A16 --description "Run Jules now" --force
+
+      - name: Claude plans the work
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the planner for this repository. Read AGENTS.md and look at the code structure first.
+
+            Issue #${{ github.event.issue.number }} describes work to be done:
+            Title: ${{ github.event.issue.title }}
+            (Read the full body with `gh issue view ${{ github.event.issue.number }}`.)
+
+            Split it into small, independent issues that one agent can finish in a single PR.
+            For each new issue, run `gh issue create` with:
+            - a clear title,
+            - a body with: Goal, Acceptance criteria (checklist), Files likely involved,
+              and the line "Part of #${{ github.event.issue.number }}",
+            - labels: `queued` and exactly one of `agent:claude` or `agent:jules`.
+              Use agent:jules only for small, well-defined fixes; everything else agent:claude.
+
+            Create the issues in the order they should be done (dependencies first).
+            Do not write code. Do not create more than 10 issues; if more are needed,
+            create the first 10 and say so.
+            Finally comment on #${{ github.event.issue.number }} with the list of created issues
+            using `gh issue comment`.
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue create:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue list:*)"

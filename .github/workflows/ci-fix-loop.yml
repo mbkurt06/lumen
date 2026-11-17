@@ -1,0 +1,174 @@
+name: CI fix loop
+
+# When "Build check" fails on a pull request, Claude gets the logs and pushes a fix
+# to the same branch. After 3 failed attempts the PR is labelled "needs-human"
+# and a Telegram message is sent.
+#
+# Security: this runs code from PR branches with write access. Only use it in a
+# repository where everyone with push access is trusted (fork PRs are excluded).
+
+on:
+  workflow_run:
+    workflows: ["Build check"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+  id-token: write
+
+env:
+  MAX_ATTEMPTS: 3
+
+jobs:
+  fix:
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0] &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    concurrency:
+      group: ci-fix-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+    steps:
+      - name: Count earlier attempts
+        id: attempts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.workflow_run.pull_requests[0].number;
+            const { data: issue } = await github.rest.issues.get({ ...context.repo, issue_number: pr });
+            if (issue.labels.some(l => l.name === 'needs-human')) {
+              core.setOutput('stop', 'true');
+              return;
+            }
+            const comments = await github.paginate(github.rest.issues.listComments, { ...context.repo, issue_number: pr });
+            const used = comments.filter(c => c.body && c.body.includes('<!-- ci-fix-attempt -->')).length;
+            core.setOutput('used', String(used));
+            core.setOutput('pr', String(pr));
+            core.setOutput('stop', used >= Number(process.env.MAX_ATTEMPTS) ? 'limit' : 'false');
+
+      - name: Give up and ask for a human
+        if: steps.attempts.outputs.stop == 'limit'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = Number('${{ steps.attempts.outputs.pr }}');
+            await github.rest.issues.addLabels({ ...context.repo, issue_number: pr, labels: ['needs-human'] });
+            await github.rest.issues.createComment({ ...context.repo, issue_number: pr,
+              body: `CI ${process.env.MAX_ATTEMPTS} denemede düzelmedi. Bu PR için insan gerekiyor. Son çalışma: ${context.payload.workflow_run.html_url}` });
+
+      - name: Telegram - needs human
+        if: steps.attempts.outputs.stop == 'limit'
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.attempts.outputs.pr }}
+        run: |
+          [ -z "$TG_TOKEN" ] && exit 0
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="🆘 Lumen: ajan 3 denemede CI'ı düzeltemedi. Yardım lazım: $PR_URL" > /dev/null
+
+      - name: Record attempt
+        if: steps.attempts.outputs.stop == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = Number('${{ steps.attempts.outputs.pr }}');
+            const n = Number('${{ steps.attempts.outputs.used }}') + 1;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: pr,
+              body: `<!-- ci-fix-attempt -->\nCI kırıldı. Otomatik düzeltme denemesi ${n}/${process.env.MAX_ATTEMPTS}: ${context.payload.workflow_run.html_url}` });
+
+      - name: Collect failure logs
+        if: steps.attempts.outputs.stop == 'false'
+        id: logs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const { data } = await github.rest.actions.listJobsForWorkflowRun({ ...context.repo, run_id: runId });
+            let out = '';
+            for (const job of data.jobs.filter(j => j.conclusion === 'failure')) {
+              const res = await github.rest.actions.downloadJobLogsForWorkflowRun({ ...context.repo, job_id: job.id });
+              const text = String(res.data);
+              out += `\n### ${job.name}\n` + text.slice(-15000);
+            }
+            require('fs').writeFileSync('/tmp/ci-failure.log', out);
+
+      - uses: actions/checkout@v4
+        if: steps.attempts.outputs.stop == 'false'
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 1
+
+      - name: Move logs into workspace
+        if: steps.attempts.outputs.stop == 'false'
+        run: mv /tmp/ci-failure.log ./ci-failure.log
+
+      - uses: actions/setup-node@v4
+        if: steps.attempts.outputs.stop == 'false'
+        with:
+          node-version: 22
+
+      - name: Claude fixes the build
+        id: claude
+        if: steps.attempts.outputs.stop == 'false'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # The failed build usually comes from a push by Claude itself.
+          allowed_bots: "claude[bot],github-actions[bot]"
+          prompt: |
+            The "Build check" workflow failed on PR #${{ steps.attempts.outputs.pr }}
+            (branch `${{ github.event.workflow_run.head_branch }}`).
+            The failing job logs are in ./ci-failure.log (do not commit that file).
+
+            1. Read AGENTS.md and follow its rules.
+            2. Find the cause in the logs and fix it with the smallest change.
+            3. Run `npm install` and `npm run build` until the build passes.
+            4. Commit and push to the same branch `${{ github.event.workflow_run.head_branch }}`.
+            5. Never edit tests/e2e/, .github/ or supabase/migrations/ to make the build pass.
+               If the only fix would touch those, stop and explain in a PR comment.
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(npm install),Bash(npm ci),Bash(npm run build),Bash(npx tsc:*),Bash(gh pr comment:*)"
+
+      # If Claude errored or pushed nothing, no new build will run and the loop would
+      # stall silently. Escalate right away instead.
+      - name: Escalate when no fix was pushed
+        if: always() && steps.attempts.outputs.stop == 'false'
+        id: progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR: ${{ steps.attempts.outputs.pr }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          now=$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --jq .commit.sha)
+          if [ "$now" != "$FAILED_SHA" ]; then
+            echo "New commit pushed ($now), CI will run again."
+            exit 0
+          fi
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label needs-human
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "Otomatik düzeltme bir commit göndermedi (Claude hata verdi ya da çözüm bulamadı). İnsan gerekiyor: $RUN_URL"
+          echo "escalated=true" >> "$GITHUB_OUTPUT"
+
+      - name: Telegram - no progress
+        if: always() && steps.progress.outputs.escalated == 'true'
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ steps.attempts.outputs.pr }}
+        run: |
+          [ -z "$TG_TOKEN" ] && exit 0
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="🆘 Lumen: otomatik düzeltme ilerleme kaydetmedi. Yardım lazım: $PR_URL" > /dev/null

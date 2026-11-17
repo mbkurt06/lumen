@@ -1,0 +1,63 @@
+name: Telegram notify
+
+# Sends short Telegram messages for the events you care about.
+# Needs repository secrets TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID; does nothing without them.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, closed]
+  issues:
+    types: [labeled]
+  workflow_run:
+    workflows: ["Build check"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-human') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+    steps:
+      - name: Build message
+        id: msg
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          RUN_RESULT: ${{ github.event.workflow_run.conclusion }}
+          RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          case "$EVENT" in
+            pull_request)
+              if [ "$ACTION" = "closed" ]; then
+                [ "$PR_MERGED" = "true" ] && TEXT="✅ Merge edildi: $PR_TITLE $PR_URL" || TEXT="✖️ PR kapandı: $PR_TITLE $PR_URL"
+              else
+                TEXT="🆕 Yeni PR: $PR_TITLE $PR_URL"
+              fi ;;
+            issues)
+              TEXT="🆘 Yardım lazım: $ISSUE_TITLE $ISSUE_URL" ;;
+            workflow_run)
+              [ "$RUN_RESULT" = "success" ] && TEXT="🟢 Testler geçti ($RUN_BRANCH) $RUN_URL" || TEXT="🔴 Testler kırıldı ($RUN_BRANCH) $RUN_URL" ;;
+          esac
+          { echo "text<<EOF"; echo "Lumen · $TEXT"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Send
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEXT: ${{ steps.msg.outputs.text }}
+        run: |
+          [ -z "$TG_TOKEN" ] && { echo "Telegram secrets not set, skipping"; exit 0; }
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="$TG_CHAT" \
+            --data-urlencode text="$TEXT" > /dev/null
