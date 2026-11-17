@@ -71,10 +71,11 @@ jobs:
           echo "APK_NAME=$OUT" >> $GITHUB_ENV
 
       - uses: actions/upload-artifact@v4
+        continue-on-error: true # GitHub depolama kotası dolsa da telefon güncellemesi (aşağıda) yine yüklensin
         with:
           name: ${{ env.APK_NAME }}
           path: ${{ env.APK_NAME }}
-          retention-days: 14
+          retention-days: 3
 
       - name: Supabase'e yükle (güncelleme deposu)
         if: steps.sign.outputs.signed == 'true'
