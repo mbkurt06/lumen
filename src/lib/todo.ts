@@ -138,7 +138,7 @@ export function useTodos() {
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
     ]);
-    if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as Todo[]);
+    if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
     if (!l.error) setLists((l.data ?? []) as TList[]);
     if (!g.error) setGroups((g.data ?? []) as TGroup[]);
     setLoaded(true);
