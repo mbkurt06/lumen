@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
-import { bumpCount, inToday, isDoneToday, isOverdue, planDayIndex, todayCount, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { bumpCount, inToday, isDoneToday, isOverdue, planDayIndex, refPath, todayCount, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -21,6 +21,8 @@ export function Todo() {
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
+  const [act, setAct] = useState<T | null>(null); // kitaba bağlı görev: menü
+  const goRef = (t: T) => { if (t.reading_ref) nav(refPath(t.reading_ref), { state: { nid: t.reading_ref.node_id, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`); };
 
   const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
   const kids = useMemo(() => {
@@ -54,7 +56,7 @@ export function Todo() {
     const l = t.list_id ? listOf.get(t.list_id) : undefined;
     const sub =
       t.kind === "tekrar" && t.plan ? `${l?.title ?? "Tekrar"} · Gün ${Math.max(1, planDayIndex(t.plan))} / ${t.plan.days}`
-      : t.kind === "okuma" ? `${l?.title ?? "Okuma"}${t.notes ? " · " + t.notes : ""}`
+      : t.kind === "okuma" ? `${l?.title ?? "Okuma"}${!t.reading_ref && t.notes ? " · " + t.notes : ""}`
       : t.due_at ? `${trDate(t.due_at)}${l ? " · " + l.title : ""}` : (l?.title ?? "");
     const done = isDoneToday(t);
     const cnt = t.plan ? todayCount(t) : 0;
@@ -63,12 +65,13 @@ export function Todo() {
       <div className="tcard">
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
-          <div className="tmain" onClick={() => nav(`/yapilacaklar/g/${t.id}`)}>
+          <div className="tmain" onClick={() => (t.reading_ref ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
             <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
             {sub && <div className="tsub">{sub}</div>}
+            {t.reading_ref && <div className="tref">{t.reading_ref.kind === "yer" ? "Kaldığın yer: " : ""}{t.reading_ref.label}</div>}
           </div>
           {t.kind === "tekrar" && t.plan && <div className="tcount">{cnt} / {t.plan.daily}</div>}
-          {t.kind === "okuma" && t.related_library_item_id && <button className="devam" onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Devam et</button>}
+          {t.kind === "okuma" && (t.reading_ref || t.related_library_item_id) && <button className="devam" onClick={() => goRef(t)}>Devam et</button>}
         </div>
         {t.kind === "tekrar" && t.plan && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / t.plan.daily) * 100)}%` }} /></div>}
         {sub2.map((c) => (
@@ -159,6 +162,22 @@ export function Todo() {
         onNewGroup={() => { setMenu(false); setAsk("group"); }}
       />
       {sheet && <TodoSheet initialTab={sp.get("ekle") === "tekrar" ? "tekrar" : "normal"} lists={lists} groups={groups} defaultListId={listId ?? null} onClose={() => setSheet(false)} onSaved={() => { setSheet(false); void reload(); }} />}
+      {act && (
+        <>
+          <div className="scrim show" style={{ zIndex: 40 }} onClick={() => setAct(null)} />
+          <div className="sheet actsheet" role="dialog" aria-label={act.title}>
+            <div className="grab" />
+            <div className="sheethead"><h2 style={{ fontSize: 18 }}>{act.title}</h2><button className="iconbtn" onClick={() => setAct(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
+            {act.reading_ref && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{act.reading_ref.label}</b>{act.reading_ref.quote && <span>“{act.reading_ref.quote.slice(0, 140)}”</span>}</div></div>}
+            <div className="card" style={{ padding: 0, marginTop: 12 }}>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {act.reading_ref?.kind === "yer" ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {act.is_completed ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
+              <button className="rowbtn" onClick={() => { const t = act; setAct(null); nav(`/yapilacaklar/g/${t.id}`); }}><Icon name="dots" size={20} /> Ayrıntılar</button>
+            </div>
+            <p className="muted small" style={{ margin: "10px 2px 0" }}>Okurken + menüsünden “Görev: kaldığım yer” ile bu görevin yerini güncelleyebilirsin.</p>
+          </div>
+        </>
+      )}
       {ask && <AskDialog title={ask === "list" ? "Yeni liste" : "Yeni grup"} placeholder="Ad" onClose={() => setAsk(null)} onSubmit={(v) => void (ask === "list" ? addList(v) : addGroup(v))} />}
     </>
   );

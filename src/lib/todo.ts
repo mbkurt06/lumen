@@ -13,9 +13,12 @@ export type Todo = {
   plan: Plan | null;
   parent_todo_id: string | null;
   related_library_item_id: string | null;
+  reading_ref: ReadingRef | null;
   created_at: string;
   completed_at: string | null;
 };
+/** Görevin kitaptaki yeri: "yer" = kaldığım yer, "konu" = bir cümle/sayfa hakkında görev (araştır, sor…). */
+export type ReadingRef = { kind: "yer" | "konu"; doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string };
 export type TList = { id: string; title: string; group_id: string | null; sort_order: number };
 export type TGroup = { id: string; title: string; sort_order: number };
 
@@ -69,7 +72,7 @@ export function useTodos() {
   const [loaded, setLoaded] = useState(false);
   const reload = useCallback(async () => {
     const [t, l, g] = await Promise.all([
-      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
+      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
     ]);
@@ -90,4 +93,20 @@ export async function bumpCount(t: Todo, delta: number): Promise<Plan | null> {
   const plan: Plan = { ...t.plan, done: { ...(t.plan.done ?? {}), [day]: next } };
   await supabase.from("todos").update({ plan, updated_at: new Date().toISOString() }).eq("id", t.id);
   return plan;
+}
+
+/** Kitaptaki yere git (kaldığım yer / görevin bağlı olduğu cümle). */
+export const refPath = (r: ReadingRef) => `/kutuphane/${r.doc_id}`;
+
+/** Ad ile liste bul, yoksa (grubuyla birlikte) oluştur. */
+export async function ensureList(lists: TList[], groups: TGroup[], name: string, groupName: string): Promise<string | null> {
+  const found = lists.find((l) => l.title === name);
+  if (found) return found.id;
+  let gid = groups.find((g) => g.title === groupName)?.id ?? null;
+  if (!gid) {
+    const { data } = await supabase.from("todo_groups").insert({ title: groupName }).select("id").single();
+    gid = (data as { id: string } | null)?.id ?? null;
+  }
+  const { data } = await supabase.from("todo_lists").insert({ title: name, group_id: gid }).select("id").single();
+  return (data as { id: string } | null)?.id ?? null;
 }

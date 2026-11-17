@@ -7,6 +7,7 @@ import type { Item } from "../lib/library";
 import { useTodos } from "../lib/todo";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet } from "./TodoSheet";
+import { ReaderTaskSheet, type Pos } from "../components/ReaderTaskSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
 import { useOffline } from "../lib/online";
@@ -130,6 +131,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [sel, setSel] = useState<{ x: number; y: number; nid: string; text: string } | null>(null);
   const [ask, setAsk] = useState<null | { nid: string; text: string }>(null);
   const [todo, setTodo] = useState<null | { notes: string }>(null);
+  const [task, setTask] = useState<null | { pos: Pos; tab: "yer" | "konu" }>(null); // kitaptan görev
+  const [pmenu, setPmenu] = useState(false); // başlıktaki + menüsü
+  const [editNote, setEditNote] = useState<Note | null>(null);
+  const focusTaskId = (loc0.state as { taskId?: string } | null)?.taskId ?? null; // görevden açıldıysa
   const [toast, setToast] = useState("");
   const { lists, groups } = useTodos();
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -340,16 +345,41 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   }, []);
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2200); };
-  const saveMark = () => {
-    if (!sel) return;
-    let page: number | null = null;
-    let auto = doc.title;
+  // bir yerin adı: "1. Söz · Sayfa 3" / Kur'an: "Nebe 12. âyet · Sayfa 582"
+  const where = (nid: string): { label: string; page: number | null } => {
     if (isQuran) {
       for (const pg of mpages ?? []) for (const p of pg.rich_content.paragraphs) for (const r of p.runs) {
-        if (page === null && r.nodeId === sel.nid) { page = pg.display_page; auto = `${surahNames[r.surahNo ?? 0] ?? doc.title} ${r.ayahNo ?? ""}. âyet · Sayfa ${pg.display_page}`; }
+        if (r.nodeId === nid) return { page: pg.display_page, label: `${surahNames[r.surahNo ?? 0] ?? doc.title} ${r.ayahNo ?? ""}. âyet · Sayfa ${pg.display_page}` };
       }
-    } else if (paged) auto = `${doc.title} · Sayfa ${pp + 1}`;
-    setBmDraft({ scope, book_id: bookId, document_id: doc.id, node_id: sel.nid, mushaf_page: page, quote: sel.text, autoTitle: auto });
+      return { page: null, label: doc.title };
+    }
+    if (paged) { const i = bookPages.findIndex((pg) => pg.some((n) => n.id === nid)); return { page: null, label: `${doc.title} · Sayfa ${(i >= 0 ? i : pp) + 1}` }; }
+    return { page: null, label: doc.title };
+  };
+  // ekranda görünen ilk satır (seçim yapmadan "bu sayfa" için)
+  const topNid = (): string | null => {
+    const els = bodyRef.current?.querySelectorAll<HTMLElement>("[data-nid]") ?? [];
+    const head = (document.querySelector(".rhead")?.getBoundingClientRect().bottom ?? 0) + 4;
+    for (const el of Array.from(els)) if (el.getBoundingClientRect().bottom > head && el.dataset.nid) return el.dataset.nid;
+    return els[0]?.dataset.nid ?? nodes[0]?.id ?? null;
+  };
+  const textOf = (nid: string | null) => {
+    if (!nid) return "";
+    const n = nodes.find((x) => x.id === nid);
+    const t = n?.text_content ?? document.querySelector(`[data-nid="${nid}"]`)?.textContent ?? "";
+    return t.replace(/\s+/g, " ").trim().slice(0, 160);
+  };
+  const posOf = (nid: string | null, quote: string): Pos => ({
+    doc_id: doc.id, node_id: nid, book_id: scope === "kuran" ? null : doc.parent_id, scope,
+    label: nid ? where(nid).label : doc.title, quote: quote.slice(0, 300), book_title: scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title,
+  });
+  const markAt = (nid: string, quote: string) => {
+    const w = where(nid);
+    setBmDraft({ scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote, autoTitle: w.label });
+  };
+  const saveMark = () => {
+    if (!sel) return;
+    markAt(sel.nid, sel.text);
     window.getSelection()?.removeAllRanges();
     setSel(null);
   };
@@ -358,6 +388,24 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const { data, error } = await supabase.from("reader_notes").insert({ document_id: doc.id, node_id: ask.nid, quote: ask.text.slice(0, 500), note: text }).select("id,node_id,note,quote").single();
     if (error) flash("Not kaydedilemedi: " + error.message);
     else { setNotes((s) => [...s, data as Note]); flash("Not eklendi"); }
+  };
+  const saveNoteEdit = async (n: Note, text: string) => {
+    const { error } = await supabase.from("reader_notes").update({ note: text }).eq("id", n.id);
+    if (error) flash("Güncellenemedi: " + error.message); else { setNotes((s) => s.map((x) => (x.id === n.id ? { ...x, note: text } : x))); flash("Not güncellendi"); }
+  };
+  const delNote = async (n: Note) => {
+    const { error } = await supabase.from("reader_notes").delete().eq("id", n.id);
+    if (error) flash("Silinemedi: " + error.message); else { setNotes((s) => s.filter((x) => x.id !== n.id)); flash("Not silindi"); }
+  };
+  // başlıktaki + menüsü: seçim yapmadan, ekranda görünen yer için
+  const pageAct = (a: "mark" | "yer" | "konu" | "not") => {
+    setPmenu(false);
+    const nid = topNid();
+    if (!nid) return;
+    const q = textOf(nid);
+    if (a === "mark") markAt(nid, q);
+    else if (a === "not") setAsk({ nid, text: "" });
+    else setTask({ pos: posOf(nid, a === "yer" ? q : ""), tab: a });
   };
 
   const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
@@ -391,7 +439,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const span = (n: Node, text: ReactNode) => (
     <span key={n.id} id={"n" + n.id} data-nid={n.id} className={isMarked(n.id) ? "mk" : notesOf(n.id).length ? "ul" : undefined}>{text} </span>
   );
-  const NoteBoxes = ({ nid }: { nid: string }) => <>{notesOf(nid).map((x) => (<div key={x.id} className="ubox">Not: {x.note}</div>))}</>;
+  const NoteBoxes = ({ nid }: { nid: string }) => <>{notesOf(nid).map((x) => (<div key={x.id} className="ubox" onClick={() => setEditNote(x)} title="Düzenle / sil">Not: {x.note}</div>))}</>;
 
   const renderBlock = (b: Block, i: number): ReactNode => {
     if (b.t === "quote") {
@@ -478,7 +526,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
           <button className="g" onClick={saveMark} aria-label="Ayraç ekle"><Icon name="bookmark" size={22} /></button>
           <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); setSel(null); }} aria-label="Not"><Icon name="pencil" size={22} /></button>
-          <button className="a" onClick={() => { setTodo({ notes: sel.text.slice(0, 300) }); setSel(null); }} aria-label="Todo"><Icon name="plusbox" size={22} /></button>
+          <button className="a" onClick={() => { if (isDua) setTodo({ notes: sel.text.slice(0, 300) }); else setTask({ pos: posOf(sel.nid, sel.text), tab: "konu" }); window.getSelection()?.removeAllRanges(); setSel(null); }} aria-label="Görev"><Icon name="plusbox" size={22} /></button>
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
@@ -492,7 +540,24 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           onDelete={async (bm) => { await deleteBookmark(bm.id); void reloadBms(); }}
         />
       )}
-      {ask && <AskDialog title="Not ekle" placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
+      {ask && <AskDialog title={ask.text ? "Not ekle" : "Bu sayfaya not ekle"} placeholder="Notun" onClose={() => setAsk(null)} onSubmit={(v) => void addNote(v)} />}
+      {editNote && <AskDialog title="Notu düzenle" initial={editNote.note} onClose={() => setEditNote(null)} onSubmit={(v) => void saveNoteEdit(editNote, v)} onDelete={() => { if (window.confirm("Not silinsin mi?")) { void delNote(editNote); setEditNote(null); } }} />}
+      {task && (
+        <ReaderTaskSheet pos={task.pos} initialTab={task.tab} focusTaskId={focusTaskId} lists={lists} groups={groups}
+          onClose={() => setTask(null)} onDone={(m) => { setTask(null); flash(m); }} />
+      )}
+      {pmenu && (
+        <>
+          <div className="scrim show" style={{ zIndex: 40, background: "transparent" }} onClick={() => setPmenu(false)} />
+          <div className="pmenu">
+            <div className="pmhint">Ekranda görünen yer için · bir cümle seçersen o cümle için</div>
+            <button onClick={() => pageAct("mark")}><Icon name="bookmark" size={20} /> Kaldığım yeri kaydet (ayraç)</button>
+            <button onClick={() => pageAct("yer")}><Icon name="check" size={20} /> Görev: kaldığım yer</button>
+            <button onClick={() => pageAct("konu")}><Icon name="plusbox" size={20} /> Görev: bu sayfa (araştır, sor…)</button>
+            <button onClick={() => pageAct("not")}><Icon name="pencil" size={20} /> Bu sayfaya not ekle</button>
+          </div>
+        </>
+      )}
       {todo && (
         <TodoSheet
           initialTab={isDua ? "tekrar" : "okuma"}
@@ -520,7 +585,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           <button className="iconbtn" onClick={() => nav(-1)} aria-label="Geri"><Icon name="back" size={24} /></button>
           <div className="rtitle">{isQuran ? surahLabel : doc.title}<span>{isQuran ? quranSub : `${parentTitle ? parentTitle + " · " : ""}Sayfa ${label}`}{offTag}</span></div>
           <button className="iconbtn" onClick={() => setFocus(!focus)} aria-label="Tam ekran"><Icon name="expand" size={22} /></button>
-          <button className="iconbtn acc" onClick={() => setTodo({ notes: "" })} aria-label="Todo'ya ekle"><Icon name="plusbox" size={24} /></button>
+          <button className="iconbtn acc" onClick={() => setPmenu(true)} aria-label="Ayraç, görev, not"><Icon name="plusbox" size={24} /></button>
           <button className="iconbtn" onClick={() => setShowSettings(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
         </header>}
         {!focus && <div className="rprog"><i style={{ width: `${((pp + 1) / pc) * 100}%` }} /></div>}

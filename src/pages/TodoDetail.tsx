@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { supabase } from "../lib/supabase";
-import { bumpCount, planDayIndex, planStats, todayCount, useTodos, ymd } from "../lib/todo";
+import { bumpCount, planDayIndex, planStats, refPath, todayCount, useTodos, ymd } from "../lib/todo";
 
 export function TodoDetail() {
   const { id } = useParams();
@@ -56,9 +56,11 @@ export function TodoDetail() {
       ) : (
         <div className="card" style={{ margin: "10px 16px" }}>
           {t.due_at && <p style={{ margin: 0 }}>Son tarih: {new Date(t.due_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "long" })}</p>}
-          {t.notes && <p className="muted">{t.notes}</p>}
-          {t.related_library_item_id && <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Devam et</button>}
-          {!t.due_at && !t.notes && !t.related_library_item_id && <p className="muted" style={{ margin: 0 }}>Ek bilgi yok.</p>}
+          {t.reading_ref && <div className="posbox" style={{ marginTop: 8 }}><div><b>{t.reading_ref.kind === "yer" ? "Kaldığın yer: " : ""}{t.reading_ref.label}</b>{t.reading_ref.quote && <span>“{t.reading_ref.quote}”</span>}</div></div>}
+          {t.notes && !(t.reading_ref && t.notes === t.reading_ref.quote) && <p className="muted">{t.notes}</p>}
+          {t.reading_ref ? <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(refPath(t.reading_ref!), { state: { nid: t.reading_ref!.node_id, taskId: t.id } })}>{t.reading_ref.kind === "yer" ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+            : t.related_library_item_id && <button className="primary" style={{ marginTop: 10 }} onClick={() => nav(`/kutuphane/${t.related_library_item_id}`)}>Devam et</button>}
+          {!t.due_at && !t.notes && !t.related_library_item_id && !t.reading_ref && <p className="muted" style={{ margin: 0 }}>Ek bilgi yok.</p>}
         </div>
       )}
       <div className="card" style={{ margin: "10px 16px", padding: 0 }}>
