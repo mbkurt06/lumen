@@ -544,3 +544,12 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .kzbulk { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 .kzbulk label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; }
 .kzbulk input { width: 100%; }
+.kzn { background: none; border: 0; color: inherit; cursor: pointer; border-radius: 10px; padding: 4px 6px; text-decoration: underline dotted color-mix(in srgb, var(--text) 40%, transparent); text-underline-offset: 6px; }
+.kzrow.locked .kzplus, .kzrow.locked .kzminus, .kzrow.locked .kzn { opacity: .45; }
+.lockbtn { color: var(--gold) !important; }
+.lockbtn.open { color: var(--accent) !important; }
+.lockline { margin: 0 16px 6px; padding: 8px 12px; border-radius: 10px; font-size: 13px; background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
+.lockline.open { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.undobar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 45; display: flex; align-items: center; gap: 14px; padding: 10px 14px 10px 16px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0,0,0,.45); font-weight: 600; }
+.undobar button { border: 0; background: none; color: var(--accent); font-weight: 800; font-size: 15px; cursor: pointer; }
+.seg button { min-width: 0; }

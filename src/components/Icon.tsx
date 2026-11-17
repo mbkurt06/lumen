@@ -71,6 +71,18 @@ const P: Record<string, ReactNode> = {
   menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
   back: <path d="m15 6-6 6 6 6" />,
+  lock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  unlock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 7.6-1.7" />
+    </>
+  ),
   reset: <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v4h4" />,
   expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
   plusbox: (

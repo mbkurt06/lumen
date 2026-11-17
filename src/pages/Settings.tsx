@@ -1,3 +1,4 @@
+import { useCP } from "../lib/counterPrefs";
 import { Link } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
@@ -36,6 +37,8 @@ export function Settings() {
         </div>
       </div>
 
+      <CounterSettings />
+
       <div className="card list" style={{ margin: "12px 16px", padding: 6 }}>
         {LINKS.map((l) => (
           <Link key={l.to} to={l.to} className="drow">
@@ -55,5 +58,31 @@ export function Settings() {
 
       <p className="muted small" style={{ margin: "4px 20px 24px" }}>Bildirimler, Namaz, Okuma ve Google ayarları ilgili sayfalar geliştirilirken eklenecek.</p>
     </>
+  );
+}
+
+/* Sayaçlar: yanlışlıkla basmaya karşı kilit (titreşim ayarları da buraya gelecek) */
+function CounterSettings() {
+  const [p, set] = useCP();
+  const Tog = ({ k, label }: { k: "lockKaza" | "lockTesbih"; label: string }) => (
+    <div className="srow"><span>{label}</span><button className={"tgl" + (p[k] ? " on" : "")} onClick={() => set({ ...p, [k]: !p[k] })} aria-pressed={p[k]}><i /></button></div>
+  );
+  return (
+    <div className="card" style={{ margin: "12px 16px" }}>
+      <div className="cardtitle">Sayaçlar</div>
+      <p className="muted small" style={{ margin: "4px 0 6px" }}>Yanlışlıkla basmaya karşı kilit. Bu cihaz için geçerli.</p>
+      <Tog k="lockKaza" label="Kaza sayfası kilitli açılsın" />
+      <Tog k="lockTesbih" label="Tesbih sayaçlarında kilit" />
+      <div className="srow col"><span>Otomatik kilit</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          {[15, 30, 60, 120, 0].map((n) => (<button key={n} className={p.autoLockSec === n ? "on" : ""} onClick={() => set({ ...p, autoLockSec: n })}>{n === 0 ? "Kapalı" : n < 60 ? `${n} sn` : `${n / 60} dk`}</button>))}
+        </div>
+      </div>
+      <div className="srow col"><span>“Geri al” süresi</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          {[3, 5, 10].map((n) => (<button key={n} className={p.undoSec === n ? "on" : ""} onClick={() => set({ ...p, undoSec: n })}>{n} sn</button>))}
+        </div>
+      </div>
+    </div>
   );
 }
