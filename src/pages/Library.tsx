@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { useResume, useRoots, type Item } from "../lib/library";
-import { deleteBookmark } from "../lib/bookmarks";
+import { confirmDeleteBookmark, deleteBookmark } from "../lib/bookmarks";
 import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
 import { Reader, ReaderSettings } from "./Reader";
 import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
@@ -20,7 +20,7 @@ function Resume({ scopeId }: { scopeId?: string }) {
   const tx = useRef<{ id: string; x: number; y: number } | null>(null);
   const nav = useNavigate();
   const del = async (id: string, name: string) => {
-    if (!window.confirm(`“${name}” ayracı silinsin mi? Bu ayraca bağlı görevler ayracın son yerini korur.`)) return;
+    if (!(await confirmDeleteBookmark(id, name))) return;
     const { error } = await deleteBookmark(id);
     if (error) window.alert("Silinemedi: " + error.message); else setGone((g) => [...g, id]);
   };

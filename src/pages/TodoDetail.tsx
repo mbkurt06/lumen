@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { bumpProgress, doneOn, isRecurring, occursOn, placeOf, recurrenceText, useTodos, ymd } from "../lib/todo";
+import { confirmDeleteTodo, bumpProgress, doneOn, isRecurring, occursOn, placeOf, recurrenceText, useTodos, ymd } from "../lib/todo";
 import { TodoSheet } from "./TodoSheet";
 
 const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00").getTime() + n * 86400000));
@@ -30,7 +30,7 @@ export function TodoDetail() {
     await supabase.from("todos").update({ is_completed: done, completed_at: done ? new Date().toISOString() : null }).eq("id", t.id);
   };
   const del = async () => {
-    if (!window.confirm("Bu görev silinsin mi?")) return;
+    if (!confirmDeleteTodo(t, todos.filter((x) => x.parent_todo_id === t.id).length)) return;
     await supabase.from("todos").delete().eq("id", t.id);
     nav(-1);
   };

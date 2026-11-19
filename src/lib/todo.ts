@@ -162,3 +162,14 @@ export async function ensureList(lists: TList[], groups: TGroup[], name: string,
   const { data } = await supabase.from("todo_lists").insert({ title: name, group_id: gid }).select("id").single();
   return (data as { id: string } | null)?.id ?? null;
 }
+
+/** Görevi silmeden önce sor: alt görevleri ve bağlı ayracı söyle. Onaylanırsa true. */
+export function confirmDeleteTodo(t: Todo, subCount: number): boolean {
+  const parts: string[] = [];
+  if (subCount) parts.push(`• ${subCount} alt görevi de silinecek.`);
+  if (t.bookmark) parts.push(`• “${t.bookmark.title}” ayracına bağlı. Ayraç silinmez, Kaldığın yerler'de kalır.`);
+  else if (t.reading_ref) parts.push(`• Kitaptaki yer bağlantısı (${t.reading_ref.label}) da gider.`);
+  if (isRecurring(t) && Object.keys(t.progress ?? {}).length) parts.push(`• ${Object.keys(t.progress ?? {}).length} günlük ilerleme kaydı silinecek.`);
+  const msg = parts.length ? `⚠️ “${t.title}” silinsin mi?\n\n${parts.join("\n")}` : `“${t.title}” silinsin mi?`;
+  return window.confirm(msg);
+}

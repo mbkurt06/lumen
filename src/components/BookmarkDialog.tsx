@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Bookmark } from "../lib/bookmarks";
+import { confirmDeleteBookmark, type Bookmark } from "../lib/bookmarks";
 
 // Kaldığım yer (ayraç): yeni ayraç (isim isteğe bağlı, istersen göreve bağla) ya da var olanı buraya taşı.
 // Ayraç taşınınca ona bağlı görevler de yeni yeri gösterir.
@@ -22,7 +22,7 @@ export function BookmarkDialog({ autoTitle, where, list, onNew, onUpdate, onDele
                 <div key={b.id} className="bmrow">
                   <div className="bmtxt"><b>{b.title}</b><span>{b.label ?? b.quote ?? ""}</span></div>
                   <button className="bmup" onClick={() => onUpdate(b)}>Buraya taşı</button>
-                  <button className="tdel" onClick={() => { if (window.confirm(`“${b.title}” silinsin mi?`)) onDelete(b); }} aria-label="Sil">×</button>
+                  <button className="tdel" onClick={() => void confirmDeleteBookmark(b.id, b.title).then((ok) => ok && onDelete(b))} aria-label="Sil">×</button>
                 </div>
               ))}
             </div>

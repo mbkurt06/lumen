@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -26,7 +26,7 @@ export function Todo() {
   const [doneOpen, setDoneOpen] = useState(false);
   const [act, setAct] = useState<T | null>(null); // görev menüsü: git / tamamla / düzenle / sil
   const delTask = async (t: T) => {
-    if (!window.confirm(`“${t.title}” silinsin mi?${t.bookmark_id ? " (Bağlı ayraç Kaldığın yerler’de kalır.)" : ""}`)) return;
+    if (!confirmDeleteTodo(t, todos.filter((x) => x.parent_todo_id === t.id).length)) return;
     setTodos((s) => s.filter((x) => x.id !== t.id && x.parent_todo_id !== t.id));
     const { error } = await supabase.from("todos").delete().eq("id", t.id);
     if (error) { window.alert("Silinemedi: " + error.message); void reload(); }

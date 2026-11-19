@@ -24,7 +24,7 @@ function TesbihForm({ init, onSave, onDelete, onClose }: { init?: Tesbih; onSave
         <input className="field" style={{ width: "100%", marginTop: 12 }} placeholder="Ad (ör. Estağfirullah)" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         <input className="field" style={{ width: "100%", marginTop: 8 }} type="number" min={1} placeholder="Hedef sayı" value={target} onChange={(e) => setTarget(e.target.value)} />
         <div className="seg">
-          {onDelete && <button onClick={() => { if (window.confirm("Silinsin mi?")) { onDelete(); onClose(); } }} style={{ color: "var(--danger)" }}>Sil</button>}
+          {onDelete && <button onClick={() => onDelete()} style={{ color: "var(--danger)" }}>Sil</button>}
           <button onClick={onClose}>Vazgeç</button>
           <button className="on" onClick={ok}>Kaydet</button>
         </div>
@@ -77,7 +77,13 @@ export function Tesbihlar() {
     else await supabase.from("tesbihs").insert({ title, target, sort_order: list.length + 1 });
     void loadT();
   };
-  const del = async () => { if (edit && edit !== "new") { await supabase.from("tesbihs").delete().eq("id", edit.id); void loadT(); } };
+  const del = async () => {
+    if (!edit || edit === "new") return;
+    const c = todayCount(edit);
+    if (!window.confirm(c ? `⚠️ “${edit.title}” silinsin mi?\n\n• Sayacındaki ${c} çekim de silinecek.` : `“${edit.title}” silinsin mi?`)) return;
+    setEdit(null);
+    await supabase.from("tesbihs").delete().eq("id", edit.id); void loadT();
+  };
 
   const namaz = docs.filter((d) => /Namazı Tesbihatı/.test(d.title));
   const other = docs.filter((d) => !/Namazı Tesbihatı/.test(d.title));

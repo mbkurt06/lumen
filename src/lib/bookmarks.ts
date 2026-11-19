@@ -53,3 +53,13 @@ export async function deleteBookmark(id: string) {
   }
   return supabase.from("reader_bookmarks").delete().eq("id", id);
 }
+
+/** Silmeden önce sor: ayraca bağlı görevler varsa adlarıyla uyar. Onaylanırsa true. */
+export async function confirmDeleteBookmark(id: string, name: string): Promise<boolean> {
+  const { data } = await supabase.from("todos").select("title").eq("bookmark_id", id).limit(20);
+  const tasks = ((data ?? []) as { title: string }[]).map((t) => t.title);
+  const msg = tasks.length
+    ? `⚠️ “${name}” ayracı ${tasks.length} göreve bağlı:\n\n${tasks.map((t) => "• " + t).join("\n")}\n\nSilersen bu görevler ayracın şu anki yerinde sabit kalır; artık ayraçla birlikte ilerlemez.\n\nYine de silinsin mi?`
+    : `“${name}” ayracı silinsin mi?`;
+  return window.confirm(msg);
+}
