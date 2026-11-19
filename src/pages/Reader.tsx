@@ -432,7 +432,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const bookTitle = scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title;
   const posOf = (nid: string | null, quote: string): Pos => {
     const w = nid ? where(nid) : { label: doc.title, page: null };
-    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${unitLabel(pageNo)}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: numbered ? pageNo : undefined, unit: numbered ? unit : undefined };
+    // sayfa aralığı hedefi için: hangi sayı dizisi (doc_key) ve bu yerin sayfa numarası
+    const bi = paged && !isQuran && nid ? bookPages.findIndex((pg) => pg.some((n) => n.id === nid)) : -1;
+    const pno = numbered ? pageNo : isQuran ? w.page ?? undefined : bi >= 0 ? bi + 1 : undefined;
+    const dkey = numbered ? doc.parent_id! : isQuran ? "kuran" : doc.id;
+    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${unitLabel(pageNo)}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: pno, unit: numbered ? unit : undefined, doc_key: dkey };
   };
   const markAt = (nid: string, quote: string) => {
     const w = where(nid);

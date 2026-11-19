@@ -7,7 +7,7 @@ import type { Scope } from "../lib/readerSettings";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
 /** page_no: numaralı sayfa belgelerinde (Tevhidname, Cevşen…) sayfa numarası */
-export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number; unit?: string };
+export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number; unit?: string; doc_key?: string };
 /** Kitaptan açılınca: yer + o kitabın ayraçları. mode: başta seçili bağlama biçimi. */
 export type PlacePrefill = { pos: Pos; mode: "ayrac" | "sabit"; bookmarks: Bookmark[]; bookmarkId?: string | null };
 type Lib = { id: string; title: string; parent_id?: string | null };
@@ -45,6 +45,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   // okuma hedefi: N sayfa / gün-hafta-ay-aralık
   const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? "none"); // hedef isteğe bağlı
   const [gOpen, setGOpen] = useState(!!edit?.page_goal);
+  const [lastPer, setLastPer] = useState<PageGoal["per"]>(edit?.page_goal && edit.page_goal.per !== "pages" ? edit.page_goal.per : "day");
   const unit = edit?.page_goal?.unit ?? place?.pos.unit ?? "sayfa";
   const Unit = unit[0].toLocaleUpperCase("tr") + unit.slice(1);
   const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
@@ -104,7 +105,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope }
       : lib ? { book_id: lib.parent_id ?? null, scope: "" } : null;
     const page_goal: PageGoal | null = gPer === "pages" && goalBook
-      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), doc_key: edit?.page_goal?.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
+      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), doc_key: edit?.page_goal?.doc_key ?? place?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
       : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, unit, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
@@ -195,11 +196,20 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
               <span>HEDEF ({unit.toUpperCase()})</span>
               <button className="link" onClick={() => { setGOpen(false); setGPer("none"); }}>Kaldır</button>
             </div>
-            <div className="chipwrap">
-              {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"], ...(canPages ? [["pages", `${Unit} aralığı`]] : [])] as [typeof gPer, string][]).map(([k, l]) => (
-                <button key={k} className={gPer === k ? "on" : ""} onClick={() => setGPer(k)}>{l}</button>
-              ))}
-            </div>
+            {/* önce tür: kaç sayfa mı, sayfa aralığı mı; sonra (sayıda) dönem: günde / haftada / ayda / tarih aralığında */}
+            {canPages && (
+              <div className="seg3 two" style={{ marginBottom: 8 }}>
+                <button className={gPer !== "pages" ? "on" : ""} onClick={() => setGPer(lastPer)}>{Unit} sayısı</button>
+                <button className={gPer === "pages" ? "on" : ""} onClick={() => setGPer("pages")}>{Unit} aralığı</button>
+              </div>
+            )}
+            {gPer !== "pages" && (
+              <div className="chipwrap">
+                {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as [typeof gPer, string][]).map(([k, l]) => (
+                  <button key={k} className={gPer === k ? "on" : ""} onClick={() => { setGPer(k); setLastPer(k); }}>{l}</button>
+                ))}
+              </div>
+            )}
             {gPer === "pages" && (
               <>
                 <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
@@ -225,7 +235,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             )}
           </>
         ) : (
-          <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer(canPages ? "pages" : "day"); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
+          <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer("day"); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
         ))}
 
         {/* Sıklık */}
