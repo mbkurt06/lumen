@@ -24,7 +24,13 @@ export function Todo() {
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
-  const [act, setAct] = useState<T | null>(null); // kitaba bağlı görev: menü
+  const [act, setAct] = useState<T | null>(null); // görev menüsü: git / tamamla / düzenle / sil
+  const delTask = async (t: T) => {
+    if (!window.confirm(`“${t.title}” silinsin mi?${t.bookmark_id ? " (Bağlı ayraç kalır.)" : ""}`)) return;
+    setTodos((s) => s.filter((x) => x.id !== t.id && x.parent_todo_id !== t.id));
+    const { error } = await supabase.from("todos").delete().eq("id", t.id);
+    if (error) { window.alert("Silinemedi: " + error.message); void reload(); }
+  };
   // kitaptaki yere git: ayraç (güncel yer) ya da sabit yer
   const goRef = (t: T) => { const pl = placeOf(t); if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`); };
 
@@ -80,6 +86,7 @@ export function Todo() {
           </div>
           {isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
           {pl && <button className="devam sm" onClick={() => goRef(t)}>{pl.live ? "Devam" : "Git"}</button>}
+          <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
         {isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
@@ -180,10 +187,11 @@ export function Todo() {
             <div className="sheethead"><h2 style={{ fontSize: 18 }}>{act.title}</h2><button className="iconbtn" onClick={() => setAct(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
             {(() => { const pl = placeOf(act); return pl && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{[pl.section, pl.book].filter(Boolean).join(" · ")}</b><b>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</b>{pl.quote && <span>“{pl.quote.slice(0, 140)}”</span>}</div></div>; })()}
             <div className="card" style={{ padding: 0, marginTop: 12 }}>
-              <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+              {placeOf(act) && <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {isRecurring(act) && Math.max(1, act.per_day) > 1 ? `+1 (bugün ${doneOn(act)}/${act.per_day})` : isDoneToday(act) ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
-              <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>
+              {!act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); nav(`/yapilacaklar/g/${t.id}`); }}><Icon name="dots" size={20} /> Ayrıntılar</button>
+              <button className="rowbtn danger" onClick={() => { const t = act; setAct(null); void delTask(t); }}><Icon name="close" size={20} /> Sil</button>
             </div>
             {placeOf(act)?.live && <p className="muted small" style={{ margin: "10px 2px 0" }}>Okurken ayracı taşıdıkça bu görev de yeni yeri gösterir.</p>}
           </div>

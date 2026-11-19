@@ -596,3 +596,5 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .readmark { color: #3a9d63; font-weight: 800; }
 .resrow.swiped { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .pnav.mini button.readbtn { width: auto; height: 38px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
+.tmore { flex: none; width: 34px; height: 34px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; border-radius: 10px; cursor: pointer; padding: 0; }
+.tmore:active { background: var(--highlight); }
