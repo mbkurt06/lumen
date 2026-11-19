@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { goalCount, goalLabel, goalPeriod, readsCache, useTodos, type Todo as TodoT } from "../lib/todo";
+import { goalCount, goalLabel, goalPeriod, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -230,6 +230,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // numaralı sayfa belgeleri (Tevhidname gibi: her sayfa ayrı belge) → kitap klasörü + sayfa no
   const pageNo = Number(((doc.metadata ?? {}) as Record<string, unknown>).page ?? NaN);
   const numbered = Number.isFinite(pageNo) && !!doc.parent_id;
+  const unit = String(((doc.metadata ?? {}) as Record<string, unknown>).unit ?? "sayfa"); // sayfa / bab
+  const unitLabel = (n: number) => (unit === "bab" ? `${n}. Bab` : n ? `Sayfa ${n}` : "Giriş");
   const reads = usePageReads(isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
   const pageKey = (i: number) => (numbered ? pageNo : isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
   // bu kitabın okuma hedefi olan görevi: "Hedef 1/5" (diğer bölümler + bu bölümdeki işaretler)
@@ -239,7 +241,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!goalTask) return 0;
     const [a, b] = goalPeriod(goalTask);
     const live = numbered && goalTask.page_goal!.per === "pages"
-      ? Object.entries(reads.read).filter(([pg]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9)).length
+      ? Object.entries(reads.read).filter(([pg, d]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9) && (!goalTask.recurrence || goalTask.recurrence.type === "once" || d === ymdToday())).length
       : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
     return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id) + live;
   })();
@@ -302,7 +304,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!added) return;
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
-    if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · Sayfa ${pageNo + 1}`, label: `Sayfa ${pageNo + 1}` });
+    if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo + 1)}`, label: unitLabel(pageNo + 1) });
     if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
   };
   const touchX = useRef<number | null>(null);
@@ -430,7 +432,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const bookTitle = scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title;
   const posOf = (nid: string | null, quote: string): Pos => {
     const w = nid ? where(nid) : { label: doc.title, page: null };
-    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${pageNo ? "Sayfa " + pageNo : "Giriş"}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: numbered ? pageNo : undefined };
+    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${unitLabel(pageNo)}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: numbered ? pageNo : undefined, unit: numbered ? unit : undefined };
   };
   const markAt = (nid: string, quote: string) => {
     const w = where(nid);
@@ -802,7 +804,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true })}>‹ Önceki</button>
         {numbered && (
           <button className={"dread" + (reads.read[pageNo] ? " on" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
-            {reads.read[pageNo] ? "✓" : "○"} {pageNo || "Giriş"}
+            {reads.read[pageNo] ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
           </button>
         )}
         <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>

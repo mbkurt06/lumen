@@ -71,7 +71,7 @@ export function Todo() {
     const pl = placeOf(t);
     const rt = recurrenceText(t);
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} sayfa` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
+      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
     const g = t.page_goal;
     const gc = g ? goalCount(t) : 0;
