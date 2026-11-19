@@ -159,12 +159,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       let all = (await fetchDocNodes(doc.id)) as Node[];
       if (off) return;
       // Esmâü'l-Hüsnâ gibi tek isimli belgelerde çekilecek sayı belgenin kendisinde tutulur
-      const dt = Number(((doc.metadata ?? {}) as Record<string, unknown>).target ?? 0);
+      const dmeta = (doc.metadata ?? {}) as Record<string, unknown>;
+      const dt = Number(dmeta.target ?? 0);
       if (dt > 0 && !all.some((n) => Number(md(n).target ?? 0) > 0)) {
         const i = all.findIndex((n) => n.kind === "phrase");
-        // sayacın yanındaki metin listedeki gibi "Yâ …" ile yazılır
-        const ya = doc.subtitle && /^Y[aâ]\s/i.test(doc.subtitle) ? doc.subtitle : null;
-        if (i >= 0) all = all.map((n, j) => (j === i ? { ...n, text_content: ya ?? n.text_content, metadata: { ...(n.metadata ?? {}), target: dt } } : n));
+        if (i >= 0) all = all.map((n, j) => (j === i ? { ...n, metadata: { ...(n.metadata ?? {}), target: dt } } : n));
+      }
+      // Esmâü'l-Hüsnâ: başlık ismin kendisi (Er-Rahmân), büyük yazı listedeki gibi "Yâ Rahmân"
+      if (String(dmeta.legacy_id ?? "").startsWith("esma-")) {
+        const sub = (doc.subtitle ?? "").normalize("NFC").trim();
+        const ya = /^Y[aâ]\s/i.test(sub) ? sub : "Yâ " + doc.title.replace(/^[A-ZÂÎÛa-zâîû]{1,3}-/, "");
+        const i = all.findIndex((n) => n.kind === "phrase");
+        if (i >= 0 && dt > 0) all = all.map((n, j) => (j === i ? { ...n, text_content: ya } : n));
       }
       setNodes(all);
       setLoading(false); // metin hazır: sayfa hemen açılsın; notlar ve sayaçlar arkadan
@@ -221,15 +227,21 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const pc = isQuran ? Math.max(1, mpages?.length ?? 1) : bookPages.length;
   // "Okundu" işaretleri (kitapta belge içi sayfa no, Kur'an'da mushaf sayfası)
   const [cp, setCp] = useCP();
-  const reads = usePageReads(isQuran ? "kuran" : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
-  const pageKey = (i: number) => (isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
+  // numaralı sayfa belgeleri (Tevhidname gibi: her sayfa ayrı belge) → kitap klasörü + sayfa no
+  const pageNo = Number(((doc.metadata ?? {}) as Record<string, unknown>).page ?? NaN);
+  const numbered = Number.isFinite(pageNo) && !!doc.parent_id;
+  const reads = usePageReads(isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
+  const pageKey = (i: number) => (numbered ? pageNo : isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
   // bu kitabın okuma hedefi olan görevi: "Hedef 1/5" (diğer bölümler + bu bölümdeki işaretler)
   const goalTask = todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
     ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope));
   const goalNow = (() => {
     if (!goalTask) return 0;
     const [a, b] = goalPeriod(goalTask);
-    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : doc.id) + Object.values(reads.read).filter((d) => d >= a && d <= b).length;
+    const live = numbered && goalTask.page_goal!.per === "pages"
+      ? Object.entries(reads.read).filter(([pg]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9)).length
+      : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
+    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id) + live;
   })();
   // okundu deyince ilerleyecek ayraç: görevin ayracı, ayraçtan açıldıysa o, kitapta tek ayraç varsa o
   const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
@@ -283,6 +295,15 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       }
     }
     if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
+  };
+  // numaralı belgede okundu: işaretle, bağlı ayracı sonraki sayfaya taşı, ayara göre sonrakine geç
+  const markReadDoc = () => {
+    const added = reads.toggle(pageNo);
+    if (!added) return;
+    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · Sayfa ${pageNo + 1}`, label: `Sayfa ${pageNo + 1}` });
+    if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
   };
   const touchX = useRef<number | null>(null);
   useEffect(() => {
@@ -409,7 +430,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const bookTitle = scope === "kuran" ? "Kur'ân-ı Kerîm" : parentTitle ?? doc.title;
   const posOf = (nid: string | null, quote: string): Pos => {
     const w = nid ? where(nid) : { label: doc.title, page: null };
-    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page };
+    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${pageNo ? "Sayfa " + pageNo : "Giriş"}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: numbered ? pageNo : undefined };
   };
   const markAt = (nid: string, quote: string) => {
     const w = where(nid);
@@ -779,8 +800,14 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       </div>
       <nav className="dpager">
         <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true })}>‹ Önceki</button>
+        {numbered && (
+          <button className={"dread" + (reads.read[pageNo] ? " on" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
+            {reads.read[pageNo] ? "✓" : "○"} {pageNo || "Giriş"}
+          </button>
+        )}
         <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>
       </nav>
+      {numbered && goalTask && <div className="dgoal"><span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span></div>}
       <div style={{ height: 90 }} />
       {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" scale={rs.cnt} />}
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}

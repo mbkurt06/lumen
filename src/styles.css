@@ -603,3 +603,6 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .goalchip.done { color: #0f1115; background: var(--gold); border-color: var(--gold); }
 .pnav.mini .pmid { display: inline-flex; align-items: center; gap: 8px; pointer-events: none; }
 .tcount.ok { color: var(--gold); }
+.dpager .dread { flex: 0 0 auto; min-width: 86px; font-weight: 700; color: var(--muted); }
+.dpager .dread.on { background: var(--accent); border-color: var(--accent); color: #0f1115; }
+.dgoal { display: flex; justify-content: center; margin-top: 8px; }

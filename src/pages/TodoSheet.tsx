@@ -6,7 +6,8 @@ import { SECTION_LABEL, ymd, type PageGoal, type ReadingRef, type Recurrence, ty
 import type { Scope } from "../lib/readerSettings";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
-export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null };
+/** page_no: numaralı sayfa belgelerinde (Tevhidname, Cevşen…) sayfa numarası */
+export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number };
 /** Kitaptan açılınca: yer + o kitabın ayraçları. mode: başta seçili bağlama biçimi. */
 export type PlacePrefill = { pos: Pos; mode: "ayrac" | "sabit"; bookmarks: Bookmark[]; bookmarkId?: string | null };
 type Lib = { id: string; title: string; parent_id?: string | null };
@@ -44,6 +45,9 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   // okuma hedefi: N sayfa / gün-hafta-ay-aralık
   const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? (place ? "day" : "none"));
   const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
+  const [gFrom, setGFrom] = useState(edit?.page_goal?.from ?? place?.pos.page_no ?? 1);
+  const [gTo, setGTo] = useState(edit?.page_goal?.to ?? (place?.pos.page_no ?? 1) + 9);
+  const canPages = place?.pos.page_no != null || edit?.page_goal?.per === "pages";
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const recurring = rec.type !== "once";
@@ -96,7 +100,9 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     const goalBook = edit?.page_goal ? { book_id: edit.page_goal.book_id, scope: edit.page_goal.scope }
       : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope }
       : lib ? { book_id: lib.parent_id ?? null, scope: "" } : null;
-    const page_goal: PageGoal | null = gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, ...goalBook } : null;
+    const page_goal: PageGoal | null = gPer === "pages" && goalBook
+      ? { n: Math.max(1, gTo - gFrom + 1), per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), doc_key: edit?.page_goal?.doc_key ?? goalBook.book_id ?? undefined, ...goalBook }
+      : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
       list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
@@ -184,11 +190,18 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           <>
             <div className="lbl" style={{ padding: "14px 0 6px" }}>OKUMA HEDEFİ</div>
             <div className="chipwrap">
-              {([["none", "Yok"], ["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as const).map(([k, l]) => (
+              {([["none", "Yok"], ["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"], ...(canPages ? [["pages", "Sayfa aralığı"]] : [])] as [typeof gPer, string][]).map(([k, l]) => (
                 <button key={k} className={gPer === k ? "on" : ""} onClick={() => setGPer(k)}>{l}</button>
               ))}
             </div>
-            {gPer !== "none" && (
+            {gPer === "pages" && (
+              <>
+                <div className="line"><span>Sayfadan</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                <div className="line"><span>Sayfaya kadar</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                <p className="muted small" style={{ margin: "4px 2px 0" }}>Sayfa {Math.min(gFrom, gTo)}–{Math.max(gFrom, gTo)} ({Math.abs(gTo - gFrom) + 1} sayfa). Her sayfanın altındaki “okundu”ya bastıkça dolar; hepsi okununca görev tamamlanır. İstersen sıklık da seçebilirsin (ör. her gün bu aralık).</p>
+              </>
+            )}
+            {gPer !== "none" && gPer !== "pages" && (
               <>
                 <div className="line"><span>Kaç sayfa</span>
                   <span className="stepper"><button onClick={() => setGN(Math.max(1, gN - 1))}>−</button>

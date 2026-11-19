@@ -31,7 +31,7 @@ export type ReadingRef = { kind: "yer" | "konu"; doc_id: string; node_id: string
 /** Sıklık. days: 0=Pazar … 6=Cumartesi */
 export type Recurrence = { type: "once" | "daily" | "weekdays" | "weekend" | "days" | "weekly" | "monthly" | "every"; days?: number[]; n?: number };
 /** Okuma hedefi: n sayfa, gün/hafta/ay ya da başlangıç–bitiş aralığında. book_id: kitap klasörü (Kur'an için null). */
-export type PageGoal = { n: number; per: "day" | "week" | "month" | "range"; book_id: string | null; scope: string };
+export type PageGoal = { n: number; per: "day" | "week" | "month" | "range" | "pages"; book_id: string | null; scope: string; from?: number; to?: number; doc_key?: string };
 export type ReadRow = { book_id: string | null; scope: string; doc_key: string; page: number; day: string };
 /** Okunan sayfalar (son 120 gün); useTodos yükler, okuma hedefleri buradan sayılır. */
 let READS: ReadRow[] = [];
@@ -49,10 +49,13 @@ const sameBook = (g: PageGoal, r: ReadRow) => (g.book_id ? r.book_id === g.book_
 /** Dönemde okunan sayfa sayısı. exceptDoc: o belgeyi sayma (okuyucu kendi canlı sayısını ekler). */
 export function goalCount(t: Pick<Todo, "page_goal" | "start_date" | "end_date">, rows: ReadRow[] = READS, exceptDoc?: string): number {
   if (!t.page_goal) return 0;
+  const g = t.page_goal;
+  // sayfa aralığı (ör. Tevhidname 10–20): o aralıkta okunan farklı sayfalar, gün fark etmez
+  if (g.per === "pages") return new Set(rows.filter((r) => r.doc_key === g.doc_key && r.doc_key !== exceptDoc && r.page >= (g.from ?? 0) && r.page <= (g.to ?? 1e9)).map((r) => r.page)).size;
   const [a, b] = goalPeriod(t);
   return rows.filter((r) => sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
 }
-export const goalLabel = (g: PageGoal) => (g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
+export const goalLabel = (g: PageGoal) => (g.per === "pages" ? `Sayfa ${g.from}–${g.to}` : g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
 
 /** Göreve bağlı ayraç (kaldığın yer). */
 export type BookmarkLite = { id: string; title: string; document_id: string; node_id: string | null; quote: string | null; label: string | null; book_title: string | null; section: string | null; scope: string };
