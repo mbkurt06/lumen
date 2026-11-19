@@ -598,3 +598,8 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .pnav.mini button.readbtn { width: auto; height: 38px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
 .tmore { flex: none; width: 34px; height: 34px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; border-radius: 10px; cursor: pointer; padding: 0; }
 .tmore:active { background: var(--highlight); }
+.stepinp { width: 56px; text-align: center; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 10px; padding: 6px 4px; font-size: 16px; font-weight: 700; }
+.goalchip { pointer-events: auto; border-radius: 999px; padding: 0 12px; height: 38px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 700; background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--border); color: var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.goalchip.done { color: #0f1115; background: var(--gold); border-color: var(--gold); }
+.pnav.mini .pmid { display: inline-flex; align-items: center; gap: 8px; pointer-events: none; }
+.tcount.ok { color: var(--gold); }

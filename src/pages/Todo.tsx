@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, goalCount, goalLabel, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -53,6 +53,7 @@ export function Todo() {
 
   const circle = async (t: T) => {
     if (t.kind === "kaza" || t.kind === "kaza_oruc") { nav("/namaz/kaza"); return; }
+    if (t.page_goal && !t.is_completed) { goRef(t); return; } // okuma hedefi: okudukça dolar
     if (isRecurring(t)) {
       // günde N kez: her dokunuş +1; doluysa sıfırla
       const progress = await bumpProgress(t, isDoneToday(t) ? -doneOn(t) : 1);
@@ -70,8 +71,10 @@ export function Todo() {
     const pl = placeOf(t);
     const rt = recurrenceText(t);
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
+      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} sayfa` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
+    const g = t.page_goal;
+    const gc = g ? goalCount(t) : 0;
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
     const sub2 = kids.get(t.id) ?? [];
@@ -84,11 +87,12 @@ export function Todo() {
             {sub && <div className="tsub">{sub}</div>}
             {pl && <div className="tref">{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>}
           </div>
-          {isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
+          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")}>{gc} / {g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
-        {isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
+        {g ? <div className="tbar"><i style={{ width: `${Math.min(100, (gc / g.n) * 100)}%` }} /></div>
+          : isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
           <div key={c.id} className="trow2 subrow">
             <button className={"tcircle small" + (c.is_completed ? " on" : "")} onClick={() => void circle(c)}>{c.is_completed ? <Icon name="check" size={12} /> : null}</button>

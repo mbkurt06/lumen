@@ -58,7 +58,7 @@ function Resume({ scopeId }: { scopeId?: string }) {
                 </div>
                 {edit || swiped === r.id
                   ? <button className="resdel" onClick={() => void del(r.id, name || where)} aria-label="Ayracı sil">Sil</button>
-                  : <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId } })}>Devam</button>}
+                  : <button className={"devam sm" + (i === 0 ? "" : " alt")} onClick={() => nav(`/kutuphane/${r.docId}`, { state: { nid: r.nodeId, bmId: r.id } })}>Devam</button>}
               </div>
             );
           })}

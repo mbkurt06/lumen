@@ -21,6 +21,7 @@ export type Todo = {
   end_date: string | null;
   bookmark_id: string | null;
   progress: Record<string, number> | null;
+  page_goal: PageGoal | null;
   bookmark?: BookmarkLite | null;
   created_at: string;
   completed_at: string | null;
@@ -29,6 +30,30 @@ export type Todo = {
 export type ReadingRef = { kind: "yer" | "konu"; doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string };
 /** Sıklık. days: 0=Pazar … 6=Cumartesi */
 export type Recurrence = { type: "once" | "daily" | "weekdays" | "weekend" | "days" | "weekly" | "monthly" | "every"; days?: number[]; n?: number };
+/** Okuma hedefi: n sayfa, gün/hafta/ay ya da başlangıç–bitiş aralığında. book_id: kitap klasörü (Kur'an için null). */
+export type PageGoal = { n: number; per: "day" | "week" | "month" | "range"; book_id: string | null; scope: string };
+export type ReadRow = { book_id: string | null; scope: string; doc_key: string; page: number; day: string };
+/** Okunan sayfalar (son 120 gün); useTodos yükler, okuma hedefleri buradan sayılır. */
+let READS: ReadRow[] = [];
+export const readsCache = () => READS;
+/** Hedefin şu anki dönemi [başlangıç, bitiş] */
+export function goalPeriod(t: Pick<Todo, "page_goal" | "start_date" | "end_date">, day = ymd()): [string, string] {
+  const g = t.page_goal!;
+  const d = new Date(day + "T12:00:00");
+  if (g.per === "week") { const w = (d.getDay() + 6) % 7; const a = new Date(d.getTime() - w * 86400000); return [ymd(a), ymd(new Date(a.getTime() + 6 * 86400000))]; }
+  if (g.per === "month") return [day.slice(0, 8) + "01", ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12))];
+  if (g.per === "range") return [t.start_date ?? day, t.end_date ?? "9999-12-31"];
+  return [day, day];
+}
+const sameBook = (g: PageGoal, r: ReadRow) => (g.book_id ? r.book_id === g.book_id : r.scope === g.scope);
+/** Dönemde okunan sayfa sayısı. exceptDoc: o belgeyi sayma (okuyucu kendi canlı sayısını ekler). */
+export function goalCount(t: Pick<Todo, "page_goal" | "start_date" | "end_date">, rows: ReadRow[] = READS, exceptDoc?: string): number {
+  if (!t.page_goal) return 0;
+  const [a, b] = goalPeriod(t);
+  return rows.filter((r) => sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
+}
+export const goalLabel = (g: PageGoal) => (g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
+
 /** Göreve bağlı ayraç (kaldığın yer). */
 export type BookmarkLite = { id: string; title: string; document_id: string; node_id: string | null; quote: string | null; label: string | null; book_title: string | null; section: string | null; scope: string };
 export const SECTION_LABEL: Record<string, string> = { kuran: "Kur'an-ı Kerim", risale: "Risale-i Nur", he: "HE Eserleri", diger: "Diğer kitaplar", ibadet: "İbadet" };
@@ -86,6 +111,7 @@ export function inToday(t: Todo): boolean {
   if (t.parent_todo_id) return false;
   if (t.kind === "kaza" || t.kind === "kaza_oruc") return !t.is_completed;
   if (isRecurring(t)) return !t.is_completed && occursOn(t, ymd());
+  if (t.page_goal) { const d = ymd(); return !t.is_completed && (t.page_goal.per !== "range" || ((!t.start_date || d >= t.start_date) && (!t.end_date || d <= t.end_date))); }
   if (t.is_completed) return !!t.completed_at && ymd(new Date(t.completed_at)) === ymd();
   if (!t.due_at) return !!(t.bookmark_id || t.reading_ref); // kitaba bağlı tek seferlik görev, tarihi yoksa da görünür
   return new Date(t.due_at) < endOfToday();
@@ -95,6 +121,7 @@ export function isOverdue(t: Todo): boolean {
 }
 export function isDoneToday(t: Todo): boolean {
   if ((t.kind === "kaza" || t.kind === "kaza_oruc") && t.plan) return kazaToday(t.kind === "kaza" ? "namaz" : "oruc") >= t.plan.daily;
+  if (t.page_goal) return goalCount(t) >= t.page_goal.n;
   if (isRecurring(t)) return doneOn(t) >= Math.max(1, t.per_day);
   return t.is_completed;
 }
@@ -133,11 +160,14 @@ export function useTodos() {
   const [err, setErr] = useState("");
   const [loaded, setLoaded] = useState(false);
   const reload = useCallback(async () => {
-    const [t, l, g] = await Promise.all([
-      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
+    const since = ymd(new Date(Date.now() - 120 * 86400000));
+    const [t, l, g, r] = await Promise.all([
+      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
+      supabase.from("page_reads").select("book_id,scope,doc_key,page,day").gte("day", since).limit(10000),
     ]);
+    if (!r.error) READS = mergeQueuedReads((r.data ?? []) as ReadRow[]);
     if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
     if (!l.error) setLists((l.data ?? []) as TList[]);
     if (!g.error) setGroups((g.data ?? []) as TGroup[]);
@@ -172,4 +202,17 @@ export function confirmDeleteTodo(t: Todo, subCount: number): boolean {
   if (isRecurring(t) && Object.keys(t.progress ?? {}).length) parts.push(`• ${Object.keys(t.progress ?? {}).length} günlük ilerleme kaydı silinecek.`);
   const msg = parts.length ? `⚠️ “${t.title}” silinsin mi?\n\n${parts.join("\n")}` : `“${t.title}” silinsin mi?`;
   return window.confirm(msg);
+}
+
+/** Telefonda bekleyen (henüz gönderilmemiş) okundu işaretlerini de say. */
+function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
+  let q: { op: "add" | "del"; doc_key: string; page: number; scope: string; book_id: string | null; day: string }[] = [];
+  try { q = JSON.parse(localStorage.getItem("lumen.reads.queue.v1") ?? "[]"); } catch { /* yok */ }
+  const out = [...rows];
+  for (const o of q) {
+    const i = out.findIndex((x) => x.doc_key === o.doc_key && x.page === o.page);
+    if (o.op === "add" && i < 0) out.push({ book_id: o.book_id, scope: o.scope, doc_key: o.doc_key, page: o.page, day: o.day });
+    if (o.op === "del" && i >= 0) out.splice(i, 1);
+  }
+  return out;
 }

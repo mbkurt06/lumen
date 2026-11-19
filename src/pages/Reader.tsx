@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { useTodos, type Todo as TodoT } from "../lib/todo";
+import { goalCount, goalLabel, goalPeriod, readsCache, useTodos, type Todo as TodoT } from "../lib/todo";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -138,7 +138,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [editNote, setEditNote] = useState<Note | null>(null);
   const focusTaskId = (loc0.state as { taskId?: string } | null)?.taskId ?? null; // görevden açıldıysa
   const [toast, setToast] = useState("");
-  const { lists, groups } = useTodos();
+  const { lists, groups, todos } = useTodos();
   const bodyRef = useRef<HTMLDivElement>(null);
   const [fsT, setFsT] = useState(false);
 
@@ -223,6 +223,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [cp, setCp] = useCP();
   const reads = usePageReads(isQuran ? "kuran" : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
   const pageKey = (i: number) => (isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
+  // bu kitabın okuma hedefi olan görevi: "Hedef 1/5" (diğer bölümler + bu bölümdeki işaretler)
+  const goalTask = todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
+    ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope));
+  const goalNow = (() => {
+    if (!goalTask) return 0;
+    const [a, b] = goalPeriod(goalTask);
+    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : doc.id) + Object.values(reads.read).filter((d) => d >= a && d <= b).length;
+  })();
+  // okundu deyince ilerleyecek ayraç: görevin ayracı, ayraçtan açıldıysa o, kitapta tek ayraç varsa o
+  const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
   const pageLabel = (i: number) => (isQuran ? String(mpages?.[i]?.display_page ?? "") : String(i + 1));
 
   useEffect(() => {
@@ -262,13 +272,14 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const added = reads.toggle(pageKey(pp));
     if (!added) return;
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
-    if (taskT?.bookmark_id) {
+    const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    if (bmToMove) {
       const nextFirst = isQuran ? mpages?.[pp + 1]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp + 1]?.[0]?.id;
       const curLast = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id;
       const nid = nextFirst ?? curLast;
       if (nid) {
         const w = where(nid);
-        void moveBookmark(taskT.bookmark_id, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
+        void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
       }
     }
     if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
@@ -676,9 +687,12 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <div style={{ height: 64 }} />
         <div className="pnav mini">
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name="back" size={22} /></button>
+          <span className="pmid">
           <button className={"readbtn" + (reads.read[pageKey(pp)] ? " on" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
             {reads.read[pageKey(pp)] ? "✓" : "○"} {pp + 1} / {pc}
           </button>
+          {goalTask && <span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")} title={goalTask.title}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span>}
+          </span>
           <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name="chevron" size={22} /></button>
         </div>
         {overlays}

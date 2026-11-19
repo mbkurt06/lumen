@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { addBookmark, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
-import { SECTION_LABEL, ymd, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
+import { SECTION_LABEL, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
 import type { Scope } from "../lib/readerSettings";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
 export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null };
 /** Kitaptan açılınca: yer + o kitabın ayraçları. mode: başta seçili bağlama biçimi. */
 export type PlacePrefill = { pos: Pos; mode: "ayrac" | "sabit"; bookmarks: Bookmark[]; bookmarkId?: string | null };
-type Lib = { id: string; title: string };
+type Lib = { id: string; title: string; parent_id?: string | null };
 
 const REC: { k: Recurrence["type"]; l: string }[] = [
   { k: "once", l: "Bir kez" }, { k: "daily", l: "Her gün" }, { k: "weekdays", l: "Hafta içi" }, { k: "weekend", l: "Hafta sonu" },
@@ -41,6 +41,9 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const [lib, setLib] = useState<Lib | null>(null);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Lib[]>([]);
+  // okuma hedefi: N sayfa / gün-hafta-ay-aralık
+  const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? (place ? "day" : "none"));
+  const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const recurring = rec.type !== "once";
@@ -48,7 +51,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   useEffect(() => {
     if (q.trim().length < 2) { setHits([]); return; }
     const t = setTimeout(async () => {
-      const { data } = await supabase.from("library_items").select("id,title").eq("kind", "document").ilike("title", `%${q.trim()}%`).limit(8);
+      const { data } = await supabase.from("library_items").select("id,title,parent_id").eq("kind", "document").ilike("title", `%${q.trim()}%`).limit(8);
       setHits((data ?? []) as Lib[]);
     }, 250);
     return () => clearTimeout(t);
@@ -65,6 +68,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     const name = title.trim() || (mode === "ayrac" ? p?.book_title ?? "" : "") || lib?.title || "";
     if (!name) { setErr("Görev adını yaz."); return; }
     if (rec.type === "days" && !(rec.days ?? []).length) { setErr("Hangi günler olduğunu seç."); return; }
+    if (gPer === "range" && !end) { setErr("Okuma hedefi için bitiş tarihini seç."); return; }
     setBusy(true);
     let bookmark_id: string | null = edit?.bookmark_id ?? null;
     let reading_ref: ReadingRef | null = edit?.reading_ref ?? null;
@@ -89,10 +93,14 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       reading_ref = { kind: "konu", doc_id: lib.id, node_id: null, book_id: null, scope: "", label: lib.title, quote: "" };
     }
     if (edit && mode === "yok") { bookmark_id = null; reading_ref = null; }
+    const goalBook = edit?.page_goal ? { book_id: edit.page_goal.book_id, scope: edit.page_goal.scope }
+      : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope }
+      : lib ? { book_id: lib.parent_id ?? null, scope: "" } : null;
+    const page_goal: PageGoal | null = gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
       list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
-      start_date: recurring ? start : null, end_date: recurring && end ? end : null,
+      start_date: recurring || gPer === "range" ? start : null, end_date: (recurring || gPer === "range") && end ? end : null, page_goal,
       due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
       bookmark_id, reading_ref, related_library_item_id: related,
       updated_at: new Date().toISOString(),
@@ -169,6 +177,34 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
               </>
             )}
           </div>
+        )}
+
+        {/* Okuma hedefi (kütüphaneye bağlı görevlerde) */}
+        {(p || lib || edit?.related_library_item_id || edit?.page_goal) && (
+          <>
+            <div className="lbl" style={{ padding: "14px 0 6px" }}>OKUMA HEDEFİ</div>
+            <div className="chipwrap">
+              {([["none", "Yok"], ["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as const).map(([k, l]) => (
+                <button key={k} className={gPer === k ? "on" : ""} onClick={() => setGPer(k)}>{l}</button>
+              ))}
+            </div>
+            {gPer !== "none" && (
+              <>
+                <div className="line"><span>Kaç sayfa</span>
+                  <span className="stepper"><button onClick={() => setGN(Math.max(1, gN - 1))}>−</button>
+                    <input className="stepinp" type="number" inputMode="numeric" min={1} value={gN} onChange={(e) => setGN(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
+                    <button onClick={() => setGN(gN + 1)}>+</button></span>
+                </div>
+                {gPer === "range" && !recurring && (
+                  <>
+                    <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
+                    <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+                  </>
+                )}
+                <p className="muted small" style={{ margin: "4px 2px 0" }}>Okurken sayfanın altındaki “okundu”ya bastıkça sayılır ({gPer === "day" ? "her gün" : gPer === "week" ? "her hafta" : gPer === "month" ? "her ay" : "bu aralıkta"} {gN} sayfa). Fazlası da sayılır.</p>
+              </>
+            )}
+          </>
         )}
 
         {/* Sıklık */}
