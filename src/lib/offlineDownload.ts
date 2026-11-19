@@ -35,7 +35,8 @@ async function downloadCollectionInner(key: CollectionKey, onProgress: (p: Progr
   for (const r of rootsList) roots[r.title] = r;
 
   // koleksiyon sayfalarının kendi sorguları
-  if (key === "kuran" && roots["Kur’an-ı Kerim"]) { await loadKuranItems(roots["Kur’an-ı Kerim"].id); await ensureMushafFont(); }
+  if (key === "kuran" && roots["Kur’an-ı Kerim"]) await loadKuranItems(roots["Kur’an-ı Kerim"].id);
+  await ensureMushafFont(); // Arapça yazılar her bölümde Kur'an yazı tipiyle
   if (key === "ibadet") {
     if (roots["Dua Ezber"]) { await loadIbadetExtras(roots["Dua Ezber"].id); await loadTesbihatDocs(roots["Dua Ezber"].id, roots["Tesbihat"]?.id); }
     for (const n of ["Namaz Duaları", "Günlük Dualar"]) if (roots[n]) await loadChildrenBySort(roots[n].id);

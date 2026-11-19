@@ -205,9 +205,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [mpages, setMpages] = useState<MPage[] | null>(null);
   const [fontOk, setFontOk] = useState(false);
   useEffect(() => {
+    void ensureMushafFont().then(setFontOk); // Kur'an yazı tipi bütün kütüphanedeki Arapça için
     if (!qRange) return;
     void loadMushafPages(qRange[0], qRange[1]).then(setMpages);
-    void ensureMushafFont().then(setFontOk);
   }, [doc.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Kitap bölümleri yüklenirken de kâğıt sayfa görünür (arada koyu ekran yanıp sönmesin)

@@ -606,3 +606,6 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .dpager .dread { flex: 0 0 auto; min-width: 86px; font-weight: 700; color: var(--muted); }
 .dpager .dread.on { background: var(--accent); border-color: var(--accent); color: #0f1115; }
 .dgoal { display: flex; justify-content: center; margin-top: 8px; }
+/* Bütün kütüphanede Arapça: Kur'an-ı Kerim'deki yazı tipi (Shaikh Hamdullah Mushaf) */
+.reader .ar, .reader2 .ar, .bpbody.reader2 .ar, .dar, .tesbih .ar, [lang="ar"] { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", "Geeza Pro", "Traditional Arabic", serif; }
+.dar { line-height: 1.75; }
