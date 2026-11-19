@@ -42,6 +42,14 @@ export async function moveBookmark(id: string, d: BookmarkDraft) {
     ...(d.book_title ? { book_title: d.book_title } : {}), updated_at: new Date().toISOString(),
   }).eq("id", id);
 }
+/** Ayracı sil. Ona bağlı görevler yeri kaybetmesin: ayracın son yeri göreve sabit yer olarak yazılır. */
 export async function deleteBookmark(id: string) {
+  const { data: b } = await supabase.from("reader_bookmarks").select(COLS).eq("id", id).maybeSingle();
+  if (b) {
+    const bm = b as Bookmark;
+    await supabase.from("todos").update({
+      reading_ref: { kind: "konu", doc_id: bm.document_id, node_id: bm.node_id, book_id: bm.book_id, scope: bm.scope, label: bm.label ?? bm.title, quote: bm.quote ?? "", book_title: bm.book_title ?? undefined },
+    }).eq("bookmark_id", id);
+  }
   return supabase.from("reader_bookmarks").delete().eq("id", id);
 }

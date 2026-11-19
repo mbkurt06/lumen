@@ -20,7 +20,7 @@ function Resume({ scopeId }: { scopeId?: string }) {
   const tx = useRef<{ id: string; x: number; y: number } | null>(null);
   const nav = useNavigate();
   const del = async (id: string, name: string) => {
-    if (!window.confirm(`“${name}” ayracı silinsin mi? Bu ayraca bağlı görevler kalır, yalnız yer bağlantısı kalkar.`)) return;
+    if (!window.confirm(`“${name}” ayracı silinsin mi? Bu ayraca bağlı görevler ayracın son yerini korur.`)) return;
     const { error } = await deleteBookmark(id);
     if (error) window.alert("Silinemedi: " + error.message); else setGone((g) => [...g, id]);
   };
