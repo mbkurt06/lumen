@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { addBookmark, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
+import { addBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
+import { LibPicker, type Picked } from "../components/LibPicker";
 import { SECTION_LABEL, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
 import type { Scope } from "../lib/readerSettings";
 
@@ -10,7 +11,6 @@ import type { Scope } from "../lib/readerSettings";
 export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number; unit?: string; doc_key?: string };
 /** Kitaptan açılınca: yer + o kitabın ayraçları. mode: başta seçili bağlama biçimi. */
 export type PlacePrefill = { pos: Pos; mode: "ayrac" | "sabit"; bookmarks: Bookmark[]; bookmarkId?: string | null };
-type Lib = { id: string; title: string; parent_id?: string | null };
 
 const REC: { k: Recurrence["type"]; l: string }[] = [
   { k: "once", l: "Bir kez" }, { k: "daily", l: "Her gün" }, { k: "weekdays", l: "Hafta içi" }, { k: "weekend", l: "Hafta sonu" },
@@ -39,32 +39,38 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const [bmSel, setBmSel] = useState<string>(place?.bookmarkId ?? (place?.bookmarks[0]?.id ?? "new"));
   const [bmName, setBmName] = useState("");
   const [moveHere, setMoveHere] = useState(true);
-  const [lib, setLib] = useState<Lib | null>(null);
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<Lib[]>([]);
+  // Yapılacaklar'dan eklerken kütüphaneden seçilen yer (kitaptan açılınca gelen "place" gibi davranır)
+  const [picked, setPicked] = useState<PlacePrefill | null>(null);
+  const [showPick, setShowPick] = useState(false);
+  const pl = place ?? picked;
   // okuma hedefi: N sayfa / gün-hafta-ay-aralık
   const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? "none"); // hedef isteğe bağlı
   const [gOpen, setGOpen] = useState(!!edit?.page_goal);
-  const [lastPer, setLastPer] = useState<PageGoal["per"]>(edit?.page_goal && edit.page_goal.per !== "pages" ? edit.page_goal.per : "day");
-  const unit = edit?.page_goal?.unit ?? place?.pos.unit ?? "sayfa";
+  const unit = edit?.page_goal?.unit ?? pl?.pos.unit ?? "sayfa";
   const Unit = unit[0].toLocaleUpperCase("tr") + unit.slice(1);
   const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
-  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(edit?.page_goal?.every ?? (edit?.page_goal?.per === "pages" && !(edit.recurrence && edit.recurrence.type !== "once") ? "range" : "day"));
+  // dönem (günde/haftada/ayda/tarih aralığında): sayı ve aralık hedefinde ortak; tür değişince korunur
+  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(
+    edit?.page_goal?.every ?? (edit?.page_goal && edit.page_goal.per !== "pages" ? edit.page_goal.per as NonNullable<PageGoal["every"]>
+      : edit?.page_goal?.per === "pages" && !(edit.recurrence && edit.recurrence.type !== "once") ? "range" : "day"));
   const [gFrom, setGFrom] = useState(edit?.page_goal?.from ?? place?.pos.page_no ?? 1);
   const [gTo, setGTo] = useState(edit?.page_goal?.to ?? (place?.pos.page_no ?? 1) + 9);
-  const canPages = place?.pos.page_no != null || edit?.page_goal?.per === "pages";
+  const canPages = pl?.pos.page_no != null || edit?.page_goal?.per === "pages";
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const recurring = rec.type !== "once";
 
-  useEffect(() => {
-    if (q.trim().length < 2) { setHits([]); return; }
-    const t = setTimeout(async () => {
-      const { data } = await supabase.from("library_items").select("id,title,parent_id").eq("kind", "document").ilike("title", `%${q.trim()}%`).limit(8);
-      setHits((data ?? []) as Lib[]);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  // kütüphaneden seçilince: o kitabın ayraçları; Kur'an cüzü / sayfalı kitapta aralık hedefi hazır gelir
+  const onPick = async (pk: Picked) => {
+    setShowPick(false);
+    const bms = await listBookmarks(pk.pos.scope as Scope, pk.pos.scope === "kuran" ? null : pk.pos.book_id);
+    setPicked({ pos: pk.pos, mode: "ayrac", bookmarks: bms });
+    setMode("ayrac"); setBmSel("new"); setMoveHere(false);
+    if (!title.trim()) setTitle(pk.title);
+    if (pk.from != null) setGFrom(pk.from);
+    if (pk.to != null) setGTo(pk.to);
+    if (pk.range && pk.from != null) { setGOpen(true); setGPer("pages"); }
+  };
 
   const draft = (p: Pos): BookmarkDraft => ({
     scope: p.scope as Scope, book_id: p.book_id, document_id: p.doc_id, node_id: p.node_id, mushaf_page: p.mushaf_page ?? null,
@@ -73,8 +79,8 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
 
   async function save() {
     setErr("");
-    const p = place?.pos;
-    const name = title.trim() || (mode === "ayrac" ? p?.book_title ?? "" : "") || lib?.title || "";
+    const p = pl?.pos;
+    const name = title.trim() || (mode === "ayrac" ? p?.book_title ?? "" : "");
     if (!name) { setErr("Görev adını yaz."); return; }
     if (rec.type === "days" && !(rec.days ?? []).length) { setErr("Hangi günler olduğunu seç."); return; }
     if ((gPer === "range" || (gPer === "pages" && rEvery === "range")) && !end) { setErr("Okuma hedefi için bitiş tarihini seç."); return; }
@@ -97,16 +103,12 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
         reading_ref = { kind: "konu", doc_id: p.doc_id, node_id: p.node_id, book_id: p.book_id, scope: p.scope, label: p.label, quote: p.quote.slice(0, 300), book_title: p.book_title };
       }
       related = p.book_id ?? p.doc_id;
-    } else if (!edit && lib) {
-      related = lib.id;
-      reading_ref = { kind: "konu", doc_id: lib.id, node_id: null, book_id: null, scope: "", label: lib.title, quote: "" };
     }
     if (edit && mode === "yok") { bookmark_id = null; reading_ref = null; }
     const goalBook = edit?.page_goal ? { book_id: edit.page_goal.book_id, scope: edit.page_goal.scope }
-      : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope }
-      : lib ? { book_id: lib.parent_id ?? null, scope: "" } : null;
+      : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope } : null;
     const page_goal: PageGoal | null = gPer === "pages" && goalBook
-      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? place?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
+      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? pl?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
       : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, unit, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
@@ -126,7 +128,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     onSaved(edit ? "Görev güncellendi" : "Görev eklendi");
   }
 
-  const p = place?.pos;
+  const p = pl?.pos;
   const editPlace = edit && (edit.bookmark || edit.reading_ref);
   return (
     <>
@@ -141,7 +143,10 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
         {/* Bağlı yer */}
         {p && !edit && (
           <div className="placebox">
-            <div className="lbl" style={{ padding: "10px 0 6px" }}>BAĞLI YER · {SECTION_LABEL[p.scope] ?? ""}{p.book_title ? " · " + p.book_title : ""}</div>
+            <div className="lbl" style={{ padding: "10px 0 6px", display: "flex", justifyContent: "space-between" }}>
+              <span>BAĞLI YER · {SECTION_LABEL[p.scope] ?? ""}{p.book_title ? " · " + p.book_title : ""}</span>
+              {picked && !place && <span style={{ display: "flex", gap: 14 }}><button className="link" onClick={() => setShowPick(true)}>Değiştir</button><button className="link" onClick={() => { setPicked(null); setMode("yok"); if (gPer === "pages") { setGPer("none"); setGOpen(false); } }}>Kaldır</button></span>}
+            </div>
             <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{p.label}</b>{p.quote && <span>“{p.quote.slice(0, 140)}{p.quote.length > 140 ? "…" : ""}”</span>}</div></div>
             <div className="seg3 three">
               <button className={mode === "ayrac" ? "on" : ""} onClick={() => setMode("ayrac")}>Kaldığım yer</button>
@@ -150,7 +155,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             </div>
             {mode === "ayrac" && (
               <div className="bmlist">
-                {place!.bookmarks.map((b) => (
+                {pl!.bookmarks.map((b) => (
                   <label key={b.id} className={"bmrow pick" + (bmSel === b.id ? " hi" : "")}>
                     <input type="radio" name="bm" checked={bmSel === b.id} onChange={() => setBmSel(b.id)} />
                     <div className="bmtxt"><b>{b.title}</b><span>{b.label ?? b.quote ?? ""}</span></div>
@@ -178,20 +183,12 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           </div>
         )}
         {!p && !edit && (
-          <div className="subbox" style={{ marginTop: 10 }}>
-            {lib ? (
-              <div className="subline"><Icon name="library" size={22} /><div style={{ flex: 1, fontWeight: 600 }}>{lib.title}</div><button className="link" onClick={() => setLib(null)}>Kaldır</button></div>
-            ) : (
-              <>
-                <input className="field" placeholder="Kütüphaneden bağla (isteğe bağlı): sure, kitap, dua…" value={q} onChange={(e) => setQ(e.target.value)} />
-                {hits.map((h) => (<button key={h.id} className="hit" onClick={() => { setLib(h); if (!title) setTitle(h.title); setQ(""); }}>{h.title}</button>))}
-              </>
-            )}
-          </div>
+          <button className="libpick" style={{ marginTop: 10 }} onClick={() => setShowPick(true)}><Icon name="library" size={20} /> Kütüphaneden bağla <span className="muted small" style={{ fontWeight: 400 }}>(Kur'an, Cevşen, kitap…)</span></button>
         )}
+        {showPick && <LibPicker onPick={(pk) => void onPick(pk)} onClose={() => setShowPick(false)} />}
 
         {/* Hedef (isteğe bağlı): kitapta sayfa, Cevşen'de bab… Açılınca görünür */}
-        {(p || lib || edit?.related_library_item_id || edit?.page_goal) && (gOpen ? (
+        {(p || edit?.related_library_item_id || edit?.page_goal) && (gOpen ? (
           <>
             <div className="lbl" style={{ padding: "14px 0 6px", display: "flex", justifyContent: "space-between" }}>
               <span>HEDEF ({unit.toUpperCase()})</span>
@@ -200,13 +197,13 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             {/* önce tür: kaç sayfa mı, sayfa aralığı mı; sonra (sayıda) dönem: günde / haftada / ayda / tarih aralığında */}
             {canPages && (
               <div className="seg3 two" style={{ marginBottom: 8 }}>
-                <button className={gPer !== "pages" ? "on" : ""} onClick={() => setGPer(lastPer)}>{Unit} sayısı</button>
+                <button className={gPer !== "pages" ? "on" : ""} onClick={() => setGPer(rEvery)}>{Unit} sayısı</button>
                 <button className={gPer === "pages" ? "on" : ""} onClick={() => setGPer("pages")}>{Unit} aralığı</button>
               </div>
             )}
             <div className="chipwrap">
               {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
-                <button key={k} className={(gPer === "pages" ? rEvery === k : gPer === k) ? "on" : ""} onClick={() => { if (gPer === "pages") setREvery(k); else { setGPer(k); setLastPer(k); } }}>{l}</button>
+                <button key={k} className={(gPer === "pages" ? rEvery === k : gPer === k) ? "on" : ""} onClick={() => { setREvery(k); if (gPer !== "pages") setGPer(k); }}>{l}</button>
               ))}
             </div>
             {gPer === "pages" && (
@@ -240,7 +237,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             )}
           </>
         ) : (
-          <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer("day"); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
+          <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer(rEvery); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
         ))}
 
         {/* Sıklık */}

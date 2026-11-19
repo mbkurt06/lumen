@@ -616,3 +616,18 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .dupdbtn.new { background: var(--accent); border-color: var(--accent); color: #0d1f18; }
 .dupdbtn.new .dsub { color: #0d1f18; opacity: .8; }
 .readbtn.old, .dread.old { opacity: .75; }
+/* görev formu: kütüphaneden seç */
+.lpchip { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); overflow: hidden; }
+.chipwrap .lpchip button { border: 0; border-radius: 0; background: none; }
+.chipwrap .lpchip .lpstar { padding: 9px 10px 9px 2px; }
+.lpstar { background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px 6px; }
+.lpstar.on { color: #e9b949; }
+.lplist { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-top: 6px; }
+.lprow { display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-top: 1px solid var(--border); cursor: pointer; }
+.lprow:first-child { border-top: 0; }
+.lprow span { flex: 1; }
+.cuzgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.cuzgrid button { padding: 10px 0; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-weight: 600; cursor: pointer; }
+.cuzgrid button.on { background: var(--accent); border-color: var(--accent); color: #0f1115; }
+.lpghost { padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-weight: 600; cursor: pointer; }
+.libpick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--accent); background: none; color: var(--accent); font-weight: 600; font-size: 15px; cursor: pointer; text-align: left; }
