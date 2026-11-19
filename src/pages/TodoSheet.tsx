@@ -206,7 +206,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             {gPer !== "pages" && (
               <div className="chipwrap">
                 {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as [typeof gPer, string][]).map(([k, l]) => (
-                  <button key={k} className={gPer === k ? "on" : ""} onClick={() => { setGPer(k); setLastPer(k); }}>{l}</button>
+                  <button key={k} className={gPer === k ? "on" : ""} onClick={() => { setGPer(k); if (k !== "none") setLastPer(k); }}>{l}</button>
                 ))}
               </div>
             )}
