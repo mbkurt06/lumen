@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { goalCount, goalLabel, goalPeriod, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
+import { goalCount, goalLabel, goalPeriod, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -239,9 +239,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope));
   const goalNow = (() => {
     if (!goalTask) return 0;
-    const [a, b] = goalPeriod(goalTask);
-    const live = numbered && goalTask.page_goal!.per === "pages"
-      ? Object.entries(reads.read).filter(([pg, d]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9) && (!goalTask.recurrence || goalTask.recurrence.type === "once" || d === ymdToday())).length
+    const isRange = goalTask.page_goal!.per === "pages";
+    const [a, b] = isRange ? rangeWindow(goalTask) : goalPeriod(goalTask);
+    const live = isRange
+      ? Object.entries(reads.read).filter(([pg, d]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9) && d >= a && d <= b).length
       : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
     return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id) + live;
   })();
@@ -290,12 +291,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (bmToMove) {
       const nextFirst = isQuran ? mpages?.[pp + 1]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp + 1]?.[0]?.id;
       const curLast = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id;
-      const nid = nextFirst ?? curLast;
+      // sayfa aralığı görevi (ör. 10–20) bitiş sayfası okununca ayraç aralığın başına döner
+      const g = goalTask?.page_goal;
+      const wrap = g?.per === "pages" && pageKey(pp) === g.to && g.from != null;
+      const startNid = wrap ? (isQuran ? mpages?.find((m) => m.display_page === g!.from)?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[(g!.from ?? 1) - 1]?.[0]?.id) : undefined;
+      const nid = startNid ?? nextFirst ?? curLast;
       if (nid) {
         const w = where(nid);
         void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
       }
     }
+    const g2 = goalTask?.page_goal;
+    if (g2?.per === "pages" && pageKey(pp) === g2.to) { flash(`${goalLabel(g2)} tamamlandı · ayraç ${g2.from}. sayfaya döndü`); return; }
     if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
   };
   // numaralı belgede okundu: işaretle, bağlı ayracı sonraki sayfaya taşı, ayara göre sonrakine geç
@@ -304,6 +311,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!added) return;
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    const g = goalTask?.page_goal;
+    if (g?.per === "pages" && pageNo === g.to && g.from != null) {
+      // aralığın sonu: ayraç baştaki sayfaya döner (bir dahaki okumada baştan)
+      if (bmToMove) void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(g.from)).maybeSingle().then(({ data }) => {
+        const id = (data as { id: string } | null)?.id;
+        if (id) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: id, node_id: null, mushaf_page: null, quote: "", autoTitle: unitLabel(g.from!), label: unitLabel(g.from!) }).then(() => void reloadBms());
+      });
+      flash(`${goalLabel(g)} tamamlandı · ayraç ${unitLabel(g.from)}'e döndü`);
+      return;
+    }
     if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo + 1)}`, label: unitLabel(pageNo + 1) });
     if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
   };
@@ -715,8 +732,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <div className="pnav mini">
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name="back" size={22} /></button>
           <span className="pmid">
-          <button className={"readbtn" + (reads.read[pageKey(pp)] ? " on" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
-            {reads.read[pageKey(pp)] ? "✓" : "○"} {pp + 1} / {pc}
+          <button className={"readbtn" + (reads.read[pageKey(pp)] === ymdToday() ? " on" : reads.read[pageKey(pp)] ? " old" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] === ymdToday() ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
+            {reads.read[pageKey(pp)] === ymdToday() ? "✓" : "○"} {pp + 1} / {pc}
           </button>
           {goalTask && <span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")} title={goalTask.title}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span>}
           </span>
@@ -807,8 +824,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       <nav className="dpager">
         <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true })}>‹ Önceki</button>
         {numbered && (
-          <button className={"dread" + (reads.read[pageNo] ? " on" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
-            {reads.read[pageNo] ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
+          <button className={"dread" + (reads.read[pageNo] === ymdToday() ? " on" : reads.read[pageNo] ? " old" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
+            {reads.read[pageNo] === ymdToday() ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
           </button>
         )}
         <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>

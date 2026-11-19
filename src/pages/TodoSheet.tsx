@@ -49,6 +49,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const unit = edit?.page_goal?.unit ?? place?.pos.unit ?? "sayfa";
   const Unit = unit[0].toLocaleUpperCase("tr") + unit.slice(1);
   const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
+  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(edit?.page_goal?.every ?? (edit?.page_goal?.per === "pages" && !(edit.recurrence && edit.recurrence.type !== "once") ? "range" : "day"));
   const [gFrom, setGFrom] = useState(edit?.page_goal?.from ?? place?.pos.page_no ?? 1);
   const [gTo, setGTo] = useState(edit?.page_goal?.to ?? (place?.pos.page_no ?? 1) + 9);
   const canPages = place?.pos.page_no != null || edit?.page_goal?.per === "pages";
@@ -76,7 +77,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     const name = title.trim() || (mode === "ayrac" ? p?.book_title ?? "" : "") || lib?.title || "";
     if (!name) { setErr("Görev adını yaz."); return; }
     if (rec.type === "days" && !(rec.days ?? []).length) { setErr("Hangi günler olduğunu seç."); return; }
-    if (gPer === "range" && !end) { setErr("Okuma hedefi için bitiş tarihini seç."); return; }
+    if ((gPer === "range" || (gPer === "pages" && rEvery === "range")) && !end) { setErr("Okuma hedefi için bitiş tarihini seç."); return; }
     setBusy(true);
     let bookmark_id: string | null = edit?.bookmark_id ?? null;
     let reading_ref: ReadingRef | null = edit?.reading_ref ?? null;
@@ -105,12 +106,12 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope }
       : lib ? { book_id: lib.parent_id ?? null, scope: "" } : null;
     const page_goal: PageGoal | null = gPer === "pages" && goalBook
-      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), doc_key: edit?.page_goal?.doc_key ?? place?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
+      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? place?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
       : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, unit, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
       list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
-      start_date: recurring || gPer === "range" ? start : null, end_date: (recurring || gPer === "range") && end ? end : null, page_goal,
+      start_date: recurring || gPer === "range" || (gPer === "pages" && rEvery === "range") ? start : null, end_date: (recurring || gPer === "range" || (gPer === "pages" && rEvery === "range")) && end ? end : null, page_goal,
       due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
       bookmark_id, reading_ref, related_library_item_id: related,
       updated_at: new Date().toISOString(),
@@ -203,18 +204,22 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
                 <button className={gPer === "pages" ? "on" : ""} onClick={() => setGPer("pages")}>{Unit} aralığı</button>
               </div>
             )}
-            {gPer !== "pages" && (
-              <div className="chipwrap">
-                {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as [typeof gPer, string][]).map(([k, l]) => (
-                  <button key={k} className={gPer === k ? "on" : ""} onClick={() => { setGPer(k); if (k !== "none") setLastPer(k); }}>{l}</button>
-                ))}
-              </div>
-            )}
+            <div className="chipwrap">
+              {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
+                <button key={k} className={(gPer === "pages" ? rEvery === k : gPer === k) ? "on" : ""} onClick={() => { if (gPer === "pages") setREvery(k); else { setGPer(k); setLastPer(k); } }}>{l}</button>
+              ))}
+            </div>
             {gPer === "pages" && (
               <>
                 <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
                 <div className="line"><span>{Unit} (bitiş)</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
-                <p className="muted small" style={{ margin: "4px 2px 0" }}>{Unit} {Math.min(gFrom, gTo)}–{Math.max(gFrom, gTo)} ({Math.abs(gTo - gFrom) + 1} {unit}). Her {unit} sonunda “okundu”ya bastıkça dolar. Aşağıdan “Her gün” seçersen bu aralık her gün yeniden okunur.</p>
+                {rEvery === "range" && !recurring && (
+                  <>
+                    <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
+                    <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+                  </>
+                )}
+                <p className="muted small" style={{ margin: "4px 2px 0" }}>{Unit} {Math.min(gFrom, gTo)}–{Math.max(gFrom, gTo)} ({Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"} baştan okunur. Her {unit} sonunda “okundu”ya bastıkça dolar; son {unit} okununca ayraç {Math.min(gFrom, gTo)}. {unit}ya döner.</p>
               </>
             )}
             {gPer !== "none" && gPer !== "pages" && (

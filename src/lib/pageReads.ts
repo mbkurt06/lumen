@@ -21,7 +21,7 @@ export async function flushReads() {
     let done = 0;
     for (const o of q) {
       const r = o.op === "add"
-        ? await supabase.from("page_reads").upsert({ scope: o.scope, doc_key: o.doc_key, book_id: o.book_id, page: o.page, day: o.day }, { onConflict: "owner_id,doc_key,page", ignoreDuplicates: true })
+        ? await supabase.from("page_reads").upsert({ scope: o.scope, doc_key: o.doc_key, book_id: o.book_id, page: o.page, day: o.day }, { onConflict: "owner_id,doc_key,page" })
         : await supabase.from("page_reads").delete().eq("doc_key", o.doc_key).eq("page", o.page);
       if (r.error) break;
       done++;
@@ -52,7 +52,8 @@ export function usePageReads(docKey: string, scope: string, bookId: string | nul
   }, [docKey]);
   const toggle = useCallback((page: number) => {
     const m = { ...rd<Record<number, string>>(CK(docKey), {}) };
-    const add = !m[page];
+    // daha önceki bir gün okunduysa bugün yeniden "okundu" sayılır (her gün okunan aralıklar için)
+    const add = !m[page] || m[page] !== ymd();
     if (add) m[page] = ymd(); else delete m[page];
     wr(CK(docKey), m);
     setMap(m);

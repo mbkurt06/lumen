@@ -609,3 +609,10 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 /* Bütün kütüphanede Arapça: Kur'an-ı Kerim'deki yazı tipi (Shaikh Hamdullah Mushaf) */
 .reader .ar, .reader2 .ar, .bpbody.reader2 .ar, .dar, .tesbih .ar, [lang="ar"] { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", "Geeza Pro", "Traditional Arabic", serif; }
 .dar { line-height: 1.75; }
+/* menü altı güncelleme düğmesi (Android) */
+.dupd { border-top: 1px solid var(--border); padding: 8px 4px 0; }
+.dupdbtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: none; color: var(--muted); text-align: left; cursor: pointer; }
+.dupdbtn .dlabel { font-size: 15px; }
+.dupdbtn.new { background: var(--accent); border-color: var(--accent); color: #0d1f18; }
+.dupdbtn.new .dsub { color: #0d1f18; opacity: .8; }
+.readbtn.old, .dread.old { opacity: .75; }
