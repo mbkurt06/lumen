@@ -1,7 +1,6 @@
 alter table public.page_reads
   add column if not exists context_key text not null default 'global';
 
-drop index if exists public.page_reads_owner_id_doc_key_page_key;
 drop constraint if exists page_reads_owner_id_doc_key_page_key on public.page_reads;
 
 alter table public.page_reads
