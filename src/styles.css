@@ -155,6 +155,7 @@ h1 { margin: 0; }
 /* ── Yapılacaklar (tasarım: Günüm / Liste / Ekle) ── */
 .pright { margin-left: auto; }
 .pright .iconbtn { margin: 0 -6px 0 0; }
+.todo-head-actions { display: flex; align-items: center; gap: 2px; }
 .todo-settings { display: flex; align-items: center; gap: 10px; margin: 8px 16px 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--muted); font-size: 13px; }
 .todo-settings span { display: flex; align-items: center; gap: 6px; margin-right: auto; }
 .todo-settings button { min-width: 38px; height: 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-weight: 700; cursor: pointer; }
@@ -163,13 +164,16 @@ h1 { margin: 0; }
 .gbar i { display: block; height: 100%; background: var(--accent); }
 .sec { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 32px); margin: 14px 16px 8px; padding: 0 0 6px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .08em; cursor: pointer; text-align: left; }
 .sec.late { color: var(--danger); }\n.sec.completed { color: var(--accent); }
-.tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 10px 14px; }
-.trow2 { display: flex; align-items: center; gap: 12px; }
+.tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 10px; }
+.trow2 { display: flex; align-items: flex-start; gap: 8px; }
 .tcircle { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); background: none; color: #0f1115; display: grid; place-items: center; padding: 0; cursor: pointer; }
 .tcircle.on { background: var(--accent); border-color: var(--accent); }
 .tcircle.small { width: 22px; height: 22px; }
 .tmain { flex: 1; min-width: 0; cursor: pointer; }
 .tmain.done { text-decoration: line-through; color: var(--muted); }
+.ttopline { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.ttopline .ttitle2 { flex: 1; min-width: 0; }
+.ttopline .tcount { flex: none; white-space: nowrap; padding-top: 2px; }
 .ttitle2 { font-size: 17px; font-weight: 500; overflow-wrap: anywhere; }
 .ttitle2.done { text-decoration: line-through; color: var(--muted); }
 .tsub { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -587,7 +591,7 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .resrow { gap: 10px; padding: 8px 0; }
 .resmain .small { font-size: 12px; line-height: 1.3; }
 .resmain b { font-size: 14px; line-height: 1.3; display: block; margin-top: 1px; }
-.devam.sm { padding: 6px 12px; font-size: 13px; flex: none; }
+.devam.sm { padding: 6px 10px; font-size: 12px; flex: none; white-space: nowrap; }
 .reshead { gap: 8px; }
 .reshbtn, .resmeta { background: none; border: 0; color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer; padding: 0; }
 .reshbtn { flex: 1; text-align: left; }
@@ -600,7 +604,7 @@ body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 .readmark { color: #3a9d63; font-weight: 800; }
 .resrow.swiped { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .pnav.mini button.readbtn { width: auto; height: 38px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; }
-.tmore { flex: none; width: 34px; height: 34px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; border-radius: 10px; cursor: pointer; padding: 0; }
+.tmore { flex: none; width: 30px; height: 34px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; border-radius: 10px; cursor: pointer; padding: 0; }
 .tmore:active { background: var(--highlight); }
 .stepinp { width: 56px; text-align: center; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 10px; padding: 6px 4px; font-size: 16px; font-weight: 700; }
 .goalchip { pointer-events: auto; border-radius: 999px; padding: 0 12px; height: 38px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 700; background: color-mix(in srgb, var(--card) 92%, transparent); border: 1px solid var(--border); color: var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
