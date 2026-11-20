@@ -700,9 +700,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           onTouchEnd={(e) => {
             const x0 = touchX.current;
             touchX.current = null;
-            if (x0 === null || window.getSelection()?.toString()) return;
+            if (isQuran || x0 === null || window.getSelection()?.toString()) return;
             const dx = e.changedTouches[0].clientX - x0;
-            if (Math.abs(dx) > 60) turn(isQuran ? (dx > 0 ? 1 : -1) : (dx < 0 ? 1 : -1));
+            if (Math.abs(dx) > 60) turn(dx < 0 ? 1 : -1);
           }}
         >
           <article className={"bookpage" + (rs.fit ? " fit" : "")} data-pc={rs.paper} ref={articleRef}>
@@ -739,15 +739,15 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           </article>
         </div>
         <div style={{ height: 64 }} />
-        <div className="pnav mini">
-          <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name="back" size={22} /></button>
+        <div className={"pnav mini" + (isQuran ? " quran" : "")}>
+          <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name={isQuran ? "chevron" : "back"} size={22} /></button>
           <span className="pmid">
           <button className={"readbtn" + (reads.read[pageKey(pp)] === ymdToday() ? " on" : reads.read[pageKey(pp)] ? " old" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] === ymdToday() ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
             {reads.read[pageKey(pp)] === ymdToday() ? "✓" : "○"} {pp + 1} / {pc}
           </button>
           {goalTask && <span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")} title={goalTask.title}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span>}
           </span>
-          <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name="chevron" size={22} /></button>
+          <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name={isQuran ? "back" : "chevron"} size={22} /></button>
         </div>
         {overlays}
       </div>
