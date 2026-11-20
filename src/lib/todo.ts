@@ -75,7 +75,7 @@ const short = (s: string) => (s.length > 22 ? s.slice(0, 20).replace(/,\s*[^,]*$
 const EVERY_TXT: Record<string, string> = { day: "günde", week: "haftada", month: "ayda", range: "tarih aralığında" };
 const sameBook = (g: PageGoal, r: ReadRow) => (g.book_id ? r.book_id === g.book_id : r.scope === g.scope);
 /** Dönemde okunan sayfa sayısı. exceptDoc: o belgeyi sayma (okuyucu kendi canlı sayısını ekler). */
-export function goalCount(t: Pick<Todo, "page_goal" | "start_date" | "end_date"> & { recurrence?: Recurrence | null }, rows: ReadRow[] = READS, exceptDoc?: string, contextKey = "global"): number {
+export function goalCount(t: Pick<Todo, "id" | "page_goal" | "start_date" | "end_date"> & { recurrence?: Recurrence | null }, rows: ReadRow[] = READS, exceptDoc?: string, contextKey = t.id ? `todo:${t.id}` : "global"): number {
   if (!t.page_goal) return 0;
   const g = t.page_goal;
   // sayfa aralığı (ör. Tevhidname 10–20): o aralıkta okunan farklı sayfalar, gün fark etmez
