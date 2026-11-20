@@ -700,9 +700,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           onTouchEnd={(e) => {
             const x0 = touchX.current;
             touchX.current = null;
-            if (x0 === null || window.getSelection()?.toString()) return;
+            if (isQuran || x0 === null || window.getSelection()?.toString()) return;
             const dx = e.changedTouches[0].clientX - x0;
-            if (Math.abs(dx) > 60) turn(isQuran ? (dx < 0 ? 1 : -1) : (dx < 0 ? 1 : -1));
+            if (Math.abs(dx) > 60) turn(dx < 0 ? 1 : -1);
           }}
         >
           <article className={"bookpage" + (rs.fit ? " fit" : "")} data-pc={rs.paper} ref={articleRef}>
