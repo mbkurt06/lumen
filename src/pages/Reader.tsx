@@ -208,7 +208,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const numbered = Number.isFinite(pageNo) && !!doc.parent_id;
   const unit = String(((doc.metadata ?? {}) as Record<string, unknown>).unit ?? "sayfa"); // sayfa / bab
   const unitLabel = (n: number) => (unit === "bab" ? `${n}. Bab` : n ? `Sayfa ${n}` : "Giriş");
-  const reads = usePageReads(isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id, scope, scope === "kuran" ? null : doc.parent_id);
+  const readDocKey = isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id;
+  const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
+  // Görev açılışında görev, ayraçtan açılışta ayraç; boşsa ortak kitap okuması.
+  const readContextKey = focusTaskId ? `todo:${focusTaskId}` : stateBm ? `bookmark:${stateBm}` : "global";
+  const reads = usePageReads(readDocKey, scope, scope === "kuran" ? null : doc.parent_id, readContextKey);
   const pageKey = (i: number) => (numbered ? pageNo : isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
   // bu kitabın okuma hedefi olan görevi: "Hedef 1/5" (diğer bölümler + bu bölümdeki işaretler)
   const goalTask = todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
@@ -220,10 +224,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const live = isRange
       ? Object.entries(reads.read).filter(([pg, d]) => inGoal(goalTask.page_goal!, Number(pg)) && d >= a && d <= b).length
       : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
-    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id) + live;
+    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id, readContextKey) + live;
   })();
   // okundu deyince ilerleyecek ayraç: görevin ayracı, ayraçtan açıldıysa o, kitapta tek ayraç varsa o
-  const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
   const pageLabel = (i: number) => (isQuran ? String(mpages?.[i]?.display_page ?? "") : String(i + 1));
 
   useEffect(() => {
