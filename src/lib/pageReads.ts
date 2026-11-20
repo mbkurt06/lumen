@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ymd } from "./todo";
 
-/* "Okundu" işaretleri sayfa + okuma bağlamına göre tutulur. contextKey görev/ayraç bazlıdır. */
+/* "Okundu" işaretleri sayfa + okuma bağlamına göre tutulur. contextKey görev/ayraç bazlıdır; normal kütüphane okuması kalıcı değildir. */
 type Op = { op: "add" | "del"; doc_key: string; context_key: string; page: number; scope: string; book_id: string | null; day: string };
 const CK = (docKey: string, contextKey: string) => "lumen.reads." + docKey + "." + contextKey;
 const QK = "lumen.reads.queue.v1";
@@ -32,13 +32,14 @@ export async function flushReads() {
 if (typeof window !== "undefined") window.addEventListener("online", () => void flushReads());
 
 /** Bu belgede okunan sayfalar (sayfa → gün) ve aç/kapa. */
-export function usePageReads(docKey: string, scope: string, bookId: string | null, contextKey = "global") {
+export function usePageReads(docKey: string, scope: string, bookId: string | null, contextKey = "global", persist = true) {
   const storageKey = CK(docKey, contextKey);
   const localMap = () => contextKey === "global"
     ? { ...rd<Record<number, string>>(legacyCK(docKey), {}), ...rd<Record<number, string>>(storageKey, {}) }
     : rd<Record<number, string>>(storageKey, {});
-  const [map, setMap] = useState<Record<number, string>>(localMap);
+  const [map, setMap] = useState<Record<number, string>>(() => persist ? localMap() : {});
   useEffect(() => {
+    if (!persist) { setMap({}); return; }
     setMap(localMap());
     const f = () => setMap(localMap());
     window.addEventListener(EV, f);
@@ -53,20 +54,22 @@ export function usePageReads(docKey: string, scope: string, bookId: string | nul
       setMap(m);
     })();
     return () => window.removeEventListener(EV, f);
-  }, [docKey, contextKey, storageKey]);
+  }, [docKey, contextKey, storageKey, persist]);
   const toggle = useCallback((page: number) => {
-    const m = { ...localMap() };
+    const m = persist ? { ...localMap() } : { ...map };
     // daha önceki bir gün okunduysa bugün yeniden "okundu" sayılır (her gün okunan aralıklar için)
     const add = !m[page] || m[page] !== ymd();
     if (add) m[page] = ymd(); else delete m[page];
-    wr(storageKey, m);
     setMap(m);
-    const q = rd<Op[]>(QK, []);
-    q.push({ op: add ? "add" : "del", doc_key: docKey, context_key: contextKey, page, scope, book_id: bookId, day: ymd() });
-    wr(QK, q);
-    try { window.dispatchEvent(new Event(EV)); } catch { /* yok say */ }
-    void flushReads();
+    if (persist) {
+      wr(storageKey, m);
+      const q = rd<Op[]>(QK, []);
+      q.push({ op: add ? "add" : "del", doc_key: docKey, context_key: contextKey, page, scope, book_id: bookId, day: ymd() });
+      wr(QK, q);
+      try { window.dispatchEvent(new Event(EV)); } catch { /* yok say */ }
+      void flushReads();
+    }
     return add;
-  }, [docKey, contextKey, scope, bookId]);
+  }, [docKey, contextKey, scope, bookId, persist, map]);
   return { read: map, toggle };
 }
