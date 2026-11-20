@@ -51,7 +51,7 @@ export function pagesText(ps: number[]): string {
   }
   return out.join(", ");
 }
-export type ReadRow = { book_id: string | null; scope: string; doc_key: string; page: number; day: string };
+export type ReadRow = { book_id: string | null; scope: string; doc_key: string; context_key: string; page: number; day: string };
 /** Okunan sayfalar (son 120 gün); useTodos yükler, okuma hedefleri buradan sayılır. */
 let READS: ReadRow[] = [];
 export const readsCache = () => READS;
@@ -75,14 +75,14 @@ const short = (s: string) => (s.length > 22 ? s.slice(0, 20).replace(/,\s*[^,]*$
 const EVERY_TXT: Record<string, string> = { day: "günde", week: "haftada", month: "ayda", range: "tarih aralığında" };
 const sameBook = (g: PageGoal, r: ReadRow) => (g.book_id ? r.book_id === g.book_id : r.scope === g.scope);
 /** Dönemde okunan sayfa sayısı. exceptDoc: o belgeyi sayma (okuyucu kendi canlı sayısını ekler). */
-export function goalCount(t: Pick<Todo, "page_goal" | "start_date" | "end_date"> & { recurrence?: Recurrence | null }, rows: ReadRow[] = READS, exceptDoc?: string): number {
+export function goalCount(t: Pick<Todo, "page_goal" | "start_date" | "end_date"> & { recurrence?: Recurrence | null }, rows: ReadRow[] = READS, exceptDoc?: string, contextKey = "global"): number {
   if (!t.page_goal) return 0;
   const g = t.page_goal;
   // sayfa aralığı (ör. Tevhidname 10–20): o aralıkta okunan farklı sayfalar, gün fark etmez
   // tekrarlayan görevde (ör. her gün Cevşen 20–30) yalnız bugün okunanlar sayılır
-  if (g.per === "pages") { const [a, b] = rangeWindow(t); return new Set(rows.filter((r) => r.doc_key === g.doc_key && r.doc_key !== exceptDoc && inGoal(g, r.page) && r.day >= a && r.day <= b).map((r) => r.page)).size; }
+  if (g.per === "pages") { const [a, b] = rangeWindow(t); return new Set(rows.filter((r) => r.context_key === contextKey && r.doc_key === g.doc_key && r.doc_key !== exceptDoc && inGoal(g, r.page) && r.day >= a && r.day <= b).map((r) => r.page)).size; }
   const [a, b] = goalPeriod(t);
-  return rows.filter((r) => sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
+  return rows.filter((r) => r.context_key === contextKey && sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
 }
 export const goalLabel = (g: PageGoal) => (g.per === "pages" ? `${(g.unit ?? "sayfa").replace(/^./, (c) => c.toLocaleUpperCase("tr"))} ${g.pages?.length ? short(pagesText(g.pages)) : `${g.from}–${g.to}`}${g.every ? " · " + EVERY_TXT[g.every] : ""}` : g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
 
@@ -197,7 +197,7 @@ export function useTodos() {
       supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
-      supabase.from("page_reads").select("book_id,scope,doc_key,page,day").gte("day", since).limit(10000),
+      supabase.from("page_reads").select("book_id,scope,doc_key,context_key,page,day").gte("day", since).limit(10000),
     ]);
     if (!r.error) READS = mergeQueuedReads((r.data ?? []) as ReadRow[]);
     if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
@@ -238,12 +238,12 @@ export function confirmDeleteTodo(t: Todo, subCount: number): boolean {
 
 /** Telefonda bekleyen (henüz gönderilmemiş) okundu işaretlerini de say. */
 function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
-  let q: { op: "add" | "del"; doc_key: string; page: number; scope: string; book_id: string | null; day: string }[] = [];
+  let q: { op: "add" | "del"; doc_key: string; context_key: string; page: number; scope: string; book_id: string | null; day: string }[] = [];
   try { q = JSON.parse(localStorage.getItem("lumen.reads.queue.v1") ?? "[]"); } catch { /* yok */ }
   const out = [...rows];
   for (const o of q) {
-    const i = out.findIndex((x) => x.doc_key === o.doc_key && x.page === o.page);
-    if (o.op === "add" && i < 0) out.push({ book_id: o.book_id, scope: o.scope, doc_key: o.doc_key, page: o.page, day: o.day });
+    const i = out.findIndex((x) => x.doc_key === o.doc_key && x.context_key === o.context_key && x.page === o.page);
+    if (o.op === "add" && i < 0) out.push({ book_id: o.book_id, scope: o.scope, doc_key: o.doc_key, context_key: o.context_key, page: o.page, day: o.day });
     if (o.op === "del" && i >= 0) out.splice(i, 1);
   }
   return out;
