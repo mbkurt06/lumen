@@ -139,7 +139,8 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Item[]>([]);
   const [roots, setRoots] = useState<Record<string, Item>>({});
-  const [sections, setSections] = useState<{ title: string; items: Item[] }[]>([]);
+  const [groups, setGroups] = useState<Item[]>([]); // Kütüphane ana sayfasındaki bölümler
+  const [vkids, setVkids] = useState<Record<string, Item[]>>({}); // sanal bölümlerin içi (Ezber, İbadet, Diğer)
   const [stack, setStack] = useState<Item[]>([]);
   const [list, setList] = useState<Item[]>([]);
   const [view, setView] = useState<View>({ k: "browse" });
@@ -150,34 +151,39 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
 
   useEffect(() => {
     void getShared<Fav[]>(FAV_KEY).then((f) => { if (f) { setFav(f); writeLocal(f); } });
-    // kütüphanenin bütün başlıkları (Kütüphane sayfasındaki düzen)
+    // Kütüphane ana sayfasındaki düzen: Ezber · İbadet · Kur'an · Risale-i Nur · HE · Diğer
     void (async () => {
       const { data } = await supabase.from("library_items").select(ITEM_COLS).is("parent_id", null);
       const r: Record<string, Item> = {};
       for (const i of (data ?? []) as Item[]) r[i.title] = i;
       setRoots(r);
-      const kids = async (t: string) => (r[t] ? legacyOrder((((await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", r[t].id).order("sort_order").order("title").limit(300)).data) ?? []) as Item[]) : []);
-      const [ext, ris, he] = await Promise.all([
-        r["Dua Ezber"] ? supabase.from("library_items").select(ITEM_COLS).eq("parent_id", r["Dua Ezber"].id).in("title", ["Cevşen-i Kebîr", "Tevhidname"]).then(({ data: d }) => (d ?? []) as Item[]) : Promise.resolve([] as Item[]),
-        kids("Risale-i Nur"), kids("HE Eserleri"),
-      ]);
+      const ezber = r["Dua Ezber"] ? legacyOrder((((await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", r["Dua Ezber"].id).order("sort_order").order("title").limit(300)).data) ?? []) as Item[]) : [];
+      const cev = ["Cevşen-i Kebîr", "Tevhidname"].map((t) => ezber.find((e) => e.title === t)).filter(Boolean) as Item[];
       const pick = (...ts: string[]) => ts.map((t) => r[t]).filter(Boolean) as Item[];
-      const cev = ["Cevşen-i Kebîr", "Tevhidname"].map((t) => ext.find((e) => e.title === t)).filter(Boolean) as Item[];
-      setSections([
-        { title: "KUR'AN-I KERİM", items: pick("Kur’an-ı Kerim") },
-        { title: "İBADET", items: [...cev, ...pick("Tesbihat", "Sûreler", "Namaz Duaları", "Günlük Dualar", "Esmâü’l-Hüsnâ", "İslam İlmihali")] },
-        { title: "RİSALE-İ NUR", items: ris },
-        { title: "HE ESERLERİ", items: he },
-      ].filter((s) => s.items.length));
+      const v = (id: string, title: string, subtitle: string): Item => ({ id, parent_id: "v", kind: "virtual", title, subtitle, sort_order: 0, metadata: null });
+      setVkids({
+        "v:ezber": ezber,
+        "v:ibadet": [...pick("Tesbihat", "Sûreler", "Namaz Duaları", "Günlük Dualar", "İslam İlmihali"), ...cev, ...pick("Esmâü’l-Hüsnâ")],
+        "v:diger": [],
+      });
+      setGroups([
+        v("v:ezber", "Ezber", "Sûreler, dualar, Cevşen, Tevhidname"),
+        v("v:ibadet", "İbadet", "Tesbihat, dua, sure, ilmihal, Cevşen"),
+        ...pick("Kur’an-ı Kerim"),
+        ...(r["Risale-i Nur"] ? [{ ...r["Risale-i Nur"], title: "Risale-i Nur Külliyatı" }] : []),
+        ...pick("HE Eserleri"),
+        v("v:diger", "Diğer Kitaplar", "Roman, hikâye ve diğer okumalar"),
+      ]);
     })();
   }, []);
 
   useEffect(() => {
     const top = stack[stack.length - 1];
     if (!top) { setList([]); return; }
+    if (top.kind === "virtual") { setList(vkids[top.id] ?? []); return; }
     void supabase.from("library_items").select(ITEM_COLS).eq("parent_id", top.id).order("sort_order").order("title").limit(1000)
       .then(({ data }) => setList(legacyOrder((data ?? []) as Item[])));
-  }, [stack]);
+  }, [stack, vkids]);
 
   useEffect(() => {
     if (q.trim().length < 2) { setHits([]); return; }
@@ -264,12 +270,19 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
   const Star = ({ f }: { f: Fav }) => (
     <button className={"lpstar" + (favIds.has(f.id) ? " on" : "")} onClick={(e) => { e.stopPropagation(); toggleFav(f); }} aria-label={favIds.has(f.id) ? "Sık kullanılanlardan çıkar" : "Sık kullanılanlara ekle"}>{favIds.has(f.id) ? "★" : "☆"}</button>
   );
-  const Row = ({ it }: { it: Item }) => (
-    <div className="lprow" onClick={() => void open(it)}>
-      <Icon name={it.kind === "document" ? "bookopen" : "library"} size={18} /><span>{it.title}</span><Star f={{ id: it.id, title: it.title }} />
-      <Icon name="chevron" size={16} />
-    </div>
-  );
+  // ada dokun: seç (Kur'an → cüz/sûre, Cevşen → bab seçimi…); oka dokun: alt bölümlere gir
+  const drill = (it: Item) => { if (isKuranRoot(it)) void openKuran(it); else setStack((s) => [...s, it]); };
+  const Row = ({ it }: { it: Item }) => {
+    const group = it.kind === "virtual" || (!it.parent_id && !isKuranRoot(it)); // Ezber, İbadet, Risale, HE, Diğer
+    return (
+      <div className="lprow" onClick={() => (group ? drill(it) : void open(it))}>
+        <Icon name={it.kind === "document" ? "bookopen" : "library"} size={18} />
+        <span>{it.title}{group && it.subtitle ? <small className="muted" style={{ display: "block", fontSize: 12 }}>{it.subtitle}</small> : null}</span>
+        {it.kind !== "virtual" && <Star f={{ id: it.id, title: it.title }} />}
+        {it.kind !== "document" && <button className="lpdrill" onClick={(e) => { e.stopPropagation(); drill(it); }} aria-label="Alt bölümler"><Icon name="chevron" size={18} /></button>}
+      </div>
+    );
+  };
   const top = stack[stack.length - 1];
   const head = view.k === "kuran" ? "Kur'an-ı Kerim" : view.k === "pages" ? view.title : "Kütüphaneden seç";
 
@@ -344,16 +357,14 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
                   <span>{top.title.toLocaleUpperCase("tr")}</span>
                   <button className="link" onClick={() => setStack((s) => s.slice(0, -1))}>‹ Geri</button>
                 </div>
-                <button className="addsub" style={{ marginBottom: 6 }} disabled={busy} onClick={() => void pickFolder(top)}><Icon name="check" size={18} /> “{top.title}” bağla (bölüm seçmeden)</button>
-                <div className="lplist">{list.map((it) => <Row key={it.id} it={it} />)}</div>
+                {top.kind !== "virtual" && top.parent_id && <button className="addsub" style={{ marginBottom: 6 }} disabled={busy} onClick={() => void pickFolder(top)}><Icon name="check" size={18} /> “{top.title}” bağla (bölüm seçmeden)</button>}
+                <div className="lplist">{list.map((it) => <Row key={it.id} it={it} />)}{!list.length && top.kind === "virtual" && <p className="muted small" style={{ padding: 12, margin: 0 }}>Henüz kitap yok.</p>}</div>
               </>
             ) : (
-              sections.map((s) => (
-                <div key={s.title}>
-                  <div className="lbl" style={{ padding: "14px 0 6px" }}>{s.title}</div>
-                  <div className="lplist">{s.items.map((it) => <Row key={it.id} it={it} />)}</div>
-                </div>
-              ))
+              <>
+                <div className="lbl" style={{ padding: "14px 0 6px" }}>KÜTÜPHANE</div>
+                <div className="lplist">{groups.map((it) => <Row key={it.id} it={it} />)}</div>
+              </>
             )}
             {busy && <p className="muted small" style={{ margin: "8px 2px" }}>Yükleniyor…</p>}
             {!Object.keys(roots).length && <p className="muted small">Yükleniyor…</p>}

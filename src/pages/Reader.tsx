@@ -253,17 +253,22 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const t = pp + d;
     window.getSelection()?.removeAllRanges();
     setSel(null);
-    if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: { atEnd: true } }); return; }
-    if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true }); return; }
+    if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: { atEnd: true, taskId: focusTaskId, bmId: stateBm } }); return; }
+    if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }); return; }
     setPp(t);
     document.querySelector(".content")?.scrollTo(0, 0);
   };
   // okundu: işaretle; görevden açıldıysa bağlı ayracı sonraki sayfanın başına taşı; ayara göre sonraki sayfaya geç
   const markRead = () => {
     const added = reads.toggle(pageKey(pp));
-    if (!added) return;
-    try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    if (!added) {
+      // işaret kaldırıldı: ayraç bu sayfaya geri döner (bir dahaki açılışta okunmamış sayfadan başlar)
+      const first = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp]?.[0]?.id;
+      if (bmToMove && first) { const w = where(first); void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: first, mushaf_page: w.page, quote: textOf(first), autoTitle: w.label, label: w.label }).then(() => void reloadBms()); }
+      return;
+    }
+    try { navigator.vibrate?.(15); } catch { /* yok say */ }
     if (bmToMove) {
       const nextFirst = isQuran ? mpages?.[pp + 1]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp + 1]?.[0]?.id;
       const curLast = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id;
@@ -293,9 +298,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // numaralı belgede okundu: işaretle, bağlı ayracı sonraki sayfaya taşı, ayara göre sonrakine geç
   const markReadDoc = () => {
     const added = reads.toggle(pageNo);
-    if (!added) return;
-    try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    if (!added) {
+      // işaret kaldırıldı: ayraç bu sayfaya geri döner
+      if (bmToMove) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo)}`, label: unitLabel(pageNo) }).then(() => void reloadBms());
+      return;
+    }
+    try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const g = goalTask?.page_goal;
     if (g?.per === "pages" && pageNo === g.to && g.from != null) {
       // aralığın sonu: ayraç baştaki sayfaya döner (bir dahaki okumada baştan)
@@ -819,17 +828,17 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           <footer className="duafoot">{doc.title}</footer>
         </section>
       </div>
-      <nav className="dpager">
-        <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true })}>‹ Önceki</button>
+      <nav className={"dpager" + (numbered ? " fixed" : "")}>
+        <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } })}>‹ Önceki</button>
         {numbered && (
           <button className={"dread" + (reads.read[pageNo] === ymdToday() ? " on" : reads.read[pageNo] ? " old" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
             {reads.read[pageNo] === ymdToday() ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
           </button>
         )}
-        <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true })}>Sonraki ›</button>
+        <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } })}>Sonraki ›</button>
       </nav>
-      {numbered && goalTask && <div className="dgoal"><span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span></div>}
-      <div style={{ height: 90 }} />
+      {numbered && goalTask && <div className="dgoal fixed"><span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span></div>}
+      <div style={{ height: numbered ? 150 : 90 }} />
       {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" scale={rs.cnt} />}
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}
       {overlays}
