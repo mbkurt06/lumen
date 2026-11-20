@@ -210,13 +210,14 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const unitLabel = (n: number) => (unit === "bab" ? `${n}. Bab` : n ? `Sayfa ${n}` : "Giriş");
   const readDocKey = isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id;
   const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
-  // Görev açılışında görev, ayraçtan açılışta ayraç; boşsa ortak kitap okuması.
+  // Sadece görev/ayraç bağlamında okuma durumu kalıcıdır; normal kütüphane girişi oturum içidir.
   const readContextKey = focusTaskId ? `todo:${focusTaskId}` : stateBm ? `bookmark:${stateBm}` : "global";
-  const reads = usePageReads(readDocKey, scope, scope === "kuran" ? null : doc.parent_id, readContextKey);
+  const contextualRead = !!focusTaskId || !!stateBm;
+  const reads = usePageReads(readDocKey, scope, scope === "kuran" ? null : doc.parent_id, readContextKey, contextualRead);
   const pageKey = (i: number) => (numbered ? pageNo : isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
-  // bu kitabın okuma hedefi olan görevi: "Hedef 1/5" (diğer bölümler + bu bölümdeki işaretler)
-  const goalTask = todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
-    ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope));
+  // Normal kütüphane girişinde görev ilerlemesi gösterilmez.
+  const goalTask = contextualRead ? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
+    ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope)) : null;
   const goalNow = (() => {
     if (!goalTask) return 0;
     const isRange = goalTask.page_goal!.per === "pages";
@@ -264,7 +265,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // okundu: işaretle; görevden açıldıysa bağlı ayracı sonraki sayfanın başına taşı; ayara göre sonraki sayfaya geç
   const markRead = () => {
     const added = reads.toggle(pageKey(pp));
-    const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    const bmToMove = taskT?.bookmark_id ?? stateBm ?? null;
     if (!added) {
       // işaret kaldırıldı: ayraç bu sayfaya geri döner (bir dahaki açılışta okunmamış sayfadan başlar)
       const first = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp]?.[0]?.id;
