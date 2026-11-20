@@ -8,12 +8,13 @@ const CK = (docKey: string, contextKey: string) => "lumen.reads." + docKey + "."
 const QK = "lumen.reads.queue.v1";
 const EV = "lumen-reads";
 const rd = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : d; } catch { return d; } };
+const legacyCK = (docKey: string) => "lumen.reads." + docKey;
 const wr = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* yer yok */ } };
 
 let flushing = false;
 export async function flushReads() {
   if (flushing) return;
-  const q = rd<Op[]>(QK, []);
+  const q = rd<Op[]>(QK, []).map((o) => ({ ...o, context_key: o.context_key || "global" }));
   if (!q.length) return;
   flushing = true;
   try {
@@ -33,10 +34,13 @@ if (typeof window !== "undefined") window.addEventListener("online", () => void 
 /** Bu belgede okunan sayfalar (sayfa → gün) ve aç/kapa. */
 export function usePageReads(docKey: string, scope: string, bookId: string | null, contextKey = "global") {
   const storageKey = CK(docKey, contextKey);
-  const [map, setMap] = useState<Record<number, string>>(() => rd(storageKey, {}));
+  const localMap = () => contextKey === "global"
+    ? { ...rd<Record<number, string>>(legacyCK(docKey), {}), ...rd<Record<number, string>>(storageKey, {}) }
+    : rd<Record<number, string>>(storageKey, {});
+  const [map, setMap] = useState<Record<number, string>>(localMap);
   useEffect(() => {
-    setMap(rd(storageKey, {}));
-    const f = () => setMap(rd(storageKey, {}));
+    setMap(localMap());
+    const f = () => setMap(localMap());
     window.addEventListener(EV, f);
     void (async () => {
       await flushReads();
@@ -51,7 +55,7 @@ export function usePageReads(docKey: string, scope: string, bookId: string | nul
     return () => window.removeEventListener(EV, f);
   }, [docKey, contextKey, storageKey]);
   const toggle = useCallback((page: number) => {
-    const m = { ...rd<Record<number, string>>(storageKey, {}) };
+    const m = { ...localMap() };
     // daha önceki bir gün okunduysa bugün yeniden "okundu" sayılır (her gün okunan aralıklar için)
     const add = !m[page] || m[page] !== ymd();
     if (add) m[page] = ymd(); else delete m[page];
