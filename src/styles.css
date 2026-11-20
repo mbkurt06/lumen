@@ -155,10 +155,14 @@ h1 { margin: 0; }
 /* ── Yapılacaklar (tasarım: Günüm / Liste / Ekle) ── */
 .pright { margin-left: auto; }
 .pright .iconbtn { margin: 0 -6px 0 0; }
+.todo-settings { display: flex; align-items: center; gap: 10px; margin: 8px 16px 4px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--muted); font-size: 13px; }
+.todo-settings span { display: flex; align-items: center; gap: 6px; margin-right: auto; }
+.todo-settings button { min-width: 38px; height: 30px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-weight: 700; cursor: pointer; }
+.todo-settings b { min-width: 42px; color: var(--accent); text-align: center; font-size: 12px; }
 .gbar { height: 3px; background: var(--border); margin: 6px 16px 8px; border-radius: 3px; overflow: hidden; }
 .gbar i { display: block; height: 100%; background: var(--accent); }
 .sec { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 32px); margin: 14px 16px 8px; padding: 0 0 6px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .08em; cursor: pointer; text-align: left; }
-.sec.late { color: var(--danger); }
+.sec.late { color: var(--danger); }\n.sec.completed { color: var(--accent); }
 .tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 10px 14px; }
 .trow2 { display: flex; align-items: center; gap: 12px; }
 .tcircle { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); background: none; color: #0f1115; display: grid; place-items: center; padding: 0; cursor: pointer; }
