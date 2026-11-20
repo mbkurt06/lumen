@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, goalCount, goalLabel, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, goalCount, goalLabel, goalProgress, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -79,12 +79,12 @@ export function Todo() {
     const kz = t.kind === "kaza" || t.kind === "kaza_oruc";
     const pl = placeOf(t);
     const rt = recurrenceText(t);
+    const g = t.page_goal;
+    const gc = g ? goalProgress(t) : 0;
     const resume = pl ? `${pl.live ? "Kaldığın: " : ""}${pl.label}` : "";
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
+      : [t.page_goal ? `${goalLabel(t.page_goal)} ${gc}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
-    const g = t.page_goal;
-    const gc = g ? goalCount(t) : 0;
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
     const sub2 = kids.get(t.id) ?? [];
