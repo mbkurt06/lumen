@@ -24,6 +24,7 @@ export function Todo() {
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
+  const [todoSettingsOpen, setTodoSettingsOpen] = useState(false);
   const [todoScale, setTodoScale] = useState(() => {
     try { return Number(localStorage.getItem("lumen.todo.textScale") ?? "0.9") || 0.9; } catch { return 1; }
   });
@@ -92,11 +93,12 @@ export function Todo() {
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
           <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl || t.related_library_item_id ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
-            <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
+            <div className="ttopline">
+              <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
+              {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")} style={{ fontSize: `${15 * todoScale}px` }}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
+            </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
-
           </div>
-          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")} style={{ fontSize: `${15 * todoScale}px` }}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
@@ -140,14 +142,17 @@ export function Todo() {
       <PageHeader
         title={title}
         subtitle={subtitle}
-        right={<button className="iconbtn" onClick={() => setMenu(true)} aria-label="Liste menüsü"><Icon name="dots" size={26} /></button>}
+        right={<div className="todo-head-actions">
+          <button className="iconbtn" onClick={() => setTodoSettingsOpen((v) => !v)} aria-label="Görev ayarları"><Icon name="sliders" size={24} /></button>
+          <button className="iconbtn" onClick={() => setMenu(true)} aria-label="Liste menüsü"><Icon name="dots" size={26} /></button>
+        </div>}
       />
-      <div className="todo-settings">
+      {todoSettingsOpen && <div className="todo-settings">
         <span><Icon name="sliders" size={17} /> Yazı boyutu</span>
-        <button onClick={() => setTodoScale((s) => Math.max(0.75, Number((s - 0.1).toFixed(2))))} aria-label="Yazıları küçült">A−</button>
+        <button onClick={() => setTodoScale((s) => Math.max(0.55, Number((s - 0.1).toFixed(2))))} aria-label="Yazıları küçült">A−</button>
         <b>%{Math.round(todoScale * 100)}</b>
         <button onClick={() => setTodoScale((s) => Math.min(1.25, Number((s + 0.1).toFixed(2))))} aria-label="Yazıları büyüt">A+</button>
-      </div>
+      </div>}
       {!current && <div className="gbar"><i style={{ width: `${today.length ? (doneCount / today.length) * 100 : 0}%` }} /></div>}
       {err && <p className="error" style={{ padding: "0 16px" }}>{err}</p>}
 
