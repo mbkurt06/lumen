@@ -95,11 +95,11 @@ export function Todo() {
           <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl || t.related_library_item_id ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
             <div className="ttopline">
               <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
-              {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")} style={{ fontSize: `${15 * todoScale}px` }}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
+              {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
           </div>
-          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{pl?.live ? "Devam" : "Git"}</button>}
+          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{g ? `${gc}/${g.n}` : pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
         {g ? <div className="tbar"><i style={{ width: `${Math.min(100, (gc / g.n) * 100)}%` }} /></div>
