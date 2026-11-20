@@ -136,7 +136,7 @@ export function Todo() {
   const addGroup = async (name: string) => { await supabase.from("todo_groups").insert({ title: name }); void reload(); };
 
   return (
-    <>
+    <div className="todo-page">
       <PageHeader
         title={title}
         subtitle={subtitle}
