@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
@@ -24,6 +24,12 @@ export function Todo() {
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
+  const [todoScale, setTodoScale] = useState(() => {
+    try { return Number(localStorage.getItem("lumen.todo.textScale") ?? "0.9") || 0.9; } catch { return 1; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("lumen.todo.textScale", String(todoScale)); } catch { /* yer yok */ }
+  }, [todoScale]);
   const [act, setAct] = useState<T | null>(null); // görev menüsü: git / tamamla / düzenle / sil
   const delTask = async (t: T) => {
     if (!confirmDeleteTodo(t, todos.filter((x) => x.parent_todo_id === t.id).length)) return;
@@ -43,9 +49,11 @@ export function Todo() {
 
   const current: TList | undefined = listId ? listOf.get(listId) : undefined;
   const today = todos.filter(inToday);
-  const overdue = today.filter(isOverdue);
-  const normalToday = today.filter((t) => !isOverdue(t));
-  const doneCount = today.filter(isDoneToday).length;
+  const activeToday = today.filter((t) => !isDoneToday(t));
+  const completedToday = today.filter(isDoneToday);
+  const overdue = activeToday.filter(isOverdue);
+  const normalToday = activeToday.filter((t) => !isOverdue(t));
+  const doneCount = completedToday.length;
 
   const listTodos = listId ? todos.filter((t) => t.list_id === listId && !t.parent_todo_id) : [];
   const listActive = listTodos.filter((t) => !t.is_completed);
@@ -84,11 +92,11 @@ export function Todo() {
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
           <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl || t.related_library_item_id ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
-            <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
-            {sub && <div className="tsub">{sub}</div>}
+            <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
+            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
 
           </div>
-          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount">{cnt}/{per}</div>}
+          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")} style={{ fontSize: `${15 * todoScale}px` }}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
@@ -134,6 +142,12 @@ export function Todo() {
         subtitle={subtitle}
         right={<button className="iconbtn" onClick={() => setMenu(true)} aria-label="Liste menüsü"><Icon name="dots" size={26} /></button>}
       />
+      <div className="todo-settings">
+        <span><Icon name="sliders" size={17} /> Yazı boyutu</span>
+        <button onClick={() => setTodoScale((s) => Math.max(0.75, Number((s - 0.1).toFixed(2))))} aria-label="Yazıları küçült">A−</button>
+        <b>%{Math.round(todoScale * 100)}</b>
+        <button onClick={() => setTodoScale((s) => Math.min(1.25, Number((s + 0.1).toFixed(2))))} aria-label="Yazıları büyüt">A+</button>
+      </div>
       {!current && <div className="gbar"><i style={{ width: `${today.length ? (doneCount / today.length) * 100 : 0}%` }} /></div>}
       {err && <p className="error" style={{ padding: "0 16px" }}>{err}</p>}
 
@@ -152,6 +166,15 @@ export function Todo() {
           <Section id="nova" title="NOVA" items={normalToday.filter((t) => t.kind === "nova")} />
           <Section id="namaz" title="NAMAZ" items={normalToday.filter((t) => t.kind === "kaza" || t.kind === "kaza_oruc")} />
           <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !(t.bookmark_id || t.reading_ref || t.related_library_item_id) && !["nova", "kaza", "kaza_oruc"].includes(t.kind))} />
+          {completedToday.length > 0 && (
+            <>
+              <button className="sec completed" onClick={() => setDoneOpen(!doneOpen)}>
+                <span>TAMAMLANANLAR · {completedToday.length}</span>
+                <Icon name={doneOpen ? "chevdown" : "chevron"} size={18} />
+              </button>
+              {doneOpen && completedToday.map((t) => <Row key={t.id} t={t} />)}
+            </>
+          )}
           {today.length === 0 && <p className="muted" style={{ padding: "24px 20px", textAlign: "center" }}>Bugün için görev yok. Sağ alttaki + ile ekleyebilirsin.</p>}
         </>
       ) : (
@@ -203,6 +226,6 @@ export function Todo() {
         </>
       )}
       {ask && <AskDialog title={ask === "list" ? "Yeni liste" : "Yeni grup"} placeholder="Ad" onClose={() => setAsk(null)} onSubmit={(v) => void (ask === "list" ? addList(v) : addGroup(v))} />}
-    </>
+    </div>
   );
 }
