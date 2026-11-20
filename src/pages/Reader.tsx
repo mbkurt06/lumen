@@ -4,7 +4,8 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { goalCount, goalLabel, goalPeriod, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
+import { fixedPages } from "../lib/bookPages";
+import { goalCount, goalLabel, goalPeriod, inGoal, nextGoalPage, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -81,31 +82,6 @@ function paginate(blocks: Block[], budget: number): Block[][] {
     }
     if (size + l > budget && cur.length) { pages.push(cur); cur = []; size = 0; }
     cur.push(b); size += l;
-  }
-  if (cur.length) pages.push(cur);
-  return pages.length ? pages : [[]];
-}
-
-/* Eski Lumen'deki kitap sayfası bölmesiyle aynı: her sayfa sabit bir metin yükü taşır. */
-function nodeWeight(n: Node) {
-  const title = (n.title || "").length, text = (n.text_content || "").length;
-  const arabic = (n.secondary_text || "").length, tr = (n.translation || "").length;
-  return text + tr + Math.round(arabic * 1.25) + title * 2.2 + (n.title ? 180 : 40);
-}
-// Eski uygulamada senin yazı ölçeğin 0.8 idi: 2250 / 0.8^1.65 ≈ 3250. Örnek gönderdiğin sayfalar bu değerle bölünmüştü;
-// artık yazı boyutundan bağımsız sabit tutuluyor.
-const PAGE_LOAD = 3250;
-function fixedPages(nodes: Node[], target = PAGE_LOAD): Node[][] {
-  const pages: Node[][] = [];
-  let cur: Node[] = [];
-  let w = 0;
-  for (const n of nodes) {
-    const nw = nodeWeight(n);
-    const heading = !!n.title && !n.text_content && !n.secondary_text;
-    if (cur.length && (w + nw > target || (heading && w > target * 0.78))) { pages.push(cur); cur = []; w = 0; }
-    cur.push(n);
-    w += nw;
-    if (heading && w > target * 0.9) { pages.push(cur); cur = []; w = 0; }
   }
   if (cur.length) pages.push(cur);
   return pages.length ? pages : [[]];
@@ -242,7 +218,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const isRange = goalTask.page_goal!.per === "pages";
     const [a, b] = isRange ? rangeWindow(goalTask) : goalPeriod(goalTask);
     const live = isRange
-      ? Object.entries(reads.read).filter(([pg, d]) => Number(pg) >= (goalTask.page_goal!.from ?? 0) && Number(pg) <= (goalTask.page_goal!.to ?? 1e9) && d >= a && d <= b).length
+      ? Object.entries(reads.read).filter(([pg, d]) => inGoal(goalTask.page_goal!, Number(pg)) && d >= a && d <= b).length
       : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
     return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id) + live;
   })();
@@ -295,7 +271,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const g = goalTask?.page_goal;
       const wrap = g?.per === "pages" && pageKey(pp) === g.to && g.from != null;
       const startNid = wrap ? (isQuran ? mpages?.find((m) => m.display_page === g!.from)?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[(g!.from ?? 1) - 1]?.[0]?.id) : undefined;
-      const nid = startNid ?? nextFirst ?? curLast;
+      // seçili sayfalarda (ör. 3, 7, 12) ayraç bir sonraki seçili sayfaya gider
+      const ng = g?.per === "pages" && g.pages?.length ? nextGoalPage(g, pageKey(pp)) : null;
+      const ngIdx = ng != null ? Array.from({ length: pc }, (_, i) => i).find((i) => pageKey(i) === ng) : undefined;
+      const selNid = ngIdx != null ? (isQuran ? mpages?.[ngIdx]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[ngIdx]?.[0]?.id) : undefined;
+      const nid = startNid ?? selNid ?? nextFirst ?? curLast;
       if (nid) {
         const w = where(nid);
         void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
@@ -303,6 +283,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     }
     const g2 = goalTask?.page_goal;
     if (g2?.per === "pages" && pageKey(pp) === g2.to) { flash(`${goalLabel(g2)} tamamlandı · ayraç ${g2.from}. sayfaya döndü`); return; }
+    if (cp.readNext && g2?.per === "pages" && g2.pages?.length) {
+      const ng = nextGoalPage(g2, pageKey(pp));
+      const i = ng != null ? Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === ng) : undefined;
+      if (i != null) { setTimeout(() => { setPp(i); document.querySelector(".content")?.scrollTo(0, 0); }, 180); return; }
+    }
     if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
   };
   // numaralı belgede okundu: işaretle, bağlı ayracı sonraki sayfaya taşı, ayara göre sonrakine geç
@@ -320,6 +305,19 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       });
       flash(`${goalLabel(g)} tamamlandı · ayraç ${unitLabel(g.from)}'e döndü`);
       return;
+    }
+    // seçili bablar/sayfalar (ör. 3, 7, 12): bir sonraki seçili belgeye geç
+    if (g?.per === "pages" && g.pages?.length) {
+      const ng = nextGoalPage(g, pageNo);
+      if (ng != null) {
+        void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(ng)).maybeSingle().then(({ data }) => {
+          const id = (data as { id: string } | null)?.id;
+          if (!id) return;
+          if (bmToMove) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: id, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(ng)}`, label: unitLabel(ng) });
+          if (cp.readNext) setTimeout(() => nav(`/kutuphane/${id}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
+        });
+        return;
+      }
     }
     if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo + 1)}`, label: unitLabel(pageNo + 1) });
     if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);

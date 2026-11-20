@@ -3,7 +3,7 @@ import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { addBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { LibPicker, type Picked } from "../components/LibPicker";
-import { SECTION_LABEL, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
+import { SECTION_LABEL, pagesText, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
 import type { Scope } from "../lib/readerSettings";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
@@ -55,6 +55,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       : edit?.page_goal?.per === "pages" && !(edit.recurrence && edit.recurrence.type !== "once") ? "range" : "day"));
   const [gFrom, setGFrom] = useState(edit?.page_goal?.from ?? place?.pos.page_no ?? 1);
   const [gTo, setGTo] = useState(edit?.page_goal?.to ?? (place?.pos.page_no ?? 1) + 9);
+  const [gPages, setGPages] = useState<number[] | null>(edit?.page_goal?.pages ?? null); // ayrı ayrı seçilen sayfalar
   const canPages = pl?.pos.page_no != null || edit?.page_goal?.per === "pages";
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -69,6 +70,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     if (!title.trim()) setTitle(pk.title);
     if (pk.from != null) setGFrom(pk.from);
     if (pk.to != null) setGTo(pk.to);
+    setGPages(pk.pages ?? null);
     if (pk.range && pk.from != null) { setGOpen(true); setGPer("pages"); }
   };
 
@@ -108,7 +110,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     const goalBook = edit?.page_goal ? { book_id: edit.page_goal.book_id, scope: edit.page_goal.scope }
       : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope } : null;
     const page_goal: PageGoal | null = gPer === "pages" && goalBook
-      ? { n: Math.abs(gTo - gFrom) + 1, per: "pages", from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? pl?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
+      ? { n: gPages?.length ?? Math.abs(gTo - gFrom) + 1, per: "pages", from: gPages ? Math.min(...gPages) : Math.min(gFrom, gTo), to: gPages ? Math.max(...gPages) : Math.max(gFrom, gTo), ...(gPages ? { pages: gPages } : {}), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? pl?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
       : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, unit, ...goalBook } : null;
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
@@ -145,7 +147,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           <div className="placebox">
             <div className="lbl" style={{ padding: "10px 0 6px", display: "flex", justifyContent: "space-between" }}>
               <span>BAĞLI YER · {SECTION_LABEL[p.scope] ?? ""}{p.book_title ? " · " + p.book_title : ""}</span>
-              {picked && !place && <span style={{ display: "flex", gap: 14 }}><button className="link" onClick={() => setShowPick(true)}>Değiştir</button><button className="link" onClick={() => { setPicked(null); setMode("yok"); if (gPer === "pages") { setGPer("none"); setGOpen(false); } }}>Kaldır</button></span>}
+              {picked && !place && <span style={{ display: "flex", gap: 14 }}><button className="link" onClick={() => setShowPick(true)}>Değiştir</button><button className="link" onClick={() => { setPicked(null); setGPages(null); setMode("yok"); if (gPer === "pages") { setGPer("none"); setGOpen(false); } }}>Kaldır</button></span>}
             </div>
             <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{p.label}</b>{p.quote && <span>“{p.quote.slice(0, 140)}{p.quote.length > 140 ? "…" : ""}”</span>}</div></div>
             <div className="seg3 three">
@@ -208,15 +210,21 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
             </div>
             {gPer === "pages" && (
               <>
-                <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
-                <div className="line"><span>{Unit} (bitiş)</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                {gPages ? (
+                  <div className="line"><span>Seçili {unit}lar</span><span style={{ display: "flex", gap: 10, alignItems: "center" }}><b style={{ textAlign: "right" }}>{pagesText(gPages)}</b><button className="link" onClick={() => { setGFrom(Math.min(...gPages)); setGTo(Math.max(...gPages)); setGPages(null); }}>Aralığa çevir</button></span></div>
+                ) : (
+                  <>
+                    <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                    <div className="line"><span>{Unit} (bitiş)</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                  </>
+                )}
                 {rEvery === "range" && !recurring && (
                   <>
                     <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
                     <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
                   </>
                 )}
-                <p className="muted small" style={{ margin: "4px 2px 0" }}>{Unit} {Math.min(gFrom, gTo)}–{Math.max(gFrom, gTo)} ({Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"} baştan okunur. Her {unit} sonunda “okundu”ya bastıkça dolar; son {unit} okununca ayraç {Math.min(gFrom, gTo)}. {unit}ya döner.</p>
+                <p className="muted small" style={{ margin: "4px 2px 0" }}>{Unit} {gPages ? pagesText(gPages) : `${Math.min(gFrom, gTo)}–${Math.max(gFrom, gTo)}`} ({gPages?.length ?? Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"} baştan okunur. Her {unit} sonunda “okundu”ya bastıkça dolar; son {unit} okununca ayraç {gPages ? Math.min(...gPages) : Math.min(gFrom, gTo)}. {unit}ya döner.</p>
               </>
             )}
             {gPer !== "none" && gPer !== "pages" && (

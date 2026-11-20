@@ -2,169 +2,276 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "./Icon";
 import { supabase } from "../lib/supabase";
 import { ITEM_COLS, type Item } from "../lib/library";
-import { legacyOrder, loadItemView } from "../lib/loaders";
+import { fetchDocNodes, legacyOrder, loadItemView } from "../lib/loaders";
+import { fixedPages } from "../lib/bookPages";
 import { getShared, setShared } from "../lib/sharedPrefs";
 import { scopeOf } from "../lib/readerSettings";
+import { pagesText } from "../lib/todo";
 import type { Pos } from "../pages/TodoSheet";
 
-/* Görev eklerken "Kütüphaneden bağla": sık kullanılanlar (yıldızlı + en çok seçilen), arama ve gezinme.
-   Kur'an seçilince cüz aralığı seçilir; Cevşen/Tevhidname gibi numaralı kitaplarda bab/sayfa hedefi açılır. */
+/* Görev eklerken "Kütüphaneden bağla".
+   Üstte yıldızladıkların, altta kütüphanenin bütün başlıkları.
+   Kur'an: cüz ya da sûre (birden fazla seçilebilir; tek seçilince içinden sayfa seçilir).
+   Cevşen, Tevhidname, kitap bölümleri: tek sayfa, aralık ya da ayrı ayrı sayfalar; aralık elle de yazılır. */
 
-export type Picked = { pos: Pos; title: string; from?: number; to?: number; range?: boolean };
+export type Picked = { pos: Pos; title: string; from?: number; to?: number; pages?: number[]; range?: boolean };
 type Fav = { id: string; title: string };
+type PItem = { n: number; label: string };
+type View =
+  | { k: "browse" }
+  | { k: "kuran"; root: Item; cuz: Item[]; sure: Item[] }
+  | { k: "pages"; title: string; unit: string; items: PItem[]; pre: number[]; make: (sel: number[]) => Picked | null };
+
 const FAV_KEY = "libFavorites";
-const USE_KEY = "libUse";
-const LS = "lumen.libfav.v1";
+const LS = "lumen.libfav.v2";
+const readLocal = (): Fav[] => { try { return JSON.parse(localStorage.getItem(LS) ?? "[]") as Fav[]; } catch { return []; } };
+const writeLocal = (v: Fav[]) => { try { localStorage.setItem(LS, JSON.stringify(v)); } catch { /* yok */ } };
 
-function readLocal(): { fav: Fav[]; use: Record<string, { t: string; n: number }> } {
-  try { return JSON.parse(localStorage.getItem(LS) ?? "") as { fav: Fav[]; use: Record<string, { t: string; n: number }> }; } catch { return { fav: [], use: {} }; }
-}
-function writeLocal(v: ReturnType<typeof readLocal>) { try { localStorage.setItem(LS, JSON.stringify(v)); } catch { /* yok */ } }
-
-const KURAN_ROOT_TITLE = "Kur’an-ı Kerim";
 const meta = (i: Item) => (i.metadata ?? {}) as Record<string, unknown>;
 const num = (v: unknown) => (v == null || v === "" ? NaN : Number(v));
+const isKuranRoot = (i: Item) => !i.parent_id && i.title.startsWith("Kur");
+const contiguous = (s: number[]) => s.length > 0 && s[s.length - 1] - s[0] + 1 === s.length;
+const sorted = (s: Iterable<number>) => [...new Set(s)].sort((a, b) => a - b);
+// Kur'an: Word sayfası = gösterilen sayfa + 1
+const kFrom = (i: Item) => num(meta(i).start_page) - 1;
+const kTo = (i: Item) => num(meta(i).end_page) - 1;
 
-/** Seçilen öğeden görev formunun "bağlı yer"ini kurar. */
-async function buildPick(item: Item, cuz?: { a: Item; b: Item }): Promise<Picked | null> {
-  const v = await loadItemView(item.id);
-  const root = v.root ?? item;
-  const scope = scopeOf(root.title);
-  if (scope === "kuran") {
-    // Word sayfası = gösterilen sayfa + 1
-    const a = cuz?.a ?? item, b = cuz?.b ?? item;
-    const isRoot = !item.parent_id;
-    const from = isRoot && !cuz ? 0 : num(meta(a).start_page) - 1;
-    const to = isRoot && !cuz ? 603 : num(meta(b).end_page) - 1;
-    const label = cuz ? (a.id === b.id ? a.title : `${a.title} – ${b.title}`) : item.title;
-    const docId = cuz ? a.id : isRoot ? (v.kids.find((k) => k.sort_order >= 1000) ?? v.kids[0])?.id : item.id;
-    if (!docId) return null;
-    return {
-      title: `Kur'an · ${label}`,
-      pos: { doc_id: docId, node_id: null, book_id: null, scope, label: `${label} · Sayfa ${from}`, quote: "", book_title: "Kur'ân-ı Kerîm", mushaf_page: from, page_no: from, doc_key: "kuran" },
-      from, to, range: !!cuz || !isRoot,
-    };
-  }
-  // numaralı sayfa/bab kitapları (Cevşen, Tevhidname): klasör ya da içindeki bir sayfa
-  const folder = item.kind === "document" && Number.isFinite(num(meta(item).page)) ? v.parent : item.kind !== "document" ? item : null;
-  if (folder) {
-    const kids = folder.id === item.id ? v.kids : ((await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", folder.id).order("sort_order").limit(1000)).data ?? []) as Item[];
-    const numbered = kids.filter((k) => k.kind === "document" && Number.isFinite(num(meta(k).page)));
-    if (numbered.length && numbered.length >= kids.length - 1) {
-      const pages = numbered.map((k) => num(meta(k).page));
-      const max = Math.max(...pages);
-      const start = item.kind === "document" ? item : numbered.find((k) => num(meta(k).page) === 1) ?? numbered[0];
-      const p = num(meta(start).page);
-      const unit = String(meta(start).unit ?? "sayfa");
-      const ul = unit === "bab" ? `${p}. Bab` : p ? `Sayfa ${p}` : "Giriş";
-      return {
-        title: folder.title,
-        pos: { doc_id: start.id, node_id: null, book_id: folder.id, scope, label: `${folder.title} · ${ul}`, quote: "", book_title: folder.title, page_no: p, unit, doc_key: folder.id },
-        from: Math.max(1, p), to: max,
-      };
-    }
-    if (item.kind !== "document") {
-      const first = legacyOrder(kids).find((k) => k.kind === "document");
-      if (!first) return null; // içinde klasörler var: gezinmeye devam
-      return { title: item.title, pos: { doc_id: first.id, node_id: null, book_id: item.id, scope, label: item.title, quote: "", book_title: item.title } };
-    }
-  }
-  // tek belge (kitap bölümü, dua…)
-  const paged = scope !== "ibadet";
+function goalOf(sel: number[]) {
+  const s = sorted(sel);
+  return { from: s[0], to: s[s.length - 1], pages: contiguous(s) ? undefined : s, range: true };
+}
+
+function kuranPick(units: Item[], sel?: number[]): Picked | null {
+  if (!units.length) return null;
+  const all = sel ?? sorted(units.flatMap((u) => Array.from({ length: kTo(u) - kFrom(u) + 1 }, (_, i) => kFrom(u) + i)));
+  if (!all.length) return null;
+  const g = goalOf(all);
+  const first = [...units].sort((a, b) => kFrom(a) - kFrom(b)).find((u) => g.from >= kFrom(u) && g.from <= kTo(u)) ?? units[0];
+  const name = units.length <= 3 ? units.map((u) => u.title).join(", ") : `${units.length} ${units[0].sort_order >= 1000 ? "cüz" : "sûre"}`;
   return {
-    title: item.title,
-    pos: { doc_id: item.id, node_id: null, book_id: item.parent_id, scope, label: item.title, quote: "", book_title: v.parent?.title ?? item.title, page_no: paged ? 1 : undefined, doc_key: item.id },
-    from: 1, to: 10,
+    title: `Kur'an · ${name}`,
+    pos: { doc_id: first.id, node_id: null, book_id: null, scope: "kuran", label: `${first.title} · Sayfa ${g.from}`, quote: "", book_title: "Kur'ân-ı Kerîm", mushaf_page: g.from, page_no: g.from, doc_key: "kuran" },
+    ...g,
   };
 }
 
+function numberedPick(folder: Item, kids: Item[], scope: string, sel: number[]): Picked | null {
+  const g = goalOf(sel);
+  const start = kids.find((k) => num(meta(k).page) === g.from) ?? kids[0];
+  if (!start) return null;
+  const unit = String(meta(start).unit ?? "sayfa");
+  const ul = unit === "bab" ? `${g.from}. Bab` : g.from ? `Sayfa ${g.from}` : "Giriş";
+  return {
+    title: folder.title,
+    pos: { doc_id: start.id, node_id: null, book_id: folder.id, scope, label: `${folder.title} · ${ul}`, quote: "", book_title: folder.title, page_no: g.from, unit, doc_key: folder.id },
+    ...g,
+  };
+}
+
+function docPick(doc: Item, bookTitle: string, scope: string, sel: number[] | null, firstNid: (p: number) => string | null): Picked {
+  const g = sel?.length ? goalOf(sel) : null;
+  return {
+    title: doc.title,
+    pos: { doc_id: doc.id, node_id: g ? firstNid(g.from) : null, book_id: doc.parent_id, scope, label: g ? `${doc.title} · Sayfa ${g.from}` : doc.title, quote: "", book_title: bookTitle, page_no: g?.from ?? (scope === "ibadet" ? undefined : 1), doc_key: doc.id },
+    ...(g ?? {}),
+  };
+}
+
+/* ── Sayfa seçici: dokun (tek tek) · aralık (iki uca dokun) · elle aralık yaz ── */
+function PageSelect({ v, onBack, onDone }: { v: Extract<View, { k: "pages" }>; onBack: () => void; onDone: (p: Picked) => void }) {
+  const [sel, setSel] = useState<Set<number>>(() => new Set(v.pre));
+  const [mode, setMode] = useState<"tek" | "aralik">("tek");
+  const [anchor, setAnchor] = useState<number | null>(null);
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const U = v.unit === "bab" ? "Bab" : "Sayfa";
+  const ns = v.items.map((i) => i.n);
+  const lo = Math.min(...ns), hi = Math.max(...ns);
+  const addRange = (x: number, y: number) => {
+    const [p, q] = [Math.min(x, y), Math.max(x, y)];
+    setSel((s) => { const n = new Set(s); for (const i of ns) if (i >= p && i <= q) n.add(i); return n; });
+  };
+  const tap = (n: number) => {
+    if (mode === "tek") { setSel((s) => { const x = new Set(s); if (x.has(n)) x.delete(n); else x.add(n); return x; }); return; }
+    if (anchor == null) { setAnchor(n); setSel((s) => new Set(s).add(n)); }
+    else { addRange(anchor, n); setAnchor(null); }
+  };
+  const list = sorted(sel);
+  const res = list.length ? v.make(list) : null;
+  return (
+    <>
+      <div className="seg3 two" style={{ marginBottom: 8 }}>
+        <button className={mode === "tek" ? "on" : ""} onClick={() => { setMode("tek"); setAnchor(null); }}>Tek tek</button>
+        <button className={mode === "aralik" ? "on" : ""} onClick={() => setMode("aralik")}>Aralık</button>
+      </div>
+      <p className="muted small" style={{ margin: "0 2px 8px" }}>
+        {mode === "tek" ? `Okuyacağın ${U.toLocaleLowerCase("tr")}lara dokun (ayrı ayrı seçebilirsin).` : anchor == null ? "Aralığın başına dokun." : `${anchor}. ${U.toLocaleLowerCase("tr")} · şimdi aralığın sonuna dokun.`}
+      </p>
+      <div className="line">
+        <span>Elle aralık</span>
+        <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input className="stepinp" type="number" inputMode="numeric" placeholder={String(lo)} value={a} onChange={(e) => setA(e.target.value)} />
+          –
+          <input className="stepinp" type="number" inputMode="numeric" placeholder={String(hi)} value={b} onChange={(e) => setB(e.target.value)} />
+          <button className="link" disabled={a === "" || b === ""} onClick={() => { addRange(Number(a), Number(b)); setA(""); setB(""); }}>Ekle</button>
+        </span>
+      </div>
+      <div className="pgrid">
+        {v.items.map((i) => (
+          <button key={i.n} className={(sel.has(i.n) ? "on" : "") + (anchor === i.n ? " anc" : "")} onClick={() => tap(i.n)} title={i.label}>{i.n === 0 && v.unit !== "bab" ? "G" : i.n}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 14, margin: "10px 2px" }}>
+        <button className="link" onClick={() => setSel(new Set(ns))}>Tümü</button>
+        <button className="link" onClick={() => { setSel(new Set()); setAnchor(null); }}>Temizle</button>
+        <span className="muted small" style={{ marginLeft: "auto" }}>{list.length ? `${U} ${pagesText(list)} · ${list.length}` : "Seçilmedi"}</span>
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button className="lpghost" style={{ flex: 1 }} onClick={onBack}>‹ Geri</button>
+        <button className="primary" style={{ flex: 2, marginTop: 0 }} disabled={!res} onClick={() => res && onDone(res)}>Seç</button>
+      </div>
+    </>
+  );
+}
+
 export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; onClose: () => void }) {
-  const [store, setStore] = useState(readLocal);
+  const [fav, setFav] = useState<Fav[]>(readLocal);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Item[]>([]);
-  const [stack, setStack] = useState<Item[]>([]); // gezinme yolu
+  const [roots, setRoots] = useState<Record<string, Item>>({});
+  const [sections, setSections] = useState<{ title: string; items: Item[] }[]>([]);
+  const [stack, setStack] = useState<Item[]>([]);
   const [list, setList] = useState<Item[]>([]);
+  const [view, setView] = useState<View>({ k: "browse" });
   const [busy, setBusy] = useState(false);
-  const [defaults, setDefaults] = useState<Fav[]>([]);
-  const [kuran, setKuran] = useState<{ root: Item; cuz: Item[] } | null>(null);
-  const [ca, setCa] = useState<number | null>(null);
-  const [cb, setCb] = useState<number | null>(null);
+  const [kTab, setKTab] = useState<"cuz" | "sure">("cuz");
+  const [kSel, setKSel] = useState<string[]>([]);
+  const [back, setBack] = useState<View>({ k: "browse" }); // sayfa seçiciden "Geri"
 
-  // hesaptaki yıldızlılar ve kullanım sayıları (bütün cihazlarda aynı)
   useEffect(() => {
-    void Promise.all([getShared<Fav[]>(FAV_KEY), getShared<Record<string, { t: string; n: number }>>(USE_KEY)]).then(([f, u]) => {
-      const s = { fav: f ?? readLocal().fav, use: u ?? readLocal().use };
-      setStore(s); writeLocal(s);
-    });
-    // ilk açılışta öneriler: Kur'an, Cevşen, Tevhidname
-    void supabase.from("library_items").select("id,title").or(`and(parent_id.is.null,title.eq."${KURAN_ROOT_TITLE}"),title.eq."Cevşen-i Kebîr",title.eq.Tevhidname`).limit(5)
-      .then(({ data }) => setDefaults(((data ?? []) as Fav[]).filter((d, i, a) => a.findIndex((x) => x.title === d.title) === i)));
+    void getShared<Fav[]>(FAV_KEY).then((f) => { if (f) { setFav(f); writeLocal(f); } });
+    // kütüphanenin bütün başlıkları (Kütüphane sayfasındaki düzen)
+    void (async () => {
+      const { data } = await supabase.from("library_items").select(ITEM_COLS).is("parent_id", null);
+      const r: Record<string, Item> = {};
+      for (const i of (data ?? []) as Item[]) r[i.title] = i;
+      setRoots(r);
+      const kids = async (t: string) => (r[t] ? legacyOrder((((await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", r[t].id).order("sort_order").order("title").limit(300)).data) ?? []) as Item[]) : []);
+      const [ext, ris, he] = await Promise.all([
+        r["Dua Ezber"] ? supabase.from("library_items").select(ITEM_COLS).eq("parent_id", r["Dua Ezber"].id).in("title", ["Cevşen-i Kebîr", "Tevhidname"]).then(({ data: d }) => (d ?? []) as Item[]) : Promise.resolve([] as Item[]),
+        kids("Risale-i Nur"), kids("HE Eserleri"),
+      ]);
+      const pick = (...ts: string[]) => ts.map((t) => r[t]).filter(Boolean) as Item[];
+      const cev = ["Cevşen-i Kebîr", "Tevhidname"].map((t) => ext.find((e) => e.title === t)).filter(Boolean) as Item[];
+      setSections([
+        { title: "KUR'AN-I KERİM", items: pick("Kur’an-ı Kerim") },
+        { title: "İBADET", items: [...cev, ...pick("Tesbihat", "Sûreler", "Namaz Duaları", "Günlük Dualar", "Esmâü’l-Hüsnâ", "İslam İlmihali")] },
+        { title: "RİSALE-İ NUR", items: ris },
+        { title: "HE ESERLERİ", items: he },
+      ].filter((s) => s.items.length));
+    })();
   }, []);
 
-  // gezinme: kökler ya da klasörün içi
   useEffect(() => {
     const top = stack[stack.length - 1];
-    const qq = supabase.from("library_items").select(ITEM_COLS);
-    void (top ? qq.eq("parent_id", top.id) : qq.is("parent_id", null)).order("sort_order").order("title").limit(400)
+    if (!top) { setList([]); return; }
+    void supabase.from("library_items").select(ITEM_COLS).eq("parent_id", top.id).order("sort_order").order("title").limit(1000)
       .then(({ data }) => setList(legacyOrder((data ?? []) as Item[])));
   }, [stack]);
 
   useEffect(() => {
     if (q.trim().length < 2) { setHits([]); return; }
     const t = setTimeout(async () => {
-      const { data } = await supabase.from("library_items").select(ITEM_COLS).ilike("title", `%${q.trim()}%`).order("kind", { ascending: false }).limit(12);
+      const { data } = await supabase.from("library_items").select(ITEM_COLS).ilike("title", `%${q.trim()}%`).order("kind", { ascending: false }).limit(15);
       setHits((data ?? []) as Item[]);
     }, 250);
     return () => clearTimeout(t);
   }, [q]);
 
-  const favIds = useMemo(() => new Set(store.fav.map((f) => f.id)), [store]);
-  const quick = useMemo(() => {
-    const used = Object.entries(store.use).sort((a, b) => b[1].n - a[1].n).map(([id, u]) => ({ id, title: u.t })).filter((u) => !favIds.has(u.id)).slice(0, 6);
-    const out = [...store.fav, ...used];
-    if (out.length < 3) for (const d of defaults) if (!out.some((o) => o.id === d.id)) out.push(d);
-    return out;
-  }, [store, favIds, defaults]);
-
-  const save = (s: ReturnType<typeof readLocal>, which: "fav" | "use") => {
-    setStore(s); writeLocal(s);
-    void setShared(which === "fav" ? FAV_KEY : USE_KEY, which === "fav" ? s.fav : s.use);
-  };
-  const toggleFav = (f: Fav) => save({ ...store, fav: favIds.has(f.id) ? store.fav.filter((x) => x.id !== f.id) : [...store.fav, f] }, "fav");
-
-  const finish = async (item: Item, cuz?: { a: Item; b: Item }) => {
-    setBusy(true);
-    const p = await buildPick(item, cuz);
-    setBusy(false);
-    if (!p) { setStack((s) => [...s, item]); return; }
-    const u = store.use[item.id];
-    save({ ...store, use: { ...store.use, [item.id]: { t: item.title, n: (u?.n ?? 0) + 1 } } }, "use");
-    onPick(p);
+  const favIds = useMemo(() => new Set(fav.map((f) => f.id)), [fav]);
+  const toggleFav = (f: Fav) => {
+    const n = favIds.has(f.id) ? fav.filter((x) => x.id !== f.id) : [...fav, f];
+    setFav(n); writeLocal(n); void setShared(FAV_KEY, n);
   };
 
-  const choose = async (id: string) => {
-    const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", id).maybeSingle();
-    const it = data as Item | null;
-    if (!it) return;
-    // Kur'an kökü: önce cüz seçimi
-    if (!it.parent_id && it.title.startsWith("Kur")) {
-      const { data: k } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", it.id).gte("sort_order", 1000).order("sort_order");
-      setKuran({ root: it, cuz: (k ?? []) as Item[] }); setCa(null); setCb(null);
-      return;
-    }
-    await finish(it);
+  const scopeFor = async (it: Item) => {
+    if (!it.parent_id) return { scope: scopeOf(it.title), parent: null as Item | null };
+    const v = await loadItemView(it.id);
+    return { scope: scopeOf((v.root ?? it).title), parent: v.parent };
   };
-  // klasöre gir ya da seç
+
+  const openKuran = async (root: Item) => {
+    const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", root.id).order("sort_order").limit(300);
+    const all = (data ?? []) as Item[];
+    setKSel([]);
+    setView({ k: "kuran", root, cuz: all.filter((i) => i.sort_order >= 1000), sure: all.filter((i) => i.sort_order < 1000) });
+  };
+  const kuranUnitPages = (u: Item, back: View) => {
+    const items = Array.from({ length: kTo(u) - kFrom(u) + 1 }, (_, i) => ({ n: kFrom(u) + i, label: `Sayfa ${kFrom(u) + i}` }));
+    setView({ k: "pages", title: `Kur'an · ${u.title}`, unit: "sayfa", items, pre: [], make: (sel) => kuranPick([u], sel) });
+    setBack(back);
+  };
+  // bir başlığa dokununca: Kur'an → cüz/sûre; numaralı kitap → bab/sayfa; kitap bölümü → sayfalar; klasör → içine gir
   const open = async (it: Item) => {
-    if (!it.parent_id && it.title.startsWith("Kur")) return void choose(it.id);
-    if (it.kind === "document") return void finish(it);
-    setStack((s) => [...s, it]);
+    if (busy) return;
+    if (isKuranRoot(it)) return void openKuran(it);
+    setBusy(true);
+    try {
+      const { scope, parent } = await scopeFor(it);
+      if (scope === "kuran" && Number.isFinite(kFrom(it))) { kuranUnitPages(it, { k: "browse" }); return; }
+      const numberedIn = async (folder: Item) => {
+        const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", folder.id).order("sort_order").limit(1000);
+        const kids = ((data ?? []) as Item[]).filter((k) => k.kind === "document");
+        const nk = kids.filter((k) => Number.isFinite(num(meta(k).page)));
+        return nk.length && nk.length >= kids.length - 1 ? nk : null;
+      };
+      const folder = it.kind !== "document" ? it : Number.isFinite(num(meta(it).page)) ? parent : null;
+      if (folder) {
+        const nk = await numberedIn(folder);
+        if (nk) {
+          const unit = String(meta(nk[0]).unit ?? "sayfa");
+          const items = nk.map((k) => ({ n: num(meta(k).page), label: k.title })).sort((a, b) => a.n - b.n);
+          setBack({ k: "browse" });
+          setView({ k: "pages", title: folder.title, unit, items, pre: it.kind === "document" ? [num(meta(it).page)] : [], make: (sel) => numberedPick(folder, nk, scope, sel) });
+          return;
+        }
+        if (it.kind !== "document") { setStack((s) => [...s, it]); return; }
+      }
+      // tek belge: dua gibi sayfasız ise doğrudan; kitap bölümü ise sayfalarını hesapla
+      if (scope === "ibadet") { onPick(docPick(it, parent?.title ?? it.title, scope, null, () => null)); return; }
+      const nodes = await fetchDocNodes(it.id);
+      const pages = fixedPages(nodes);
+      const items = pages.map((_, i) => ({ n: i + 1, label: `Sayfa ${i + 1}` }));
+      setBack({ k: "browse" });
+      setView({ k: "pages", title: it.title, unit: "sayfa", items, pre: [], make: (sel) => docPick(it, parent?.title ?? it.title, scope, sel, (p) => pages[p - 1]?.[0]?.id ?? null) });
+    } finally { setBusy(false); }
+  };
+  // klasörü olduğu gibi seç (sayfasız)
+  const pickFolder = async (it: Item) => {
+    setBusy(true);
+    const { scope } = await scopeFor(it);
+    const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("parent_id", it.id).eq("kind", "document").order("sort_order").limit(1);
+    const first = ((data ?? []) as Item[])[0];
+    setBusy(false);
+    if (!first) return;
+    onPick({ title: it.title, pos: { doc_id: first.id, node_id: null, book_id: it.id, scope, label: it.title, quote: "", book_title: it.title } });
+  };
+  const openById = async (id: string) => {
+    const { data } = await supabase.from("library_items").select(ITEM_COLS).eq("id", id).maybeSingle();
+    if (data) void open(data as Item);
   };
 
   const Star = ({ f }: { f: Fav }) => (
     <button className={"lpstar" + (favIds.has(f.id) ? " on" : "")} onClick={(e) => { e.stopPropagation(); toggleFav(f); }} aria-label={favIds.has(f.id) ? "Sık kullanılanlardan çıkar" : "Sık kullanılanlara ekle"}>{favIds.has(f.id) ? "★" : "☆"}</button>
   );
+  const Row = ({ it }: { it: Item }) => (
+    <div className="lprow" onClick={() => void open(it)}>
+      <Icon name={it.kind === "document" ? "bookopen" : "library"} size={18} /><span>{it.title}</span><Star f={{ id: it.id, title: it.title }} />
+      <Icon name="chevron" size={16} />
+    </div>
+  );
   const top = stack[stack.length - 1];
+  const head = view.k === "kuran" ? "Kur'an-ı Kerim" : view.k === "pages" ? view.title : "Kütüphaneden seç";
 
   return (
     <>
@@ -172,67 +279,84 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
       <div className="sheet" style={{ zIndex: 43 }} role="dialog" aria-label="Kütüphaneden seç">
         <div className="grab" />
         <div className="sheethead">
-          <h2>{kuran ? "Kur'an · cüz seç" : "Kütüphaneden seç"}</h2>
+          <h2 style={{ fontSize: view.k === "browse" ? undefined : 19 }}>{head}</h2>
           <button className="iconbtn" onClick={onClose} aria-label="Kapat"><Icon name="close" size={22} /></button>
         </div>
 
-        {kuran ? (
-          <>
-            <p className="muted small" style={{ margin: "4px 2px 10px" }}>Bir cüze dokun; birden fazla cüz için başlangıç ve bitiş cüzüne dokun.</p>
-            <div className="cuzgrid">
-              {kuran.cuz.map((c, i) => {
-                const n = i + 1;
-                const inR = ca != null && (cb ?? ca) >= n && Math.min(ca, cb ?? ca) <= n && n <= Math.max(ca, cb ?? ca);
-                return <button key={c.id} className={inR ? "on" : ""} onClick={() => { if (ca == null || cb != null) { setCa(n); setCb(null); } else setCb(n); }}>{n}</button>;
-              })}
-            </div>
-            {ca != null && (() => {
-              const a = kuran.cuz[Math.min(ca, cb ?? ca) - 1], b = kuran.cuz[Math.max(ca, cb ?? ca) - 1];
-              return <p className="muted small" style={{ margin: "8px 2px 0" }}>{a.title}{a.id !== b.id ? ` – ${b.title}` : ""} · Sayfa {num(meta(a).start_page) - 1}–{num(meta(b).end_page) - 1}</p>;
-            })()}
-            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-              <button className="lpghost" style={{ flex: 1 }} onClick={() => void finish(kuran.root)}>Tüm Kur'an</button>
-              <button className="primary" style={{ flex: 1, marginTop: 0 }} disabled={ca == null || busy} onClick={() => { const a = kuran.cuz[Math.min(ca!, cb ?? ca!) - 1], b = kuran.cuz[Math.max(ca!, cb ?? ca!) - 1]; void finish(a, { a, b }); }}>Seç</button>
-            </div>
-            <button className="link" style={{ marginTop: 10 }} onClick={() => setKuran(null)}>‹ Geri</button>
-          </>
-        ) : (
-          <>
-            <div className="lbl" style={{ padding: "10px 0 6px" }}>SIK KULLANILANLAR</div>
-            <div className="chipwrap">
-              {quick.map((f) => (
-                <span key={f.id} className="lpchip"><button onClick={() => void choose(f.id)} disabled={busy}>{f.title}</button><Star f={f} /></span>
-              ))}
-            </div>
-            <input className="field" style={{ width: "100%", marginTop: 12 }} placeholder="Ara: sure, kitap, dua…" value={q} onChange={(e) => setQ(e.target.value)} />
-            {hits.length > 0 && (
-              <div className="lplist">
-                {hits.map((h) => (
-                  <div key={h.id} className="lprow" onClick={() => void open(h)}>
-                    <Icon name={h.kind === "document" ? "bookopen" : "library"} size={18} /><span>{h.title}</span><Star f={{ id: h.id, title: h.title }} />
-                  </div>
-                ))}
+        {view.k === "pages" && <PageSelect key={view.title} v={view} onBack={() => setView(back)} onDone={onPick} />}
+
+        {view.k === "kuran" && (() => {
+          const units = kTab === "cuz" ? view.cuz : view.sure;
+          const chosen = units.filter((u) => kSel.includes(u.id));
+          const pages = chosen.reduce((s, u) => s + kTo(u) - kFrom(u) + 1, 0);
+          return (
+            <>
+              <div className="seg3 two" style={{ marginBottom: 8 }}>
+                <button className={kTab === "cuz" ? "on" : ""} onClick={() => { setKTab("cuz"); setKSel([]); }}>Cüz</button>
+                <button className={kTab === "sure" ? "on" : ""} onClick={() => { setKTab("sure"); setKSel([]); }}>Sûre</button>
               </div>
-            )}
-            {!q.trim() && (
-              <>
-                <div className="lbl" style={{ padding: "14px 0 6px", display: "flex", justifyContent: "space-between" }}>
-                  <span>{top ? top.title.toUpperCase() : "KÜTÜPHANE"}</span>
-                  {top && <button className="link" onClick={() => setStack((s) => s.slice(0, -1))}>‹ Geri</button>}
+              <p className="muted small" style={{ margin: "0 2px 8px" }}>Birden fazla seçebilirsin. Tek {kTab === "cuz" ? "cüz" : "sûre"} seçince içinden sayfa da seçebilirsin.</p>
+              {kTab === "cuz" ? (
+                <div className="cuzgrid">
+                  {view.cuz.map((c, i) => (<button key={c.id} className={kSel.includes(c.id) ? "on" : ""} onClick={() => setKSel((s) => (s.includes(c.id) ? s.filter((x) => x !== c.id) : [...s, c.id]))}>{i + 1}</button>))}
                 </div>
-                {top && top.kind !== "document" && (
-                  <button className="addsub" style={{ marginBottom: 6 }} disabled={busy} onClick={() => void finish(top)}><Icon name="check" size={18} /> “{top.title}” seç</button>
-                )}
-                <div className="lplist">
-                  {list.map((it) => (
-                    <div key={it.id} className="lprow" onClick={() => void open(it)}>
-                      <Icon name={it.kind === "document" ? "bookopen" : "library"} size={18} /><span>{it.title}</span><Star f={{ id: it.id, title: it.title }} />
-                      {it.kind !== "document" && <Icon name="chevron" size={16} />}
-                    </div>
+              ) : (
+                <div className="lplist" style={{ maxHeight: "42vh", overflowY: "auto" }}>
+                  {view.sure.map((u) => (
+                    <label key={u.id} className="lprow">
+                      <input type="checkbox" checked={kSel.includes(u.id)} onChange={() => setKSel((s) => (s.includes(u.id) ? s.filter((x) => x !== u.id) : [...s, u.id]))} />
+                      <span>{u.sort_order}. {u.title}</span><span className="muted small" style={{ flex: "none" }}>{kFrom(u)}–{kTo(u)}</span>
+                    </label>
                   ))}
                 </div>
+              )}
+              <p className="muted small" style={{ margin: "8px 2px" }}>{chosen.length ? `${chosen.map((c) => c.title).slice(0, 4).join(", ")}${chosen.length > 4 ? "…" : ""} · ${pages} sayfa` : "Seçilmedi"}</p>
+              {chosen.length === 1 && (
+                <button className="addsub" style={{ marginBottom: 8 }} onClick={() => kuranUnitPages(chosen[0], view)}><Icon name="plus" size={18} /> {chosen[0].title} içinden sayfa seç</button>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="lpghost" style={{ flex: 1 }} onClick={() => setView({ k: "browse" })}>‹ Geri</button>
+                <button className="primary" style={{ flex: 2, marginTop: 0 }} disabled={!chosen.length} onClick={() => { const p = kuranPick(chosen); if (p) onPick(p); }}>Seç</button>
+              </div>
+              <button className="link" style={{ marginTop: 12 }} onClick={() => { const p = kuranPick(view.cuz); if (p) onPick({ ...p, title: "Kur'an-ı Kerim", range: false }); }}>Tüm Kur'an'ı bağla (sayfa seçmeden)</button>
+            </>
+          );
+        })()}
+
+        {view.k === "browse" && (
+          <>
+            {fav.length > 0 ? (
+              <>
+                <div className="lbl" style={{ padding: "10px 0 6px" }}>SIK KULLANILANLAR</div>
+                <div className="chipwrap">
+                  {fav.map((f) => (<span key={f.id} className="lpchip"><button onClick={() => void openById(f.id)} disabled={busy}>{f.title}</button><Star f={f} /></span>))}
+                </div>
               </>
+            ) : (
+              <p className="muted small" style={{ margin: "6px 2px 0" }}>Sık kullandıklarını ☆ ile yıldızla; burada en üstte çıkarlar.</p>
             )}
+            <input className="field" style={{ width: "100%", marginTop: 12 }} placeholder="Ara: sure, kitap, dua…" value={q} onChange={(e) => setQ(e.target.value)} />
+            {q.trim().length >= 2 ? (
+              <div className="lplist">{hits.map((h) => <Row key={h.id} it={h} />)}{!hits.length && <p className="muted small" style={{ padding: 12, margin: 0 }}>Bulunamadı</p>}</div>
+            ) : top ? (
+              <>
+                <div className="lbl" style={{ padding: "14px 0 6px", display: "flex", justifyContent: "space-between" }}>
+                  <span>{top.title.toLocaleUpperCase("tr")}</span>
+                  <button className="link" onClick={() => setStack((s) => s.slice(0, -1))}>‹ Geri</button>
+                </div>
+                <button className="addsub" style={{ marginBottom: 6 }} disabled={busy} onClick={() => void pickFolder(top)}><Icon name="check" size={18} /> “{top.title}” bağla (bölüm seçmeden)</button>
+                <div className="lplist">{list.map((it) => <Row key={it.id} it={it} />)}</div>
+              </>
+            ) : (
+              sections.map((s) => (
+                <div key={s.title}>
+                  <div className="lbl" style={{ padding: "14px 0 6px" }}>{s.title}</div>
+                  <div className="lplist">{s.items.map((it) => <Row key={it.id} it={it} />)}</div>
+                </div>
+              ))
+            )}
+            {busy && <p className="muted small" style={{ margin: "8px 2px" }}>Yükleniyor…</p>}
+            {!Object.keys(roots).length && <p className="muted small">Yükleniyor…</p>}
           </>
         )}
       </div>
