@@ -5,7 +5,7 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { fixedPages } from "../lib/bookPages";
-import { goalCount, goalLabel, goalPeriod, inGoal, nextGoalPage, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
+import { goalCount, goalLabel, goalPeriod, goalProgress, inGoal, nextGoalPage, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -220,6 +220,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope)) : null;
   const goalNow = (() => {
     if (!goalTask) return 0;
+    if (goalTask.page_goal!.per === "day") {
+      const cachedPages = new Set(readsCache().filter((r) => r.context_key === readContextKey && r.doc_key === readDocKey).map((r) => r.page));
+      const liveExtra = Object.keys(reads.read).filter((pg) => !cachedPages.has(Number(pg))).length;
+      return goalProgress(goalTask) + liveExtra;
+    }
     const isRange = goalTask.page_goal!.per === "pages";
     const [a, b] = isRange ? rangeWindow(goalTask) : goalPeriod(goalTask);
     const live = isRange
