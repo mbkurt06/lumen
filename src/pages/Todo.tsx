@@ -70,8 +70,9 @@ export function Todo() {
     const kz = t.kind === "kaza" || t.kind === "kaza_oruc";
     const pl = placeOf(t);
     const rt = recurrenceText(t);
+    const resume = pl ? `${pl.live ? "Kaldığın: " : ""}${pl.label}` : "";
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), l?.title].filter(Boolean).join(" · ");
+      : [t.page_goal ? `${goalLabel(t.page_goal)} ${goalCount(t)}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
     const g = t.page_goal;
     const gc = g ? goalCount(t) : 0;
@@ -85,9 +86,9 @@ export function Todo() {
           <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl || t.related_library_item_id ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
             <div className={"ttitle2" + (done ? " done" : "")}>{t.title}</div>
             {sub && <div className="tsub">{sub}</div>}
-            {pl && <div className="tref">{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>}
+
           </div>
-          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")}>{gc} / {g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount">{cnt} / {per}</div>}
+          {g ? <div className={"tcount" + (gc >= g.n ? " ok" : "")}>{gc}/{g.n}</div> : isRecurring(t) && per > 1 && <div className="tcount">{cnt}/{per}</div>}
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
