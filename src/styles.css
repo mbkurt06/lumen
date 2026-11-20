@@ -159,7 +159,7 @@ h1 { margin: 0; }
 .gbar i { display: block; height: 100%; background: var(--accent); }
 .sec { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 32px); margin: 14px 16px 8px; padding: 0 0 6px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .08em; cursor: pointer; text-align: left; }
 .sec.late { color: var(--danger); }
-.tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 12px 14px; }
+.tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 10px 14px; }
 .trow2 { display: flex; align-items: center; gap: 12px; }
 .tcircle { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); background: none; color: #0f1115; display: grid; place-items: center; padding: 0; cursor: pointer; }
 .tcircle.on { background: var(--accent); border-color: var(--accent); }
@@ -168,10 +168,10 @@ h1 { margin: 0; }
 .tmain.done { text-decoration: line-through; color: var(--muted); }
 .ttitle2 { font-size: 17px; font-weight: 500; overflow-wrap: anywhere; }
 .ttitle2.done { text-decoration: line-through; color: var(--muted); }
-.tsub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.tsub { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tcount { color: var(--accent); font-weight: 700; font-size: 15px; }
 .devam { background: var(--accent); color: #0f1115; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
-.tbar { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.tbar { height: 3px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 8px; }
 .tbar i { display: block; height: 100%; background: var(--accent); }
 .subrow { margin-top: 10px; padding-left: 40px; }
 .fab { position: fixed; right: 20px; bottom: calc(82px + env(safe-area-inset-bottom)); width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: #0f1115; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(0,0,0,.4); cursor: pointer; z-index: 10; }
