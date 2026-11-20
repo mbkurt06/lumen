@@ -25,7 +25,7 @@ export function Todo() {
   const [overdueOpen, setOverdueOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
   const [todoScale, setTodoScale] = useState(() => {
-    try { return Number(localStorage.getItem("lumen.todo.textScale") ?? "1") || 1; } catch { return 1; }
+    try { return Number(localStorage.getItem("lumen.todo.textScale") ?? "0.9") || 0.9; } catch { return 1; }
   });
   useEffect(() => {
     try { localStorage.setItem("lumen.todo.textScale", String(todoScale)); } catch { /* yer yok */ }
