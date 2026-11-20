@@ -85,6 +85,13 @@ export function goalCount(t: Pick<Todo, "id" | "page_goal" | "start_date" | "end
   return rows.filter((r) => r.context_key === contextKey && sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
 }
 export const goalLabel = (g: PageGoal) => (g.per === "pages" ? `${(g.unit ?? "sayfa").replace(/^./, (c) => c.toLocaleUpperCase("tr"))} ${g.pages?.length ? short(pagesText(g.pages)) : `${g.from}–${g.to}`}${g.every ? " · " + EVERY_TXT[g.every] : ""}` : g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
+/** Günlük hedefte kart için toplam okuma; görev bağlamı ve ayraç korunur. */
+export function goalProgress(t: Pick<Todo, "id" | "page_goal">): number {
+  if (!t.page_goal || t.page_goal.per !== "day") return goalCount(t as Pick<Todo, "id" | "page_goal" | "start_date" | "end_date">);
+  const key = t.id ? `todo:${t.id}` : "global";
+  return new Set(READS.filter((r) => r.context_key === key && sameBook(t.page_goal!, r)).map((r) => `${r.doc_key}:${r.page}`)).size;
+}
+
 
 /** Göreve bağlı ayraç (kaldığın yer). */
 export type BookmarkLite = { id: string; title: string; document_id: string; node_id: string | null; quote: string | null; label: string | null; book_title: string | null; section: string | null; scope: string };
