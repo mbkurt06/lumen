@@ -6,30 +6,48 @@ import { supabase } from "./supabase";
 export const MUSHAF_FONT = "LumenExactMushaf";
 const CACHE = "lumen-fonts-v1";
 const CACHE_KEY = "/__lumen/mushaf-font.ttf";
+const CACHE_KEY_V2 = "/__lumen/mushaf-font-v2.ttf"; // yamalı (tenvin + tı durağı)
 let loading: Promise<boolean> | null = null;
 let ready = false;
 
-async function fromCache(): Promise<ArrayBuffer | null> {
+async function fromCache(key = CACHE_KEY): Promise<ArrayBuffer | null> {
   try {
     if (!("caches" in window)) return null;
     const c = await caches.open(CACHE);
-    const r = await c.match(CACHE_KEY);
+    const r = await c.match(key);
     return r ? await r.arrayBuffer() : null;
   } catch { return null; }
 }
-async function toCache(buf: ArrayBuffer) {
+async function toCache(buf: ArrayBuffer, key = CACHE_KEY) {
   try {
     if (!("caches" in window)) return;
     const c = await caches.open(CACHE);
-    await c.put(CACHE_KEY, new Response(buf, { headers: { "content-type": "font/ttf" } }));
+    await c.put(key, new Response(buf, { headers: { "content-type": "font/ttf" } }));
   } catch { /* yok say */ }
+}
+
+const sha256 = async (b: ArrayBuffer) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", b))).map((x) => x.toString(16).padStart(2, "0")).join("");
+/** Orijinal fonta Lumen yamasını uygular; orijinal beklenen dosya değilse olduğu gibi bırakır. */
+async function patchFont(buf: ArrayBuffer): Promise<ArrayBuffer | null> {
+  try {
+    const { MUSHAF_FONT_PATCH: p } = await import("./mushafFontPatch");
+    if ((await sha256(buf)) !== p.src) return null;
+    const a = new Uint8Array(buf), out = new Uint8Array(p.len);
+    let o = 0;
+    for (const op of p.ops) {
+      if (op[0] === "c") { out.set(a.subarray(op[1], op[1] + op[2]), o); o += op[2]; }
+      else { const bin = atob(op[1]); for (let i = 0; i < bin.length; i++) out[o++] = bin.charCodeAt(i); }
+    }
+    return (await sha256(out.buffer)) === p.dst ? out.buffer : null;
+  } catch { return null; }
 }
 
 export function ensureMushafFont(): Promise<boolean> {
   if (ready) return Promise.resolve(true);
   if (loading) return loading;
   loading = (async () => {
-    let buf = await fromCache();
+    let buf = await fromCache(CACHE_KEY_V2);
+    if (!buf) buf = await fromCache();
     if (!buf) {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
@@ -39,6 +57,11 @@ export function ensureMushafFont(): Promise<boolean> {
       buf = await data.arrayBuffer();
       if (!buf.byteLength) return false;
       void toCache(buf.slice(0));
+    }
+    // yamalı sürüm yoksa orijinalden üret ve sakla
+    if (!(await fromCache(CACHE_KEY_V2))) {
+      const patched = await patchFont(buf);
+      if (patched) { buf = patched; void toCache(patched.slice(0), CACHE_KEY_V2); }
     }
     const face = new FontFace(MUSHAF_FONT, buf, { style: "normal", weight: "400", display: "block" });
     await face.load();
