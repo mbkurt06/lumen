@@ -158,7 +158,7 @@ export function Todo() {
       <div className="tcard">
         <div className="trow2">
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
-          <div className="tmain" onClick={() => (kz ? nav("/namaz/kaza") : pl || t.related_library_item_id ? setAct(t) : nav(`/yapilacaklar/g/${t.id}`))}>
+          <div className="tmain" onClick={() => setAct(t)}>
             <div className="ttopline">
               <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
@@ -166,7 +166,6 @@ export function Todo() {
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
-          <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
         {g && barMax > 0 && btn ? <div className="tbar"><i style={{ width: `${Math.min(100, (barV / Math.max(1, barMax)) * 100)}%` }} /></div>
           : isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
@@ -344,6 +343,7 @@ export function Todo() {
             {(() => { const pl = placeOf(act); return pl && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{[pl.section, pl.book].filter(Boolean).join(" · ")}</b><b>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</b>{pl.quote && <span>“{pl.quote.slice(0, 140)}”</span>}</div></div>; })()}
             <div className="card" style={{ padding: 0, marginTop: 12 }}>
               {(placeOf(act) || act.related_library_item_id) && !act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); void goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : placeOf(act) ? "Kitaptaki yere git" : "Kitaba git"}</button>}
+              {act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { setAct(null); nav("/namaz/kaza"); }}><Icon name="calendar" size={20} /> Kaza sayfasına git</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {isRecurring(act) && Math.max(1, act.per_day) > 1 ? `+1 (bugün ${doneOn(act)}/${act.per_day})` : isDoneToday(act) ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
               {!act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); nav(`/yapilacaklar/g/${t.id}`); }}><Icon name="dots" size={20} /> Ayrıntılar</button>
