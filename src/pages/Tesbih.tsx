@@ -2,6 +2,8 @@ import { buzz } from "../lib/counterPrefs";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
+import { RefreshRow } from "../components/RefreshRow";
+import { refreshTree } from "../lib/offlineDownload";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { ITEM_COLS, useRoots, type Item } from "../lib/library";
@@ -100,6 +102,7 @@ export function Tesbihlar() {
   return (
     <>
       <PageHeader back title="Tesbihatlar" subtitle="İbadet" />
+      <RefreshRow label="Tüm tesbihatları güncelle" run={(cb) => refreshTree([...docs.map((d) => d.id), ...(roots["Tesbihat"] ? [roots["Tesbihat"].id] : [])], cb, { also: [...docs.map((d) => d.parent_id ?? ""), roots["Dua Ezber"]?.id ?? ""].filter(Boolean) })} />
       <div className="lbl">NAMAZ TESBİHATLARI</div>
       <div className="clist">
         {namaz.map((d) => <Row key={d.id} d={d} label={d.title.replace(" Tesbihatı", "").replace("Namazı", "namazı")} />)}

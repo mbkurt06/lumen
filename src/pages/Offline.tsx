@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { COLLECTIONS, downloadChanges, downloadCollection, refreshLibrary, type CollectionKey, type Progress } from "../lib/offlineDownload";
-import { cacheInfo, clearOfflineData, looksOffline, netLog, type NetLog } from "../lib/offlineFetch";
+import { cacheInfo, clearOfflineData, looksOffline, netLog, syncWrites, type NetLog } from "../lib/offlineFetch";
+import { failedWrites, onWritesChange, pendingWrites } from "../lib/writeQueue";
 
 const DONE_KEY = (k: string) => "lumen.offline.done." + k;
 const readDone = (k: string) => { try { return localStorage.getItem(DONE_KEY(k)); } catch { return null; } };
@@ -16,6 +17,9 @@ export function Offline() {
   const [online, setOnline] = useState(navigator.onLine);
   const [msg, setMsg] = useState("");
   const cancel = useRef({ cancel: false });
+  const [pend, setPend] = useState(pendingWrites);
+  useEffect(() => onWritesChange(() => setPend(pendingWrites())), []);
+  const failed = failedWrites();
   const [diag, setDiag] = useState<{ log: NetLog[]; info: { caches: boolean; entries: number }; onLine: boolean; off: boolean } | null>(null);
   const showDiag = async () => setDiag({ log: [...netLog], info: await cacheInfo(), onLine: navigator.onLine, off: looksOffline() });
 
@@ -78,6 +82,14 @@ export function Offline() {
       <div className="infoline">
         Açtığın her sayfa zaten cihazda saklanıyor ve internet yokken de açılıyor. Bir bölümün tamamını önceden indirmek için aşağıdan indir.
       </div>
+      <div className="card" style={{ margin: "8px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ flex: 1 }}>
+          <b>Gönderilmeyi bekleyen</b>
+          <span className="muted small" style={{ display: "block" }}>{pend ? `${pend} değişiklik telefonda, internet gelince hesaba gönderilecek` : "Bütün değişiklikler hesaba gönderildi"}</span>
+          {failed.length > 0 && <span className="small" style={{ display: "block", color: "var(--danger)" }}>{failed.length} değişiklik sunucuda kabul edilmedi (silinmiş bir kayda ait olabilir)</span>}
+        </span>
+        {pend > 0 && <button className="bmup" disabled={!online} onClick={() => void syncWrites()}>Şimdi gönder</button>}
+      </div>
       <div className="clist" style={{ marginTop: 8 }}>
         {COLLECTIONS.map((c) => {
           const isBusy = busy === c.key;
@@ -105,11 +117,11 @@ export function Offline() {
           Cihazda kullanılan: {fmtMB(usage.usage)}{usage.quota ? ` / ${fmtMB(usage.quota)}` : ""}
           {persisted === true ? " · kalıcı depolama açık" : persisted === false ? " · tarayıcı yer azalınca silebilir" : ""}
         </div>
-        <div className="small muted">Kur'an yaklaşık 5 MB, İbadet 10 MB, Risale-i Nur 25 MB, HE Eserleri 50 MB yer kaplar. Tesbih sayaçları internetsiz de cihaza kaydedilir, bağlantı gelince hesaba gönderilir. Ayraç ve görev kaydı için şimdilik internet gerekir.</div>
+        <div className="small muted">Kur'an yaklaşık 5 MB, İbadet 10 MB, Risale-i Nur 25 MB, HE Eserleri 50 MB yer kaplar. Tesbih sayaçları, ayraçlar, görevler, notlar, okundu işaretleri ve namaz/kaza kayıtları internetsiz de telefona kaydedilir; bağlantı gelince sırayla hesaba gönderilir.</div>
         <button className="secondary" disabled={!!busy || !!rprog || !online} onClick={() => void refreshAll()}>
           {rprog ? `Yenileniyor… ${rprog.done} / ${rprog.total}` : "Kütüphaneyi yenile (cihazdaki her şey)"}
         </button>
-        <div className="small muted" style={{ marginTop: -4 }}>Cihazdaki kitapları veri tabanındaki güncel hâliyle değiştirir (düzeltilen yazım hataları gibi). Tek bir kitap için: kitabın içindekiler sayfasında ya da okurken ⊞ menüsünde “yenile”.</div>
+        <div className="small muted" style={{ marginTop: -4 }}>Cihazdaki kitapları veri tabanındaki güncel hâliyle değiştirir (düzeltilen yazım hataları gibi). Kütüphanedeki her sayfanın en üstünde de “güncelle” var (bölüm ya da kitap için), okurken ⊞ menüsünde de.</div>
         <button className="secondary" disabled={!!busy || !online} onClick={() => void run(COLLECTIONS.map((c) => c.key), true)}>Baştan tamamen indir</button>
         <button className="secondary" disabled={!!busy} onClick={() => void clearAll()} style={{ color: "var(--danger)" }}>Çevrimdışı verileri sil</button>
         <button className="secondary" onClick={() => void showDiag()}>Tanılama (son istekler)</button>

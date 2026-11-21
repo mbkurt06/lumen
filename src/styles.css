@@ -679,3 +679,11 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 .kacts button { text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: none; color: inherit; cursor: pointer; }
 .kacts button b { display: block; font-weight: 600; }
 .kacts button span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* Kütüphane sayfalarının üstündeki "güncelle" satırı */
+.refrow { padding: 2px 16px 6px; }
+.refrow button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 14px; cursor: pointer; max-width: 100%; }
+.refrow button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.refrow button:active { background: var(--highlight); }
+.refrow button:disabled { color: var(--accent); border-color: var(--accent); }
+.refrow .tbar { margin-top: 6px; }

@@ -6,6 +6,7 @@
      telefon bazen "çevrimiçi" der; her istekte beklememek için).
    Yazma istekleri (kaydetme, silme) olduğu gibi ağa gider. */
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../config";
+import { enqueue, fakeResponse, flushWrites, overlay, pendingWrites, prepare, tableOf } from "./writeQueue";
 const CACHE = "lumen-data-v1";
 const CONTENT_TABLES = ["/rest/v1/library_items", "/rest/v1/content_nodes", "/rest/v1/quran_mushaf_pages"];
 const NET_TIMEOUT_MS = 3500;
@@ -71,6 +72,22 @@ export const offlineFetch: typeof fetch = async (input, init) => {
     catch (e) { markDown(); log(req.url, "auth-hata", t0); throw e; }
   }
 
+  // yazma (görev, ayraç, not…): internet yoksa ya da ağ cevap vermezse sıraya alınır
+  const wt = req.method !== "GET" && req.method !== "HEAD" ? tableOf(req.url) : null;
+  if (wt) {
+    const it = await prepare(req, wt);
+    if (!looksOffline() && !pendingWrites()) {
+      try {
+        const r = await withTimeout(fetch(it.url, { method: it.method, headers: req.headers, body: it.body ?? undefined }), 8000);
+        markUp(); log(req.url, "yaz-ağ", t0); return r;
+      } catch { markDown(); }
+    }
+    enqueue(it);
+    log(req.url, "yaz-sıra", t0);
+    void syncWrites();
+    return fakeResponse(it);
+  }
+
   const cacheable = req.method === "GET" && req.url.includes("/rest/v1/") && hasCaches();
   if (!cacheable) {
     // internet yokken hiç denenmez (iPhone her denemede "Uçak Modu'nu kapatın" uyarısı çıkarıyor)
@@ -93,15 +110,31 @@ export const offlineFetch: typeof fetch = async (input, init) => {
   }
 
   // kişisel veriler (ve indirme sırasında içerik): önce ağ, olmazsa kayıt
+  const rt = tableOf(req.url);
+  const ov = (r: Response) => (rt ? overlay(req, r, rt) : r);
   if (!looksOffline() || forceNetwork) {
-    try { const r = await network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS); log(req.url, "ağ", t0); return r; }
+    try { const r = await network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS); log(req.url, "ağ", t0); return ov(r); }
     catch { markDown(); }
   }
   const hit = await fromCache(key);
-  if (hit) { log(req.url, "cihaz", t0); return hit; }
+  if (hit) { log(req.url, "cihaz", t0); return ov(hit); }
   log(req.url, "cihazda-yok", t0);
   throw new TypeError("offline");
 };
+
+/* ── Sırada bekleyen kayıtları gönder ── */
+export async function syncWrites() {
+  if (looksOffline() || !pendingWrites()) return;
+  await flushWrites(async (url, init) => {
+    try { const r = await withTimeout(fetch(url, init), 15000); markUp(); return r; } catch (e) { markDown(); throw e; }
+  });
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => { setTimeout(() => void syncWrites(), 1500); });
+  setTimeout(() => void syncWrites(), 4000);
+  setInterval(() => void syncWrites(), 45000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void syncWrites(); });
+}
 
 /* ── Yenile: cihazdaki kitap içeriklerini veri tabanındaki güncel hâliyle değiştirir ── */
 let lastHeaders: Record<string, string> | null = null;
@@ -129,7 +162,11 @@ export async function refreshContent(match?: string[], onProgress?: (p: RefreshP
   if (typeof navigator !== "undefined" && navigator.onLine === false) throw new TypeError("offline");
   markUp();
   const cache = await caches.open(CACHE);
-  const keys = (await cache.keys()).map((r) => r.url).filter((u) => CONTENT_TABLES.some((t) => u.includes(t)) && (!match || match.some((id) => u.includes(id))));
+  const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+  const ids = new Set((match ?? []).filter((m) => /^[0-9a-f-]{36}$/i.test(m)).map((m) => m.toLowerCase()));
+  const subs = (match ?? []).filter((m) => !/^[0-9a-f-]{36}$/i.test(m));
+  const hit = (u: string) => !match || subs.some((x) => u.includes(x)) || (decodeURIComponent(u).match(UUID) ?? []).some((x) => ids.has(x.toLowerCase()));
+  const keys = (await cache.keys()).map((r) => r.url).filter((u) => CONTENT_TABLES.some((t) => u.includes(t)) && hit(u));
   p.total = keys.length; onProgress?.({ ...p });
   let i = 0;
   const run = async () => {

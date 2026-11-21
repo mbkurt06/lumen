@@ -138,29 +138,33 @@ async function downloadChangesInner(key: CollectionKey, since: string, onProgres
 }
 
 /* ── Yenile ── */
-/** Bir kitabı (ya da okunan bölümün kitabını) veri tabanındaki güncel hâliyle yeniler:
-    kitabın ve bütün bölümlerinin cihazdaki kayıtları ağdan yeniden alınır. */
-export async function refreshBook(id: string, onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {
+/** Verilen kütüphane öğelerini (bölüm, kitap, klasör) ve altındaki her şeyi veri tabanındaki
+    güncel hâliyle yeniler: cihazdaki kayıtlar ağdan yeniden alınır. */
+export async function refreshTree(rootIds: string[], onProgress?: (p: RefreshProgress) => void, opts?: { mushaf?: boolean; also?: string[] }): Promise<RefreshProgress> {
   setForceNetwork(true);
   try {
-    const v = await loadItemView(id);
-    const book = v.item?.kind === "document" ? v.parent : v.item;
-    const ids = new Set<string>([id]);
-    if (book) {
-      ids.add(book.id);
-      const stack = [book.id];
-      for (let depth = 0; stack.length && depth < 3; depth++) {
-        const lvl = stack.splice(0);
-        for (const pid of lvl) {
-          const kids = await loadChildrenBySort(pid);
-          for (const k of kids) { ids.add(k.id); if (k.kind !== "document") stack.push(k.id); }
-        }
+    const ids = new Set(rootIds.filter(Boolean));
+    let level = [...ids];
+    for (let depth = 0; level.length && depth < 6; depth++) {
+      const next: string[] = [];
+      for (let i = 0; i < level.length; i += 150) {
+        const { data, error } = await supabase.from("library_items").select("id,kind").in("parent_id", level.slice(i, i + 150)).limit(5000);
+        if (error) throw error;
+        for (const r of (data ?? []) as { id: string; kind: string }[]) { if (!ids.has(r.id)) { ids.add(r.id); if (r.kind !== "document") next.push(r.id); } }
       }
-      forgetBookPages(book.id);
+      level = next;
     }
-    const isKuran = v.root?.title === "Kur’an-ı Kerim";
-    return await refreshContent([...ids, ...(isKuran ? ["quran_mushaf_pages"] : [])], onProgress);
+    forgetBookPages(); // sayfa sayıları yeniden hesaplanır
+    return await refreshContent([...ids, ...(opts?.also ?? []), ...(opts?.mushaf ? ["quran_mushaf_pages"] : [])], onProgress);
   } finally { setForceNetwork(false); }
+}
+/** Okunan bölümün kitabını yeniler (okuyucudaki ⊞ menüsünden). */
+export async function refreshBook(id: string, onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {
+  setForceNetwork(true);
+  let v: Awaited<ReturnType<typeof loadItemView>>;
+  try { v = await loadItemView(id); } finally { setForceNetwork(false); }
+  const book = v.item?.kind === "document" ? v.parent : v.item;
+  return refreshTree([id, ...(book ? [book.id] : [])], onProgress, { mushaf: v.root?.title === "Kur’an-ı Kerim" });
 }
 /** Bütün kütüphane: cihazda kayıtlı bütün kitap içerikleri ağdan yeniden alınır. */
 export async function refreshLibrary(onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {

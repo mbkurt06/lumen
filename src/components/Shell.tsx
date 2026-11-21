@@ -1,3 +1,4 @@
+import { onWritesChange, pendingWrites } from "../lib/writeQueue";
 import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { App as CapApp } from "@capacitor/app";
@@ -61,6 +62,8 @@ export function Shell() {
 /* İnternet yokken ince bir uyarı: kayıtlı içerik gösteriliyor (okuyucuda başlığa taşınır). */
 function OfflineBar() {
   const off = useOffline();
+  const [n, setN] = useState(pendingWrites);
+  useEffect(() => onWritesChange(() => setN(pendingWrites())), []);
   if (!off) return null;
-  return <div className="offbar">Çevrimdışı · cihazda kayıtlı içerik gösteriliyor</div>;
+  return <div className="offbar">Çevrimdışı · {n ? `${n} değişiklik telefonda, internet gelince gönderilecek` : "değişiklikler telefona kaydedilir"}</div>;
 }

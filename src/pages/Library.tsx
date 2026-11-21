@@ -8,10 +8,13 @@ import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } fr
 import { Reader, ReaderSettings } from "./Reader";
 import { keyAction, loadRSU, pullRS, resetUnit, saveRSU, scopeOf, unitKey, unitOverrides, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
-import { refreshBook } from "../lib/offlineDownload";
+import { COLLECTIONS, refreshLibrary, refreshTree } from "../lib/offlineDownload";
+import { RefreshRow } from "../components/RefreshRow";
 import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } from "../lib/todo";
 
 /* ── ortak parçalar ── */
+const rootIds = (roots: Record<string, Item>, key: "kuran" | "ibadet" | "risale" | "he") =>
+  (COLLECTIONS.find((c) => c.key === key)?.roots ?? []).map((t) => roots[t]?.id ?? "").filter(Boolean);
 function Resume({ scopeId }: { scopeId?: string }) {
   const rows0 = useResume(scopeId);
   const [gone, setGone] = useState<string[]>([]);
@@ -93,6 +96,7 @@ export function LibraryHome() {
   return (
     <>
       <PageHeader title="Kütüphane" right={<button className="iconbtn" onClick={() => nav("/ara")} aria-label="Ara"><Icon name="search" size={24} /></button>} />
+      <RefreshRow label="Tüm kütüphaneyi güncelle" run={refreshLibrary} />
       <div style={{ padding: "0 16px" }}><Resume /></div>
       <Label>KOLEKSİYONLAR</Label>
       <div className="clist">
@@ -160,6 +164,7 @@ function Ibadet() {
   return (
     <>
       <PageHeader back title="İbadet" subtitle="Kütüphane" />
+      <RefreshRow label="Tüm ibadetleri güncelle" run={(cb) => refreshTree(rootIds(roots, "ibadet"), cb)} />
       <div className="clist" style={{ marginTop: 8 }}>
         <CRow icon to="/kutuphane/c/tesbihat" title="Tesbihatlar" sub="Sabah, öğle, ikindi, akşam, yatsı" />
         <CRow icon to="/kutuphane/c/dualar" title="Dualar" sub="Namaz, sofra, ezan" />
@@ -185,6 +190,7 @@ function Dualar() {
   return (
     <>
       <PageHeader back title="Dualar" subtitle="İbadet" />
+      <RefreshRow label="Tüm duaları güncelle" run={(cb) => refreshTree(["Namaz Duaları", "Günlük Dualar"].map((n) => roots[n]?.id ?? "").filter(Boolean), cb)} />
       {groups.map((g) => (
         <div key={g.title}>
           <Label>{g.title.toUpperCase()}</Label>
@@ -210,6 +216,7 @@ function Kuran() {
   return (
     <>
       <PageHeader back title="Kur'an-ı Kerim" subtitle="Kütüphane" />
+      <RefreshRow label="Kur'an-ı Kerim'i güncelle" run={(cb) => refreshTree(rootIds(roots, "kuran"), cb, { mushaf: true })} />
       <div style={{ padding: "0 16px" }}><Resume scopeId={roots["Kur’an-ı Kerim"]?.id} /></div>
       <div className="seg2">
         <button className={tab === "sure" ? "on" : ""} onClick={() => setTab("sure")}>Sûreler</button>
@@ -285,6 +292,7 @@ export function LibraryItem() {
   return (
     <>
       <PageHeader back={backTo} title={item?.title ?? (loading ? "Yükleniyor…" : "Bulunamadı")} subtitle={parent?.title ?? "Kütüphane"} />
+      {item && <RefreshRow label={kids.length && kids.every((k) => k.kind === "document") ? `${item.title} · güncelle` : `${item.title} · hepsini güncelle`} run={(cb) => refreshTree([item.id], cb, { mushaf: root?.title === "Kur’an-ı Kerim" })} />}
       {item && <div style={{ padding: "0 16px" }}><Resume scopeId={item.id} /></div>}
       {isRisale && <Label>KİTAPLAR · {kids.length}</Label>}
       <div className="clist" style={{ marginTop: isRisale ? 0 : 8 }}>
@@ -314,7 +322,7 @@ function BookToc({ item, parentTitle, kids, scope, backTo }: { item: Item; paren
     if (!navigator.onLine) { setMsg("İnternet yokken yenilenemez"); setTimeout(() => setMsg(""), 2500); return; }
     setBusy(true); setMsg("Güncel hâli alınıyor…");
     try {
-      const r = await refreshBook(item.id, (p) => setMsg(`Güncel hâli alınıyor… ${p.done}/${p.total}`));
+      const r = await refreshTree([item.id], (p) => setMsg(`Güncel hâli alınıyor… ${p.done}/${p.total}`));
       if (r.failed && r.failed === r.total) { setMsg("Yenilenemedi"); setBusy(false); return; }
       window.location.reload();
     } catch { setMsg("Yenilenemedi"); setBusy(false); }
