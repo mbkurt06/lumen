@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import type { Bookmark } from "../lib/bookmarks";
 import { LibPicker, type Picked } from "../components/LibPicker";
 import { loadTP } from "../lib/taskPrefs";
-import { SECTION_LABEL, goalMode, pagesText, ymd, type PageGoal, type ReadingRef, type Recurrence, type TaskPlace, type TGroup, type TList, type Todo } from "../lib/todo";
+import { SECTION_LABEL, goalMode, pagesText, rangeWindow, ymd, type PageGoal, type ReadingRef, type Recurrence, type TaskPlace, type TGroup, type TList, type Todo } from "../lib/todo";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
 /** page_no: numaralı sayfa belgelerinde (Tevhidname, Cevşen…) sayfa numarası */
@@ -145,6 +145,14 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       : await supabase.from("todos").insert(row).select("id").single();
     if (res.error) { setErr(res.error.message); setBusy(false); return; }
     const id = (res.data as { id: string }).id;
+    // pay görevinin dönemi değiştiyse (ör. haftalık → tarih aralığı) şu anki dönemin okumaları yeni döneme taşınır
+    if (edit?.page_goal && page_goal && goalMode(edit.page_goal) === "pay" && goalMode(page_goal) === "pay") {
+      try {
+        const oldA = rangeWindow(edit)[0];
+        const newA = rangeWindow({ ...edit, page_goal, start_date: row.start_date as string | null, end_date: row.end_date as string | null, recurrence: rec })[0];
+        if (oldA !== newA) await supabase.from("page_reads").update({ context_key: `todo:${edit.id}@${newA}` }).eq("context_key", `todo:${edit.id}@${oldA}`);
+      } catch { /* yok say */ }
+    }
     const clean = subs.map((s) => s.trim()).filter(Boolean);
     if (clean.length) await supabase.from("todos").insert(clean.map((s, i) => ({ title: s, parent_todo_id: id, list_id: listId || null, sort_order: i })));
     onSaved(edit ? "Görev güncellendi" : "Görev eklendi");
