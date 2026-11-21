@@ -127,8 +127,8 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       if (gMode === "pay") {
         page_goal = { mode: "pay", per: "pages", every: rEvery, early, n: size, ...sel, doc_key, unit, ...goalBook };
       } else {
-        const scopeF = sAll ? (bounds ? { from: bounds.min, to: bounds.max } : {}) : canPages ? sel : {};
-        const scopeN = "to" in scopeF && scopeF.to != null ? (gPages?.length && !sAll ? gPages.length : Math.abs((scopeF.to ?? 0) - (scopeF.from ?? 0)) + 1) : 0;
+        const scopeF: { from?: number; to?: number; pages?: number[] } = sAll ? (bounds ? { from: bounds.min, to: bounds.max } : {}) : canPages ? sel : {};
+        const scopeN = scopeF.pages?.length ? scopeF.pages.length : scopeF.from != null && scopeF.to != null ? Math.abs(scopeF.to - scopeF.from) + 1 : 0;
         page_goal = { mode: "seq", loop, n: tgt === "none" ? 0 : tgt === "range" && scopeN ? scopeN : Math.max(1, gN), per: tgt === "none" ? "day" : tgt, ...scopeF, doc_key, unit, ...goalBook };
       }
     }
