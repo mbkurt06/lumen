@@ -19,6 +19,7 @@ import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
 import { refreshBook } from "../lib/offlineDownload";
+import { useCevsenMode } from "../lib/cevsenPref";
 
 type Node = {
   id: string;
@@ -108,7 +109,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // ayarlar kitaba / sayfaya özgü: Kur'an tek; Cevşen, Tevhidname, Esmâ dizinin tamamı; diğer dua ve tesbihatlar tek tek; kitaplarda kitap
   const dm = (doc.metadata ?? {}) as Record<string, unknown>;
   const rsUnit = unitKey(scope, scope === "kuran" ? "kuran"
-    : doc.parent_id && (Number.isFinite(Number(dm.page ?? NaN)) && dm.page != null || String(dm.legacy_id ?? "").startsWith("esma-")) ? doc.parent_id
+    : doc.parent_id && (Number.isFinite(Number(dm.page ?? NaN)) && dm.page != null || String(dm.legacy_id ?? "").startsWith("esma-") || parentTitle === "Cevşen-i Kebîr" || parentTitle === "Tevhidname") ? doc.parent_id
     : scope === "ibadet" ? doc.id : doc.parent_id ?? doc.id);
   const [rs, setRs] = useState<RSettings>(() => loadRSU(scope, rsUnit));
   useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(loadRSU(scope, rsUnit)); }); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,7 +182,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   }, [doc.id]);
 
   const isDua = useMemo(() => nodes.some((n) => n.kind === "phrase"), [nodes]);
-  const isCevsen = parentTitle === "Cevşen-i Kebîr";
+  const [cvMode] = useCevsenMode();
+  const isCevsen = parentTitle === "Cevşen-i Kebîr" && cvMode === "num";
   const pages = useMemo(() => paginate(toBlocks(nodes), isDua ? 650 : 2200), [nodes, isDua]);
 
   /* ── Sabit kitap sayfası: Kur'an (mushaf sayfası), Risale, HE, diğer kitaplar ──
@@ -740,7 +742,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   if (showSettings) return <ReaderSettings title={scope === "kuran" ? "Kur'an-ı Kerim" : rsUnit.endsWith(doc.id) ? doc.title : parentTitle ?? doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)}
     ov={unitOverrides(rsUnit)} onKey={(k, a) => { keyAction(scope, rsUnit, k, rs[k], a); setRs(loadRSU(scope, rsUnit)); flash(KEY_DONE[a]); }}
     onApplyAll={() => { for (const k of unitOverrides(rsUnit)) keyAction(scope, rsUnit, k, rs[k], "default"); setRs(loadRSU(scope, rsUnit)); flash("Bu kitabın ayarları bu bölümde varsayılan yapıldı"); }}
-    onReset={() => { resetUnit(rsUnit); setRs(loadRSU(scope, rsUnit)); flash("Bu kitap varsayılan ayarlara döndü"); }} onGeneral={() => nav("/ayarlar")} counters={scope === "ibadet"} />;
+    onReset={() => { resetUnit(rsUnit); setRs(loadRSU(scope, rsUnit)); flash("Bu kitap varsayılan ayarlara döndü"); }} onGeneral={() => nav("/ayarlar")} counters={scope === "ibadet"} cevsen={parentTitle === "Cevşen-i Kebîr"} />;
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
@@ -1094,11 +1096,12 @@ const CNT = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.3, 2.6, 3, 3.5, 4
 const cntIdx = (v: number) => CNT.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(CNT[best] - v) ? i : best), 0);
 const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(SIZES[best] - v) ? i : best), 0);
 
-export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters, ov = [], onKey }: {
-  title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
+export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters, ov = [], onKey, cevsen }: {
+  title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean; /** Cevşen: sayfa türü seçimi */ cevsen?: boolean;
   /** bu kitapta varsayılandan farklı ayarlar */ ov?: (keyof RSettings)[]; /** tek ayar için: varsayılan yap / uygula / geri dön */ onKey?: (k: keyof RSettings, a: KeyAction) => void;
 }) {
   const [cp, setCp] = useCP();
+  const [cvMode, setCvMode] = useCevsenMode();
   const [menu, setMenu] = useState<null | { k: keyof RSettings; label: string }>(null);
   // ayarın yanındaki ⋯: bu ayarı varsayılan yap / her yere uygula; nokta: bu kitapta farklı
   const More = ({ k, label }: { k: keyof RSettings; label: string }) => (onKey ? (
@@ -1126,6 +1129,11 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
       </header>
       <div className="infoline">{onKey ? "Bu ayarlar sadece bu kitap için. Bir ayarın yanındaki ⋯ ile onu varsayılan yapabilir ya da her yere uygulayabilirsin. Nokta: bu kitapta varsayılandan farklı." : "Bu bölümün tüm kitapları için geçerli."}</div>
       <div style={{ padding: "0 16px" }}>
+        {cevsen && (
+          <div className="srow col"><span>Sayfa türü <small className="muted" style={{ fontWeight: 400 }}>· bütün bablar</small></span>
+            <CevsenModeSeg mode={cvMode} onMode={setCvMode} />
+          </div>
+        )}
         <div className="srow col"><Lbl k="theme" label="Gece modu" />
           <div className="seg3">
             {(["dark", "light", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t || ((rs.theme === "default" || rs.theme === "paper") && t === defTheme) ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : "Telefonla aynı"}</button>))}
@@ -1231,6 +1239,16 @@ function CevsenText({ n, rs, marked }: { n: { text_content: string | null; secon
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Cevşen sayfa türü: numaralı (kitaptaki gibi) / numarasız */
+export function CevsenModeSeg({ mode, onMode }: { mode: "num" | "plain"; onMode: (m: "num" | "plain") => void }) {
+  return (
+    <div className="seg" style={{ marginTop: 8 }}>
+      <button className={mode === "num" ? "on" : ""} onClick={() => onMode("num")}>1. 2. 3. Numaralı</button>
+      <button className={mode === "plain" ? "on" : ""} onClick={() => onMode("plain")}>Numarasız</button>
     </div>
   );
 }

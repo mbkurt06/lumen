@@ -5,7 +5,8 @@ import { Icon } from "../components/Icon";
 import { useResume, useRoots, type Item } from "../lib/library";
 import { confirmDeleteBookmark, deleteBookmark } from "../lib/bookmarks";
 import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
-import { Reader, ReaderSettings } from "./Reader";
+import { CevsenModeSeg, Reader, ReaderSettings } from "./Reader";
+import { useCevsenMode } from "../lib/cevsenPref";
 import { keyAction, loadRSU, pullRS, resetUnit, saveRSU, scopeOf, unitKey, unitOverrides, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
 import { COLLECTIONS, refreshLibrary, refreshTree } from "../lib/offlineDownload";
@@ -248,6 +249,12 @@ function Diger() {
   );
 }
 
+/* Cevşen sayfasının üstünde: numaralı / numarasız (bütün bablar) */
+function CevsenModeRow() {
+  const [m, setM] = useCevsenMode();
+  return <div style={{ padding: "0 16px 6px" }}><div className="small muted">Sayfa türü · bütün bablarda geçerli</div><CevsenModeSeg mode={m} onMode={setM} /></div>;
+}
+
 /* ── Klasör / belge (kök kimliğiyle gezinme) ── */
 export function LibraryItem() {
   const { id } = useParams();
@@ -293,6 +300,7 @@ export function LibraryItem() {
     <>
       <PageHeader back={backTo} title={item?.title ?? (loading ? "Yükleniyor…" : "Bulunamadı")} subtitle={parent?.title ?? "Kütüphane"} />
       {item && <RefreshRow label={kids.length && kids.every((k) => k.kind === "document") ? `${item.title} · güncelle` : `${item.title} · hepsini güncelle`} run={(cb) => refreshTree([item.id], cb, { mushaf: root?.title === "Kur’an-ı Kerim" })} />}
+      {item?.title === "Cevşen-i Kebîr" && <CevsenModeRow />}
       {item && <div style={{ padding: "0 16px" }}><Resume scopeId={item.id} /></div>}
       {isRisale && <Label>KİTAPLAR · {kids.length}</Label>}
       <div className="clist" style={{ marginTop: isRisale ? 0 : 8 }}>
