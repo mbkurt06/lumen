@@ -88,11 +88,13 @@ export function Todo() {
 
   const current: TList | undefined = listId ? listOf.get(listId) : undefined;
   const today = todos.filter(inToday);
-  const activeToday = today.filter((t) => !isDoneToday(t));
-  const completedToday = today.filter(isDoneToday);
+  // "Bitince başa dön (tur)" görevleri hiç bitmez: bugünkü hedef dolsa da görevlerde kalır (tikli, en altta)
+  const keepOpen = (t: T) => !!t.page_goal?.loop;
+  const activeToday = today.filter((t) => !isDoneToday(t) || keepOpen(t));
+  const completedToday = today.filter((t) => isDoneToday(t) && !keepOpen(t));
   const overdue = activeToday.filter(isOverdue);
-  const normalToday = activeToday.filter((t) => !isOverdue(t));
-  const doneCount = completedToday.length;
+  const normalToday = activeToday.filter((t) => !isOverdue(t)).sort((a, b) => Number(isDoneToday(a)) - Number(isDoneToday(b)));
+  const doneCount = today.filter(isDoneToday).length;
 
   const listTodos = listId ? todos.filter((t) => t.list_id === listId && !t.parent_todo_id) : [];
   const listActive = listTodos.filter((t) => !t.is_completed);
@@ -160,7 +162,7 @@ export function Todo() {
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
           <div className="tmain" onClick={() => setAct(t)}>
             <div className="ttopline">
-              <div className={"ttitle2" + (done ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
+              <div className={"ttitle2" + (done && !t.page_goal?.loop ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
