@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import type { Bookmark } from "../lib/bookmarks";
@@ -26,6 +26,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   edit?: Todo; place?: PlacePrefill; lists: TList[]; groups: TGroup[]; defaultListId: string | null; initialTitle?: string; onClose: () => void; onSaved: (msg?: string) => void;
 }) {
   const [title, setTitle] = useState(edit?.title ?? initialTitle ?? "");
+  const autoTitle = useRef<string | null>(null); // seçilen yerden kendiliğinden gelen ad (elle değişmediyse yeni seçimle güncellenir)
   const [notes, setNotes] = useState(edit?.notes ?? "");
   const [rec, setRec] = useState<Recurrence>(edit?.recurrence ?? { type: "once" });
   const [perDay, setPerDay] = useState(edit?.per_day ?? 1);
@@ -53,7 +54,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const [tgt, setTgt] = useState<"none" | "day" | "week" | "month" | "range">(eg && goalMode(eg) === "seq" ? (eg.n ? (eg.per === "pages" ? "day" : eg.per) : "none") : "none");
   const [gN, setGN] = useState(eg && goalMode(eg) === "seq" && eg.n ? eg.n : 5);
   // pay: dönem ve başa dönüş
-  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(eg?.every ?? "day");
+  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(eg?.every ?? "range");
   const [early, setEarly] = useState<boolean>(!!eg?.early);
   const [gFrom, setGFrom] = useState(eg?.from ?? place?.pos.page_no ?? 1);
   const [gTo, setGTo] = useState(eg?.to ?? (place?.pos.page_no ?? 1) + 9);
@@ -81,7 +82,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     setShowPick(false);
     setPicked({ pos: pk.pos, mode: "ayrac", bookmarks: [] });
     setMode("ayrac");
-    if (!title.trim()) setTitle(pk.title);
+    if (!title.trim() || title === autoTitle.current) { setTitle(pk.title); autoTitle.current = pk.title; }
     if (pk.from != null) setGFrom(pk.from);
     if (pk.to != null) setGTo(pk.to);
     setGPages(pk.pages ?? null);
@@ -104,6 +105,9 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     if (!name) { setErr("Görev adını yaz."); return; }
     if (rec.type === "days" && !(rec.days ?? []).length) { setErr("Hangi günler olduğunu seç."); return; }
     const dated = reading && ((gMode === "pay" && rEvery === "range") || (gMode === "seq" && tgt === "range"));
+    // pay görevinde tekrar, payın süresinden gelir: "Bir kez (tarihe kadar)" tek seferlik, diğerleri her gün tekrarlı
+    const recF: Recurrence = reading && gMode === "pay" ? (rEvery === "range" ? { type: "once" } : rec.type === "once" ? { type: "daily" } : rec) : rec;
+    const recurringF = recF.type !== "once";
     if (dated && !end) { setErr("Bitiş tarihini seç."); return; }
     setBusy(true);
     let reading_ref: ReadingRef | null = edit?.reading_ref ?? null;
@@ -134,9 +138,9 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     }
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
-      list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
-      start_date: recurring || dated ? start : null, end_date: (recurring || dated) && end ? end : null, page_goal,
-      due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
+      list_id: listId || null, recurrence: recF, per_day: recurringF ? perDay : 1,
+      start_date: recurringF || dated ? start : null, end_date: (recurringF || dated) && end ? end : null, page_goal,
+      due_at: !recurringF && due ? new Date(due + "T12:00:00").toISOString() : null,
       bookmark_id: null, reading_ref, place: taskPlace, related_library_item_id: related, strict,
       updated_at: new Date().toISOString(),
     };
@@ -149,7 +153,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
     if (edit?.page_goal && page_goal && goalMode(edit.page_goal) === "pay" && goalMode(page_goal) === "pay") {
       try {
         const oldA = rangeWindow(edit)[0];
-        const newA = rangeWindow({ ...edit, page_goal, start_date: row.start_date as string | null, end_date: row.end_date as string | null, recurrence: rec })[0];
+        const newA = rangeWindow({ ...edit, page_goal, start_date: row.start_date as string | null, end_date: row.end_date as string | null, recurrence: recF })[0];
         if (oldA !== newA) await supabase.from("page_reads").update({ context_key: `todo:${edit.id}@${newA}` }).eq("context_key", `todo:${edit.id}@${oldA}`);
       } catch { /* yok say */ }
     }
@@ -161,6 +165,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const p = pl?.pos;
   const editPlace = edit && (edit.place || edit.bookmark || edit.reading_ref);
   const showGoal = mode === "ayrac" && (!!p || !!eg);
+  const payMode = showGoal && gMode === "pay";
   const scopeTx = gPages?.length ? pagesText(gPages) : `${Math.min(gFrom, gTo)}–${Math.max(gFrom, gTo)}`;
   const scopeEditor = (
     gPages ? (
@@ -265,11 +270,11 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
                 <div className="lbl" style={{ padding: "10px 0 6px" }}>PAY</div>
                 {scopeEditor}
                 <div className="chipwrap" style={{ marginTop: 8 }}>
-                  {([["day", "Her gün"], ["week", "Her hafta"], ["month", "Her ay"], ["range", "Tarih aralığında"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
-                    <button key={k} className={rEvery === k ? "on" : ""} onClick={() => setREvery(k)}>{l}</button>
+                  {([["range", "Bir kez (tarihe kadar)"], ["day", "Her gün"], ["week", "Her hafta"], ["month", "Her ay"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
+                    <button key={k} className={rEvery === k ? "on" : ""} onClick={() => { setREvery(k); setRec(k === "range" ? { type: "once" } : { type: "daily" }); }}>{l}</button>
                   ))}
                 </div>
-                {rEvery === "range" && !recurring && dates}
+                {rEvery === "range" && dates}
                 {rEvery !== "range" && (
                   <>
                     <div className="lbl" style={{ padding: "10px 0 6px" }}>BAŞA DÖNÜŞ</div>
@@ -279,7 +284,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
                     </div>
                   </>
                 )}
-                <p className="muted small" style={{ margin: "6px 2px 0" }}>{Unit} {scopeTx} ({gPages?.length ?? Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"}.{rEvery !== "range" ? (early ? " Pay bitince hemen başa döner; sonra okudukların bir sonraki dönemin payına sayılır (en fazla bir dönem ileri)." : " Pay bitince yeni dönemi bekler; yeni dönemde baştan açılır.") : ""}</p>
+                <p className="muted small" style={{ margin: "6px 2px 0" }}>{Unit} {scopeTx} ({gPages?.length ?? Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarihler arasında bir kez"}.{rEvery !== "range" ? (early ? " Pay bitince hemen başa döner; sonra okudukların bir sonraki dönemin payına sayılır (en fazla bir dönem ileri)." : " Pay bitince yeni dönemi bekler; yeni dönemde baştan açılır.") : ""}</p>
               </>
             )}
           </>
@@ -295,7 +300,8 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           ? "Süresi geçen dönem tamamlanmazsa Günüm'de “Tamamlanmamış”ta kalır; oradan açınca kaldığı yerden devam eder."
           : "Kendi hedefin: kaçırılan gün borç olmaz, sadece geçmişe yazılır." + (loadTP().catchUp && gMode === "seq" ? " Dünün eksiği bugüne telafi olarak eklenir (Ayarlar'dan kapatılabilir)." : "")}</p>
 
-        {/* Sıklık */}
+        {/* Sıklık (pay görevinde yukarıdaki seçimden gelir, burada sorulmaz) */}
+        {!payMode && <>
         <div className="lbl" style={{ padding: "14px 0 6px" }}>SIKLIK</div>
         <div className="chipwrap">
           {REC.map((r) => (<button key={r.k} className={rec.type === r.k ? "on" : ""} onClick={() => setRec({ type: r.k, days: r.k === "days" ? rec.days ?? [] : undefined, n: r.k === "every" ? rec.n ?? 2 : undefined })}>{r.l}</button>))}
@@ -322,6 +328,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
         {!recurring && (
           <div className="line"><span><Icon name="calendar" size={20} /> Son tarih</span><input className="dateinp" type="date" value={due} onChange={(e) => setDue(e.target.value)} /></div>
         )}
+        </>}
         <div className="line"><span>Liste</span>
           <select className="dateinp" value={listId} onChange={(e) => setListId(e.target.value)}>
             <option value="">Listesiz</option>
