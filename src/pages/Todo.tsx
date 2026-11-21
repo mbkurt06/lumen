@@ -226,7 +226,17 @@ export function Todo() {
           <span>{title}</span>
           <Icon name={closed ? "chevron" : "chevdown"} size={18} />
         </button>
-        {!closed && items.map((t) => <Row key={t.id} t={t} />)}
+        {!closed && (() => {
+          // önce tekrarlılar, sonra ince bir ayraçla tek seferlikler (sıra kendi içinde korunur)
+          const rep = items.filter(isRecurring), once = items.filter((t) => !isRecurring(t));
+          return (
+            <>
+              {rep.map((t) => <Row key={t.id} t={t} />)}
+              {rep.length > 0 && once.length > 0 && <div className="subsep"><span>tek seferlik</span></div>}
+              {once.map((t) => <Row key={t.id} t={t} />)}
+            </>
+          );
+        })()}
       </>
     );
   };
