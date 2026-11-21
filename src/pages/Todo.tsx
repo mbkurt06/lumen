@@ -103,7 +103,7 @@ export function Todo() {
     const pu = periodUnit(t);
     const prevTx = pu === "day" ? "dün" : pu === "week" ? "geçen hafta" : "geçen ay";
     const extra = g && s && !t.strict ? [
-      s.catchUp > 0 ? `+${Math.min(s.catchUp, s.target - s.catchUp)} telafi` : "",
+      s.bonus > 0 ? `+${s.bonus} telafi` : "",
       tp.showYesterday && s.prev && pu !== "range" ? `${prevTx} ${s.prev.got}/${s.prev.need}` : "",
       g.per === "day" ? `toplam ${goalProgress(t)} ${unitTx}` : "",
     ].filter(Boolean).join(" · ") : "";

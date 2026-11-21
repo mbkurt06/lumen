@@ -57,6 +57,8 @@ export function pagesText(ps: number[]): string {
 export type ReadRow = { book_id: string | null; scope: string; doc_key: string; context_key: string; page: number; day: string };
 /** Okunan sayfalar (son 120 gün); useTodos yükler, okuma hedefleri buradan sayılır. */
 let READS: ReadRow[] = [];
+/** numaralı kitapların sayfa/bab sayısı (0: bilinmiyor) */
+const BOOK_SIZE: Record<string, number> = {};
 export const readsCache = () => READS;
 /** Hedefin şu anki dönemi [başlangıç, bitiş] */
 export function goalPeriod(t: Pick<Todo, "page_goal" | "start_date" | "end_date">, day = ymd()): [string, string] {
@@ -149,7 +151,7 @@ export function periodStats(t: Todo, rows: ReadRow[] = READS, today = ymd()): Pe
   ps.forEach((p, k) => { p.need = need; p.got = Math.min(need, sets[k].size); });
   return ps;
 }
-export type TaskState = { periods: Period[]; cur: Period | null; prev: Period | null; missed: Period[]; catchUp: number; target: number; got: number };
+export type TaskState = { periods: Period[]; cur: Period | null; prev: Period | null; missed: Period[]; catchUp: number; target: number; got: number; /** bugünkü hedefe eklenen telafi */ bonus: number };
 /** Bugünkü durum: şimdiki dönem, telafi, zorunlu görevde kaçan dönemler. */
 export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] = READS, today = ymd()): TaskState {
   const periods = periodStats(t, rows, today);
@@ -159,7 +161,10 @@ export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] 
   const missed = t.strict && !t.is_completed ? periods.filter((p) => p.b < today && !p.skipped && p.got < p.need) : [];
   const catchUp = !t.strict && prefs.catchUp && cur && prev && !prev.skipped && periodUnit(t) !== "range" ? Math.max(0, prev.need - prev.got) : 0;
   const base = cur?.need ?? (t.page_goal ? goalNeed(t.page_goal) : Math.max(1, t.per_day));
-  return { periods, cur, prev, missed, catchUp, target: base + Math.min(base, catchUp), got: cur?.got ?? 0 };
+  // telafi en fazla bir günlük hedef kadar; numaralı kitapta (Cevşen) kitabın tamamını geçemez
+  const size = t.page_goal && t.page_goal.per !== "pages" && t.page_goal.book_id ? BOOK_SIZE[t.page_goal.book_id] ?? 0 : 0;
+  const bonus = Math.max(0, Math.min(base, catchUp, size ? size - base : Infinity));
+  return { periods, cur, prev, missed, catchUp, target: base + bonus, got: cur?.got ?? 0, bonus };
 }
 /** Zorunlu görevin kaçan dönemini atla (geçmişte "atlandı" diye kalır). */
 export async function skipPeriod(t: Todo, a: string) {
@@ -303,6 +308,12 @@ export function useTodos() {
       supabase.from("page_reads").select("book_id,scope,doc_key,context_key,page,day").gte("day", since).limit(10000),
     ]);
     if (!r.error) READS = mergeQueuedReads((r.data ?? []) as ReadRow[]);
+    // numaralı kitapların (Cevşen 100 bab, Tevhidname…) boyu: günlük hedef + telafi kitabın kendisinden büyük olamaz
+    const books = [...new Set(((t.data ?? []) as unknown as Todo[]).map((x) => x.page_goal?.per !== "pages" ? x.page_goal?.book_id : null).filter((x): x is string => !!x && !(x in BOOK_SIZE)))];
+    if (books.length) {
+      const { data: kids } = await supabase.from("library_items").select("parent_id").in("parent_id", books).not("metadata->>page", "is", null).limit(5000);
+      for (const b of books) BOOK_SIZE[b] = ((kids ?? []) as { parent_id: string }[]).filter((k) => k.parent_id === b).length || 0;
+    }
     if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
     if (!l.error) setLists((l.data ?? []) as TList[]);
     if (!g.error) setGroups((g.data ?? []) as TGroup[]);
