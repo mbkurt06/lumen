@@ -183,7 +183,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
 
   const isDua = useMemo(() => nodes.some((n) => n.kind === "phrase"), [nodes]);
   const [cvMode] = useCevsenMode();
-  const isCevsen = parentTitle === "Cevşen-i Kebîr" && cvMode === "num";
+  const isCevsen = parentTitle === "Cevşen-i Kebîr" && cvMode === "num" && !dm.dua; // Cevşen duası numarasız
   const pages = useMemo(() => paginate(toBlocks(nodes), isDua ? 650 : 2200), [nodes, isDua]);
 
   /* ── Sabit kitap sayfası: Kur'an (mushaf sayfası), Risale, HE, diğer kitaplar ──
