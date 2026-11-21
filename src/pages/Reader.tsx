@@ -99,6 +99,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [mark, setMark] = useState<string | null>(() => (loc0.state as { nid?: string } | null)?.nid ?? null); // ayraçtan açılınca gidilecek yer
+  const [markWord, setMarkWord] = useState<number | null>(() => (loc0.state as { word?: number } | null)?.word ?? null); // görevde kalınan kelime
+  const [hereAsk, setHereAsk] = useState<null | { nid: string; word: number; wtext: string; quote: string }>(null); // "Burada kaldım": hangi göreve / ayraca
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -109,7 +111,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [sel, setSel] = useState<{ x: number; y: number; nid: string; text: string } | null>(null);
   const [ask, setAsk] = useState<null | { nid: string; text: string }>(null);
   const [place, setPlace] = useState<PlacePrefill | null>(null); // kitaptan görev (standart form)
-  const lastSel = useRef<{ nid: string; text: string; at: number } | null>(null); // ⊞'ye basınca seçim kaybolsa da kullanılır
+  const lastSel = useRef<{ nid: string; text: string; at: number; word?: number; wtext?: string } | null>(null); // ⊞'ye basınca seçim kaybolsa da kullanılır
   const [taskT, setTaskT] = useState<TodoT | null>(null); // görevden açıldıysa o görev
   const [pmenu, setPmenu] = useState(false); // başlıktaki + menüsü
   const [editNote, setEditNote] = useState<Note | null>(null);
@@ -124,7 +126,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const bookId = scope === "kuran" ? null : doc.parent_id;
   const reloadBms = useCallback(async () => { setBms(await listBookmarks(scope, bookId)); }, [scope, bookId]);
   useEffect(() => { void reloadBms(); }, [reloadBms]);
-  const markedIds = useMemo(() => new Set(bms.filter((b) => b.node_id && (scope === "kuran" || b.document_id === doc.id)).map((b) => b.node_id as string)), [bms, scope, doc.id]);
+  const markedIds = useMemo(() => {
+    const m = new Set(bms.filter((b) => b.node_id && (scope === "kuran" || b.document_id === doc.id)).map((b) => b.node_id as string));
+    if (mark && (loc0.state as { taskId?: string } | null)?.taskId) m.add(mark); // görevin kaldığı yer
+    return m;
+  }, [bms, scope, doc.id, mark]); // eslint-disable-line react-hooks/exhaustive-deps
   const isMarked = (id?: string | null) => !!id && markedIds.has(id);
   const [bmDraft, setBmDraft] = useState<BookmarkDraft | null>(null);
 
@@ -259,7 +265,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const st = loc.state as { atEnd?: boolean; startPage?: number } | null;
     if (st?.atEnd) { setPp(pc - 1); return; }
     // görevden "aralığın başından" açıldı (her gün baştan okunan aralık)
-    if (st?.startPage != null) {
+    if (st?.startPage != null && !mark) {
       const i = Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === st.startPage);
       if (i != null) { setPp(i); return; }
     }
@@ -473,6 +479,119 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     setCounts(s);
   };
 
+  /* ── Kelime düzeyinde yer ──
+     Bir düğümün (cümle / âyet) metni, o düğüme ait bütün öğelerin metni art arda (aralarına boşluk) okunur.
+     Kelime sırası bu metne göre; işaretlerken de aynı sıra kullanılır. */
+  const nidSegments = (nid: string) => {
+    const segs: { node: Text | null; text: string }[] = [];
+    const els = Array.from(bodyRef.current?.querySelectorAll<HTMLElement>(`[data-nid="${nid}"]`) ?? []);
+    for (const e of els) {
+      const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+      let tn: Node | null;
+      while ((tn = w.nextNode())) segs.push({ node: tn as Text, text: tn.textContent ?? "" });
+      segs.push({ node: null, text: " " });
+    }
+    return segs;
+  };
+  function wordAt(node: Node, offset: number): { nid: string; word: number; wtext: string } | null {
+    const el = (node instanceof Element ? node : node.parentElement)?.closest<HTMLElement>("[data-nid]");
+    const nid = el?.dataset.nid;
+    if (!nid) return null;
+    const segs = nidSegments(nid);
+    let prefix = "", full = "", found = false;
+    for (const sg of segs) {
+      if (!found && sg.node === node) { prefix = full + sg.text.slice(0, offset); found = true; }
+      full += sg.text;
+    }
+    if (!found) prefix = "";
+    const toks = prefix.split(/\s+/).filter(Boolean).length;
+    const word = !prefix || /\s$/.test(prefix) ? toks : Math.max(0, toks - 1);
+    return { nid, word, wtext: full.split(/\s+/).filter(Boolean)[word] ?? "" };
+  }
+  /** düğümdeki n. kelimeyi işaretle (CSS highlight; yoksa sadece düğüm) ve görünür yap */
+  const showWord = (nid: string, word: number) => {
+    const segs = nidSegments(nid);
+    let wi = -1, inW = false;
+    let sNode: Text | null = null, sOff = 0, eNode: Text | null = null, eOff = 0;
+    outer: for (const sg of segs) {
+      for (let i = 0; i < sg.text.length; i++) {
+        const sp = /\s/.test(sg.text[i]);
+        if (!sp && !inW) { inW = true; wi++; if (wi === word && sg.node) { sNode = sg.node; sOff = i; } }
+        if (sp && inW) { inW = false; if (wi === word) break outer; }
+        if (!sp && wi === word && sg.node) { eNode = sg.node; eOff = i + 1; }
+      }
+    }
+    if (!sNode || !eNode) { document.getElementById("n" + nid)?.scrollIntoView({ block: "center" }); return; }
+    const range = document.createRange();
+    range.setStart(sNode, sOff); range.setEnd(eNode, eOff);
+    const H = (window as unknown as { Highlight?: new (r: Range) => unknown }).Highlight;
+    const reg = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights;
+    if (H && reg) reg.set("lumen-word", new H(range));
+    const rc = range.getBoundingClientRect();
+    const sc = document.querySelector(".content");
+    if (sc && rc.height) sc.scrollBy({ top: rc.top - window.innerHeight / 2, behavior: "smooth" });
+    else (sNode.parentElement as HTMLElement | null)?.scrollIntoView({ block: "center" });
+  };
+  useEffect(() => {
+    if (!mark || markWord == null || loading) return;
+    const t = setTimeout(() => showWord(mark, markWord), 300);
+    return () => clearTimeout(t);
+  }, [mark, markWord, loading, pp, page, mpages]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { (CSS as unknown as { highlights?: Map<string, unknown> }).highlights?.delete("lumen-word"); }, []);
+
+  // "Burada kaldım": görevden açıldıysa görevin yeri; değilse hangi göreve / ayraca kaydedileceği sorulur
+  const saveTaskWord = async (taskId: string, nid: string, word: number, wtext: string) => {
+    const w = where(nid);
+    const bi = paged && !isQuran ? bookPages.findIndex((pg) => pg.some((n) => n.id === nid)) : -1;
+    const page = numbered ? pageNo : isQuran ? w.page : bi >= 0 ? bi + 1 : null;
+    const label = numbered ? `${unitLabel(pageNo)} · “${wtext}”` : `${w.label} · “${wtext}”`;
+    const { error } = await supabase.from("todos").update({ place: { doc_id: doc.id, node_id: nid, word, page, label }, updated_at: new Date().toISOString() }).eq("id", taskId);
+    if (error) { flash("Kaydedilemedi: " + error.message); return; }
+    setMark(nid); setMarkWord(word);
+    window.getSelection()?.removeAllRanges(); setSel(null); lastSel.current = null;
+    flash(`Burada kaldın · “${wtext}”`);
+  };
+  const bookTasks = () => todos.filter((t) => !t.is_completed && !t.parent_todo_id && (
+    isQuran ? t.page_goal?.doc_key === "kuran" || t.reading_ref?.scope === "kuran"
+      : t.place?.doc_id === doc.id || (!!bookId && (t.page_goal?.book_id === bookId || t.reading_ref?.book_id === bookId))));
+  const hereAt = (nid: string, word: number, wtext: string, quote: string) => {
+    if (focusTaskId) { void saveTaskWord(focusTaskId, nid, word, wtext); return; }
+    if (!bookTasks().length) { markAt(nid, quote); window.getSelection()?.removeAllRanges(); setSel(null); return; }
+    window.getSelection()?.removeAllRanges(); setSel(null);
+    setHereAsk({ nid, word, wtext, quote });
+  };
+  const hereRef = useRef<(x: number, y: number, target: Element) => void>(() => {});
+  hereRef.current = (x, y, target) => {
+    if (target.closest("button, a, input, textarea, .pill, .cpill, .fcnt, .dpager, .pnav")) return;
+    if (pageCounters.length) return; // sayaçlı sayfada çift dokunma sayaca ait
+    const d = document as unknown as { caretRangeFromPoint?: (x: number, y: number) => Range | null; caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+    const r = d.caretRangeFromPoint?.(x, y);
+    const cp = r ? { node: r.startContainer, off: r.startOffset } : (() => { const p = d.caretPositionFromPoint?.(x, y); return p ? { node: p.offsetNode, off: p.offset } : null; })();
+    if (!cp) return;
+    const wa = wordAt(cp.node, cp.off);
+    if (!wa) return;
+    try { navigator.vibrate?.(12); } catch { /* yok say */ }
+    hereAt(wa.nid, wa.word, wa.wtext, textOf(wa.nid));
+  };
+  // çift dokunma: dokunulan kelimede "burada kaldım"
+  useEffect(() => {
+    let last = { t: 0, x: 0, y: 0 };
+    const onEnd = (e: TouchEvent) => {
+      const tch = e.changedTouches[0];
+      if (!tch || e.touches.length || !bodyRef.current?.contains(e.target as Node)) return;
+      const now = Date.now();
+      if (now - last.t < 320 && Math.abs(tch.clientX - last.x) < 28 && Math.abs(tch.clientY - last.y) < 28) {
+        last = { t: 0, x: 0, y: 0 };
+        e.preventDefault();
+        hereRef.current(tch.clientX, tch.clientY, e.target as Element);
+      } else last = { t: now, x: tch.clientX, y: tch.clientY };
+    };
+    const onDbl = (e: MouseEvent) => { if (bodyRef.current?.contains(e.target as Node)) hereRef.current(e.clientX, e.clientY, e.target as Element); };
+    document.addEventListener("touchend", onEnd, { passive: false });
+    document.addEventListener("dblclick", onDbl);
+    return () => { document.removeEventListener("touchend", onEnd); document.removeEventListener("dblclick", onDbl); };
+  }, []);
+
   // metin seçimi → seçim menüsü (Kaldığım yer · Not · Todo)
   useEffect(() => {
     const onSel = () => {
@@ -485,7 +604,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const text = s.toString().trim();
       if (!el?.dataset.nid || !text) { setSel(null); return; }
       const rect = r.getBoundingClientRect();
-      lastSel.current = { nid: el.dataset.nid, text, at: Date.now() };
+      const wa = wordAt(r.startContainer, r.startOffset);
+      lastSel.current = { nid: el.dataset.nid, text, at: Date.now(), word: wa?.word ?? 0, wtext: wa?.wtext ?? text.split(/\s+/)[0] };
       // menü seçimin ALTINDA: telefonun kendi menüsü (Kopyala, Çevir) üstte çıktığı için çakışmasın
       const below = rect.bottom + 14;
       const y = below + 60 < window.innerHeight - 70 ? below : Math.max(rect.top - 64, 60);
@@ -543,12 +663,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const openTask = (nid: string, text: string, mode: "ayrac" | "sabit", bookmarkId?: string | null) => {
     setPlace({ pos: posOf(nid, text), mode, bookmarks: bms, bookmarkId: bookmarkId ?? taskT?.bookmark_id ?? null });
   };
-  const saveMark = () => {
-    if (!sel) return;
-    markAt(sel.nid, sel.text);
-    window.getSelection()?.removeAllRanges();
-    setSel(null);
-  };
   const addNote = async (text: string) => {
     if (!ask) return;
     const { data, error } = await supabase.from("reader_notes").insert({ document_id: doc.id, node_id: ask.nid, quote: ask.text.slice(0, 500), note: text }).select("id,node_id,note,quote").single();
@@ -568,8 +682,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     setPmenu(false);
     const h = hereNid();
     if (!h) return;
+    const ls0 = lastSel.current;
     lastSel.current = null;
-    if (a === "mark") markAt(h.nid, h.text);
+    if (a === "mark") hereAt(h.nid, h.picked ? ls0?.word ?? 0 : 0, h.picked ? ls0?.wtext ?? "" : textOf(h.nid).split(/\s+/)[0] ?? "", h.text);
     else if (a === "not") setAsk({ nid: h.nid, text: h.picked ? h.text : "" });
     else openTask(h.nid, h.text, h.picked ? "sabit" : "ayrac");
   };
@@ -695,12 +810,31 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     <>
       {sel && (
         <div className="selbar" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()}>
-          <button className="g" onClick={saveMark} aria-label="Kaldığım yer"><Icon name="bookmark" size={20} /><span>Kaldığım yer</span></button>
+          <button className="g" onClick={() => { const ls = lastSel.current; hereAt(sel.nid, ls?.nid === sel.nid ? ls.word ?? 0 : 0, ls?.nid === sel.nid ? ls.wtext ?? "" : sel.text.split(/\s+/)[0], sel.text); }} aria-label="Burada kaldım"><Icon name="bookmark" size={20} /><span>{focusTaskId ? "Burada kaldım" : "Kaldığım yer"}</span></button>
           <button onClick={() => { setAsk({ nid: sel.nid, text: sel.text }); lastSel.current = null; setSel(null); }} aria-label="Not"><Icon name="pencil" size={20} /><span>Not</span></button>
           <button className="a" onClick={() => { openTask(sel.nid, sel.text, "sabit"); lastSel.current = null; window.getSelection()?.removeAllRanges(); setSel(null); }} aria-label="Görev"><Icon name="plusbox" size={20} /><span>Görev</span></button>
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
+      {hereAsk && (
+        <>
+          <div className="scrim show" style={{ zIndex: 44 }} onClick={() => setHereAsk(null)} />
+          <div className="sheet" style={{ zIndex: 45 }} role="dialog" aria-label="Burada kaldım">
+            <div className="grab" />
+            <div className="sheethead"><h2>Burada kaldım</h2><button className="iconbtn" onClick={() => setHereAsk(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
+            <p className="muted small" style={{ margin: "0 2px 10px" }}>“{hereAsk.wtext}” · {where(hereAsk.nid).label}. Nereye kaydedilsin?</p>
+            <div className="lbl" style={{ padding: "4px 0 6px" }}>GÖREVLER</div>
+            <div className="lplist">
+              {bookTasks().map((t) => (
+                <button key={t.id} className="lprow" style={{ width: "100%", background: "none", border: 0, color: "inherit", textAlign: "left", font: "inherit" }} onClick={() => { const h = hereAsk; setHereAsk(null); void saveTaskWord(t.id, h.nid, h.word, h.wtext); }}>
+                  <Icon name="todo" size={18} /><span>{t.title}<small className="muted" style={{ display: "block", fontSize: 12 }}>{t.place?.label ?? t.reading_ref?.label ?? ""}</small></span>
+                </button>
+              ))}
+            </div>
+            <button className="addsub" style={{ marginTop: 12 }} onClick={() => { const h = hereAsk; setHereAsk(null); markAt(h.nid, h.quote); }}><Icon name="bookmark" size={18} /> Ayraç olarak kaydet</button>
+          </div>
+        </>
+      )}
       {bmDraft && (
         <BookmarkDialog
           autoTitle={bookTitle}
@@ -729,7 +863,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
           <div className="scrim show" style={{ zIndex: 40, background: "transparent" }} onClick={() => setPmenu(false)} />
           <div className="pmenu">
             <div className="pmhint">{lastSel.current && Date.now() - lastSel.current.at < 30000 ? `Seçtiğin yer: “${lastSel.current.text.slice(0, 40)}”` : "Ekranda görünen yer için · bir kelime/cümle seçersen o yer için"}</div>
-            <button onClick={() => pageAct("mark")}><Icon name="bookmark" size={20} /> Kaldığım yeri kaydet (ayraç)</button>
+            <button onClick={() => pageAct("mark")}><Icon name="bookmark" size={20} /> {focusTaskId ? "Görevde burada kaldım" : "Kaldığım yeri kaydet"}</button>
             <button onClick={() => pageAct("task")}><Icon name="plusbox" size={20} /> Görev ekle</button>
             <button onClick={() => pageAct("not")}><Icon name="pencil" size={20} /> Not ekle</button>
           </div>

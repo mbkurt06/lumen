@@ -54,7 +54,7 @@ export function TodoDetail() {
           <div className="muted small">{[pl.section, pl.book].filter(Boolean).join(" · ")}</div>
           <div style={{ fontWeight: 700, marginTop: 4 }}>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</div>
           {pl.quote && <div className="muted small" style={{ marginTop: 4 }}>“{pl.quote}”</div>}
-          <button className="primary" style={{ marginTop: 12 }} onClick={() => pl.docId && nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } })}>{pl.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
+          <button className="primary" style={{ marginTop: 12 }} onClick={() => pl.docId && nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, word: t.place?.word ?? undefined, taskId: t.id, ctx: taskState(t).ctx, startPage: t.place?.page ?? undefined } })}>{pl.live ? "Kaldığım yere git" : "Kitaptaki yere git"}</button>
         </div>
       )}
       {t.notes && <div className="card" style={{ margin: "10px 16px" }}><p className="muted" style={{ margin: 0, whiteSpace: "pre-wrap" }}>{t.notes}</p></div>}

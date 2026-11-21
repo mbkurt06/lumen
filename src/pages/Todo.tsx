@@ -67,7 +67,7 @@ export function Todo() {
         nav(`/kutuphane/${r?.docId ?? pl.docId}`, { state: { taskId: t.id, ctx, startPage: p } });
         return;
       }
-      nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id, ctx: st.ctx, startPage: t.place?.page ?? undefined } });
+      nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, word: t.place?.word ?? undefined, taskId: t.id, ctx: st.ctx, startPage: t.place?.page ?? undefined } });
       return;
     }
     if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`);

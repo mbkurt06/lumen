@@ -665,3 +665,6 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 .prow:first-of-type { margin-top: 8px; }
 .pst { color: var(--muted); font-weight: 600; white-space: nowrap; }
 .pst.ok { color: var(--accent); } .pst.bad { color: var(--danger); } .pst.part { color: var(--gold); } .pst.sk { color: var(--muted); text-decoration: line-through; }
+/* görevde kalınan kelime */
+::highlight(lumen-word) { background-color: rgba(230, 199, 122, .55); color: inherit; text-decoration: underline; text-decoration-thickness: 2px; }
+.bpbody, .reader2, .dua { touch-action: manipulation; }

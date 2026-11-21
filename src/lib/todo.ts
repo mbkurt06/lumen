@@ -34,7 +34,7 @@ export type Todo = {
   created_at: string;
   completed_at: string | null;
 };
-export type TaskPlace = { doc_id: string; node_id: string | null; page?: number | null; label?: string };
+export type TaskPlace = { doc_id: string; node_id: string | null; page?: number | null; label?: string; /** düğümdeki kelime sırası (burada kaldım) */ word?: number };
 export type Lap = { n: number; a: string; b: string };
 /** Görevin kitaptaki yeri: "yer" = kaldığım yer, "konu" = bir cümle/sayfa hakkında görev (araştır, sor…). */
 export type ReadingRef = { kind: "yer" | "konu"; doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string };
