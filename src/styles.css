@@ -707,3 +707,4 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 .cvs .cvb.intro .dar, .cvs .cvb.ref .dar { text-align: center; }
 .cvs .dar.cvl { text-align: right; margin-bottom: .1em; }
 .cvs .dtr.cvl { margin-top: .1em; }
+.tsub .warn { color: var(--danger); font-weight: 600; }

@@ -7,12 +7,11 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { taskLine, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
 import { rangeStartDoc } from "../lib/taskNav";
 import { ensureBookPages } from "../lib/bookPages";
 
-const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
 export function Todo() {
   const { listId } = useParams();
@@ -118,40 +117,21 @@ export function Todo() {
     const l = t.list_id ? listOf.get(t.list_id) : undefined;
     const kz = t.kind === "kaza" || t.kind === "kaza_oruc";
     const pl = placeOf(t);
-    const rt = recurrenceText(t);
     const g = t.page_goal;
     const s = states.get(t.id);
-    const unitTx = g?.unit ?? "sayfa";
-    const resume = pl ? `${pl.live ? "Kaldığın: " : ""}${pl.label}` : "";
-    const pu = periodUnit(t);
-    const prevTx = pu === "day" ? "dün" : pu === "week" ? "geçen hafta" : "geçen ay";
     const mode = g ? goalMode(g) : null;
     // düğme: sırayla okuda turdaki/kapsamdaki yer (67/100), payda dönemin ilerlemesi
     let btn = "", barV = 0, barMax = 1;
-    const parts: string[] = [];
     if (g && s) {
       if (mode === "seq") {
         if (s.total) { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
         else if (g.n) { btn = `${s.got}/${s.target}`; barV = s.got; barMax = s.target; }
-        parts.push(g.n ? `${goalLabel(g)} ${s.got}/${s.target} ${unitTx}` : `Bugün ${s.todayCount} ${unitTx}`);
-        if (g.n && pu === "day" && s.todayCount !== s.got) parts.push(`bugün ${s.todayCount}`);
-        if (g.loop) parts.push(`${s.lap}. tur`);
-        if (!t.strict && s.bonus > 0) parts.push(`+${s.bonus} telafi`);
-        if (!t.strict && g.n && tp.showYesterday && s.prev && pu !== "range") parts.push(`${prevTx} ${s.prev.got}/${s.prev.need}`);
-        if (!g.n && !s.total) parts.push(`toplam ${goalProgress(t)} ${unitTx}`);
-      } else {
-        btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total;
-        parts.push(goalLabel(g));
-        if (s.ahead) parts.push(`bu dönem ✓ · sonraki ${s.ahead.got}/${s.total}`);
-        if (!t.strict && tp.showYesterday && s.prev && pu !== "range") parts.push(`${prevTx} ${s.prev.got}/${s.prev.need}`);
-      }
-      // tarih aralığında: yetişmek için günlük öneri
-      const daysLeft = t.end_date ? Math.round((new Date(t.end_date + "T12:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) + 1 : 0;
-      const remain = mode === "pay" ? s.total - s.lapRead : s.target - s.got;
-      if (pu === "range" && tp.suggestDaily && daysLeft > 0 && remain > 0) parts.push(`günde ~${Math.ceil(remain / daysLeft)} ${unitTx} · ${daysLeft} gün kaldı`);
+      } else { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
     }
-    const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.strict ? "Zorunlu" : "", ...parts, pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
+    // ikinci satır: ① / ↻ · bugün okunan · tur · kaldığın yer (aralık) · ne zamana kadar · liste
+    const line: LinePart[] = kz && t.plan ? [{ t: `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}` }]
+      : taskLine(t, s, pl, current ? undefined : l?.title);
+    const sub = line.length > 0;
     const done = isDoneToday(t);
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
@@ -165,7 +145,7 @@ export function Todo() {
               <div className={"ttitle2" + (done && !t.page_goal?.loop ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
-            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
+            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.warn ? "warn" : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
         </div>

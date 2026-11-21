@@ -425,3 +425,89 @@ function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
   }
   return out;
 }
+
+/* ── Görev kartının ikinci satırı (standart) ──
+   [① tek seferlik | ↻ tekrar] · bugün okunan / dönem ilerlemesi · tur · kaldığın yer (aralık) · ne zamana kadar
+   Toplam ilerleme yeşil düğmede; burada tekrar yazılmaz. */
+export type LinePart = { t: string; warn?: boolean };
+const WD_TO = ["Paz'a", "Pzt'ye", "Sal'a", "Çar'a", "Per'e", "Cum'a", "Cmt'ye"];
+const MON_TO = ["Oca'ya", "Şub'a", "Mar'a", "Nis'e", "May'a", "Haz'a", "Tem'e", "Ağu'ya", "Eyl'e", "Eki'ye", "Kas'a", "Ara'ya"];
+/** "25 Kas'a kadar" · haftalıkta "Paz'a kadar" · "yarın son" · "bugün son" · "2 gün geçti" */
+export function untilText(end: string, week = false, today = ymd()): LinePart {
+  const d = Math.round((dayNum(end) - dayNum(today)));
+  if (d < 0) return { t: `${-d} gün geçti`, warn: true };
+  if (d === 0) return { t: "bugün son" };
+  if (d === 1) return { t: "yarın son" };
+  const dt = new Date(end + "T12:00:00");
+  if (week && d < 7) return { t: `${WD_TO[dt.getDay()]} kadar` };
+  return { t: `${dt.getDate()} ${MON_TO[dt.getMonth()]} kadar` };
+}
+/** ① ya da ↻ (+ tekrar türü) */
+export function repeatMark(t: Pick<Todo, "recurrence" | "start_date" | "created_at" | "page_goal">): string {
+  const r = t.recurrence;
+  if (!r || r.type === "once") return "①";
+  const g = t.page_goal;
+  const gp = g ? (goalMode(g) === "pay" ? g.every : g.n ? g.per : undefined) : undefined;
+  if (gp === "week") return "↻ haftalık";
+  if (gp === "month") return "↻ aylık";
+  const start = t.start_date ?? ymd(new Date(t.created_at));
+  switch (r.type) {
+    case "daily": return "↻";
+    case "weekdays": return "↻ Pzt–Cum";
+    case "weekend": return "↻ Cmt–Paz";
+    case "days": return "↻ " + [...(r.days ?? [])].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => WD[d]).join("·");
+    case "weekly": return "↻ " + WD[new Date(start + "T12:00:00").getDay()];
+    case "monthly": return "↻ aylık";
+    case "every": return `↻ ${r.n ?? 1} günde bir`;
+    default: return "↻";
+  }
+}
+/** Kaldığın yerin kısa hâli: "Nahl 55, s. 272" · "Birinci Söz, s. 4" · "Giriş" */
+export function shortPlace(label: string | undefined, drop: (string | undefined)[], page?: number | null, unit?: string): string {
+  const parts = (label ?? "").split(" · ").map((x) => x.trim()).filter(Boolean)
+    .filter((x) => !/^[“"«]/.test(x))
+    .filter((x) => !drop.some((d) => d && (x === d || d.includes(x))))
+    .map((x) => x.replace(/^Sayfa\s+(\d+)$/, "s. $1").replace(/^(.*?)\s+(\d+)\.\s*âyet$/, "$1 $2"));
+  if (parts.length) return parts.join(", ");
+  if (page != null) return unit === "bab" ? `${page}. Bab` : `s. ${page}`;
+  return "";
+}
+export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeof placeOf>, extra?: string): LinePart[] {
+  const out: LinePart[] = [{ t: repeatMark(t) }];
+  const g = t.page_goal;
+  const rec = isRecurring(t);
+  let end: LinePart | null = null;
+  if (g && s) {
+    const mode = goalMode(g);
+    const pu = periodUnit(t);
+    const today = s.todayCount;
+    if (mode === "seq" && g.n && pu === "day") {
+      const got = Math.max(s.got, today);
+      out.push({ t: `${got}/${s.target}${got >= s.target ? " ✓" : ""}` });
+    } else if (mode === "seq" && g.n && (pu === "week" || pu === "month")) {
+      out.push({ t: `${s.got}/${s.target}${s.got >= s.target ? " ✓" : ""}${today ? ` (+${today})` : ""}` });
+    } else {
+      out.push({ t: `+${today}${mode === "pay" && s.ahead ? " ✓" : ""}` });
+    }
+    if (!t.strict && s.bonus > 0) out.push({ t: `telafi +${s.bonus}` });
+    if (g.loop) out.push({ t: `${s.lap}. tur` });
+    const showRange = mode === "pay" || !!g.pages?.length || (g.from != null && g.from > 1);
+    const rng = g.pages?.length ? pagesText(g.pages) : g.from != null && g.to != null ? `${Math.min(g.from, g.to)}–${Math.max(g.from, g.to)}` : "";
+    const place = shortPlace(pl?.label, [t.title, pl?.book, pl?.section], t.place?.page, g.unit);
+    const pr = [place, showRange && rng ? `(${rng})` : ""].filter(Boolean).join(" ");
+    if (pr) out.push({ t: pr });
+    if (pu === "week" || pu === "month") { if (s.cur) end = untilText(s.cur.b, pu === "week"); }
+    else if (!rec && t.end_date) end = untilText(t.end_date);
+    else if (pu === "range" && t.end_date) end = untilText(t.end_date);
+  } else {
+    if (rec && Math.max(1, t.per_day) > 1) out.push({ t: `${doneOn(t)}/${t.per_day}` });
+    const place = pl ? shortPlace(pl.label, [t.title, pl.book]) : "";
+    if (place) out.push({ t: place });
+    if (!rec && t.end_date) end = untilText(t.end_date);
+    else if (!rec && t.due_at) end = untilText(ymd(new Date(t.due_at)));
+  }
+  if (end) out.push(end);
+  if (t.strict) out.push({ t: "Zorunlu" });
+  if (extra) out.push({ t: extra });
+  return out;
+}
