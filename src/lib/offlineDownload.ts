@@ -2,7 +2,8 @@ import { ensureMushafFont, loadMushafPages } from "./mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames, loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems, loadRootsList, loadTesbihatDocs } from "./loaders";
 import type { Item } from "./library";
 import { supabase } from "./supabase";
-import { setForceNetwork } from "./offlineFetch";
+import { refreshContent, setForceNetwork, type RefreshProgress } from "./offlineFetch";
+import { forgetBookPages } from "./bookPages";
 
 /* Koleksiyonları cihaza indirir: sayfaların kullandığı sorguların hepsini sırayla çalıştırır,
    yanıtlar offlineFetch ile cihazda saklanır. */
@@ -134,4 +135,35 @@ async function downloadChangesInner(key: CollectionKey, since: string, onProgres
     await pool(kids, 6, async (d) => { const m = d.metadata ?? {}; if (typeof m.start_page === "number" && typeof m.end_page === "number") await loadMushafPages(m.start_page, m.end_page); }, () => {});
   }
   return { changed: docIds.size + folderIds.size, serverNow: startedAt };
+}
+
+/* ── Yenile ── */
+/** Bir kitabı (ya da okunan bölümün kitabını) veri tabanındaki güncel hâliyle yeniler:
+    kitabın ve bütün bölümlerinin cihazdaki kayıtları ağdan yeniden alınır. */
+export async function refreshBook(id: string, onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {
+  setForceNetwork(true);
+  try {
+    const v = await loadItemView(id);
+    const book = v.item?.kind === "document" ? v.parent : v.item;
+    const ids = new Set<string>([id]);
+    if (book) {
+      ids.add(book.id);
+      const stack = [book.id];
+      for (let depth = 0; stack.length && depth < 3; depth++) {
+        const lvl = stack.splice(0);
+        for (const pid of lvl) {
+          const kids = await loadChildrenBySort(pid);
+          for (const k of kids) { ids.add(k.id); if (k.kind !== "document") stack.push(k.id); }
+        }
+      }
+      forgetBookPages(book.id);
+    }
+    const isKuran = v.root?.title === "Kur’an-ı Kerim";
+    return await refreshContent([...ids, ...(isKuran ? ["quran_mushaf_pages"] : [])], onProgress);
+  } finally { setForceNetwork(false); }
+}
+/** Bütün kütüphane: cihazda kayıtlı bütün kitap içerikleri ağdan yeniden alınır. */
+export async function refreshLibrary(onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {
+  forgetBookPages();
+  return refreshContent(undefined, onProgress);
 }

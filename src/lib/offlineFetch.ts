@@ -5,6 +5,7 @@
    - Ağa ulaşılamazsa bir süre "çevrimdışı" sayılır ve ağ hiç denenmez (uçak modunda bile
      telefon bazen "çevrimiçi" der; her istekte beklememek için).
    Yazma istekleri (kaydetme, silme) olduğu gibi ağa gider. */
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "../config";
 const CACHE = "lumen-data-v1";
 const CONTENT_TABLES = ["/rest/v1/library_items", "/rest/v1/content_nodes", "/rest/v1/quran_mushaf_pages"];
 const NET_TIMEOUT_MS = 3500;
@@ -78,6 +79,7 @@ export const offlineFetch: typeof fetch = async (input, init) => {
   }
   const key = keyOf(req);
   const isContent = CONTENT_TABLES.some((t) => req.url.includes(t));
+  if (isContent) rememberHeaders(req);
 
   if (isContent && !forceNetwork) {
     const hit = await fromCache(key);
@@ -100,6 +102,52 @@ export const offlineFetch: typeof fetch = async (input, init) => {
   log(req.url, "cihazda-yok", t0);
   throw new TypeError("offline");
 };
+
+/* ── Yenile: cihazdaki kitap içeriklerini veri tabanındaki güncel hâliyle değiştirir ── */
+let lastHeaders: Record<string, string> | null = null;
+function rememberHeaders(req: Request) {
+  const h: Record<string, string> = {};
+  for (const k of ["apikey", "authorization", "accept-profile", "x-client-info"]) { const v = req.headers.get(k); if (v) h[k] = v; }
+  if (h.apikey) lastHeaders = h;
+}
+function fallbackHeaders(): Record<string, string> {
+  let tok = SUPABASE_PUBLISHABLE_KEY;
+  try {
+    const raw = localStorage.getItem(`sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`);
+    const t = raw ? (JSON.parse(raw) as { access_token?: string }).access_token : undefined;
+    if (t) tok = t;
+  } catch { /* yok */ }
+  return { apikey: SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${tok}` };
+}
+export type RefreshProgress = { done: number; total: number; failed: number };
+/** Cihazda kayıtlı içerik yanıtlarını ağdan yeniden alır. `match` verilirse yalnız adresinde
+    bu kimliklerden biri geçenler (bir kitap) yenilenir; verilmezse bütün kütüphane. */
+export async function refreshContent(match?: string[], onProgress?: (p: RefreshProgress) => void): Promise<RefreshProgress> {
+  const p: RefreshProgress = { done: 0, total: 0, failed: 0 };
+  if (!hasCaches()) return p;
+  const headers = { ...(lastHeaders ?? fallbackHeaders()) };
+  if (typeof navigator !== "undefined" && navigator.onLine === false) throw new TypeError("offline");
+  markUp();
+  const cache = await caches.open(CACHE);
+  const keys = (await cache.keys()).map((r) => r.url).filter((u) => CONTENT_TABLES.some((t) => u.includes(t)) && (!match || match.some((id) => u.includes(id))));
+  p.total = keys.length; onProgress?.({ ...p });
+  let i = 0;
+  const run = async () => {
+    while (i < keys.length) {
+      const key = keys[i++];
+      try {
+        const u = new URL(key);
+        const acc = u.searchParams.get("__acc") ?? "";
+        u.searchParams.delete("__acc");
+        const res = await withTimeout(fetch(u.toString(), { headers: { ...headers, ...(acc ? { accept: acc } : {}) }, cache: "no-store" }), 20000);
+        if (res.ok) await cache.put(key, res); else p.failed++;
+      } catch { p.failed++; }
+      p.done++; onProgress?.({ ...p });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, keys.length) }, run));
+  return p;
+}
 
 /** Çevrimdışı verileri sil (ör. çıkış yaparken). */
 export async function clearOfflineData() {

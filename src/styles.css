@@ -668,3 +668,14 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 /* görevde kalınan kelime */
 ::highlight(lumen-word) { background-color: rgba(230, 199, 122, .55); color: inherit; text-decoration: underline; text-decoration-thickness: 2px; }
 .bpbody, .reader2, .dua { touch-action: manipulation; }
+
+/* Kitaba özgü okuma ayarları: ⋯ menüsü */
+.klbl { display: inline-flex; align-items: center; gap: 6px; }
+.kmore { position: relative; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 8px; border-radius: 8px; cursor: pointer; }
+.kmore:active { background: var(--highlight); }
+.kmore.ov { color: var(--accent); }
+.kmore.ov i { position: absolute; top: 0; right: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.kacts { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+.kacts button { text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: none; color: inherit; cursor: pointer; }
+.kacts button b { display: block; font-weight: 600; }
+.kacts button span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }

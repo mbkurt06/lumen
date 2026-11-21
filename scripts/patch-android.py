@@ -14,9 +14,10 @@ gradle.write_text(g)
 
 man = root / "app/src/main/AndroidManifest.xml"
 m = man.read_text()
-perm = '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
-if perm not in m:
-    m = m.replace("</manifest>", f"    {perm}\n</manifest>")
+for perm in ('<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />',
+             '<uses-permission android:name="android.permission.VIBRATE" />'):  # tesbih titreşimi
+    if perm not in m:
+        m = m.replace("</manifest>", f"    {perm}\n</manifest>")
 man.write_text(m)
 
 strings = root / "app/src/main/res/values/strings.xml"

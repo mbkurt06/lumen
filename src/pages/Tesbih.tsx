@@ -1,3 +1,4 @@
+import { buzz } from "../lib/counterPrefs";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
@@ -143,7 +144,7 @@ export function TesbihCounter() {
     if (v > t.target) return; // hedefe gelince durur
     const nt = { ...t, count: Math.max(0, v), count_date: ymd() };
     setT(nt);
-    try { navigator.vibrate?.(v === t.target ? [30, 60, 30] : 12); } catch { /* yok say */ }
+    buzz(v === t.target ? "goal" : "tap", v);
     putCount("t:" + t.id, t.target, nt.count); // cihaza yazılır, internet varsa hesaba da
   };
   return (

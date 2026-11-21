@@ -7,9 +7,9 @@ import type { Item } from "../lib/library";
 import { ensureBookPages, fixedPages } from "../lib/bookPages";
 import { goalLabel, goalMode, inScope, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
 import { rangeStartDoc } from "../lib/taskNav";
-import { useCP } from "../lib/counterPrefs";
+import { useCP, buzz } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
-import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
+import { keyAction, loadRSU, pullRS, resetUnit, saveRSU, unitKey, unitOverrides, type KeyAction, type RSettings, type Scope } from "../lib/readerSettings";
 import { TodoSheet, type PlacePrefill, type Pos } from "./TodoSheet";
 import { BookmarkDialog } from "../components/BookmarkDialog";
 import { FloatCounter, FullTasbih } from "../components/FloatCounter";
@@ -18,6 +18,7 @@ import { pickNewer, putCount, todayOnly } from "../lib/countStore";
 import { addBookmark, deleteBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
+import { refreshBook } from "../lib/offlineDownload";
 
 type Node = {
   id: string;
@@ -104,8 +105,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [rs, setRs] = useState<RSettings>(() => loadRS(scope));
-  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(r); }); }, [scope]);
+  // ayarlar kitaba / sayfaya özgü: Kur'an tek; Cevşen, Tevhidname, Esmâ dizinin tamamı; diğer dua ve tesbihatlar tek tek; kitaplarda kitap
+  const dm = (doc.metadata ?? {}) as Record<string, unknown>;
+  const rsUnit = unitKey(scope, scope === "kuran" ? "kuran"
+    : doc.parent_id && (Number.isFinite(Number(dm.page ?? NaN)) && dm.page != null || String(dm.legacy_id ?? "").startsWith("esma-")) ? doc.parent_id
+    : scope === "ibadet" ? doc.id : doc.parent_id ?? doc.id);
+  const [rs, setRs] = useState<RSettings>(() => loadRSU(scope, rsUnit));
+  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(loadRSU(scope, rsUnit)); }); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
   const [showSettings, setShowSettings] = useState(false);
   const [focus, setFocus] = useState(false);
   const [sel, setSel] = useState<{ x: number; y: number; nid: string; text: string } | null>(null);
@@ -468,7 +474,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!b) { if (page < pages.length - 1) go(page + 1); return; }
     const v = Math.min(b.target, (counts[b.n.id] ?? 0) + 1);
     setCounts((s) => ({ ...s, [b.n.id]: v }));
-    try { navigator.vibrate?.(v === b.target ? [30, 60, 30] : 12); } catch { /* yok say */ }
+    buzz(v === b.target ? "goal" : "tap", v);
     void saveCount(b.n.id, b.target, v);
   };
 
@@ -688,13 +694,24 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     else if (a === "not") setAsk({ nid: h.nid, text: h.picked ? h.text : "" });
     else openTask(h.nid, h.text, h.picked ? "sabit" : "ayrac");
   };
+  // Yenile: bu kitabın cihazdaki kopyasını veri tabanındaki güncel hâliyle değiştir
+  const refreshThis = async () => {
+    if (offline) { flash("İnternet yokken yenilenemez"); return; }
+    flash("Güncel hâli alınıyor…");
+    try {
+      const r = await refreshBook(doc.id);
+      if (r.failed && r.failed === r.total) { flash("Yenilenemedi, internet bağlantısını kontrol et"); return; }
+      window.location.reload();
+    } catch { flash("Yenilenemedi, internet bağlantısını kontrol et"); }
+  };
   // görevden açıldıysa: o görevi yükle (alt çubuk için)
   useEffect(() => {
     if (!focusTaskId) return;
     void supabase.from("todos").select("id,title,bookmark_id,per_day,progress,recurrence,is_completed").eq("id", focusTaskId).maybeSingle().then(({ data }) => setTaskT(data as TodoT | null));
   }, [focusTaskId]);
 
-  const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
+  const setR = (s: RSettings) => { setRs(s); saveRSU(scope, rsUnit, s); };
+  const KEY_DONE: Record<KeyAction, string> = { default: "Bu bölümde varsayılan yapıldı", section: "Bu bölümdeki her yere uygulandı", all: "Bütün bölümlere uygulandı", reset: "Bu kitapta varsayılana döndü" };
   const sysDark = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   const defTheme = "dark";
   const th = rs.theme === "default" || rs.theme === "paper" ? defTheme : rs.theme;
@@ -719,7 +736,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   // Not: tarayıcı kendi tam ekranından çıksa (ör. iPad'de kaydırınca) okuyucu tam sayfada kalır;
   // çıkış yalnız sağ üstteki ✕ ile.
 
-  if (showSettings) return <ReaderSettings title={doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)} onApplyAll={() => { applyAll(rs); flash("Tüm bölümlere uygulandı"); }} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} counters={scope === "ibadet"} />;
+  if (showSettings) return <ReaderSettings title={scope === "kuran" ? "Kur'an-ı Kerim" : rsUnit.endsWith(doc.id) ? doc.title : parentTitle ?? doc.title} defTheme={defTheme} rs={rs} onChange={setR} onBack={() => setShowSettings(false)}
+    ov={unitOverrides(rsUnit)} onKey={(k, a) => { keyAction(scope, rsUnit, k, rs[k], a); setRs(loadRSU(scope, rsUnit)); flash(KEY_DONE[a]); }}
+    onApplyAll={() => { for (const k of unitOverrides(rsUnit)) keyAction(scope, rsUnit, k, rs[k], "default"); setRs(loadRSU(scope, rsUnit)); flash("Bu kitabın ayarları bu bölümde varsayılan yapıldı"); }}
+    onReset={() => { resetUnit(rsUnit); setRs(loadRSU(scope, rsUnit)); flash("Bu kitap varsayılan ayarlara döndü"); }} onGeneral={() => nav("/ayarlar")} counters={scope === "ibadet"} />;
 
   const notesOf = (nid: string) => notes.filter((n) => n.node_id === nid);
   const span = (n: Node, text: ReactNode) => (
@@ -866,6 +886,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
             <button onClick={() => pageAct("mark")}><Icon name="bookmark" size={20} /> {focusTaskId ? "Görevde burada kaldım" : "Kaldığım yeri kaydet"}</button>
             <button onClick={() => pageAct("task")}><Icon name="plusbox" size={20} /> Görev ekle</button>
             <button onClick={() => pageAct("not")}><Icon name="pencil" size={20} /> Not ekle</button>
+            <button onClick={() => { setPmenu(false); void refreshThis(); }}><Icon name="sync" size={20} /> {scope === "kuran" ? "Kur'an'ı yenile" : "Bu kitabı yenile"}</button>
           </div>
         </>
       )}
@@ -971,7 +992,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const inc = () => {
     if (!actNode || (counts[actNode.id] ?? 0) >= tgt(actNode)) return; // hedef doldu: saymaz
     const v = setCount(actNode, (counts[actNode.id] ?? 0) + 1);
-    try { navigator.vibrate?.(v === tgt(actNode) ? [30, 60, 30] : 12); } catch { /* yok say */ }
+    buzz(v === tgt(actNode) ? "goal" : "tap", v);
     if (v >= tgt(actNode) && !cumulative) setActive(null);
   };
   const dec = () => { if (shown) setCount(shown, (counts[shown.id] ?? 0) - 1); };
@@ -1070,15 +1091,22 @@ const CNT = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.3, 2.6, 3, 3.5, 4
 const cntIdx = (v: number) => CNT.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(CNT[best] - v) ? i : best), 0);
 const sizeIdx = (v: number) => SIZES.reduce((best, x, i) => (Math.abs(x - v) < Math.abs(SIZES[best] - v) ? i : best), 0);
 
-export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters }: {
+export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyAll, onReset, onGeneral, counters, ov = [], onKey }: {
   title: string; defTheme: string; rs: RSettings; onChange: (s: RSettings) => void; onBack: () => void; onApplyAll: () => void; onReset: () => void; onGeneral: () => void; counters?: boolean;
+  /** bu kitapta varsayılandan farklı ayarlar */ ov?: (keyof RSettings)[]; /** tek ayar için: varsayılan yap / uygula / geri dön */ onKey?: (k: keyof RSettings, a: KeyAction) => void;
 }) {
   const [cp, setCp] = useCP();
+  const [menu, setMenu] = useState<null | { k: keyof RSettings; label: string }>(null);
+  // ayarın yanındaki ⋯: bu ayarı varsayılan yap / her yere uygula; nokta: bu kitapta farklı
+  const More = ({ k, label }: { k: keyof RSettings; label: string }) => (onKey ? (
+    <button className={"kmore" + (ov.includes(k) ? " ov" : "")} onClick={(e) => { e.stopPropagation(); setMenu({ k, label }); }} aria-label={`${label}: varsayılan / uygula`}>{ov.includes(k) && <i />}⋯</button>
+  ) : null);
+  const Lbl = ({ k, label }: { k: keyof RSettings; label: string }) => <span className="klbl">{label}<More k={k} label={label} /></span>;
   const Tog = ({ k, label }: { k: "ar" | "latin" | "tr" | "fit"; label: string }) => (
-    <div className="srow"><span>{label}</span><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
+    <div className="srow"><Lbl k={k} label={label} /><button className={"tgl" + (rs[k] ? " on" : "")} onClick={() => onChange({ ...rs, [k]: !rs[k] })} aria-pressed={rs[k]}><i /></button></div>
   );
   const CntRow = ({ label, k }: { label: string; k: "cnt" | "pill" }) => (
-    <div className="srow col"><span>{label}</span>
+    <div className="srow col"><Lbl k={k} label={label} />
       <div className="sl">
         <button className="szb" onClick={() => onChange({ ...rs, [k]: CNT[Math.max(0, cntIdx(rs[k]) - 1)] })} aria-label="Küçült">−</button>
         <input type="range" min={0} max={CNT.length - 1} step={1} value={cntIdx(rs[k])} onChange={(e) => onChange({ ...rs, [k]: CNT[Number(e.target.value)] })} />
@@ -1093,14 +1121,14 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
         <button className="iconbtn" onClick={onBack} aria-label="Geri"><Icon name="back" size={26} /></button>
         <div className="ptitle"><h1>Ayarlar</h1><p>{title}</p></div>
       </header>
-      <div className="infoline">Bu bölümün tüm kitapları için geçerli (ör. HE Eserleri). Diğer bölümler kendi ayarını tutar.</div>
+      <div className="infoline">{onKey ? "Bu ayarlar sadece bu kitap için. Bir ayarın yanındaki ⋯ ile onu varsayılan yapabilir ya da her yere uygulayabilirsin. Nokta: bu kitapta varsayılandan farklı." : "Bu bölümün tüm kitapları için geçerli."}</div>
       <div style={{ padding: "0 16px" }}>
-        <div className="srow col"><span>Gece modu</span>
+        <div className="srow col"><Lbl k="theme" label="Gece modu" />
           <div className="seg3">
             {(["dark", "light", "auto"] as const).map((t) => (<button key={t} className={rs.theme === t || ((rs.theme === "default" || rs.theme === "paper") && t === defTheme) ? "on" : ""} onClick={() => onChange({ ...rs, theme: t })}>{t === "dark" ? "Koyu" : t === "light" ? "Aydınlık" : "Telefonla aynı"}</button>))}
           </div>
         </div>
-        <div className="srow col"><span>Sayfa rengi</span>
+        <div className="srow col"><Lbl k="paper" label="Sayfa rengi" />
           <div className="swatches">
             {([["cream", "Kâğıt"], ["sepia", "Sepya"], ["white", "Beyaz"], ["dark", "Koyu"]] as const).map(([k, l]) => (
               <button key={k} className={"sw" + (rs.paper === k ? " on" : "")} data-pc={k} onClick={() => onChange({ ...rs, paper: k })}><i />{l}</button>
@@ -1112,7 +1140,7 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
         <Tog k="ar" label="Arapça" />
         <Tog k="latin" label="Latin okunuş" />
         <Tog k="tr" label="Türkçe anlam" />
-        <div className="srow col"><span>Yazı boyutu</span>
+        <div className="srow col"><Lbl k="size" label="Yazı boyutu" />
           <div className="sl">
             <button className="szb" onClick={() => onChange({ ...rs, size: SIZES[Math.max(0, sizeIdx(rs.size) - 1)] })} aria-label="Küçült">A−</button>
             <input type="range" min={0} max={SIZES.length - 1} step={1} value={sizeIdx(rs.size)} onChange={(e) => onChange({ ...rs, size: SIZES[Number(e.target.value)] })} />
@@ -1126,15 +1154,31 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
             <CntRow label="Satır sayaçları boyutu" k="pill" />
           </>
         )}
-        <div className="srow col"><span>Aydınlatma</span>
+        <div className="srow col"><Lbl k="light" label="Aydınlatma" />
           <div className="sl"><small>☼</small><input type="range" min={0.4} max={1} step={0.05} value={rs.light} onChange={(e) => onChange({ ...rs, light: Number(e.target.value) })} /><b>☀</b></div>
         </div>
-        <button className="secondary" style={{ marginTop: 24 }} onClick={onApplyAll}>⇄ Tüm bölümlere uygula</button>
+        <button className="secondary" style={{ marginTop: 24 }} onClick={onApplyAll}>{onKey ? "★ Bu kitabın ayarlarını varsayılan yap" : "⇄ Tüm bölümlere uygula"}</button>
         <div className="seg" style={{ marginTop: 10 }}>
-          <button onClick={onReset}>↺ Sıfırla</button>
+          <button onClick={onReset}>{onKey ? "↺ Varsayılana dön" : "↺ Sıfırla"}</button>
           <button onClick={onGeneral}>Genel ayarlar</button>
         </div>
       </div>
+      {menu && onKey && (
+        <>
+          <div className="scrim show" style={{ zIndex: 44 }} onClick={() => setMenu(null)} />
+          <div className="sheet" style={{ zIndex: 45 }} role="dialog" aria-label={menu.label}>
+            <div className="grab" />
+            <div className="sheethead"><h2>{menu.label}</h2><button className="iconbtn" onClick={() => setMenu(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
+            <p className="muted small" style={{ margin: "0 2px 10px" }}>{ov.includes(menu.k) ? "Bu kitapta varsayılandan farklı." : "Bu kitapta varsayılan kullanılıyor."}</p>
+            <div className="kacts">
+              <button onClick={() => { onKey(menu.k, "default"); setMenu(null); }}><b>Varsayılan yap</b><span>Bu bölümde ayarı değiştirilmemiş kitaplar da bunu kullanır</span></button>
+              <button onClick={() => { onKey(menu.k, "section"); setMenu(null); }}><b>Bu bölümdeki her yere uygula</b><span>Bu bölümün bütün kitaplarında aynı olur</span></button>
+              <button onClick={() => { onKey(menu.k, "all"); setMenu(null); }}><b>Bütün bölümlere uygula</b><span>Kur'an, ibadet, Risale, HE ve diğerlerinde aynı olur</span></button>
+              {ov.includes(menu.k) && <button onClick={() => { onKey(menu.k, "reset"); setMenu(null); }}><b>Bu kitapta varsayılana dön</b><span>Bölümün varsayılanı kullanılır</span></button>}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

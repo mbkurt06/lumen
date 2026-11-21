@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { COLLECTIONS, downloadChanges, downloadCollection, type CollectionKey, type Progress } from "../lib/offlineDownload";
+import { COLLECTIONS, downloadChanges, downloadCollection, refreshLibrary, type CollectionKey, type Progress } from "../lib/offlineDownload";
 import { cacheInfo, clearOfflineData, looksOffline, netLog, type NetLog } from "../lib/offlineFetch";
 
 const DONE_KEY = (k: string) => "lumen.offline.done." + k;
@@ -54,6 +54,16 @@ export function Offline() {
     }
     setBusy(null); setProg(null);
   };
+  const [rprog, setRprog] = useState<Progress | null>(null);
+  const refreshAll = async () => {
+    setMsg("");
+    setRprog({ done: 0, total: 1, failed: 0 });
+    try {
+      const r = await refreshLibrary(setRprog);
+      setMsg(r.total === 0 ? "Cihazda yenilenecek kayıt yok." : r.failed ? `${r.done - r.failed} / ${r.total} kayıt yenilendi, ${r.failed} kayıt alınamadı.` : `${r.total} kayıt güncel hâliyle yenilendi.`);
+    } catch { setMsg("İnternete ulaşılamadı."); }
+    setRprog(null);
+  };
   const clearAll = async () => {
     if (!window.confirm("Cihaza indirilen bütün içerik silinsin mi? (Hesabındaki veriler silinmez.)")) return;
     await clearOfflineData();
@@ -96,6 +106,10 @@ export function Offline() {
           {persisted === true ? " · kalıcı depolama açık" : persisted === false ? " · tarayıcı yer azalınca silebilir" : ""}
         </div>
         <div className="small muted">Kur'an yaklaşık 5 MB, İbadet 10 MB, Risale-i Nur 25 MB, HE Eserleri 50 MB yer kaplar. Tesbih sayaçları internetsiz de cihaza kaydedilir, bağlantı gelince hesaba gönderilir. Ayraç ve görev kaydı için şimdilik internet gerekir.</div>
+        <button className="secondary" disabled={!!busy || !!rprog || !online} onClick={() => void refreshAll()}>
+          {rprog ? `Yenileniyor… ${rprog.done} / ${rprog.total}` : "Kütüphaneyi yenile (cihazdaki her şey)"}
+        </button>
+        <div className="small muted" style={{ marginTop: -4 }}>Cihazdaki kitapları veri tabanındaki güncel hâliyle değiştirir (düzeltilen yazım hataları gibi). Tek bir kitap için: kitabın içindekiler sayfasında ya da okurken ⊞ menüsünde “yenile”.</div>
         <button className="secondary" disabled={!!busy || !online} onClick={() => void run(COLLECTIONS.map((c) => c.key), true)}>Baştan tamamen indir</button>
         <button className="secondary" disabled={!!busy} onClick={() => void clearAll()} style={{ color: "var(--danger)" }}>Çevrimdışı verileri sil</button>
         <button className="secondary" onClick={() => void showDiag()}>Tanılama (son istekler)</button>

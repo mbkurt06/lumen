@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Icon } from "../components/Icon";
-import { useCP, useLock } from "../lib/counterPrefs";
+import { useCP, useLock, buzz } from "../lib/counterPrefs";
 import { PageHeader } from "../components/PageHeader";
 import { supabase } from "../lib/supabase";
 import { FARZ, NAMAZ_KINDS, addKazaMany, kazaSure, useKaza, type KazaKind } from "../lib/kaza";
@@ -29,7 +29,7 @@ export function Kaza() {
   const guard = () => { if (!lk.touch()) { flash("Kilitli · açmak için 🔒'ye bas"); return false; } return true; };
   const apply = (k: KazaKind, delta: number, day = ymd()) => {
     addKazaMany([{ kind: k, delta }], day);
-    try { navigator.vibrate?.(12); } catch { /* yok say */ }
+    buzz("tap");
     window.clearTimeout(undoT.current);
     setUndo({ text: `${LBL[k]} ${delta > 0 ? "+" : ""}${delta}`, items: [{ kind: k, delta }], day });
     undoT.current = window.setTimeout(() => setUndo(null), cp.undoSec * 1000);

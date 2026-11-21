@@ -30,7 +30,7 @@ export function loadRS(scope: Scope): RSettings { return { ...DEFAULT_RS, ...(ge
 
 /* Ayarlar CİHAZ BAŞINA tutulur: her cihaz (iPad, iPhone, Android uygulaması, bilgisayar) kendi
    ayarını cihazda saklar; hesapta da yalnız o cihazın kimliği altında yedeklenir, başka cihaza geçmez. */
-type DevPrefs = { name?: string; lastSeen?: string; reader?: Partial<Record<Scope, Partial<RSettings>>> };
+type DevPrefs = { name?: string; lastSeen?: string; reader?: Partial<Record<Scope, Partial<RSettings>>>; readerUnits?: Units };
 
 /** Bu cihazın hesaptaki yedeği (cihazdaki kayıt silinmişse geri gelir). */
 export async function pullRS(scope: Scope): Promise<RSettings | null> {
@@ -45,6 +45,7 @@ export async function pullRS(scope: Scope): Promise<RSettings | null> {
 }
 
 let pending: Partial<Record<Scope, RSettings | null>> = {};
+let unitsDirty = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 async function pushRemote() {
   const upd = pending;
@@ -57,6 +58,7 @@ async function pushRemote() {
   const reader = { ...(me.reader ?? {}) } as Record<string, unknown>;
   for (const [k, v] of Object.entries(upd)) { if (v === null) delete reader[k]; else reader[k] = v; }
   me.reader = reader as DevPrefs["reader"];
+  if (unitsDirty) { unitsDirty = false; me.readerUnits = getUnits(); }
   devs[id] = me;
   prefs.devices = devs;
   await supabase.from("user_preferences").upsert({ preferences: prefs, updated_at: new Date().toISOString() }, { onConflict: "owner_id" });
@@ -70,3 +72,49 @@ function queue(scope: Scope, v: RSettings | null) {
 export function saveRS(scope: Scope, s: RSettings) { putLocal(scope, s); queue(scope, s); }
 export function applyAll(s: RSettings) { for (const sc of SCOPES) { putLocal(sc, s); queue(sc, s); } }
 export function resetRS(scope: Scope) { putLocal(scope, null); queue(scope, null); }
+
+/* ── Kitaba / sayfaya özgü ayarlar ──
+   Her kitap (HE'de bir kitap, Risale'de Sözler…), her tesbihat ya da dua, Cevşen, Tevhidname, Kur'an kendi
+   ayarını tutar. Sadece değiştirilen ayarlar saklanır; değiştirilmeyenler bölümün varsayılanından gelir.
+   Her ayar ayrı ayrı "varsayılan yap" ya da "bu bölümdeki her yere / bütün bölümlere uygula" denebilir. */
+type Units = Record<string, Partial<RSettings>>;
+const UK = "lumen.rsu.v1";
+function getUnits(): Units { try { return JSON.parse(localStorage.getItem(UK) ?? "{}") as Units; } catch { return {}; } }
+function putUnits(u: Units) {
+  try { localStorage.setItem(UK, JSON.stringify(u)); } catch { /* yok say */ }
+  unitsDirty = true;
+  clearTimeout(timer);
+  timer = setTimeout(() => { void pushRemote(); }, 800);
+}
+/** Ayar birimi: "<bölüm>:<kitap/belge>" */
+export const unitKey = (scope: Scope, id: string) => `${scope}:${id}`;
+/** Bu kitabın ayarları: bölümün varsayılanı + bu kitapta değiştirilenler */
+export function loadRSU(scope: Scope, unit: string): RSettings { return { ...loadRS(scope), ...(getUnits()[unit] ?? {}) }; }
+/** Bu kitapta varsayılandan farklı tutulan ayarlar */
+export function unitOverrides(unit: string): (keyof RSettings)[] { return Object.keys(getUnits()[unit] ?? {}) as (keyof RSettings)[]; }
+/** Kitapta yapılan değişikliği kaydet (sadece varsayılandan farklı olanlar tutulur) */
+export function saveRSU(scope: Scope, unit: string, next: RSettings) {
+  const base = loadRS(scope);
+  const ov: Partial<RSettings> = {};
+  for (const k of Object.keys(next) as (keyof RSettings)[]) if (next[k] !== base[k]) (ov as Record<string, unknown>)[k] = next[k];
+  const u = getUnits();
+  if (Object.keys(ov).length) u[unit] = ov; else delete u[unit];
+  putUnits(u);
+}
+export type KeyAction = "default" | "section" | "all" | "reset";
+/** Tek bir ayar için: varsayılan yap · bu bölümdeki her yere uygula · bütün bölümlere uygula · bu kitapta varsayılana dön */
+export function keyAction(scope: Scope, unit: string, k: keyof RSettings, v: RSettings[keyof RSettings], a: KeyAction) {
+  const u = getUnits();
+  if (a === "reset") { if (u[unit]) { delete u[unit][k]; if (!Object.keys(u[unit]).length) delete u[unit]; } putUnits(u); return; }
+  const scopes = a === "all" ? SCOPES : [scope];
+  for (const sc of scopes) { const d = { ...loadRS(sc), [k]: v } as RSettings; putLocal(sc, d); queue(sc, d); }
+  // varsayılan yap: bu kitap artık varsayılanı kullanır; diğer kitapların kendi ayarı korunur
+  // uygula: bölümdeki (ya da her yerdeki) kitapların bu ayardaki farkı silinir, hepsi aynı olur
+  for (const key of Object.keys(u)) {
+    const inScope = a === "all" || key.startsWith(scope + ":");
+    if (key === unit || (a !== "default" && inScope)) { delete u[key][k]; if (!Object.keys(u[key]).length) delete u[key]; }
+  }
+  putUnits(u);
+}
+/** Bu kitabın bütün ayarlarını varsayılana döndür */
+export function resetUnit(unit: string) { const u = getUnits(); delete u[unit]; putUnits(u); }

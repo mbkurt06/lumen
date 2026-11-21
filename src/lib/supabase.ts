@@ -10,7 +10,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 /* İnternet yokken oturum yenileme denemesi (Supabase ~25 sn tekrar eder) sayfaları bekletmesin:
    çevrimdışıysa ya da yenileme 4 sn'de bitmezse cihazda kayıtlı oturum kullanılır. */
 const STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
-function storedSession() {
+export function storedSession() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -26,7 +26,8 @@ supabase.auth.getSession = (async () => {
   const fallback = () => ({ data: { session: storedSession() }, error: null });
   if (looksOffline()) { note("kayıtlı"); return fallback(); }
   const r = await Promise.race([
-    origGetSession().then((x) => { note("normal"); return x; }),
+    // yenileme ağ yüzünden olmadıysa (oturum boş döndüyse) cihazdaki oturumla devam: giriş ekranı açılmasın
+    origGetSession().then((x) => { if (!x.data.session && storedSession()) { note("ağ hatası-kayıtlı"); return fallback(); } note("normal"); return x; }),
     new Promise((res) => setTimeout(() => { note("4sn-kayıtlı"); res(fallback()); }, 4000)),
   ]);
   return r;

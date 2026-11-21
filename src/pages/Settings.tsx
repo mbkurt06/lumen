@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { forgetLogin } from "../lib/auth";
 import { clearOfflineData } from "../lib/offlineFetch";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { CURRENT } from "../lib/update";
@@ -55,7 +56,7 @@ export function Settings() {
       <div className="card" style={{ margin: "12px 16px" }}>
         <div className="cardtitle">Hesap</div>
         <p className="muted small" style={{ margin: "4px 0 12px" }}>{session?.user.email}</p>
-        <button className="secondary" onClick={() => { void clearOfflineData(); void supabase.auth.signOut(); }}>Çıkış yap</button>
+        <button className="secondary" onClick={() => { forgetLogin(); void clearOfflineData(); void supabase.auth.signOut(); }}>Çıkış yap</button>
       </div>
 
       <p className="muted small" style={{ margin: "4px 20px 24px" }}>Bildirimler, Namaz, Okuma ve Google ayarları ilgili sayfalar geliştirilirken eklenecek.</p>
@@ -106,12 +107,23 @@ function CounterSettings() {
   return (
     <div className="card" style={{ margin: "12px 16px" }}>
       <div className="cardtitle">Sayaçlar</div>
-      <p className="muted small" style={{ margin: "4px 0 6px" }}>Yanlışlıkla basmaya karşı kilit. Bu cihaz için geçerli.</p>
+      <p className="muted small" style={{ margin: "4px 0 6px" }}>Kilit ve titreşim. Bu cihaz için geçerli.</p>
       <Tog k="lockKaza" label="Kaza sayfası kilitli açılsın" />
       <Tog k="lockTesbih" label="Tesbih sayaçlarında kilit" />
       <div className="srow col"><span>Otomatik kilit</span>
         <div className="seg" style={{ marginTop: 6 }}>
           {[15, 30, 60, 120, 0].map((n) => (<button key={n} className={p.autoLockSec === n ? "on" : ""} onClick={() => set({ ...p, autoLockSec: n })}>{n === 0 ? "Kapalı" : n < 60 ? `${n} sn` : `${n / 60} dk`}</button>))}
+        </div>
+      </div>
+      <div className="srow col"><span>Basınca titreşim</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          {["Kapalı", "Hafif", "Orta", "Güçlü"].map((l, i) => (<button key={l} className={p.vib === i ? "on" : ""} onClick={() => { set({ ...p, vib: i }); try { navigator.vibrate?.([0, 10, 22, 45][i]); } catch { /* yok */ } }}>{l}</button>))}
+        </div>
+      </div>
+      <div className="srow"><span>Hedefe gelince uzun titreşim</span><button className={"tgl" + (p.vibGoal ? " on" : "")} onClick={() => set({ ...p, vibGoal: !p.vibGoal })} aria-pressed={p.vibGoal}><i /></button></div>
+      <div className="srow col"><span>Ara titreşim (her … sayıda bir)</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          {[0, 33, 100].map((n) => (<button key={n} className={p.vibEvery === n ? "on" : ""} onClick={() => set({ ...p, vibEvery: n })}>{n === 0 ? "Kapalı" : n}</button>))}
         </div>
       </div>
       <div className="srow col"><span>“Geri al” süresi</span>

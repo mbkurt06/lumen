@@ -33,6 +33,10 @@ export type BookPagesInfo = { total: number; docs: Record<string, number>; order
 const BP_KEY = "lumen.bookpages.v1";
 let BP: Record<string, BookPagesInfo> = (() => { try { return JSON.parse(localStorage.getItem(BP_KEY) ?? "{}") as Record<string, BookPagesInfo>; } catch { return {}; } })();
 const pending = new Map<string, Promise<BookPagesInfo | null>>();
+export function forgetBookPages(bookId?: string) {
+  BP = bookId ? Object.fromEntries(Object.entries(BP).filter(([k]) => k !== bookId)) : {};
+  try { localStorage.setItem(BP_KEY, JSON.stringify(BP)); } catch { /* yer yok */ }
+}
 export const bookPagesCached = (bookId: string): BookPagesInfo | undefined => BP[bookId];
 export function ensureBookPages(bookId: string): Promise<BookPagesInfo | null> {
   if (BP[bookId]) return Promise.resolve(BP[bookId]);

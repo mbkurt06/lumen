@@ -6,8 +6,9 @@ import { useResume, useRoots, type Item } from "../lib/library";
 import { confirmDeleteBookmark, deleteBookmark } from "../lib/bookmarks";
 import { loadChildrenBySort, loadIbadetExtras, loadItemView, loadKuranItems } from "../lib/loaders";
 import { Reader, ReaderSettings } from "./Reader";
-import { loadRS, pullRS, saveRS, applyAll, resetRS, scopeOf, type RSettings, type Scope } from "../lib/readerSettings";
+import { keyAction, loadRSU, pullRS, resetUnit, saveRSU, scopeOf, unitKey, unitOverrides, type RSettings, type Scope } from "../lib/readerSettings";
 import { Tesbihlar } from "./Tesbih";
+import { refreshBook } from "../lib/offlineDownload";
 import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } from "../lib/todo";
 
 /* ── ortak parçalar ── */
@@ -301,11 +302,27 @@ export function LibraryItem() {
 /* Kitabın içindekiler sayfası: okuyucuyla aynı kâğıt, yazı boyutu ve renk ayarları (bölüme göre) */
 function BookToc({ item, parentTitle, kids, scope, backTo }: { item: Item; parentTitle?: string; kids: Item[]; scope: Scope; backTo: string }) {
   const nav = useNavigate();
-  const [rs, setRs] = useState<RSettings>(() => loadRS(scope));
+  // kitabın kendi ayarları (okuyucudakiyle aynı birim: bu kitap)
+  const unit = unitKey(scope, item.id);
+  const [rs, setRs] = useState<RSettings>(() => loadRSU(scope, unit));
   const [show, setShow] = useState(false);
-  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(r); }); }, [scope]);
-  const setR = (s: RSettings) => { setRs(s); saveRS(scope, s); };
-  if (show) return <ReaderSettings title={item.title} defTheme="dark" rs={rs} onChange={setR} onBack={() => setShow(false)} onApplyAll={() => applyAll(rs)} onReset={() => { resetRS(scope); setRs(loadRS(scope)); }} onGeneral={() => nav("/ayarlar")} />;
+  useEffect(() => { void pullRS(scope).then((r) => { if (r) setRs(loadRSU(scope, unit)); }); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  const setR = (s: RSettings) => { setRs(s); saveRSU(scope, unit, s); };
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const refresh = async () => {
+    if (!navigator.onLine) { setMsg("İnternet yokken yenilenemez"); setTimeout(() => setMsg(""), 2500); return; }
+    setBusy(true); setMsg("Güncel hâli alınıyor…");
+    try {
+      const r = await refreshBook(item.id, (p) => setMsg(`Güncel hâli alınıyor… ${p.done}/${p.total}`));
+      if (r.failed && r.failed === r.total) { setMsg("Yenilenemedi"); setBusy(false); return; }
+      window.location.reload();
+    } catch { setMsg("Yenilenemedi"); setBusy(false); }
+  };
+  if (show) return <ReaderSettings title={item.title} defTheme="dark" rs={rs} onChange={setR} onBack={() => setShow(false)}
+    ov={unitOverrides(unit)} onKey={(k, a) => { keyAction(scope, unit, k, rs[k], a); setRs(loadRSU(scope, unit)); }}
+    onApplyAll={() => { for (const k of unitOverrides(unit)) keyAction(scope, unit, k, rs[k], "default"); setRs(loadRSU(scope, unit)); }}
+    onReset={() => { resetUnit(unit); setRs(loadRSU(scope, unit)); }} onGeneral={() => nav("/ayarlar")} />;
   const rt = rs.theme === "light" ? "light" : "dark";
   return (
     <div className="rpage paged" data-rt={rt}>
@@ -313,8 +330,10 @@ function BookToc({ item, parentTitle, kids, scope, backTo }: { item: Item; paren
       <header className="rhead">
         <button className="iconbtn" onClick={() => nav(backTo)} aria-label="Geri"><Icon name="back" size={24} /></button>
         <div className="rtitle">{item.title}<span>{parentTitle ?? "Kütüphane"} · İçindekiler</span></div>
+        <button className="iconbtn" disabled={busy} onClick={() => void refresh()} aria-label="Kitabı yenile" title="Veri tabanındaki güncel hâlini al"><Icon name="sync" size={22} /></button>
         <button className="iconbtn" onClick={() => setShow(true)} aria-label="Sayfa ayarları"><Icon name="sliders" size={22} /></button>
       </header>
+      {msg && <div className="toast">{msg}</div>}
       <div className="bookwrap">
         <article className="bookpage" data-pc={rs.paper}>
           <div className="bphead"><span>{parentTitle ?? ""}</span><span>İçindekiler</span></div>
