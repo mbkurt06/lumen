@@ -245,8 +245,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!paged || loading || startedAt.current) return;
     if (isQuran && !mpages) return;
     startedAt.current = true;
-    const st = loc.state as { atEnd?: boolean } | null;
+    const st = loc.state as { atEnd?: boolean; startPage?: number } | null;
     if (st?.atEnd) { setPp(pc - 1); return; }
+    // görevden "aralığın başından" açıldı (her gün baştan okunan aralık)
+    if (st?.startPage != null) {
+      const i = Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === st.startPage);
+      if (i != null) { setPp(i); return; }
+    }
     if (mark) {
       const i = isQuran
         ? (mpages ?? []).findIndex((pg) => pg.rich_content.paragraphs.some((p) => p.runs.some((r) => r.nodeId === mark)))

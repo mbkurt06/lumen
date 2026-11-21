@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
 import { addBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
 import { LibPicker, type Picked } from "../components/LibPicker";
+import { loadTP } from "../lib/taskPrefs";
 import { SECTION_LABEL, pagesText, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
 import type { Scope } from "../lib/readerSettings";
 
@@ -46,6 +47,8 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   // okuma hedefi: N sayfa / gün-hafta-ay-aralık
   const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? "none"); // hedef isteğe bağlı
   const [gOpen, setGOpen] = useState(!!edit?.page_goal);
+  // görev türü: zorunlu (süresi geçen dönem tamamlanana kadar kalır) ya da takip (kendi isteğin, borç olmaz)
+  const [strict, setStrict] = useState<boolean>(edit ? !!edit.strict : loadTP().defaultStrict);
   const unit = edit?.page_goal?.unit ?? pl?.pos.unit ?? "sayfa";
   const Unit = unit[0].toLocaleUpperCase("tr") + unit.slice(1);
   const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
@@ -117,7 +120,7 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
       list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
       start_date: recurring || gPer === "range" || (gPer === "pages" && rEvery === "range") ? start : null, end_date: (recurring || gPer === "range" || (gPer === "pages" && rEvery === "range")) && end ? end : null, page_goal,
       due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
-      bookmark_id, reading_ref, related_library_item_id: related,
+      bookmark_id, reading_ref, related_library_item_id: related, strict,
       updated_at: new Date().toISOString(),
     };
     const res = edit
@@ -247,6 +250,16 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
         ) : (
           <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer(rEvery); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
         ))}
+
+        {/* Görev türü */}
+        <div className="lbl" style={{ padding: "14px 0 6px" }}>GÖREV TÜRÜ</div>
+        <div className="seg3 two">
+          <button className={!strict ? "on" : ""} onClick={() => setStrict(false)}>Takip</button>
+          <button className={strict ? "on" : ""} onClick={() => setStrict(true)}>Zorunlu</button>
+        </div>
+        <p className="muted small" style={{ margin: "6px 2px 0" }}>{strict
+          ? "Süresi geçen dönem tamamlanmazsa Günüm'de “Tamamlanmamış”ta kalır; okudukça önce en eski eksik kapanır."
+          : "Kendi hedefin: kaçırılan gün borç olmaz, sadece geçmişe yazılır." + (loadTP().catchUp ? " Dünün eksiği bugüne telafi olarak eklenir (Ayarlar'dan kapatılabilir)." : "")}</p>
 
         {/* Sıklık */}
         <div className="lbl" style={{ padding: "14px 0 6px" }}>SIKLIK</div>

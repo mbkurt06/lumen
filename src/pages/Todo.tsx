@@ -7,7 +7,9 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, goalCount, goalLabel, goalProgress, bumpProgress, doneOn, inToday, isDoneToday, isOverdue, isRecurring, placeOf, recurrenceText, useTodos, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, goalLabel, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { useTP } from "../lib/taskPrefs";
+import { rangeStartDoc } from "../lib/taskNav";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -38,8 +40,21 @@ export function Todo() {
     const { error } = await supabase.from("todos").delete().eq("id", t.id);
     if (error) { window.alert("Silinemedi: " + error.message); void reload(); }
   };
-  // kitaptaki yere git: ayraç (güncel yer) ya da sabit yer
-  const goRef = (t: T) => { const pl = placeOf(t); if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`); };
+  const [tp] = useTP();
+  const states = useMemo(() => new Map<string, TaskState>(todos.map((t) => [t.id, taskState(t, tp)])), [todos, tp]);
+  const [missOpen, setMissOpen] = useState<boolean | null>(null);
+  const [missExp, setMissExp] = useState<Record<string, boolean>>({});
+  // kitaptaki yere git: ayraç (güncel yer) ya da sabit yer.
+  // Her gün okunan aralık bugün hiç okunmadıysa (ayar kapalıyken) aralığın başından açılır.
+  const goRef = async (t: T) => {
+    const pl = placeOf(t);
+    const g = t.page_goal;
+    if (pl?.docId && g?.per === "pages" && !tp.resumeRange && periodUnit(t) !== "range" && (states.get(t.id)?.got ?? 0) === 0) {
+      const r = await rangeStartDoc(g, pl.docId).catch(() => null);
+      if (r) { nav(`/kutuphane/${r.docId}`, { state: { taskId: t.id, startPage: r.startPage } }); return; }
+    }
+    if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`);
+  };
 
   const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
   const kids = useMemo(() => {
@@ -62,7 +77,7 @@ export function Todo() {
 
   const circle = async (t: T) => {
     if (t.kind === "kaza" || t.kind === "kaza_oruc") { nav("/namaz/kaza"); return; }
-    if (t.page_goal && !t.is_completed) { goRef(t); return; } // okuma hedefi: okudukça dolar
+    if (t.page_goal && !t.is_completed) { void goRef(t); return; } // okuma hedefi: okudukça dolar
     if (isRecurring(t)) {
       // günde N kez: her dokunuş +1; doluysa sıfırla
       const progress = await bumpProgress(t, isDoneToday(t) ? -doneOn(t) : 1);
@@ -80,10 +95,23 @@ export function Todo() {
     const pl = placeOf(t);
     const rt = recurrenceText(t);
     const g = t.page_goal;
-    const gc = g ? goalProgress(t) : 0;
+    const s = states.get(t.id);
+    const gc = g && s ? s.got : 0;
+    const gn = g && s ? s.target : g?.n ?? 1;
+    const unitTx = g?.unit ?? "sayfa";
     const resume = pl ? `${pl.live ? "Kaldığın: " : ""}${pl.label}` : "";
+    const pu = periodUnit(t);
+    const prevTx = pu === "day" ? "dün" : pu === "week" ? "geçen hafta" : "geçen ay";
+    const extra = g && s && !t.strict ? [
+      s.catchUp > 0 ? `+${Math.min(s.catchUp, s.target - s.catchUp)} telafi` : "",
+      tp.showYesterday && s.prev && pu !== "range" ? `${prevTx} ${s.prev.got}/${s.prev.need}` : "",
+      g.per === "day" ? `toplam ${goalProgress(t)} ${unitTx}` : "",
+    ].filter(Boolean).join(" · ") : "";
+    // tarih aralığında: yetişmek için günlük öneri
+    const daysLeft = t.end_date ? Math.round((new Date(t.end_date + "T12:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) + 1 : 0;
+    const suggest = g && s && pu === "range" && tp.suggestDaily && daysLeft > 0 && s.got < s.target ? `günde ~${Math.ceil((s.target - s.got) / daysLeft)} ${unitTx} · ${daysLeft} gün kaldı` : "";
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.page_goal ? `${goalLabel(t.page_goal)} ${gc}/${t.page_goal.n} ${t.page_goal.unit ?? "sayfa"}` : "", pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
+      : [t.strict ? "Zorunlu" : "", g ? `${goalLabel(g)} ${gc}/${gn} ${unitTx}` : "", extra, suggest, pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
@@ -99,10 +127,10 @@ export function Todo() {
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
           </div>
-          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => goRef(t)}>{g ? `${gc}/${g.n}` : pl?.live ? "Devam" : "Git"}</button>}
+          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{g ? `${gc}/${gn}` : pl?.live ? "Devam" : "Git"}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
-        {g ? <div className="tbar"><i style={{ width: `${Math.min(100, (gc / g.n) * 100)}%` }} /></div>
+        {g ? <div className="tbar"><i style={{ width: `${Math.min(100, (gc / Math.max(1, gn)) * 100)}%` }} /></div>
           : isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
           <div key={c.id} className="trow2 subrow">
@@ -111,6 +139,62 @@ export function Todo() {
           </div>
         ))}
       </div>
+    );
+  };
+
+  // ── Zorunlu görevlerin tamamlanmamış dönemleri ──
+  const missedTasks = todos.filter((t) => !t.parent_todo_id && (states.get(t.id)?.missed.length ?? 0) > 0);
+  const missedCount = missedTasks.reduce((n, t) => n + (states.get(t.id)?.missed.length ?? 0), 0);
+  const left = (p: Period) => p.need - p.got;
+  const skip = async (t: T, p: Period) => {
+    if (!window.confirm(`“${t.title}” · ${periodText(p)} atlansın mı? Geçmişte “atlandı” olarak kalır.`)) return;
+    await skipPeriod(t, p.a); void reload();
+  };
+  const PeriodLine = ({ t, p, title }: { t: T; p: Period; title?: boolean }) => {
+    const g = t.page_goal;
+    return (
+      <div className="mline">
+        <div className="mmain">
+          {title && <div className="mtitle">{t.title}</div>}
+          <div className="msub">{periodText(p)}{g ? ` · ${goalLabel({ ...g, every: undefined })}` : ""}</div>
+          <div className="mbar"><i style={{ width: `${(p.got / p.need) * 100}%` }} /></div>
+          <div className="mleft">{p.got}/{p.need} · {left(p)} {g?.unit ?? (g ? "sayfa" : "kez")} kaldı</div>
+        </div>
+        {g ? <button className="devam sm" onClick={() => void goRef(t)}>Devam</button>
+          : <button className="devam sm" onClick={async () => { await bumpDay(t, p.a, 1); void reload(); }}>Yaptım</button>}
+        {tp.allowSkip && <button className="mskip" onClick={() => void skip(t, p)}>Atla</button>}
+      </div>
+    );
+  };
+  const MissedSection = () => {
+    if (!missedTasks.length) return null;
+    const open = missOpen ?? tp.missedOpen;
+    return (
+      <>
+        <button className="sec late" onClick={() => setMissOpen(!open)}>
+          <span>TAMAMLANMAMIŞ · {missedCount}</span>
+          <Icon name={open ? "chevdown" : "chevron"} size={18} />
+        </button>
+        {open && missedTasks.map((t) => {
+          const ms = states.get(t.id)!.missed;
+          if (tp.missedGroup === "ayri") return ms.map((p) => <div key={t.id + p.a} className="tcard missed"><PeriodLine t={t} p={p} title /></div>);
+          const total = ms.reduce((n, p) => n + left(p), 0);
+          const ex = missExp[t.id];
+          return (
+            <div key={t.id} className="tcard missed">
+              <div className="mline">
+                <div className="mmain" onClick={() => setMissExp({ ...missExp, [t.id]: !ex })}>
+                  <div className="mtitle">{t.title}</div>
+                  <div className="msub">{ms.length > 1 ? `${ms.length} ${periodUnit(t) === "week" ? "hafta" : periodUnit(t) === "month" ? "ay" : "gün"} · ` : periodText(ms[0]) + " · "}{total} {t.page_goal?.unit ?? (t.page_goal ? "sayfa" : "kez")} kaldı</div>
+                </div>
+                {t.page_goal ? <button className="devam sm" onClick={() => void goRef(t)}>Devam</button> : null}
+                <button className="tmore" onClick={() => setMissExp({ ...missExp, [t.id]: !ex })} aria-label="Dönemleri göster"><Icon name={ex ? "chevdown" : "chevron"} size={18} /></button>
+              </div>
+              {ex && ms.map((p) => <PeriodLine key={p.a} t={t} p={p} />)}
+            </div>
+          );
+        })}
+      </>
     );
   };
 
@@ -158,6 +242,7 @@ export function Todo() {
 
       {!current ? (
         <>
+          <MissedSection />
           {overdue.length > 0 && (
             <>
               <button className="sec late" onClick={() => setOverdueOpen(!overdueOpen)}>
@@ -220,7 +305,7 @@ export function Todo() {
             <div className="sheethead"><h2 style={{ fontSize: 18 }}>{act.title}</h2><button className="iconbtn" onClick={() => setAct(null)} aria-label="Kapat"><Icon name="close" size={22} /></button></div>
             {(() => { const pl = placeOf(act); return pl && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{[pl.section, pl.book].filter(Boolean).join(" · ")}</b><b>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</b>{pl.quote && <span>“{pl.quote.slice(0, 140)}”</span>}</div></div>; })()}
             <div className="card" style={{ padding: 0, marginTop: 12 }}>
-              {(placeOf(act) || act.related_library_item_id) && !act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : placeOf(act) ? "Kitaptaki yere git" : "Kitaba git"}</button>}
+              {(placeOf(act) || act.related_library_item_id) && !act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); void goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : placeOf(act) ? "Kitaptaki yere git" : "Kitaba git"}</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {isRecurring(act) && Math.max(1, act.per_day) > 1 ? `+1 (bugün ${doneOn(act)}/${act.per_day})` : isDoneToday(act) ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
               {!act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); nav(`/yapilacaklar/g/${t.id}`); }}><Icon name="dots" size={20} /> Ayrıntılar</button>

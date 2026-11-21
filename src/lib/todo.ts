@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { kazaToday } from "./kaza";
+import { loadTP, type TaskPrefs } from "./taskPrefs";
 
 export type Plan = { daily: number; days: number; start: string; done: Record<string, number> };
 export type Todo = {
@@ -22,6 +23,8 @@ export type Todo = {
   bookmark_id: string | null;
   progress: Record<string, number> | null;
   page_goal: PageGoal | null;
+  /** Zorunlu görev: süresi geçen dönem tamamlanana kadar "Tamamlanmamış"ta kalır. false: takip görevi */
+  strict?: boolean | null;
   bookmark?: BookmarkLite | null;
   created_at: string;
   completed_at: string | null;
@@ -82,7 +85,100 @@ export function goalCount(t: Pick<Todo, "id" | "page_goal" | "start_date" | "end
   // tekrarlayan görevde (ör. her gün Cevşen 20–30) yalnız bugün okunanlar sayılır
   if (g.per === "pages") { const [a, b] = rangeWindow(t); return new Set(rows.filter((r) => r.context_key === contextKey && r.doc_key === g.doc_key && r.doc_key !== exceptDoc && inGoal(g, r.page) && r.day >= a && r.day <= b).map((r) => r.page)).size; }
   const [a, b] = goalPeriod(t);
-  return rows.filter((r) => r.context_key === contextKey && sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).length;
+  return new Set(rows.filter((r) => r.context_key === contextKey && sameBook(t.page_goal!, r) && r.day >= a && r.day <= b && r.doc_key !== exceptDoc).map((r) => r.doc_key + ":" + r.page)).size;
+}
+
+/* ── Dönemler: zorunlu ve takip görevleri ──
+   Her görev dönemlere ayrılır (gün / hafta / ay / tarih aralığı). Her dönemde ne kadar okunduğu tutulur.
+   Zorunlu görevde okunan sayfa önce en eski tamamlanmamış döneme sayılır (gecikmişi kapatır);
+   takip görevinde her okuma kendi gününe sayılır, kaçan dönem borç olmaz. */
+export type Period = { a: string; b: string; got: number; need: number; skipped: boolean };
+const addDays = (s: string, n: number) => ymd(new Date((dayNum(s) + n) * 86400000 + 12 * 3600000));
+export function periodUnit(t: Pick<Todo, "page_goal" | "recurrence">): "day" | "week" | "month" | "range" {
+  const g = t.page_goal;
+  if (!g) return "day";
+  if (g.per === "pages") return g.every ?? (t.recurrence && t.recurrence.type !== "once" ? "day" : "range");
+  return g.per;
+}
+const HORIZON = 90; // en fazla 90 gün geriye bakılır
+export function taskPeriods(t: Todo, today = ymd()): [string, string][] {
+  const unit = periodUnit(t);
+  const start = t.start_date ?? ymd(new Date(t.created_at));
+  if (unit === "range") return [[start, t.end_date ?? "9999-12-31"]];
+  const from = start > addDays(today, -HORIZON) ? start : addDays(today, -HORIZON);
+  const out: [string, string][] = [];
+  if (unit === "day") {
+    const rec = isRecurring(t);
+    for (let d = from; d <= today; d = addDays(d, 1)) {
+      if (t.end_date && d > t.end_date) break;
+      if (rec ? occursOn(t, d) : true) out.push([d, d]);
+    }
+    return out;
+  }
+  const dummy = { start_date: null, end_date: null, page_goal: { n: 1, per: unit, book_id: null, scope: "" } as PageGoal };
+  let [a, b] = goalPeriod(dummy, from);
+  while (a <= today && (!t.end_date || a <= t.end_date)) { out.push([a, b]); [a, b] = goalPeriod(dummy, addDays(b, 1)); }
+  return out;
+}
+const goalNeed = (g: PageGoal) => (g.per === "pages" ? (g.pages?.length || Math.abs((g.to ?? 0) - (g.from ?? 0)) + 1) : g.n);
+/** Görevin dönemleri ve her dönemde okunan/yapılan miktar. */
+export function periodStats(t: Todo, rows: ReadRow[] = READS, today = ymd()): Period[] {
+  const ps: Period[] = taskPeriods(t, today).map(([a, b]) => ({ a, b, got: 0, need: 1, skipped: !!t.progress?.["s:" + a] }));
+  const g = t.page_goal;
+  if (!g) { // kitapsız tekrarlı görev: gün gün işaret
+    const need = Math.max(1, t.per_day);
+    for (const p of ps) { p.need = need; p.got = Math.min(need, t.progress?.[p.a] ?? 0); }
+    return ps;
+  }
+  const need = goalNeed(g);
+  const key = `todo:${t.id}`;
+  const mine = rows.filter((r) => r.context_key === key && (g.per === "pages" ? r.doc_key === g.doc_key && inGoal(g, r.page) : sameBook(g, r))).sort((x, y) => (x.day < y.day ? -1 : 1));
+  const sets = ps.map(() => new Set<string>());
+  const unitOf = (r: ReadRow) => (g.per === "pages" ? String(r.page) : r.doc_key + ":" + r.page);
+  for (const r of mine) {
+    const u = unitOf(r);
+    if (t.strict) {
+      // en eski açık döneme (başlangıcı okumadan önce olan, dolmamış, bu sayfa henüz sayılmamış)
+      const i = ps.findIndex((p, k) => !p.skipped && p.a <= r.day && sets[k].size < need && !sets[k].has(u));
+      if (i >= 0) sets[i].add(u);
+    } else {
+      const i = ps.findIndex((p) => r.day >= p.a && r.day <= p.b);
+      if (i >= 0) sets[i].add(u);
+    }
+  }
+  ps.forEach((p, k) => { p.need = need; p.got = Math.min(need, sets[k].size); });
+  return ps;
+}
+export type TaskState = { periods: Period[]; cur: Period | null; prev: Period | null; missed: Period[]; catchUp: number; target: number; got: number };
+/** Bugünkü durum: şimdiki dönem, telafi, zorunlu görevde kaçan dönemler. */
+export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] = READS, today = ymd()): TaskState {
+  const periods = periodStats(t, rows, today);
+  const cur = periods.find((p) => p.a <= today && today <= p.b) ?? null;
+  const ci = cur ? periods.indexOf(cur) : periods.length;
+  const prev = ci > 0 ? periods[ci - 1] : null;
+  const missed = t.strict && !t.is_completed ? periods.filter((p) => p.b < today && !p.skipped && p.got < p.need) : [];
+  const catchUp = !t.strict && prefs.catchUp && cur && prev && !prev.skipped && periodUnit(t) !== "range" ? Math.max(0, prev.need - prev.got) : 0;
+  const base = cur?.need ?? (t.page_goal ? goalNeed(t.page_goal) : Math.max(1, t.per_day));
+  return { periods, cur, prev, missed, catchUp, target: base + Math.min(base, catchUp), got: cur?.got ?? 0 };
+}
+/** Zorunlu görevin kaçan dönemini atla (geçmişte "atlandı" diye kalır). */
+export async function skipPeriod(t: Todo, a: string) {
+  const progress = { ...(t.progress ?? {}), ["s:" + a]: 1 };
+  await supabase.from("todos").update({ progress, updated_at: new Date().toISOString() }).eq("id", t.id);
+}
+/** Kitapsız zorunlu görevde geçmiş bir günü işaretle. */
+export async function bumpDay(t: Todo, day: string, delta: number) {
+  const progress = { ...(t.progress ?? {}), [day]: Math.max(0, (t.progress?.[day] ?? 0) + delta) };
+  await supabase.from("todos").update({ progress, updated_at: new Date().toISOString() }).eq("id", t.id);
+}
+const AY = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+const GUN = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+/** "Perşembe 19 Kas" ya da "17–23 Kas" */
+export function periodText(p: Pick<Period, "a" | "b">): string {
+  const d = (s: string) => `${Number(s.slice(8, 10))} ${AY[Number(s.slice(5, 7)) - 1]}`;
+  if (p.a === p.b) return `${GUN[new Date(p.a + "T12:00:00").getDay()]} ${d(p.a)}`;
+  if (p.b >= "9999") return `${d(p.a)}'den beri`;
+  return `${d(p.a)} – ${d(p.b)}`;
 }
 export const goalLabel = (g: PageGoal) => (g.per === "pages" ? `${(g.unit ?? "sayfa").replace(/^./, (c) => c.toLocaleUpperCase("tr"))} ${g.pages?.length ? short(pagesText(g.pages)) : `${g.from}–${g.to}`}${g.every ? " · " + EVERY_TXT[g.every] : ""}` : g.per === "day" ? "Bugün" : g.per === "week" ? "Bu hafta" : g.per === "month" ? "Bu ay" : "Toplam");
 /** Günlük hedefte kart için toplam okuma; görev bağlamı ve ayraç korunur. */
@@ -160,7 +256,7 @@ export function isOverdue(t: Todo): boolean {
 }
 export function isDoneToday(t: Todo): boolean {
   if ((t.kind === "kaza" || t.kind === "kaza_oruc") && t.plan) return kazaToday(t.kind === "kaza" ? "namaz" : "oruc") >= t.plan.daily;
-  if (t.page_goal) return goalCount(t) >= t.page_goal.n;
+  if (t.page_goal) { const s = taskState(t); return !!s.cur && s.got >= s.target; }
   if (isRecurring(t)) return doneOn(t) >= Math.max(1, t.per_day);
   return t.is_completed;
 }
@@ -201,7 +297,7 @@ export function useTodos() {
   const reload = useCallback(async () => {
     const since = ymd(new Date(Date.now() - 120 * 86400000));
     const [t, l, g, r] = await Promise.all([
-      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
+      supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,strict,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
       supabase.from("page_reads").select("book_id,scope,doc_key,context_key,page,day").gte("day", since).limit(10000),
@@ -249,7 +345,7 @@ function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
   try { q = JSON.parse(localStorage.getItem("lumen.reads.queue.v1") ?? "[]"); } catch { /* yok */ }
   const out = [...rows];
   for (const o of q) {
-    const i = out.findIndex((x) => x.doc_key === o.doc_key && x.context_key === o.context_key && x.page === o.page);
+    const i = out.findIndex((x) => x.doc_key === o.doc_key && x.context_key === o.context_key && x.page === o.page && x.day === o.day);
     if (o.op === "add" && i < 0) out.push({ book_id: o.book_id, scope: o.scope, doc_key: o.doc_key, context_key: o.context_key, page: o.page, day: o.day });
     if (o.op === "del" && i >= 0) out.splice(i, 1);
   }

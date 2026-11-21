@@ -21,8 +21,8 @@ export async function flushReads() {
     let done = 0;
     for (const o of q) {
       const r = o.op === "add"
-        ? await supabase.from("page_reads").upsert({ scope: o.scope, doc_key: o.doc_key, context_key: o.context_key, book_id: o.book_id, page: o.page, day: o.day }, { onConflict: "owner_id,doc_key,page,context_key" })
-        : await supabase.from("page_reads").delete().eq("doc_key", o.doc_key).eq("context_key", o.context_key).eq("page", o.page);
+        ? await supabase.from("page_reads").upsert({ scope: o.scope, doc_key: o.doc_key, context_key: o.context_key, book_id: o.book_id, page: o.page, day: o.day }, { onConflict: "owner_id,doc_key,page,context_key,day" })
+        : await supabase.from("page_reads").delete().eq("doc_key", o.doc_key).eq("context_key", o.context_key).eq("page", o.page).eq("day", o.day);
       if (r.error) break;
       done++;
     }
@@ -46,10 +46,11 @@ export function usePageReads(docKey: string, scope: string, bookId: string | nul
     void (async () => {
       await flushReads();
       if (rd<Op[]>(QK, []).some((o) => o.doc_key === docKey && o.context_key === contextKey)) return; // gönderilmemiş varken üzerine yazma
-      const { data, error } = await supabase.from("page_reads").select("page,day").eq("doc_key", docKey).eq("context_key", contextKey).limit(2000);
+      const { data, error } = await supabase.from("page_reads").select("page,day").eq("doc_key", docKey).eq("context_key", contextKey).limit(5000);
       if (error || !data) return;
       const m: Record<number, string> = {};
-      for (const r of data as { page: number; day: string }[]) m[r.page] = r.day;
+      // her gün ayrı kayıt tutulur (geçmiş ve zorunlu görevler için); burada sayfanın en son okunduğu gün
+      for (const r of data as { page: number; day: string }[]) if (!m[r.page] || r.day > m[r.page]) m[r.page] = r.day;
       wr(storageKey, m);
       setMap(m);
     })();

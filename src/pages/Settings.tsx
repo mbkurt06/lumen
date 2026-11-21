@@ -1,4 +1,5 @@
 import { useCP } from "../lib/counterPrefs";
+import { useTP } from "../lib/taskPrefs";
 import { Link } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
@@ -37,6 +38,7 @@ export function Settings() {
         </div>
       </div>
 
+      <TaskSettings />
       <CounterSettings />
 
       <div className="card list" style={{ margin: "12px 16px", padding: 6 }}>
@@ -62,6 +64,41 @@ export function Settings() {
 }
 
 /* Sayaçlar: yanlışlıkla basmaya karşı kilit (titreşim ayarları da buraya gelecek) */
+/* Görev ayarları: hesapta saklanır (bütün cihazlarda aynı). Kullandıkça hangisi işe yarıyor, buradan açıp kapatılır. */
+function TaskSettings() {
+  const [p, set] = useTP();
+  const Tog = ({ k, label, hint }: { k: "allowSkip" | "catchUp" | "showYesterday" | "resumeRange" | "missedOpen" | "suggestDaily" | "defaultStrict"; label: string; hint?: string }) => (
+    <div className="srow"><span>{label}{hint && <small className="muted" style={{ display: "block", fontSize: 12, marginTop: 2 }}>{hint}</small>}</span><button className={"tgl" + (p[k] ? " on" : "")} onClick={() => set({ ...p, [k]: !p[k] })} aria-pressed={p[k]}><i /></button></div>
+  );
+  return (
+    <div className="card" style={{ margin: "12px 16px" }}>
+      <div className="cardtitle">Görevler</div>
+      <p className="muted small" style={{ margin: "4px 0 6px" }}>Zorunlu ve takip görevlerinin davranışı. Bütün cihazlarda aynı.</p>
+      <div className="srow col"><span>Yeni görevin türü</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          <button className={!p.defaultStrict ? "on" : ""} onClick={() => set({ ...p, defaultStrict: false })}>Takip</button>
+          <button className={p.defaultStrict ? "on" : ""} onClick={() => set({ ...p, defaultStrict: true })}>Zorunlu</button>
+        </div>
+      </div>
+      <div className="cardsub">Zorunlu görevler</div>
+      <div className="srow col"><span>Kaçan günler Günüm'de</span>
+        <div className="seg" style={{ marginTop: 6 }}>
+          <button className={p.missedGroup === "tek" ? "on" : ""} onClick={() => set({ ...p, missedGroup: "tek" })}>Tek satırda topla</button>
+          <button className={p.missedGroup === "ayri" ? "on" : ""} onClick={() => set({ ...p, missedGroup: "ayri" })}>Her gün ayrı satır</button>
+        </div>
+      </div>
+      <Tog k="missedOpen" label="“Tamamlanmamış” bölümü açık başlasın" />
+      <Tog k="allowSkip" label="“Atla” düğmesi" hint="Kaçan dönem atlanınca geçmişte “atlandı” olarak kalır" />
+      <div className="cardsub">Takip görevleri</div>
+      <Tog k="catchUp" label="Telafi" hint="Dünün eksiği bugünün hedefine eklenir (en fazla bir günlük hedef kadar)" />
+      <Tog k="showYesterday" label="Dünkü sonucu göster" hint="Görev satırında “dün 3/5”" />
+      <div className="cardsub">Sayfa aralığı</div>
+      <Tog k="resumeRange" label="Yarım kalan aralığa ertesi gün kaldığı yerden devam" hint="Kapalıyken her gün aralığın başından açılır" />
+      <Tog k="suggestDaily" label="Tarih aralığında günlük öneri" hint="“Yetişmek için günde ~4 sayfa”" />
+    </div>
+  );
+}
+
 function CounterSettings() {
   const [p, set] = useCP();
   const Tog = ({ k, label }: { k: "lockKaza" | "lockTesbih"; label: string }) => (

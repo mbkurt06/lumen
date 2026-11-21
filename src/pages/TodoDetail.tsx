@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { confirmDeleteTodo, bumpProgress, doneOn, isRecurring, occursOn, placeOf, recurrenceText, useTodos, ymd } from "../lib/todo";
+import { confirmDeleteTodo, bumpProgress, doneOn, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
 import { TodoSheet } from "./TodoSheet";
 
 const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00").getTime() + n * 86400000));
@@ -86,6 +86,27 @@ export function TodoDetail() {
           <button className={t.is_completed ? "secondary" : "primary"} onClick={() => void toggle()}>{t.is_completed ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
         </div>
       )}
+      {t.page_goal && (() => {
+        const st = taskState(t);
+        const ps = st.periods.slice(-12).reverse();
+        if (!ps.length) return null;
+        const unit = t.page_goal.unit ?? "sayfa";
+        return (
+          <div className="card" style={{ margin: "10px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{t.strict ? "Zorunlu görev · dönemler" : "Takip · geçmiş"}</b><span className="muted small">{ps.filter((p) => p.got >= p.need).length}/{ps.length} tam</span></div>
+            {ps.map((p) => {
+              const cur = p === st.cur;
+              const state = p.skipped ? "atlandı" : p.got >= p.need ? "tam" : cur ? "sürüyor" : t.strict ? "tamamlanmadı" : "eksik";
+              return (
+                <div key={p.a} className="prow">
+                  <span>{periodText(p)}</span>
+                  <span className={"pst " + (p.skipped ? "sk" : p.got >= p.need ? "ok" : cur ? "" : t.strict ? "bad" : "part")}>{p.got}/{cur ? st.target : p.need} {unit} · {state}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
       <div className="card" style={{ margin: "10px 16px", padding: 0 }}>
         <button className="rowbtn danger" onClick={() => void del()}>Görevi sil</button>
       </div>
