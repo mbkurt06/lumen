@@ -487,13 +487,13 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const els = Array.from(bodyRef.current?.querySelectorAll<HTMLElement>(`[data-nid="${nid}"]`) ?? []);
     for (const e of els) {
       const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
-      let tn: Node | null;
-      while ((tn = w.nextNode())) segs.push({ node: tn as Text, text: tn.textContent ?? "" });
+      let tn: Text | null;
+      while ((tn = w.nextNode() as Text | null)) segs.push({ node: tn, text: tn.textContent ?? "" });
       segs.push({ node: null, text: " " });
     }
     return segs;
   };
-  function wordAt(node: Node, offset: number): { nid: string; word: number; wtext: string } | null {
+  function wordAt(node: ChildNode, offset: number): { nid: string; word: number; wtext: string } | null {
     const el = (node instanceof Element ? node : node.parentElement)?.closest<HTMLElement>("[data-nid]");
     const nid = el?.dataset.nid;
     if (!nid) return null;
@@ -564,9 +564,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   hereRef.current = (x, y, target) => {
     if (target.closest("button, a, input, textarea, .pill, .cpill, .fcnt, .dpager, .pnav")) return;
     if (pageCounters.length) return; // sayaçlı sayfada çift dokunma sayaca ait
-    const d = document as unknown as { caretRangeFromPoint?: (x: number, y: number) => Range | null; caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+    const d = document as unknown as { caretRangeFromPoint?: (x: number, y: number) => Range | null; caretPositionFromPoint?: (x: number, y: number) => { offsetNode: ChildNode; offset: number } | null };
     const r = d.caretRangeFromPoint?.(x, y);
-    const cp = r ? { node: r.startContainer, off: r.startOffset } : (() => { const p = d.caretPositionFromPoint?.(x, y); return p ? { node: p.offsetNode, off: p.offset } : null; })();
+    const cp = r ? { node: r.startContainer as ChildNode, off: r.startOffset } : (() => { const p = d.caretPositionFromPoint?.(x, y); return p ? { node: p.offsetNode, off: p.offset } : null; })();
     if (!cp) return;
     const wa = wordAt(cp.node, cp.off);
     if (!wa) return;
@@ -578,7 +578,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     let last = { t: 0, x: 0, y: 0 };
     const onEnd = (e: TouchEvent) => {
       const tch = e.changedTouches[0];
-      if (!tch || e.touches.length || !bodyRef.current?.contains(e.target as Node)) return;
+      if (!tch || e.touches.length || !bodyRef.current?.contains(e.target as ChildNode)) return;
       const now = Date.now();
       if (now - last.t < 320 && Math.abs(tch.clientX - last.x) < 28 && Math.abs(tch.clientY - last.y) < 28) {
         last = { t: 0, x: 0, y: 0 };
@@ -586,7 +586,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         hereRef.current(tch.clientX, tch.clientY, e.target as Element);
       } else last = { t: now, x: tch.clientX, y: tch.clientY };
     };
-    const onDbl = (e: MouseEvent) => { if (bodyRef.current?.contains(e.target as Node)) hereRef.current(e.clientX, e.clientY, e.target as Element); };
+    const onDbl = (e: MouseEvent) => { if (bodyRef.current?.contains(e.target as ChildNode)) hereRef.current(e.clientX, e.clientY, e.target as Element); };
     document.addEventListener("touchend", onEnd, { passive: false });
     document.addEventListener("dblclick", onDbl);
     return () => { document.removeEventListener("touchend", onEnd); document.removeEventListener("dblclick", onDbl); };
@@ -604,7 +604,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const text = s.toString().trim();
       if (!el?.dataset.nid || !text) { setSel(null); return; }
       const rect = r.getBoundingClientRect();
-      const wa = wordAt(r.startContainer, r.startOffset);
+      const wa = wordAt(r.startContainer as ChildNode, r.startOffset);
       lastSel.current = { nid: el.dataset.nid, text, at: Date.now(), word: wa?.word ?? 0, wtext: wa?.wtext ?? text.split(/\s+/)[0] };
       // menü seçimin ALTINDA: telefonun kendi menüsü (Kopyala, Çevir) üstte çıktığı için çakışmasın
       const below = rect.bottom + 14;
