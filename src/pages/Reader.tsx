@@ -4,8 +4,8 @@ import { Icon } from "../components/Icon";
 import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
-import { fixedPages } from "../lib/bookPages";
-import { goalLabel, goalMode, inScope, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
+import { ensureBookPages, fixedPages } from "../lib/bookPages";
+import { goalLabel, goalMode, inScope, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
 import { rangeStartDoc } from "../lib/taskNav";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
@@ -230,6 +230,12 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     return new Set(other).size + live.length;
   })();
   const goalTotal = goalTask ? scopeSize(goalTask.page_goal!) || (goalMode(goalTask.page_goal!) === "pay" ? goalTask.page_goal!.n : 0) : 0;
+  // bölümlü kitapta (Sözler…) toplam sayfa bir kez hesaplanır
+  const [, setBpT] = useState(0);
+  useEffect(() => {
+    const b = goalTask ? needsBookPages(goalTask.page_goal) : null;
+    if (b) void ensureBookPages(b).then((r) => { if (r) setBpT((x) => x + 1); });
+  }, [goalTask?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const curLap = goalTask && readContextKey.includes("#") ? Number(readContextKey.split("#")[1]) || 1 : 1;
   const goalChip = (() => {
     if (!goalTask) return "";

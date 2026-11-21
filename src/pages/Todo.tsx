@@ -7,9 +7,10 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, ctxPages, goalLabel, goalMode, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
 import { rangeStartDoc } from "../lib/taskNav";
+import { ensureBookPages } from "../lib/bookPages";
 
 const trDate = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
 
@@ -41,7 +42,12 @@ export function Todo() {
     if (error) { window.alert("Silinemedi: " + error.message); void reload(); }
   };
   const [tp] = useTP();
-  const states = useMemo(() => new Map<string, TaskState>(todos.map((t) => [t.id, taskState(t, tp)])), [todos, tp]);
+  // bölümlü kitaplarda (Sözler…) toplam sayfa bir kez hesaplanır; düğmede okunan/toplam görünür
+  const [bpTick, setBpTick] = useState(0);
+  useEffect(() => {
+    for (const t of todos) { const b = needsBookPages(t.page_goal); if (b) void ensureBookPages(b).then((r) => { if (r) setBpTick((x) => x + 1); }); }
+  }, [todos]);
+  const states = useMemo(() => new Map<string, TaskState>(todos.map((t) => [t.id, taskState(t, tp)])), [todos, tp, bpTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const [missOpen, setMissOpen] = useState<boolean | null>(null);
   const [missExp, setMissExp] = useState<Record<string, boolean>>({});
   // payın sayfaları (sıralı)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { kazaToday } from "./kaza";
 import { loadTP, type TaskPrefs } from "./taskPrefs";
+import { bookPagesCached } from "./bookPages";
 
 export type Plan = { daily: number; days: number; start: string; done: Record<string, number> };
 export type Todo = {
@@ -113,7 +114,9 @@ const addDays = (s: string, n: number) => ymd(new Date((dayNum(s) + n) * 8640000
 export const nextDay = (s: string) => addDays(s, 1);
 export const goalMode = (g: PageGoal): "seq" | "pay" => g.mode ?? (g.per === "pages" ? "pay" : "seq");
 /** kapsamdaki sayfa/bab sayısı (bilinmiyorsa 0) */
-export const scopeSize = (g: PageGoal) => (g.pages?.length ? g.pages.length : g.from != null && g.to != null ? Math.abs(g.to - g.from) + 1 : g.book_id ? BOOK_SIZE[g.book_id] ?? 0 : 0);
+export const scopeSize = (g: PageGoal) => (g.pages?.length ? g.pages.length : g.from != null && g.to != null ? Math.abs(g.to - g.from) + 1 : g.book_id ? BOOK_SIZE[g.book_id] || bookPagesCached(g.book_id)?.total || 0 : 0);
+/** kitabın tamamı okunan sırayla-oku görevi için toplam sayfa henüz bilinmiyor mu (bölümlü kitap) */
+export const needsBookPages = (g: PageGoal | null | undefined): string | null => (g && goalMode(g) === "seq" && g.from == null && !g.pages?.length && g.book_id && !BOOK_SIZE[g.book_id] && !bookPagesCached(g.book_id) ? g.book_id : null);
 export const inScope = (g: PageGoal, p: number) => (g.pages?.length ? g.pages.includes(p) : (g.from == null || p >= g.from) && (g.to == null || p <= g.to));
 export const lapOf = (t: Pick<Todo, "laps">) => (t.laps?.length ?? 0) + 1;
 export const seqCtx = (t: Pick<Todo, "id" | "laps">, lap = lapOf(t)) => `todo:${t.id}#${lap}`;
