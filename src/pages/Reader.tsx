@@ -339,7 +339,18 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const done = total > 0 && count >= total;
     const today = ymdToday();
     if (mode === "seq") {
-      if (done) {
+      // son sayfaya gelindi ama arada işaretlenmemiş sayfa var: sor (tur / görev bitsin mi, yoksa eksik sayfaya mı gidilsin)
+      const endPage = g.pages?.length ? Math.max(...g.pages) : g.to;
+      let finish = done;
+      if (!done && total > 0 && endPage != null && pk >= endPage) {
+        const missing = total - count;
+        const first = other.size === 0 ? (() => { for (let x = scopeStart(g); x <= endPage; x++) if (inScope(g, x) && !liveSet.has(x)) return x; return null; })() : null;
+        const what = g.loop ? `${curLap}. tur bitsin mi?` : "Görev tamamlansın mı?";
+        const where = first != null ? ` (ilki: ${unitLabel(first)})` : "";
+        if (window.confirm(`Son sayfaya geldin ama ${missing} sayfa okundu işaretlenmemiş${where}.\n\n${what}\n\nİptal: eksik sayfaya git`)) finish = true;
+        else { if (first != null) { void savePlace(await placeFor(first)); setTimeout(() => void goToPage(first), 180); } return; }
+      }
+      if (finish) {
         if (g.loop) {
           const lap = curLap;
           const laps = [...(lapsRef.current ?? t.laps ?? [])];
