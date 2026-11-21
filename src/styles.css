@@ -64,13 +64,13 @@ h1 { margin: 0; }
 /* Sol menü */
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 20; }
 .scrim.show { opacity: 1; pointer-events: auto; }
-.drawer { position: fixed; top: 0; bottom: 0; left: 0; width: min(88vw, 360px); background: var(--card); border-right: 1px solid var(--border); transform: translateX(-100%); transition: transform 0.22s ease; z-index: 21; display: flex; flex-direction: column; padding: calc(14px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom)); visibility: hidden; }
+.drawer { position: fixed; top: 0; bottom: 0; left: 0; width: clamp(220px, 58vw, 300px); background: var(--card); border-right: 1px solid var(--border); transform: translateX(-100%); transition: transform 0.22s ease; z-index: 21; display: flex; flex-direction: column; padding: calc(14px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom)); visibility: hidden; }
 .drawer.open { transform: none; visibility: visible; }
 .dhead { display: flex; align-items: center; gap: 12px; padding: 0 10px 8px; }
 .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--highlight); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 20px; }
 .avatar.big { width: 64px; height: 64px; font-size: 28px; margin: 0 auto 6px; }
 .dname { font-weight: 700; font-size: 18px; }
-.demail { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.demail { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dscroll { flex: 1; overflow-y: auto; }
 .dsection { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); padding: 12px 12px 4px; }
 .dsep { height: 1px; background: var(--border); margin: 8px 12px; }
@@ -690,3 +690,20 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 
 /* görev kartı: yeşil düğme kartın sağ kenarına yaslı */
 .tcard > .trow2 > .devam.sm { margin-left: auto; margin-right: -4px; }
+
+/* Cevşen: numaralı satırlar (numara CSS ile; yazıya karışmaz) */
+.cvs { --cv-ref: color-mix(in srgb, #c0392b 78%, var(--pg-fg)); }
+.cvs .cvl[data-no]::before { content: attr(data-no) " "; color: color-mix(in srgb, var(--pg-fg) 50%, transparent); font-size: .88em; font-style: normal; }
+.cvs .cvi { font-style: italic; }
+.cvs .cvr { color: var(--cv-ref); }
+.cvs .cvg { display: grid; column-gap: .7em; }
+.cvs .cvg.c1 { grid-template-columns: minmax(0, 1fr); }
+.cvs .cvg.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cvs .cvg.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cvs .cvg.c2 .cvl, .cvs .cvg.c3 .cvl { font-size: .94em; }
+.cvs .cvg .span { grid-column: 1 / -1; }
+.cvs .cvr { margin-top: .2em; }
+.cvs .cvb { margin-bottom: .45em; }
+.cvs .cvb.intro .dar, .cvs .cvb.ref .dar { text-align: center; }
+.cvs .dar.cvl { text-align: right; margin-bottom: .1em; }
+.cvs .dtr.cvl { margin-top: .1em; }

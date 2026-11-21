@@ -86,7 +86,7 @@ export function Drawer({ open, onClose }: { open: boolean; onClose: () => void }
       <aside className={"drawer" + (open ? " open" : "")} aria-hidden={!open} aria-label="Menü">
         <div className="dhead">
           <div className="avatar">L</div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div className="dname">Lumen</div>
             <div className="demail">{email}</div>
           </div>

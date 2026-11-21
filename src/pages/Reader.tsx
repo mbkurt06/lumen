@@ -181,6 +181,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   }, [doc.id]);
 
   const isDua = useMemo(() => nodes.some((n) => n.kind === "phrase"), [nodes]);
+  const isCevsen = parentTitle === "Cevşen-i Kebîr";
   const pages = useMemo(() => paginate(toBlocks(nodes), isDua ? 650 : 2200), [nodes, isDua]);
 
   /* ── Sabit kitap sayfası: Kur'an (mushaf sayfası), Risale, HE, diğer kitaplar ──
@@ -1031,9 +1032,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
                   {n.title && n.kind !== "phrase" && <h3>{n.title}</h3>}
                   <div className="dcontent">
                     <div className="dtext">
+                      {isCevsen && !instr ? <CevsenText n={n} rs={rs} marked={isMarked(n.id)} /> : <>
                       {rs.ar && n.secondary_text && <div className="dar" dir="rtl">{n.secondary_text}</div>}
                       {(rs.latin || instr) && n.text_content && <div className={(instr ? "dins" : "dlat") + (isMarked(n.id) ? " mk" : "")}>{n.text_content}{m.end_symbol === "dua" && <span className="endsym" title="Dua edilir"> 🤲</span>}{m.end_symbol === "face" && <FaceHands />}</div>}
                       {rs.tr && n.translation && <div className="dtr">{n.translation}</div>}
+                      </>}
                       <NoteBoxes nid={n.id} />
                     </div>
                     {t > 0 && (
@@ -1180,5 +1183,54 @@ export function ReaderSettings({ title, defTheme, rs, onChange, onBack, onApplyA
         </>
       )}
     </>
+  );
+}
+
+/* ── Cevşen: kitaptaki gibi numaralı satırlar ──
+   Giriş ("Allâhümme…", "Ve es'elüke biesmâike") ve "Sübhâneke…" numarasız; aradaki satırlar 1'den başlar.
+   Numaralar yazının parçası değil (CSS ile gösterilir): kelime sırası, "burada kaldım" bozulmaz.
+   Sadece okunuş açıkken kısa satırlar 2–3 sütun dizilir; Arapça ya da meal açıkken hep alt alta. */
+const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+const arNo = (k: number) => String(k).split("").map((c) => AR_DIGITS[Number(c)]).join("");
+function CevsenText({ n, rs, marked }: { n: { text_content: string | null; secondary_text: string | null; translation: string | null }; rs: RSettings; marked: boolean }) {
+  const la = (n.text_content ?? "").split("\n");
+  const ar = (n.secondary_text ?? "").split("\n");
+  const tr = (n.translation ?? "").split("\n");
+  const last = la.length - 1;
+  const kind = (i: number): "intro" | "ref" | "line" => (i === 0 && /^(Allâhümme|Ve es)/.test(la[0]) && !/Yâ/.test(la[0]) ? "intro" : i === last && /^Sübhâneke/.test(la[i]) ? "ref" : "line");
+  const nums: number[] = [];
+  let k = 0;
+  la.forEach((_, i) => { nums[i] = kind(i) === "line" ? ++k : 0; });
+  const lineIdx = la.map((_, i) => i).filter((i) => nums[i] > 0);
+  const onlyLatin = rs.latin && !rs.ar && !rs.tr;
+  if (onlyLatin) {
+    const lens = lineIdx.map((i) => la[i].length).sort((a, b) => a - b);
+    const m = lens.length > 1 ? lens[lens.length - 2] : lens[0] ?? 99;
+    const cols = m <= 10 ? 3 : m <= 24 ? 2 : 1;
+    const lim = cols === 3 ? 10 : 24;
+    return (
+      <div className={"cvs dlat" + (marked ? " mk" : "")}>
+        {kind(0) === "intro" && <div className="cvi">{la[0]} </div>}
+        <div className={"cvg c" + cols}>
+          {lineIdx.map((i) => <div key={i} className={"cvl" + (cols > 1 && la[i].length > lim ? " span" : "")} data-no={nums[i] + "."}>{la[i]} </div>)}
+        </div>
+        {kind(last) === "ref" && <div className="cvr">{la[last]}</div>}
+      </div>
+    );
+  }
+  return (
+    <div className={"cvs" + (marked ? " mk" : "")}>
+      {la.map((_, i) => {
+        const kd = kind(i);
+        const no = nums[i];
+        return (
+          <div key={i} className={"cvb " + kd}>
+            {rs.ar && ar[i] && <div className="dar cvl" dir="rtl" data-no={no ? arNo(no) + "." : undefined}>{ar[i]} </div>}
+            {rs.latin && la[i] && <div className={"dlat cvl" + (kd === "intro" ? " cvi" : kd === "ref" ? " cvr" : "")} data-no={no ? no + "." : undefined}>{la[i]} </div>}
+            {rs.tr && tr[i] && <div className={"dtr cvl" + (kd === "ref" ? " cvr" : "")} data-no={no ? no + "." : undefined}>{tr[i]} </div>}
+          </div>
+        );
+      })}
+    </div>
   );
 }
