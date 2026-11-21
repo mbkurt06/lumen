@@ -489,7 +489,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const w = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
       let tn: Text | null;
       while ((tn = w.nextNode() as Text | null)) segs.push({ node: tn, text: tn.textContent ?? "" });
-      segs.push({ node: null, text: " " });
+      // aynı düğümün parçaları (Kur'an'da bir âyetin satır parçaları) arasına boşluk eklenmez: kelime bölünmesin
     }
     return segs;
   };

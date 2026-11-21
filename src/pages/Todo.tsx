@@ -63,6 +63,12 @@ export function Todo() {
         const read = ctxPages(g, ctx);
         const all = scopeList(g);
         const p = all.find((x) => !read.has(x)) ?? all[0];
+        // "burada kaldım" ile kaydedilen yer bu payın okunmamış bir sayfasındaysa oradan, işaretli kelimeyle açılır
+        const tp0 = t.place;
+        if (tp0?.node_id && tp0.page != null && all.includes(tp0.page) && !read.has(tp0.page)) {
+          nav(`/kutuphane/${tp0.doc_id}`, { state: { nid: tp0.node_id, word: tp0.word ?? undefined, taskId: t.id, ctx } });
+          return;
+        }
         const r = p != null ? await rangeStartDoc({ ...g, from: p, pages: undefined }, pl.docId).catch(() => null) : null;
         nav(`/kutuphane/${r?.docId ?? pl.docId}`, { state: { taskId: t.id, ctx, startPage: p } });
         return;
