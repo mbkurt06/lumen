@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { confirmDeleteTodo, bumpProgress, doneOn, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
+import { confirmDeleteTodo, bumpProgress, doneOn, goalMode, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
 import { TodoSheet } from "./TodoSheet";
 
 const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00").getTime() + n * 86400000));
@@ -88,23 +88,40 @@ export function TodoDetail() {
       )}
       {t.page_goal && (() => {
         const st = taskState(t);
-        const ps = st.periods.slice(-12).reverse();
-        if (!ps.length) return null;
+        const ps = st.periods.slice(-14).reverse();
         const unit = t.page_goal.unit ?? "sayfa";
+        const seq = goalMode(t.page_goal) === "seq";
+        const laps = [...(t.laps ?? [])].reverse();
+        const noTarget = seq && !t.page_goal.n;
+        const dayN = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
         return (
+          <>
+          {seq && (
+            <div className="card" style={{ margin: "10px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><b>{st.total ? `${t.page_goal.loop ? `${st.lap}. tur` : "İlerleme"}` : "Okuma"}</b><b style={{ color: "var(--accent)" }}>{st.total ? `${st.lapRead}/${st.total}` : `bugün ${st.todayCount}`}</b></div>
+              {st.total > 0 && <div className="tbar" style={{ margin: "10px 0 4px" }}><i style={{ width: `${Math.min(100, (st.lapRead / st.total) * 100)}%` }} /></div>}
+              {laps.length > 0 && (<>
+                <div className="muted small" style={{ marginTop: 10 }}>Tamamlanan turlar · ortalama {Math.round(laps.reduce((n, l) => n + dayN(l.a, l.b), 0) / laps.length)} günde bir</div>
+                {laps.slice(0, 8).map((l) => (<div key={l.n} className="prow"><span>{l.n}. tur</span><span className="pst ok">{periodText({ a: l.a, b: l.b })} · {dayN(l.a, l.b)} gün</span></div>))}
+              </>)}
+            </div>
+          )}
+          {ps.length > 0 && (
           <div className="card" style={{ margin: "10px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{t.strict ? "Zorunlu görev · dönemler" : "Takip · geçmiş"}</b><span className="muted small">{ps.filter((p) => p.got >= p.need).length}/{ps.length} tam</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{seq ? "Gün gün" : t.strict ? "Zorunlu · dönemler" : "Dönemler"}</b><span className="muted small">{noTarget ? `ortalama ${Math.round(ps.reduce((n, p) => n + p.got, 0) / ps.length)} ${unit}/gün` : `${ps.filter((p) => p.got >= p.need).length}/${ps.length} tam`}</span></div>
             {ps.map((p) => {
               const cur = p === st.cur;
               const state = p.skipped ? "atlandı" : p.got >= p.need ? "tam" : cur ? "sürüyor" : t.strict ? "tamamlanmadı" : "eksik";
               return (
                 <div key={p.a} className="prow">
                   <span>{periodText(p)}</span>
-                  <span className={"pst " + (p.skipped ? "sk" : p.got >= p.need ? "ok" : cur ? "" : t.strict ? "bad" : "part")}>{p.got}/{cur ? st.target : p.need} {unit} · {state}</span>
+                  <span className={"pst " + (noTarget ? (p.got ? "ok" : "") : p.skipped ? "sk" : p.got >= p.need ? "ok" : cur ? "" : t.strict ? "bad" : "part")}>{noTarget ? `${p.got} ${unit}` : `${p.got}/${cur ? st.target : p.need} ${unit} · ${state}`}</span>
                 </div>
               );
             })}
           </div>
+          )}
+          </>
         );
       })()}
       <div className="card" style={{ margin: "10px 16px", padding: 0 }}>

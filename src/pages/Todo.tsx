@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { confirmDeleteTodo, goalLabel, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { confirmDeleteTodo, ctxPages, goalLabel, goalMode, goalProgress, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, recurrenceText, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
 import { rangeStartDoc } from "../lib/taskNav";
 
@@ -44,14 +44,25 @@ export function Todo() {
   const states = useMemo(() => new Map<string, TaskState>(todos.map((t) => [t.id, taskState(t, tp)])), [todos, tp]);
   const [missOpen, setMissOpen] = useState<boolean | null>(null);
   const [missExp, setMissExp] = useState<Record<string, boolean>>({});
-  // kitaptaki yere git: ayraç (güncel yer) ya da sabit yer.
-  // Her gün okunan aralık bugün hiç okunmadıysa (ayar kapalıyken) aralığın başından açılır.
-  const goRef = async (t: T) => {
+  // payın sayfaları (sıralı)
+  const scopeList = (g: PageGoal) => (g.pages?.length ? [...g.pages].sort((x, y) => x - y) : g.from != null && g.to != null ? Array.from({ length: Math.abs(g.to - g.from) + 1 }, (_, i) => Math.min(g.from!, g.to!) + i) : []);
+  // görevi aç: sırayla okuda görevin kendi yeri; payda o dönemin okunmamış ilk sayfası (periodA: kaçan dönem)
+  const goRef = async (t: T, periodA?: string) => {
     const pl = placeOf(t);
     const g = t.page_goal;
-    if (pl?.docId && g?.per === "pages" && !tp.resumeRange && periodUnit(t) !== "range" && (states.get(t.id)?.got ?? 0) === 0) {
-      const r = await rangeStartDoc(g, pl.docId).catch(() => null);
-      if (r) { nav(`/kutuphane/${r.docId}`, { state: { taskId: t.id, startPage: r.startPage } }); return; }
+    const st = states.get(t.id);
+    if (g && pl?.docId && st) {
+      if (goalMode(g) === "pay") {
+        const ctx = periodA ? payCtx(t, periodA) : st.ctx;
+        const read = ctxPages(g, ctx);
+        const all = scopeList(g);
+        const p = all.find((x) => !read.has(x)) ?? all[0];
+        const r = p != null ? await rangeStartDoc({ ...g, from: p, pages: undefined }, pl.docId).catch(() => null) : null;
+        nav(`/kutuphane/${r?.docId ?? pl.docId}`, { state: { taskId: t.id, ctx, startPage: p } });
+        return;
+      }
+      nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id, ctx: st.ctx, startPage: t.place?.page ?? undefined } });
+      return;
     }
     if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`);
   };
@@ -96,22 +107,37 @@ export function Todo() {
     const rt = recurrenceText(t);
     const g = t.page_goal;
     const s = states.get(t.id);
-    const gc = g && s ? s.got : 0;
-    const gn = g && s ? s.target : g?.n ?? 1;
     const unitTx = g?.unit ?? "sayfa";
     const resume = pl ? `${pl.live ? "Kaldığın: " : ""}${pl.label}` : "";
     const pu = periodUnit(t);
     const prevTx = pu === "day" ? "dün" : pu === "week" ? "geçen hafta" : "geçen ay";
-    const extra = g && s && !t.strict ? [
-      s.bonus > 0 ? `+${s.bonus} telafi` : "",
-      tp.showYesterday && s.prev && pu !== "range" ? `${prevTx} ${s.prev.got}/${s.prev.need}` : "",
-      g.per === "day" ? `toplam ${goalProgress(t)} ${unitTx}` : "",
-    ].filter(Boolean).join(" · ") : "";
-    // tarih aralığında: yetişmek için günlük öneri
-    const daysLeft = t.end_date ? Math.round((new Date(t.end_date + "T12:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) + 1 : 0;
-    const suggest = g && s && pu === "range" && tp.suggestDaily && daysLeft > 0 && s.got < s.target ? `günde ~${Math.ceil((s.target - s.got) / daysLeft)} ${unitTx} · ${daysLeft} gün kaldı` : "";
+    const mode = g ? goalMode(g) : null;
+    // düğme: sırayla okuda turdaki/kapsamdaki yer (67/100), payda dönemin ilerlemesi
+    let btn = "", barV = 0, barMax = 1;
+    const parts: string[] = [];
+    if (g && s) {
+      if (mode === "seq") {
+        if (s.total) { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
+        else if (g.n) { btn = `${s.got}/${s.target}`; barV = s.got; barMax = s.target; }
+        parts.push(g.n ? `${goalLabel(g)} ${s.got}/${s.target} ${unitTx}` : `Bugün ${s.todayCount} ${unitTx}`);
+        if (g.n && pu === "day" && s.todayCount !== s.got) parts.push(`bugün ${s.todayCount}`);
+        if (g.loop) parts.push(`${s.lap}. tur`);
+        if (!t.strict && s.bonus > 0) parts.push(`+${s.bonus} telafi`);
+        if (!t.strict && g.n && tp.showYesterday && s.prev && pu !== "range") parts.push(`${prevTx} ${s.prev.got}/${s.prev.need}`);
+        if (!g.n && !s.total) parts.push(`toplam ${goalProgress(t)} ${unitTx}`);
+      } else {
+        btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total;
+        parts.push(goalLabel(g));
+        if (s.ahead) parts.push(`bu dönem ✓ · sonraki ${s.ahead.got}/${s.total}`);
+        if (!t.strict && tp.showYesterday && s.prev && pu !== "range") parts.push(`${prevTx} ${s.prev.got}/${s.prev.need}`);
+      }
+      // tarih aralığında: yetişmek için günlük öneri
+      const daysLeft = t.end_date ? Math.round((new Date(t.end_date + "T12:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000) + 1 : 0;
+      const remain = mode === "pay" ? s.total - s.lapRead : s.target - s.got;
+      if (pu === "range" && tp.suggestDaily && daysLeft > 0 && remain > 0) parts.push(`günde ~${Math.ceil(remain / daysLeft)} ${unitTx} · ${daysLeft} gün kaldı`);
+    }
     const sub = kz && t.plan ? `Bugün ${kazaToday(t.kind === "kaza" ? "namaz" : "oruc")} / ${t.plan.daily}${t.kind === "kaza" ? " vakit" : " gün"}`
-      : [t.strict ? "Zorunlu" : "", g ? `${goalLabel(g)} ${gc}/${gn} ${unitTx}` : "", extra, suggest, pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
+      : [t.strict ? "Zorunlu" : "", ...parts, pl?.book && !t.title.includes(pl.book) && !pl.book.includes(t.title) ? pl.book : !pl?.book ? pl?.section : "", rt || (t.due_at ? trDate(t.due_at) : ""), resume, l?.title].filter(Boolean).join(" · ");
     const done = isDoneToday(t);
     const per = Math.max(1, t.per_day);
     const cnt = isRecurring(t) ? doneOn(t) : 0;
@@ -127,10 +153,10 @@ export function Todo() {
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{sub}</div>}
           </div>
-          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{g ? `${gc}/${gn}` : pl?.live ? "Devam" : "Git"}</button>}
+          {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
           <button className="tmore" onClick={() => setAct(t)} aria-label="Düzenle / sil"><Icon name="dots" size={20} /></button>
         </div>
-        {g ? <div className="tbar"><i style={{ width: `${Math.min(100, (gc / Math.max(1, gn)) * 100)}%` }} /></div>
+        {g && barMax > 0 && btn ? <div className="tbar"><i style={{ width: `${Math.min(100, (barV / Math.max(1, barMax)) * 100)}%` }} /></div>
           : isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
           <div key={c.id} className="trow2 subrow">
@@ -156,11 +182,11 @@ export function Todo() {
       <div className="mline">
         <div className="mmain">
           {title && <div className="mtitle">{t.title}</div>}
-          <div className="msub">{periodText(p)}{g ? ` · ${goalLabel({ ...g, every: undefined })}` : ""}</div>
+          <div className="msub">{periodText(p)}{g && goalMode(g) === "pay" ? ` · ${goalLabel({ ...g, every: undefined })}` : ""}</div>
           <div className="mbar"><i style={{ width: `${(p.got / p.need) * 100}%` }} /></div>
           <div className="mleft">{p.got}/{p.need} · {left(p)} {g?.unit ?? (g ? "sayfa" : "kez")} kaldı</div>
         </div>
-        {g ? <button className="devam sm" onClick={() => void goRef(t)}>Devam</button>
+        {g ? <button className="devam sm" onClick={() => void goRef(t, g && goalMode(g) === "pay" ? p.a : undefined)}>Devam</button>
           : <button className="devam sm" onClick={async () => { await bumpDay(t, p.a, 1); void reload(); }}>Yaptım</button>}
         {tp.allowSkip && <button className="mskip" onClick={() => void skip(t, p)}>Atla</button>}
       </div>
@@ -187,7 +213,7 @@ export function Todo() {
                   <div className="mtitle">{t.title}</div>
                   <div className="msub">{ms.length > 1 ? `${ms.length} ${periodUnit(t) === "week" ? "hafta" : periodUnit(t) === "month" ? "ay" : "gün"} · ` : periodText(ms[0]) + " · "}{total} {t.page_goal?.unit ?? (t.page_goal ? "sayfa" : "kez")} kaldı</div>
                 </div>
-                {t.page_goal ? <button className="devam sm" onClick={() => void goRef(t)}>Devam</button> : null}
+                {t.page_goal ? <button className="devam sm" onClick={() => void goRef(t, goalMode(t.page_goal!) === "pay" ? ms[0].a : undefined)}>Devam</button> : null}
                 <button className="tmore" onClick={() => setMissExp({ ...missExp, [t.id]: !ex })} aria-label="Dönemleri göster"><Icon name={ex ? "chevdown" : "chevron"} size={18} /></button>
               </div>
               {ex && ms.map((p) => <PeriodLine key={p.a} t={t} p={p} />)}

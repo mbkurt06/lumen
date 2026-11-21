@@ -32,7 +32,7 @@ export function BookmarkDialog({ autoTitle, where, list, onNew, onUpdate, onDele
         <input className="field" style={{ width: "100%" }} value={name} placeholder={`Ad (ör. ${autoTitle} · sabah)`} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onNew(name, task)} />
         <label className="bmrow pick" style={{ border: 0, padding: "10px 0 0" }}>
           <input type="checkbox" checked={task} onChange={(e) => setTask(e.target.checked)} />
-          <div className="bmtxt"><b>Göreve de bağla</b><span>Görev bu ayracı gösterir; ayracı taşıdıkça görev de güncellenir</span></div>
+          <div className="bmtxt"><b>Buradan görev de oluştur</b><span>Görev kendi yerini tutar; ayraç ayrı kalır</span></div>
         </label>
         <div className="seg">
           <button onClick={onClose}>Vazgeç</button>

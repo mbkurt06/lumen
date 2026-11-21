@@ -5,7 +5,8 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { fixedPages } from "../lib/bookPages";
-import { goalCount, goalLabel, goalPeriod, goalProgress, inGoal, nextGoalPage, rangeWindow, readsCache, useTodos, ymd as ymdToday, type Todo as TodoT } from "../lib/todo";
+import { goalLabel, goalMode, inScope, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
+import { rangeStartDoc } from "../lib/taskNav";
 import { useCP } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
 import { applyAll, loadRS, pullRS, resetRS, saveRS, type RSettings, type Scope } from "../lib/readerSettings";
@@ -210,27 +211,31 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const unitLabel = (n: number) => (unit === "bab" ? `${n}. Bab` : n ? `Sayfa ${n}` : "Giriş");
   const readDocKey = isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id;
   const stateBm = (loc0.state as { bmId?: string } | null)?.bmId ?? null;
-  // Sadece görev/ayraç bağlamında okuma durumu kalıcıdır; normal kütüphane girişi oturum içidir.
-  const readContextKey = focusTaskId ? `todo:${focusTaskId}` : stateBm ? `bookmark:${stateBm}` : "global";
+  // Görevden açıldıysa okundu işaretleri görevin bağlamına yazılır (tur: todo:<id>#<tur>, pay: todo:<id>@<dönem>).
+  // Ayraçtan açıldıysa ayracın bağlamına; normal kütüphane girişinde kalıcı değildir.
+  const goalTask = focusTaskId ? todos.find((t) => t.id === focusTaskId && t.page_goal) ?? null : null;
+  const tState = goalTask ? taskState(goalTask) : null;
+  const [ctxOverride, setCtxOverride] = useState<string | null>(() => (loc0.state as { ctx?: string } | null)?.ctx ?? null);
+  const readContextKey = focusTaskId ? ctxOverride ?? tState?.ctx ?? `todo:${focusTaskId}` : stateBm ? `bookmark:${stateBm}` : "global";
   const contextualRead = !!focusTaskId || !!stateBm;
   const reads = usePageReads(readDocKey, scope, scope === "kuran" ? null : doc.parent_id, readContextKey, contextualRead);
   const pageKey = (i: number) => (numbered ? pageNo : isQuran ? mpages?.[i]?.display_page ?? i + 1 : i + 1);
-  // Normal kütüphane girişinde görev ilerlemesi gösterilmez.
-  const goalTask = contextualRead ? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope) && (!focusTaskId || t.id === focusTaskId))
-    ?? todos.find((t) => t.page_goal && !t.is_completed && (t.page_goal.book_id ? t.page_goal.book_id === bookId : t.page_goal.scope === scope)) : null;
+  const navState = (extra?: Record<string, unknown>) => ({ taskId: focusTaskId, bmId: stateBm, ctx: focusTaskId ? readContextKey : undefined, ...extra });
+  // görev göstergesi: turda/payda okunan (bu belgedeki canlı işaretler + diğer belgelerdekiler)
   const goalNow = (() => {
     if (!goalTask) return 0;
-    if (goalTask.page_goal!.per === "day") {
-      const cachedPages = new Set(readsCache().filter((r) => r.context_key === readContextKey && r.doc_key === readDocKey).map((r) => r.page));
-      const liveExtra = Object.keys(reads.read).filter((pg) => !cachedPages.has(Number(pg))).length;
-      return goalProgress(goalTask) + liveExtra;
-    }
-    const isRange = goalTask.page_goal!.per === "pages";
-    const [a, b] = isRange ? rangeWindow(goalTask) : goalPeriod(goalTask);
-    const live = isRange
-      ? Object.entries(reads.read).filter(([pg, d]) => inGoal(goalTask.page_goal!, Number(pg)) && d >= a && d <= b).length
-      : Object.values(reads.read).filter((d) => d >= a && d <= b).length;
-    return goalCount(goalTask, readsCache(), isQuran ? "kuran" : numbered ? doc.parent_id! : doc.id, readContextKey) + live;
+    const g = goalTask.page_goal!;
+    const live = Object.keys(reads.read).map(Number).filter((pg) => inScope(g, pg));
+    const other = readsCache().filter((r) => r.context_key === readContextKey && r.doc_key !== readDocKey && inScope(g, r.page)).map((r) => r.doc_key + ":" + r.page);
+    return new Set(other).size + live.length;
+  })();
+  const goalTotal = goalTask ? scopeSize(goalTask.page_goal!) || (goalMode(goalTask.page_goal!) === "pay" ? goalTask.page_goal!.n : 0) : 0;
+  const curLap = goalTask && readContextKey.includes("#") ? Number(readContextKey.split("#")[1]) || 1 : 1;
+  const goalChip = (() => {
+    if (!goalTask) return "";
+    const g = goalTask.page_goal!;
+    if (goalMode(g) === "pay") return `${goalLabel(g)} ${goalNow}/${goalTotal}${readContextKey !== tState?.ctx && tState && readContextKey > tState.ctx ? " · sonraki dönem" : ""}`;
+    return goalTotal ? `${goalNow}/${goalTotal}${g.loop ? ` · ${curLap}. tur` : ""}` : `Bugün ${tState?.todayCount ?? 0}`;
   })();
   // okundu deyince ilerleyecek ayraç: görevin ayracı, ayraçtan açıldıysa o, kitapta tek ayraç varsa o
   const pageLabel = (i: number) => (isQuran ? String(mpages?.[i]?.display_page ?? "") : String(i + 1));
@@ -267,83 +272,125 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const t = pp + d;
     window.getSelection()?.removeAllRanges();
     setSel(null);
-    if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: { atEnd: true, taskId: focusTaskId, bmId: stateBm } }); return; }
-    if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }); return; }
+    if (t < 0) { if (prevDoc) nav(`/kutuphane/${prevDoc}`, { replace: true, state: navState({ atEnd: true }) }); return; }
+    if (t >= pc) { if (nextDoc) nav(`/kutuphane/${nextDoc}`, { replace: true, state: navState() }); return; }
     setPp(t);
     document.querySelector(".content")?.scrollTo(0, 0);
   };
-  // okundu: işaretle; görevden açıldıysa bağlı ayracı sonraki sayfanın başına taşı; ayara göre sonraki sayfaya geç
+  const lapsRef = useRef<NonNullable<TodoT["laps"]> | null>(null); // bu oturumda biten turlar (görev listesi yenilenene kadar)
+  const firstNid = (k: number) => (isQuran ? mpages?.[k]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[k]?.[0]?.id) ?? null;
+  const idxOf = (p: number) => Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === p);
+  const siblingOfPage = async (p: number) => {
+    const { data } = await supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(p)).maybeSingle();
+    return (data as { id: string } | null)?.id ?? null;
+  };
+  /** görevin yeri: p. sayfanın başı */
+  const placeFor = async (p: number): Promise<TaskPlace | null> => {
+    if (numbered) { const id = p === pageNo ? doc.id : await siblingOfPage(p); return id ? { doc_id: id, node_id: null, page: p, label: unitLabel(p) } : null; }
+    const k = idxOf(p);
+    if (k != null) { const nid = firstNid(k); return { doc_id: doc.id, node_id: nid, page: p, label: nid ? where(nid).label : `Sayfa ${p}` }; }
+    if (isQuran && goalTask) { const r = await rangeStartDoc({ ...goalTask.page_goal!, doc_key: "kuran", from: p, pages: undefined }, doc.id); return r ? { doc_id: r.docId, node_id: null, page: p, label: `Sayfa ${p}` } : null; }
+    if (nextDoc && p > pageKey(pc - 1)) return { doc_id: nextDoc, node_id: null, page: 1, label: "" }; // kitap: sonraki bölüm
+    return null;
+  };
+  const savePlace = async (pl: TaskPlace | null) => {
+    if (!goalTask || !pl) return;
+    await supabase.from("todos").update({ place: pl, updated_at: new Date().toISOString() }).eq("id", goalTask.id);
+  };
+  /** p. sayfaya git (bu belgedeyse sayfayı çevir, değilse o belgeyi aç) */
+  const goToPage = async (p: number, ctx = readContextKey) => {
+    const k = numbered ? (p === pageNo ? 0 : undefined) : idxOf(p);
+    if (k != null && !numbered) { setPp(k); document.querySelector(".content")?.scrollTo(0, 0); return; }
+    const pl = await placeFor(p);
+    if (pl && pl.doc_id !== doc.id) nav(`/kutuphane/${pl.doc_id}`, { replace: true, state: { ...navState(), ctx, startPage: p } });
+  };
+  const scopeStart = (g: NonNullable<TodoT["page_goal"]>) => (g.pages?.length ? Math.min(...g.pages) : g.from ?? (numbered ? 1 : isQuran ? 0 : 1));
+  /** görevde okundu sonrası: sırayla okuda yer ilerler, kapsam bitince tur ya da görev tamam; payda dönem tamam / erken başa dön */
+  const taskAfterMark = async (pk: number, added: boolean) => {
+    const t = goalTask!, g = t.page_goal!;
+    const mode = goalMode(g);
+    if (!added) { if (mode === "seq") void savePlace(await placeFor(pk)); return; } // geri alındı: yer bu sayfaya döner
+    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    const liveSet = new Set(Object.keys(reads.read).map(Number)); liveSet.add(pk);
+    const other = new Set(readsCache().filter((r) => r.context_key === readContextKey && r.doc_key !== readDocKey && inScope(g, r.page)).map((r) => r.doc_key + ":" + r.page));
+    const count = other.size + [...liveSet].filter((x) => inScope(g, x)).length;
+    const total = scopeSize(g) || (mode === "pay" ? g.n : 0);
+    const done = total > 0 && count >= total;
+    const today = ymdToday();
+    if (mode === "seq") {
+      if (done) {
+        if (g.loop) {
+          const lap = curLap;
+          const laps = [...(lapsRef.current ?? t.laps ?? [])];
+          const a0 = laps.length ? nextDay(laps[laps.length - 1].b) : t.start_date ?? ymdToday(new Date(t.created_at));
+          laps.push({ n: lap, a: a0 > today ? today : a0, b: today });
+          const days = Math.round((Date.parse(today) - Date.parse(laps[laps.length - 1].a)) / 86400000) + 1;
+          const start = scopeStart(g);
+          const pl = await placeFor(start);
+          lapsRef.current = laps;
+          await supabase.from("todos").update({ laps, place: pl, updated_at: new Date().toISOString() }).eq("id", t.id);
+          const nctx = seqCtx(t, lap + 1);
+          setCtxOverride(nctx);
+          flash(`${lap}. tur tamamlandı (${days} günde) · yeni tur başladı`);
+          if (cp.readNext) setTimeout(() => void goToPage(start, nctx), 400);
+        } else {
+          await supabase.from("todos").update({ is_completed: true, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", t.id);
+          flash("Kapsam bitti · görev tamamlandı");
+        }
+        return;
+      }
+      const np = g.pages?.length ? nextGoalPage(g, pk) : pk + 1;
+      const pl = np != null ? await placeFor(np) : null;
+      void savePlace(pl ?? (await placeFor(pk)));
+      if (cp.readNext && np != null) setTimeout(() => void goToPage(np), 180);
+      return;
+    }
+    // pay
+    if (done) {
+      const isCur = !!tState && readContextKey === tState.ctx && !tState.ahead;
+      if (g.early && periodUnit(t) !== "range" && isCur && tState?.cur) {
+        const nctx = payCtx(t, nextDay(tState.cur.b));
+        setCtxOverride(nctx);
+        flash(`${goalLabel(g)} tamamlandı · sonraki dönemin payı başladı`);
+        if (cp.readNext) setTimeout(() => void goToPage(scopeStart(g), nctx), 400);
+      } else flash(`${goalLabel(g)} tamamlandı`);
+      return;
+    }
+    // payda okunmamış bir sonraki sayfa
+    const all = g.pages?.length ? [...g.pages].sort((x, y) => x - y) : Array.from({ length: Math.abs((g.to ?? pk) - (g.from ?? pk)) + 1 }, (_, i) => (g.from ?? pk) + i);
+    const np = all.find((x) => x > pk && !liveSet.has(x)) ?? all.find((x) => !liveSet.has(x));
+    if (cp.readNext && np != null) setTimeout(() => void goToPage(np), 180);
+  };
+  // okundu: işaretle; görevden açıldıysa görevin yeri ilerler; ayraçtan açıldıysa ayraç ilerler; ayara göre sonraki sayfaya geç
   const markRead = () => {
-    const added = reads.toggle(pageKey(pp));
-    const bmToMove = taskT?.bookmark_id ?? stateBm ?? null;
+    const pk = pageKey(pp);
+    const added = reads.toggle(pk);
+    if (goalTask) { void taskAfterMark(pk, added); return; }
+    const bmToMove = stateBm;
     if (!added) {
-      // işaret kaldırıldı: ayraç bu sayfaya geri döner (bir dahaki açılışta okunmamış sayfadan başlar)
-      const first = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp]?.[0]?.id;
+      const first = firstNid(pp);
       if (bmToMove && first) { const w = where(first); void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: first, mushaf_page: w.page, quote: textOf(first), autoTitle: w.label, label: w.label }).then(() => void reloadBms()); }
       return;
     }
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
     if (bmToMove) {
-      const nextFirst = isQuran ? mpages?.[pp + 1]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[pp + 1]?.[0]?.id;
-      const curLast = isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id;
-      // sayfa aralığı görevi (ör. 10–20) bitiş sayfası okununca ayraç aralığın başına döner
-      const g = goalTask?.page_goal;
-      const wrap = g?.per === "pages" && pageKey(pp) === g.to && g.from != null;
-      const startNid = wrap ? (isQuran ? mpages?.find((m) => m.display_page === g!.from)?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[(g!.from ?? 1) - 1]?.[0]?.id) : undefined;
-      // seçili sayfalarda (ör. 3, 7, 12) ayraç bir sonraki seçili sayfaya gider
-      const ng = g?.per === "pages" && g.pages?.length ? nextGoalPage(g, pageKey(pp)) : null;
-      const ngIdx = ng != null ? Array.from({ length: pc }, (_, i) => i).find((i) => pageKey(i) === ng) : undefined;
-      const selNid = ngIdx != null ? (isQuran ? mpages?.[ngIdx]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[ngIdx]?.[0]?.id) : undefined;
-      const nid = startNid ?? selNid ?? nextFirst ?? curLast;
-      if (nid) {
-        const w = where(nid);
-        void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms());
-      }
-    }
-    const g2 = goalTask?.page_goal;
-    if (g2?.per === "pages" && pageKey(pp) === g2.to) { flash(`${goalLabel(g2)} tamamlandı · ayraç ${g2.from}. sayfaya döndü`); return; }
-    if (cp.readNext && g2?.per === "pages" && g2.pages?.length) {
-      const ng = nextGoalPage(g2, pageKey(pp));
-      const i = ng != null ? Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === ng) : undefined;
-      if (i != null) { setTimeout(() => { setPp(i); document.querySelector(".content")?.scrollTo(0, 0); }, 180); return; }
+      const nid = firstNid(pp + 1) ?? (isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id);
+      if (nid) { const w = where(nid); void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms()); }
     }
     if (cp.readNext && pp < pc - 1) setTimeout(() => turn(1), 180);
   };
-  // numaralı belgede okundu: işaretle, bağlı ayracı sonraki sayfaya taşı, ayara göre sonrakine geç
+  // numaralı belgede (Cevşen, Tevhidname) okundu
   const markReadDoc = () => {
     const added = reads.toggle(pageNo);
-    const bmToMove = taskT?.bookmark_id ?? stateBm ?? (bms.length === 1 ? bms[0].id : null);
+    if (goalTask) { void taskAfterMark(pageNo, added); return; }
+    const bmToMove = stateBm ?? (bms.length === 1 ? bms[0].id : null);
     if (!added) {
-      // işaret kaldırıldı: ayraç bu sayfaya geri döner
       if (bmToMove) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo)}`, label: unitLabel(pageNo) }).then(() => void reloadBms());
       return;
     }
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
-    const g = goalTask?.page_goal;
-    if (g?.per === "pages" && pageNo === g.to && g.from != null) {
-      // aralığın sonu: ayraç baştaki sayfaya döner (bir dahaki okumada baştan)
-      if (bmToMove) void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(g.from)).maybeSingle().then(({ data }) => {
-        const id = (data as { id: string } | null)?.id;
-        if (id) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: id, node_id: null, mushaf_page: null, quote: "", autoTitle: unitLabel(g.from!), label: unitLabel(g.from!) }).then(() => void reloadBms());
-      });
-      flash(`${goalLabel(g)} tamamlandı · ayraç ${unitLabel(g.from)}'e döndü`);
-      return;
-    }
-    // seçili bablar/sayfalar (ör. 3, 7, 12): bir sonraki seçili belgeye geç
-    if (g?.per === "pages" && g.pages?.length) {
-      const ng = nextGoalPage(g, pageNo);
-      if (ng != null) {
-        void supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(ng)).maybeSingle().then(({ data }) => {
-          const id = (data as { id: string } | null)?.id;
-          if (!id) return;
-          if (bmToMove) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: id, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(ng)}`, label: unitLabel(ng) });
-          if (cp.readNext) setTimeout(() => nav(`/kutuphane/${id}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
-        });
-        return;
-      }
-    }
     if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo + 1)}`, label: unitLabel(pageNo + 1) });
-    if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } }), 200);
+    if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: navState() }), 200);
   };
   const touchX = useRef<number | null>(null);
   useEffect(() => {
@@ -753,10 +800,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         <div className={"pnav mini" + (isQuran ? " quran" : "")}>
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name={isQuran ? "chevron" : "back"} size={22} /></button>
           <span className="pmid">
-          <button className={"readbtn" + (reads.read[pageKey(pp)] === ymdToday() ? " on" : reads.read[pageKey(pp)] ? " old" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] === ymdToday() ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
-            {reads.read[pageKey(pp)] === ymdToday() ? "✓" : "○"} {pp + 1} / {pc}
+          <button className={"readbtn" + (reads.read[pageKey(pp)] ? " on" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
+            {reads.read[pageKey(pp)] ? "✓" : "○"} {pp + 1} / {pc}
           </button>
-          {goalTask && <span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")} title={goalTask.title}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span>}
+          {goalTask && <span className={"goalchip" + (goalTotal && goalNow >= goalTotal ? " done" : "")} title={goalTask.title}>{goalChip}</span>}
           </span>
           <button disabled={pp >= pc - 1 && !nextDoc} onClick={() => turn(1)} aria-label={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"} title={pp >= pc - 1 ? "Sonraki bölüm" : "Sonraki sayfa"}><Icon name={isQuran ? "back" : "chevron"} size={22} /></button>
         </div>
@@ -843,15 +890,15 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         </section>
       </div>
       <nav className={"dpager" + (numbered ? " fixed" : "")}>
-        <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } })}>‹ Önceki</button>
+        <button disabled={!prevDoc} onClick={() => prevDoc && nav(`/kutuphane/${prevDoc}`, { replace: true, state: navState() })}>‹ Önceki</button>
         {numbered && (
-          <button className={"dread" + (reads.read[pageNo] === ymdToday() ? " on" : reads.read[pageNo] ? " old" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
-            {reads.read[pageNo] === ymdToday() ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
+          <button className={"dread" + (reads.read[pageNo] ? " on" : "")} onClick={() => markReadDoc()} aria-label="Bu sayfayı okudum">
+            {reads.read[pageNo] ? "✓" : "○"} {unit === "bab" ? `${pageNo}. Bab` : pageNo || "Giriş"}
           </button>
         )}
-        <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true, state: { taskId: focusTaskId, bmId: stateBm } })}>Sonraki ›</button>
+        <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true, state: navState() })}>Sonraki ›</button>
       </nav>
-      {numbered && goalTask && <div className="dgoal fixed"><span className={"goalchip" + (goalNow >= goalTask.page_goal!.n ? " done" : "")}>{goalLabel(goalTask.page_goal!)} {goalNow}/{goalTask.page_goal!.n}</span></div>}
+      {numbered && goalTask && <div className="dgoal fixed"><span className={"goalchip" + (goalTotal && goalNow >= goalTotal ? " done" : "")}>{goalChip}</span></div>}
       <div style={{ height: numbered ? 150 : 90 }} />
       {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" scale={rs.cnt} />}
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}

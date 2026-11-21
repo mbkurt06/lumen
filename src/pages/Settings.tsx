@@ -92,8 +92,7 @@ function TaskSettings() {
       <div className="cardsub">Takip görevleri</div>
       <Tog k="catchUp" label="Telafi" hint="Dünün eksiği bugünün hedefine eklenir (en fazla bir günlük hedef kadar)" />
       <Tog k="showYesterday" label="Dünkü sonucu göster" hint="Görev satırında “dün 3/5”" />
-      <div className="cardsub">Sayfa aralığı</div>
-      <Tog k="resumeRange" label="Yarım kalan aralığa ertesi gün kaldığı yerden devam" hint="Kapalıyken her gün aralığın başından açılır" />
+      <div className="cardsub">Diğer</div>
       <Tog k="suggestDaily" label="Tarih aralığında günlük öneri" hint="“Yetişmek için günde ~4 sayfa”" />
     </div>
   );

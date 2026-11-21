@@ -58,14 +58,15 @@ export function usePageReads(docKey: string, scope: string, bookId: string | nul
   }, [docKey, contextKey, storageKey, persist]);
   const toggle = useCallback((page: number) => {
     const m = persist ? { ...localMap() } : { ...map };
-    // daha önceki bir gün okunduysa bugün yeniden "okundu" sayılır (her gün okunan aralıklar için)
-    const add = !m[page] || m[page] !== ymd();
-    if (add) m[page] = ymd(); else delete m[page];
+    // bu bağlamda (görevin turu / payın dönemi) okunduysa işaret kaldırılır, okunmadıysa bugün okundu yazılır
+    const add = !m[page];
+    const day = add ? ymd() : m[page];
+    if (add) m[page] = day; else delete m[page];
     setMap(m);
     if (persist) {
       wr(storageKey, m);
       const q = rd<Op[]>(QK, []);
-      q.push({ op: add ? "add" : "del", doc_key: docKey, context_key: contextKey, page, scope, book_id: bookId, day: ymd() });
+      q.push({ op: add ? "add" : "del", doc_key: docKey, context_key: contextKey, page, scope, book_id: bookId, day });
       wr(QK, q);
       try { window.dispatchEvent(new Event(EV)); } catch { /* yok say */ }
       void flushReads();

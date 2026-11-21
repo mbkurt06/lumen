@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { addBookmark, listBookmarks, moveBookmark, type Bookmark, type BookmarkDraft } from "../lib/bookmarks";
+import type { Bookmark } from "../lib/bookmarks";
 import { LibPicker, type Picked } from "../components/LibPicker";
 import { loadTP } from "../lib/taskPrefs";
-import { SECTION_LABEL, pagesText, ymd, type PageGoal, type ReadingRef, type Recurrence, type TGroup, type TList, type Todo } from "../lib/todo";
-import type { Scope } from "../lib/readerSettings";
+import { SECTION_LABEL, goalMode, pagesText, ymd, type PageGoal, type ReadingRef, type Recurrence, type TaskPlace, type TGroup, type TList, type Todo } from "../lib/todo";
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
 /** page_no: numaralı sayfa belgelerinde (Tevhidname, Cevşen…) sayfa numarası */
@@ -35,92 +34,110 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   const [due, setDue] = useState(edit?.due_at ? ymd(new Date(edit.due_at)) : "");
   const [listId, setListId] = useState<string>(edit?.list_id ?? defaultListId ?? "");
   const [subs, setSubs] = useState<string[]>([]);
-  // bağlı yer
-  const [mode, setMode] = useState<"ayrac" | "sabit" | "yok">(place?.mode ?? "yok");
-  const [bmSel, setBmSel] = useState<string>(place?.bookmarkId ?? (place?.bookmarks[0]?.id ?? "new"));
-  const [bmName, setBmName] = useState("");
-  const [moveHere, setMoveHere] = useState(true);
+  // bağlı yer: okuma görevi (görev kendi yerini tutar, kütüphane ayracı açılmaz) · bu cümle · bağlama
+  const [mode, setMode] = useState<"ayrac" | "sabit" | "yok">(place?.mode ?? (edit?.page_goal || edit?.place || edit?.bookmark_id ? "ayrac" : edit?.reading_ref ? "sabit" : "yok"));
   // Yapılacaklar'dan eklerken kütüphaneden seçilen yer (kitaptan açılınca gelen "place" gibi davranır)
   const [picked, setPicked] = useState<PlacePrefill | null>(null);
   const [showPick, setShowPick] = useState(false);
   const pl = place ?? picked;
-  // okuma hedefi: N sayfa / gün-hafta-ay-aralık
-  const [gPer, setGPer] = useState<"none" | PageGoal["per"]>(edit?.page_goal?.per ?? "none"); // hedef isteğe bağlı
-  const [gOpen, setGOpen] = useState(!!edit?.page_goal);
-  // görev türü: zorunlu (süresi geçen dönem tamamlanana kadar kalır) ya da takip (kendi isteğin, borç olmaz)
+  const eg = edit?.page_goal ?? null;
+  // görev türü: takip / zorunlu
   const [strict, setStrict] = useState<boolean>(edit ? !!edit.strict : loadTP().defaultStrict);
-  const unit = edit?.page_goal?.unit ?? pl?.pos.unit ?? "sayfa";
+  const unit = eg?.unit ?? pl?.pos.unit ?? "sayfa";
   const Unit = unit[0].toLocaleUpperCase("tr") + unit.slice(1);
-  const [gN, setGN] = useState(edit?.page_goal?.n ?? 5);
-  // dönem (günde/haftada/ayda/tarih aralığında): sayı ve aralık hedefinde ortak; tür değişince korunur
-  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(
-    edit?.page_goal?.every ?? (edit?.page_goal && edit.page_goal.per !== "pages" ? edit.page_goal.per as NonNullable<PageGoal["every"]>
-      : edit?.page_goal?.per === "pages" && !(edit.recurrence && edit.recurrence.type !== "once") ? "range" : "day"));
-  const [gFrom, setGFrom] = useState(edit?.page_goal?.from ?? place?.pos.page_no ?? 1);
-  const [gTo, setGTo] = useState(edit?.page_goal?.to ?? (place?.pos.page_no ?? 1) + 9);
-  const [gPages, setGPages] = useState<number[] | null>(edit?.page_goal?.pages ?? null); // ayrı ayrı seçilen sayfalar
-  const canPages = pl?.pos.page_no != null || edit?.page_goal?.per === "pages";
+  // okuma türü: sırayla oku (kitap gibi) ya da pay (belli sayfalar belli sürede)
+  const [gMode, setGMode] = useState<"seq" | "pay">(eg ? goalMode(eg) : "seq");
+  // sırayla oku: kapsam (tamamı / aralık / seçili), bitince başa dön, hedef (yok / günde / haftada / ayda / tarihe kadar)
+  const [sAll, setSAll] = useState<boolean>(eg ? eg.from == null && !eg.pages?.length : true);
+  const [loop, setLoop] = useState<boolean>(eg?.loop ?? (pl?.pos.scope === "ibadet"));
+  const [tgt, setTgt] = useState<"none" | "day" | "week" | "month" | "range">(eg && goalMode(eg) === "seq" ? (eg.n ? (eg.per === "pages" ? "day" : eg.per) : "none") : "none");
+  const [gN, setGN] = useState(eg && goalMode(eg) === "seq" && eg.n ? eg.n : 5);
+  // pay: dönem ve başa dönüş
+  const [rEvery, setREvery] = useState<NonNullable<PageGoal["every"]>>(eg?.every ?? "day");
+  const [early, setEarly] = useState<boolean>(!!eg?.early);
+  const [gFrom, setGFrom] = useState(eg?.from ?? place?.pos.page_no ?? 1);
+  const [gTo, setGTo] = useState(eg?.to ?? (place?.pos.page_no ?? 1) + 9);
+  const [gPages, setGPages] = useState<number[] | null>(eg?.pages ?? null); // ayrı ayrı seçilen sayfalar
+  const canPages = pl?.pos.page_no != null || eg?.from != null || !!eg?.pages?.length;
+  // kitabın sınırları (Cevşen 1–100, Tevhidname 0–133, Kur'an 0–604); "Tamamı" için
+  const [bounds, setBounds] = useState<{ min: number; max: number } | null>(null);
+  useEffect(() => {
+    const pos = pl?.pos;
+    const dk = eg?.doc_key ?? pos?.doc_key ?? eg?.book_id ?? undefined;
+    if (!dk) { setBounds(null); return; }
+    if (dk === "kuran") { setBounds({ min: 0, max: 604 }); return; }
+    if (pos && dk === pos.doc_id) { setBounds(null); return; }
+    void supabase.from("library_items").select("metadata").eq("parent_id", dk).not("metadata->>page", "is", null).limit(1000).then(({ data }) => {
+      const ps = ((data ?? []) as { metadata: Record<string, unknown> }[]).map((d) => Number(d.metadata.page)).filter(Number.isFinite);
+      setBounds(ps.length ? { min: Math.min(...ps), max: Math.max(...ps) } : null);
+    });
+  }, [pl?.pos.doc_key, eg?.doc_key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const recurring = rec.type !== "once";
 
-  // kütüphaneden seçilince: o kitabın ayraçları; Kur'an cüzü / sayfalı kitapta aralık hedefi hazır gelir
+  // kütüphaneden seçilince: kapsamın tamamı seçildiyse "sırayla oku", bir kısmı seçildiyse "pay" hazır gelir
   const onPick = async (pk: Picked) => {
     setShowPick(false);
-    const bms = await listBookmarks(pk.pos.scope as Scope, pk.pos.scope === "kuran" ? null : pk.pos.book_id);
-    setPicked({ pos: pk.pos, mode: "ayrac", bookmarks: bms });
-    setMode("ayrac"); setBmSel("new"); setMoveHere(false);
+    setPicked({ pos: pk.pos, mode: "ayrac", bookmarks: [] });
+    setMode("ayrac");
     if (!title.trim()) setTitle(pk.title);
     if (pk.from != null) setGFrom(pk.from);
     if (pk.to != null) setGTo(pk.to);
     setGPages(pk.pages ?? null);
-    if (pk.range && pk.from != null) { setGOpen(true); setGPer("pages"); }
+    setLoop(pk.pos.scope === "ibadet");
+    let whole = !pk.range;
+    if (pk.range && pk.pos.doc_key && pk.pos.doc_key !== "kuran" && pk.pos.doc_key !== pk.pos.doc_id && !pk.pages) {
+      const { data } = await supabase.from("library_items").select("metadata").eq("parent_id", pk.pos.doc_key).not("metadata->>page", "is", null).limit(1000);
+      const ps = ((data ?? []) as { metadata: Record<string, unknown> }[]).map((d) => Number(d.metadata.page)).filter(Number.isFinite);
+      if (ps.length && pk.from! <= Math.max(1, Math.min(...ps)) && pk.to! >= Math.max(...ps)) whole = true;
+    }
+    setGMode(whole ? "seq" : "pay");
+    setSAll(whole);
   };
-
-  const draft = (p: Pos): BookmarkDraft => ({
-    scope: p.scope as Scope, book_id: p.book_id, document_id: p.doc_id, node_id: p.node_id, mushaf_page: p.mushaf_page ?? null,
-    quote: p.quote, autoTitle: p.label, label: p.label, book_title: p.book_title,
-  });
 
   async function save() {
     setErr("");
     const p = pl?.pos;
-    const name = title.trim() || (mode === "ayrac" ? p?.book_title ?? "" : "");
+    const reading = mode === "ayrac" && (!!p || !!eg);
+    const name = title.trim() || (reading ? p?.book_title ?? "" : "");
     if (!name) { setErr("Görev adını yaz."); return; }
     if (rec.type === "days" && !(rec.days ?? []).length) { setErr("Hangi günler olduğunu seç."); return; }
-    if ((gPer === "range" || (gPer === "pages" && rEvery === "range")) && !end) { setErr("Okuma hedefi için bitiş tarihini seç."); return; }
+    const dated = reading && ((gMode === "pay" && rEvery === "range") || (gMode === "seq" && tgt === "range"));
+    if (dated && !end) { setErr("Bitiş tarihini seç."); return; }
     setBusy(true);
-    let bookmark_id: string | null = edit?.bookmark_id ?? null;
     let reading_ref: ReadingRef | null = edit?.reading_ref ?? null;
+    let taskPlace: TaskPlace | null = edit?.place ?? null;
     let related = edit?.related_library_item_id ?? null;
     if (!edit && p) {
-      if (mode === "ayrac") {
-        if (bmSel === "new") {
-          const { data, error } = await addBookmark(draft(p), bmName);
-          if (error) { setErr("Ayraç kaydedilemedi: " + error.message); setBusy(false); return; }
-          bookmark_id = (data as { id: string }).id;
-        } else {
-          bookmark_id = bmSel;
-          if (moveHere) await moveBookmark(bmSel, draft(p));
-        }
-        reading_ref = null;
-      } else if (mode === "sabit") {
-        reading_ref = { kind: "konu", doc_id: p.doc_id, node_id: p.node_id, book_id: p.book_id, scope: p.scope, label: p.label, quote: p.quote.slice(0, 300), book_title: p.book_title };
-      }
+      reading_ref = { kind: mode === "sabit" ? "konu" : "yer", doc_id: p.doc_id, node_id: p.node_id, book_id: p.book_id, scope: p.scope, label: p.label, quote: p.quote.slice(0, 300), book_title: p.book_title };
+      if (mode === "ayrac") taskPlace = { doc_id: p.doc_id, node_id: p.node_id, page: p.page_no ?? p.mushaf_page ?? null, label: p.label };
+      if (mode === "yok") reading_ref = null;
       related = p.book_id ?? p.doc_id;
     }
-    if (edit && mode === "yok") { bookmark_id = null; reading_ref = null; }
-    const goalBook = edit?.page_goal ? { book_id: edit.page_goal.book_id, scope: edit.page_goal.scope }
-      : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope } : null;
-    const page_goal: PageGoal | null = gPer === "pages" && goalBook
-      ? { n: gPages?.length ?? Math.abs(gTo - gFrom) + 1, per: "pages", from: gPages ? Math.min(...gPages) : Math.min(gFrom, gTo), to: gPages ? Math.max(...gPages) : Math.max(gFrom, gTo), ...(gPages ? { pages: gPages } : {}), every: rEvery, doc_key: edit?.page_goal?.doc_key ?? pl?.pos.doc_key ?? goalBook.book_id ?? undefined, unit, ...goalBook }
-      : gPer !== "none" && goalBook ? { n: Math.max(1, gN), per: gPer, unit, ...goalBook } : null;
+    if (edit && mode === "yok") { reading_ref = null; taskPlace = null; }
+    // eski ayraçlı görev düzenlenince: ayracın yeri görevin kendi yeri olur
+    if (edit && mode === "ayrac" && !taskPlace && edit.bookmark) taskPlace = { doc_id: edit.bookmark.document_id, node_id: edit.bookmark.node_id, label: edit.bookmark.label ?? edit.bookmark.title };
+    const goalBook = eg ? { book_id: eg.book_id, scope: eg.scope } : p ? { book_id: p.scope === "kuran" ? null : p.book_id, scope: p.scope } : null;
+    const doc_key = eg?.doc_key ?? p?.doc_key ?? goalBook?.book_id ?? undefined;
+    const sel = gPages?.length ? { from: Math.min(...gPages), to: Math.max(...gPages), pages: gPages } : { from: Math.min(gFrom, gTo), to: Math.max(gFrom, gTo) };
+    const size = gPages?.length || Math.abs(gTo - gFrom) + 1;
+    let page_goal: PageGoal | null = null;
+    if (reading && goalBook) {
+      if (gMode === "pay") {
+        page_goal = { mode: "pay", per: "pages", every: rEvery, early, n: size, ...sel, doc_key, unit, ...goalBook };
+      } else {
+        const scopeF = sAll ? (bounds ? { from: bounds.min, to: bounds.max } : {}) : canPages ? sel : {};
+        const scopeN = "to" in scopeF && scopeF.to != null ? (gPages?.length && !sAll ? gPages.length : Math.abs((scopeF.to ?? 0) - (scopeF.from ?? 0)) + 1) : 0;
+        page_goal = { mode: "seq", loop, n: tgt === "none" ? 0 : tgt === "range" && scopeN ? scopeN : Math.max(1, gN), per: tgt === "none" ? "day" : tgt, ...scopeF, doc_key, unit, ...goalBook };
+      }
+    }
     const row: Record<string, unknown> = {
       title: name, notes: notes.trim() || null, kind: edit?.kind && edit.kind !== "okuma" && edit.kind !== "tekrar" ? edit.kind : "normal",
       list_id: listId || null, recurrence: rec, per_day: recurring ? perDay : 1,
-      start_date: recurring || gPer === "range" || (gPer === "pages" && rEvery === "range") ? start : null, end_date: (recurring || gPer === "range" || (gPer === "pages" && rEvery === "range")) && end ? end : null, page_goal,
+      start_date: recurring || dated ? start : null, end_date: (recurring || dated) && end ? end : null, page_goal,
       due_at: !recurring && due ? new Date(due + "T12:00:00").toISOString() : null,
-      bookmark_id, reading_ref, related_library_item_id: related, strict,
+      bookmark_id: null, reading_ref, place: taskPlace, related_library_item_id: related, strict,
       updated_at: new Date().toISOString(),
     };
     const res = edit
@@ -134,7 +151,25 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
   }
 
   const p = pl?.pos;
-  const editPlace = edit && (edit.bookmark || edit.reading_ref);
+  const editPlace = edit && (edit.place || edit.bookmark || edit.reading_ref);
+  const showGoal = mode === "ayrac" && (!!p || !!eg);
+  const scopeTx = gPages?.length ? pagesText(gPages) : `${Math.min(gFrom, gTo)}–${Math.max(gFrom, gTo)}`;
+  const scopeEditor = (
+    gPages ? (
+      <div className="line"><span>Seçili {unit}lar</span><span style={{ display: "flex", gap: 10, alignItems: "center" }}><b style={{ textAlign: "right" }}>{pagesText(gPages)}</b><button className="link" onClick={() => { setGFrom(Math.min(...gPages)); setGTo(Math.max(...gPages)); setGPages(null); }}>Aralığa çevir</button></span></div>
+    ) : (
+      <>
+        <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+        <div className="line"><span>{Unit} (bitiş)</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+      </>
+    )
+  );
+  const dates = (
+    <>
+      <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
+      <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+    </>
+  );
   return (
     <>
       <div className="scrim show" style={{ zIndex: 40 }} onClick={onClose} />
@@ -150,41 +185,22 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           <div className="placebox">
             <div className="lbl" style={{ padding: "10px 0 6px", display: "flex", justifyContent: "space-between" }}>
               <span>BAĞLI YER · {SECTION_LABEL[p.scope] ?? ""}{p.book_title ? " · " + p.book_title : ""}</span>
-              {picked && !place && <span style={{ display: "flex", gap: 14 }}><button className="link" onClick={() => setShowPick(true)}>Değiştir</button><button className="link" onClick={() => { setPicked(null); setGPages(null); setMode("yok"); if (gPer === "pages") { setGPer("none"); setGOpen(false); } }}>Kaldır</button></span>}
+              {picked && !place && <span style={{ display: "flex", gap: 14 }}><button className="link" onClick={() => setShowPick(true)}>Değiştir</button><button className="link" onClick={() => { setPicked(null); setGPages(null); setMode("yok"); }}>Kaldır</button></span>}
             </div>
             <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{p.label}</b>{p.quote && <span>“{p.quote.slice(0, 140)}{p.quote.length > 140 ? "…" : ""}”</span>}</div></div>
             <div className="seg3 three">
-              <button className={mode === "ayrac" ? "on" : ""} onClick={() => setMode("ayrac")}>Kaldığım yer</button>
+              <button className={mode === "ayrac" ? "on" : ""} onClick={() => setMode("ayrac")}>Okuma görevi</button>
               <button className={mode === "sabit" ? "on" : ""} onClick={() => setMode("sabit")}>Bu cümle</button>
               <button className={mode === "yok" ? "on" : ""} onClick={() => setMode("yok")}>Bağlama</button>
             </div>
-            {mode === "ayrac" && (
-              <div className="bmlist">
-                {pl!.bookmarks.map((b) => (
-                  <label key={b.id} className={"bmrow pick" + (bmSel === b.id ? " hi" : "")}>
-                    <input type="radio" name="bm" checked={bmSel === b.id} onChange={() => setBmSel(b.id)} />
-                    <div className="bmtxt"><b>{b.title}</b><span>{b.label ?? b.quote ?? ""}</span></div>
-                  </label>
-                ))}
-                <label className={"bmrow pick" + (bmSel === "new" ? " hi" : "")}>
-                  <input type="radio" name="bm" checked={bmSel === "new"} onChange={() => setBmSel("new")} />
-                  <div className="bmtxt" style={{ flex: 1 }}><b>Yeni ayraç</b>
-                    {bmSel === "new" && <input className="field" style={{ width: "100%", marginTop: 6 }} placeholder={`Ayraç adı (ör. ${p.book_title ?? "sabah okuması"})`} value={bmName} onChange={(e) => setBmName(e.target.value)} />}
-                  </div>
-                </label>
-                {bmSel !== "new" && (
-                  <label className="bmrow pick"><input type="checkbox" checked={moveHere} onChange={(e) => setMoveHere(e.target.checked)} /><div className="bmtxt"><b>Ayracı buraya taşı</b><span>Kapalıysa ayraç olduğu yerde kalır</span></div></label>
-                )}
-              </div>
-            )}
-            {mode === "ayrac" && <p className="muted small" style={{ margin: "6px 2px 0" }}>Ayraç ilerledikçe görev de yeni yeri gösterir.</p>}
+            {mode === "ayrac" && <p className="muted small" style={{ margin: "6px 2px 0" }}>Görev kendi yerini tutar; okundu dedikçe ilerler. Kütüphaneye ayraç eklenmez.</p>}
           </div>
         )}
         {editPlace && (
           <div className="placebox">
             <div className="lbl" style={{ padding: "10px 0 6px" }}>BAĞLI YER</div>
-            <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{edit!.bookmark ? `Ayraç: ${edit!.bookmark.title}` : edit!.reading_ref!.label}</b><span>{edit!.bookmark?.label ?? edit!.reading_ref?.quote ?? ""}</span></div></div>
-            <label className="bmrow pick" style={{ border: 0, paddingLeft: 0 }}><input type="checkbox" checked={mode !== "yok"} onChange={(e) => setMode(e.target.checked ? (edit!.bookmark ? "ayrac" : "sabit") : "yok")} /><div className="bmtxt"><b>Bağlı kalsın</b></div></label>
+            <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{edit!.place?.label ?? edit!.bookmark?.label ?? edit!.bookmark?.title ?? edit!.reading_ref?.label}</b><span>{edit!.reading_ref?.book_title ?? ""}</span></div></div>
+            <label className="bmrow pick" style={{ border: 0, paddingLeft: 0 }}><input type="checkbox" checked={mode !== "yok"} onChange={(e) => setMode(e.target.checked ? (edit!.reading_ref?.kind === "konu" && !eg ? "sabit" : "ayrac") : "yok")} /><div className="bmtxt"><b>Bağlı kalsın</b></div></label>
           </div>
         )}
         {!p && !edit && (
@@ -192,64 +208,74 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
         )}
         {showPick && <LibPicker onPick={(pk) => void onPick(pk)} onClose={() => setShowPick(false)} />}
 
-        {/* Hedef (isteğe bağlı): kitapta sayfa, Cevşen'de bab… Açılınca görünür */}
-        {(p || edit?.related_library_item_id || edit?.page_goal) && (gOpen ? (
+        {/* Okuma: sırayla oku ya da pay */}
+        {showGoal && (
           <>
-            <div className="lbl" style={{ padding: "14px 0 6px", display: "flex", justifyContent: "space-between" }}>
-              <span>HEDEF ({unit.toUpperCase()})</span>
-              <button className="link" onClick={() => { setGOpen(false); setGPer("none"); }}>Kaldır</button>
+            <div className="lbl" style={{ padding: "14px 0 6px" }}>OKUMA TÜRÜ</div>
+            <div className="seg3 two" style={{ marginBottom: 6 }}>
+              <button className={gMode === "seq" ? "on" : ""} onClick={() => setGMode("seq")}>Sırayla oku</button>
+              <button className={gMode === "pay" ? "on" : ""} onClick={() => { setGMode("pay"); if (sAll && bounds) { setGFrom(bounds.min); setGTo(bounds.max); } }}>Pay</button>
             </div>
-            {/* önce tür: kaç sayfa mı, sayfa aralığı mı; sonra (sayıda) dönem: günde / haftada / ayda / tarih aralığında */}
-            {canPages && (
-              <div className="seg3 two" style={{ marginBottom: 8 }}>
-                <button className={gPer !== "pages" ? "on" : ""} onClick={() => setGPer(rEvery)}>{Unit} sayısı</button>
-                <button className={gPer === "pages" ? "on" : ""} onClick={() => setGPer("pages")}>{Unit} aralığı</button>
-              </div>
-            )}
-            <div className="chipwrap">
-              {([["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarih aralığında"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
-                <button key={k} className={(gPer === "pages" ? rEvery === k : gPer === k) ? "on" : ""} onClick={() => { setREvery(k); if (gPer !== "pages") setGPer(k); }}>{l}</button>
-              ))}
-            </div>
-            {gPer === "pages" && (
+            <p className="muted small" style={{ margin: "0 2px 6px" }}>{gMode === "seq"
+              ? "Kitap gibi: kaldığın yerden ilerler, her gün okuduğun üstüne eklenir."
+              : `Belli ${unit}lar belli sürede: her dönem payın başından açılır.`}</p>
+
+            {gMode === "seq" ? (
               <>
-                {gPages ? (
-                  <div className="line"><span>Seçili {unit}lar</span><span style={{ display: "flex", gap: 10, alignItems: "center" }}><b style={{ textAlign: "right" }}>{pagesText(gPages)}</b><button className="link" onClick={() => { setGFrom(Math.min(...gPages)); setGTo(Math.max(...gPages)); setGPages(null); }}>Aralığa çevir</button></span></div>
-                ) : (
+                {(canPages || bounds) && (
                   <>
-                    <div className="line"><span>{Unit} (başlangıç)</span><input className="stepinp" type="number" inputMode="numeric" min={0} value={gFrom} onChange={(e) => setGFrom(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
-                    <div className="line"><span>{Unit} (bitiş)</span><input className="stepinp" type="number" inputMode="numeric" min={gFrom} value={gTo} onChange={(e) => setGTo(Math.max(0, Math.floor(Number(e.target.value) || 0)))} /></div>
+                    <div className="lbl" style={{ padding: "10px 0 6px" }}>KAPSAM</div>
+                    <div className="chipwrap">
+                      <button className={sAll ? "on" : ""} onClick={() => { setSAll(true); setGPages(null); }}>Tamamı{bounds ? ` (${bounds.min}–${bounds.max})` : ""}</button>
+                      <button className={!sAll ? "on" : ""} onClick={() => setSAll(false)}>{gPages ? `Seçili ${unit}lar` : `${Unit} aralığı`}</button>
+                    </div>
+                    {!sAll && scopeEditor}
                   </>
                 )}
-                {rEvery === "range" && !recurring && (
-                  <>
-                    <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
-                    <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
-                  </>
-                )}
-                <p className="muted small" style={{ margin: "4px 2px 0" }}>{Unit} {gPages ? pagesText(gPages) : `${Math.min(gFrom, gTo)}–${Math.max(gFrom, gTo)}`} ({gPages?.length ?? Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"} baştan okunur. Her {unit} sonunda “okundu”ya bastıkça dolar; son {unit} okununca ayraç {gPages ? Math.min(...gPages) : Math.min(gFrom, gTo)}. {unit}ya döner.</p>
-              </>
-            )}
-            {gPer !== "none" && gPer !== "pages" && (
-              <>
-                <div className="line"><span>Kaç {unit}</span>
-                  <span className="stepper"><button onClick={() => setGN(Math.max(1, gN - 1))}>−</button>
-                    <input className="stepinp" type="number" inputMode="numeric" min={1} value={gN} onChange={(e) => setGN(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
-                    <button onClick={() => setGN(gN + 1)}>+</button></span>
+                <div className="srow" style={{ padding: "12px 0", fontSize: 15, fontWeight: 600 }}>
+                  <span>Bitince başa dön (tur)<small className="muted" style={{ display: "block", fontSize: 12, fontWeight: 400, marginTop: 2 }}>{loop ? "Son " + unit + " okununca tur tamamlanır, hemen baştan devam eder" : "Son " + unit + " okununca görev tamamlanır"}</small></span>
+                  <button className={"tgl" + (loop ? " on" : "")} onClick={() => setLoop(!loop)} aria-pressed={loop}><i /></button>
                 </div>
-                {gPer === "range" && !recurring && (
+                <div className="lbl" style={{ padding: "6px 0 6px" }}>HEDEF (İSTEĞE BAĞLI)</div>
+                <div className="chipwrap">
+                  {([["none", "Yok"], ["day", "Günde"], ["week", "Haftada"], ["month", "Ayda"], ["range", "Tarihe kadar bitir"]] as [typeof tgt, string][]).map(([k, l]) => (
+                    <button key={k} className={tgt === k ? "on" : ""} onClick={() => setTgt(k)}>{l}</button>
+                  ))}
+                </div>
+                {tgt !== "none" && tgt !== "range" && (
+                  <div className="line"><span>Kaç {unit}</span>
+                    <span className="stepper"><button onClick={() => setGN(Math.max(1, gN - 1))}>−</button>
+                      <input className="stepinp" type="number" inputMode="numeric" min={1} value={gN} onChange={(e) => setGN(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
+                      <button onClick={() => setGN(gN + 1)}>+</button></span>
+                  </div>
+                )}
+                {tgt === "range" && !recurring && dates}
+                <p className="muted small" style={{ margin: "4px 2px 0" }}>{tgt === "none" ? `Hedef yok: gün gün kaç ${unit} okuduğun yine kaydedilir.` : tgt === "range" ? "Bitiş tarihine kadar kapsamın tamamı; günlük öneri gösterilir." : `${tgt === "day" ? "Her gün" : tgt === "week" ? "Her hafta" : "Her ay"} ${gN} ${unit}. Her okundu sayılır.`}</p>
+              </>
+            ) : (
+              <>
+                <div className="lbl" style={{ padding: "10px 0 6px" }}>PAY</div>
+                {scopeEditor}
+                <div className="chipwrap" style={{ marginTop: 8 }}>
+                  {([["day", "Her gün"], ["week", "Her hafta"], ["month", "Her ay"], ["range", "Tarih aralığında"]] as ["day" | "week" | "month" | "range", string][]).map(([k, l]) => (
+                    <button key={k} className={rEvery === k ? "on" : ""} onClick={() => setREvery(k)}>{l}</button>
+                  ))}
+                </div>
+                {rEvery === "range" && !recurring && dates}
+                {rEvery !== "range" && (
                   <>
-                    <div className="line"><span>Başlangıç</span><input className="dateinp" type="date" value={start} onChange={(e) => setStart(e.target.value || ymd())} /></div>
-                    <div className="line"><span>Bitiş</span><input className="dateinp" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+                    <div className="lbl" style={{ padding: "10px 0 6px" }}>BAŞA DÖNÜŞ</div>
+                    <div className="seg3 two" style={{ margin: 0 }}>
+                      <button className={!early ? "on" : ""} onClick={() => setEarly(false)}>Dönem bitince</button>
+                      <button className={early ? "on" : ""} onClick={() => setEarly(true)}>Pay bitince hemen</button>
+                    </div>
                   </>
                 )}
-                <p className="muted small" style={{ margin: "4px 2px 0" }}>“Okundu”ya bastıkça sayılır ({gPer === "day" ? "her gün" : gPer === "week" ? "her hafta" : gPer === "month" ? "her ay" : "bu aralıkta"} {gN} {unit}). Fazlası da sayılır.</p>
+                <p className="muted small" style={{ margin: "6px 2px 0" }}>{Unit} {scopeTx} ({gPages?.length ?? Math.abs(gTo - gFrom) + 1} {unit}) {rEvery === "day" ? "her gün" : rEvery === "week" ? "her hafta" : rEvery === "month" ? "her ay" : "bu tarih aralığında"}.{rEvery !== "range" ? (early ? " Pay bitince hemen başa döner; sonra okudukların bir sonraki dönemin payına sayılır (en fazla bir dönem ileri)." : " Pay bitince yeni dönemi bekler; yeni dönemde baştan açılır.") : ""}</p>
               </>
             )}
           </>
-        ) : (
-          <button className="addsub" style={{ marginTop: 10 }} onClick={() => { setGOpen(true); setGPer(rEvery); }}><Icon name="plus" size={18} /> Hedef ekle ({unit} sayısı{canPages ? `, ${unit} aralığı` : ""})</button>
-        ))}
+        )}
 
         {/* Görev türü */}
         <div className="lbl" style={{ padding: "14px 0 6px" }}>GÖREV TÜRÜ</div>
@@ -258,8 +284,8 @@ export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTi
           <button className={strict ? "on" : ""} onClick={() => setStrict(true)}>Zorunlu</button>
         </div>
         <p className="muted small" style={{ margin: "6px 2px 0" }}>{strict
-          ? "Süresi geçen dönem tamamlanmazsa Günüm'de “Tamamlanmamış”ta kalır; okudukça önce en eski eksik kapanır."
-          : "Kendi hedefin: kaçırılan gün borç olmaz, sadece geçmişe yazılır." + (loadTP().catchUp ? " Dünün eksiği bugüne telafi olarak eklenir (Ayarlar'dan kapatılabilir)." : "")}</p>
+          ? "Süresi geçen dönem tamamlanmazsa Günüm'de “Tamamlanmamış”ta kalır; oradan açınca kaldığı yerden devam eder."
+          : "Kendi hedefin: kaçırılan gün borç olmaz, sadece geçmişe yazılır." + (loadTP().catchUp && gMode === "seq" ? " Dünün eksiği bugüne telafi olarak eklenir (Ayarlar'dan kapatılabilir)." : "")}</p>
 
         {/* Sıklık */}
         <div className="lbl" style={{ padding: "14px 0 6px" }}>SIKLIK</div>
