@@ -356,13 +356,22 @@ export async function bumpProgress(t: Todo, delta: number): Promise<Record<strin
   return progress;
 }
 
+const TODO_TABLES = ["todos", "todo_lists", "todo_groups", "page_reads", "reader_bookmarks"];
+let TCACHE: { at: number; todos: Todo[]; lists: TList[]; groups: TGroup[] } | null = null;
+let TDIRTY = false;
+if (typeof window !== "undefined") window.addEventListener("lumen-write", (e) => { if (TODO_TABLES.includes((e as CustomEvent<string>).detail)) TDIRTY = true; });
 export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [lists, setLists] = useState<TList[]>([]);
   const [groups, setGroups] = useState<TGroup[]>([]);
   const [err, setErr] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (force = false) => {
+    // aynı veri her ekranda yeniden çekilmesin (veri kotası): yazma olmadıysa 10 dk içindeki son liste kullanılır
+    if (!force && TCACHE && !TDIRTY && Date.now() - TCACHE.at < 10 * 60 * 1000) {
+      setTodos(TCACHE.todos); setLists(TCACHE.lists); setGroups(TCACHE.groups); setLoaded(true); return;
+    }
+    TDIRTY = false;
     const since = ymd(new Date(Date.now() - 120 * 86400000));
     const [t, l, g, r] = await Promise.all([
       supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,strict,place,laps,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
@@ -380,9 +389,16 @@ export function useTodos() {
     if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
     if (!l.error) setLists((l.data ?? []) as TList[]);
     if (!g.error) setGroups((g.data ?? []) as TGroup[]);
+    if (!t.error && !l.error && !g.error && !r.error) TCACHE = { at: Date.now(), todos: (t.data ?? []) as unknown as Todo[], lists: (l.data ?? []) as TList[], groups: (g.data ?? []) as TGroup[] };
     setLoaded(true);
   }, []);
   useEffect(() => { void reload(); }, [reload]);
+  // başka ekranda yazma olursa (görev güncellendi, sayfa okundu) bu ekran da tazelenir
+  useEffect(() => {
+    const on = (e: Event) => { if (TODO_TABLES.includes((e as CustomEvent<string>).detail)) { TDIRTY = true; } };
+    window.addEventListener("lumen-write", on);
+    return () => window.removeEventListener("lumen-write", on);
+  }, []);
   return { todos, lists, groups, err, loaded, reload, setTodos };
 }
 

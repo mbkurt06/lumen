@@ -52,7 +52,18 @@ async function fromCache(key: string): Promise<Response | null> {
   try { return (await (await caches.open(CACHE)).match(key)) ?? null; } catch { return null; }
 }
 async function toCache(key: string, res: Response) {
-  try { await (await caches.open(CACHE)).put(key, res); } catch { /* yer yoksa yok say */ }
+  try {
+    // ne zaman alındığı işaretlenir: içerikler günde en fazla bir kez arka planda tazelenir (veri kotası)
+    const h = new Headers(res.headers); h.set("x-lumen-at", String(Date.now()));
+    await (await caches.open(CACHE)).put(key, new Response(await res.blob(), { status: res.status, statusText: res.statusText, headers: h }));
+  } catch { /* yer yoksa yok say */ }
+}
+const REVALIDATE_MS = 24 * 3600 * 1000;
+const isStale = (r: Response) => { const at = Number(r.headers.get("x-lumen-at") ?? 0); return !at || Date.now() - at > REVALIDATE_MS; };
+/** Yazma oldu (görev, okuma…): o tablodan okuyan sayfalar listeyi yeniden çeksin */
+function noteWrite(url: string) {
+  const m = /\/rest\/v1\/([a-z_]+)/.exec(url);
+  if (m && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("lumen-write", { detail: m[1] }));
 }
 async function network(req: Request, key: string, ms: number): Promise<Response> {
   const res = await withTimeout(fetch(req), ms);
@@ -72,6 +83,7 @@ export const offlineFetch: typeof fetch = async (input, init) => {
     catch (e) { markDown(); log(req.url, "auth-hata", t0); throw e; }
   }
 
+  if (req.method !== "GET" && req.method !== "HEAD" && req.url.includes("/rest/v1/")) noteWrite(req.url);
   // yazma (görev, ayraç, not…): internet yoksa ya da ağ cevap vermezse sıraya alınır
   const wt = req.method !== "GET" && req.method !== "HEAD" ? tableOf(req.url) : null;
   if (wt) {
@@ -101,7 +113,7 @@ export const offlineFetch: typeof fetch = async (input, init) => {
   if (isContent && !forceNetwork) {
     const hit = await fromCache(key);
     if (hit) {
-      if (!looksOffline()) void network(req.clone(), key, 15000).catch(markDown); // arka planda tazele
+      if (!looksOffline() && isStale(hit)) void network(req.clone(), key, 15000).catch(markDown); // günde en fazla bir kez arka planda tazele
       log(req.url, "cihaz", t0);
       return hit;
     }
