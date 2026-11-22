@@ -297,10 +297,10 @@ export function Todo() {
               {overdueOpen && overdue.map((t) => <Row key={t.id} t={t} />)}
             </>
           )}
-          <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => !!(t.bookmark_id || t.reading_ref || t.related_library_item_id) && !t.kind.startsWith("kaza"))} />
+          <Section id="kut" title="KÜTÜPHANE" items={normalToday.filter((t) => !!(t.page_goal || t.bookmark_id || t.reading_ref || t.related_library_item_id) && !t.kind.startsWith("kaza"))} />
           <Section id="nova" title="NOVA" items={normalToday.filter((t) => t.kind === "nova")} />
           <Section id="namaz" title="NAMAZ" items={normalToday.filter((t) => t.kind === "kaza" || t.kind === "kaza_oruc")} />
-          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !(t.bookmark_id || t.reading_ref || t.related_library_item_id) && !["nova", "kaza", "kaza_oruc"].includes(t.kind))} />
+          <Section id="diger" title="DİĞER" items={normalToday.filter((t) => !(t.page_goal || t.bookmark_id || t.reading_ref || t.related_library_item_id) && !["nova", "kaza", "kaza_oruc"].includes(t.kind))} />
           {completedToday.length > 0 && (
             <>
               <button className="sec completed" onClick={() => setDoneOpen(!doneOpen)}>
