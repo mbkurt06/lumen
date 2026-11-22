@@ -34,7 +34,12 @@ export function spanStart(s: Span, today = new Date()): string {
   if (s === "week") { const w = (today.getDay() + 6) % 7; return ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() - w)); }
   return "0000";
 }
-export const inSpan = (rows: SRow[], s: Span) => { const a = spanStart(s); return s === "all" ? rows : rows.filter((r) => r.day >= a); };
+/** Aynı gün aynı sayfa hem görevde hem görevsiz işaretlendiyse tek okuyuş sayılır (görevdeki kalır). */
+export function dedupe(rows: SRow[]): SRow[] {
+  const inTask = new Set(rows.filter((r) => r.context_key.startsWith("todo:")).map((r) => r.day + "|" + r.doc_key + "|" + r.page));
+  return rows.filter((r) => r.context_key.startsWith("todo:") || !inTask.has(r.day + "|" + r.doc_key + "|" + r.page));
+}
+export const inSpan = (rows: SRow[], s: Span) => { const a = spanStart(s); return dedupe(s === "all" ? rows : rows.filter((r) => r.day >= a)); };
 
 /** Kitap anahtarı: Kur'an "kuran", diğerleri kitabın kök kaydı */
 export const bookKey = (r: SRow) => (r.doc_key === "kuran" ? "kuran" : r.book_id ?? r.doc_key);
