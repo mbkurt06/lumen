@@ -15,7 +15,9 @@ gradle.write_text(g)
 man = root / "app/src/main/AndroidManifest.xml"
 m = man.read_text()
 for perm in ('<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />',
-             '<uses-permission android:name="android.permission.VIBRATE" />'):  # tesbih titreşimi
+             '<uses-permission android:name="android.permission.VIBRATE" />',  # tesbih titreşimi
+             '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />',  # namaz vakitleri için konum
+             '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />'):
     if perm not in m:
         m = m.replace("</manifest>", f"    {perm}\n</manifest>")
 man.write_text(m)

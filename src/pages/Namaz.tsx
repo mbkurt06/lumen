@@ -97,8 +97,11 @@ export function Namaz() {
     setMsg("Konum alınıyor…");
     navigator.geolocation.getCurrentPosition(
       (p) => { const pl = { name: "Bulunduğum yer", lat: p.coords.latitude, lng: p.coords.longitude }; setPlace(pl); saveShared(pl, offset); setMsg(""); },
-      () => setMsg("Konum alınamadı; Berlin kullanılıyor."),
-      { timeout: 10000 },
+      (e) => setMsg(e.code === 1
+        ? "Konum izni verilmedi. Telefon Ayarlar → Uygulamalar → Lumen → İzinler → Konum'dan izin verip tekrar dene."
+        : e.code === 3 ? "Konum zamanında bulunamadı. Telefonun konumu açık mı? Tekrar dene."
+        : "Konum alınamadı. Telefonun konum servisi açık mı? Tekrar dene."),
+      { timeout: 20000, maximumAge: 10 * 60 * 1000, enableHighAccuracy: false },
     );
   };
   const tarih = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
