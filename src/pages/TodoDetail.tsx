@@ -123,14 +123,15 @@ export function TodoDetail() {
           )}
           {ps.length > 0 && (
           <div className="card" style={{ margin: "10px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{seq ? "Gün gün" : t.strict ? "Zorunlu · dönemler" : "Dönemler"}</b><span className="muted small">{noTarget ? `ortalama ${Math.round(ps.reduce((n, p) => n + p.got, 0) / ps.length)} ${unit}/gün` : `${ps.filter((p) => p.got >= p.need).length}/${ps.length} tam`}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><b>{seq ? "Gün gün" : t.strict ? "Zorunlu · dönemler" : "Dönemler"}</b><span className="muted small">{noTarget ? `ortalama ${Math.round(ps.reduce((n, p) => n + p.got, 0) / ps.length)} ${unit}/gün` : `${ps.filter((p) => p.got >= p.need || !!p.madeUp).length}/${ps.length} tam`}</span></div>
             {ps.map((p) => {
               const cur = p === st.cur;
-              const state = p.skipped ? "atlandı" : p.got >= p.need ? "tam" : cur ? "sürüyor" : t.strict ? "tamamlanmadı" : "eksik";
+              const mu = !p.skipped && p.got < p.need && p.madeUp ? periodText({ a: p.madeUp, b: p.madeUp }).split(" ")[0] : "";
+              const state = p.skipped ? "atlandı" : p.got >= p.need ? "tam" : mu ? `telafi edildi ✓ (${mu})` : cur ? "sürüyor" : t.strict ? "tamamlanmadı" : "eksik";
               return (
                 <div key={p.a} className="prow">
                   <span>{periodText(p)}</span>
-                  <span className={"pst " + (noTarget ? (p.got ? "ok" : "") : p.skipped ? "sk" : p.got >= p.need ? "ok" : cur ? "" : t.strict ? "bad" : "part")}>{noTarget ? `${p.got} ${unit}` : `${p.got}/${cur ? st.target : p.need} ${unit} · ${state}`}</span>
+                  <span className={"pst " + (noTarget ? (p.got ? "ok" : "") : p.skipped ? "sk" : p.got >= p.need || mu ? "ok" : cur ? "" : t.strict ? "bad" : "part")}>{noTarget ? `${p.got} ${unit}` : `${p.got}/${cur ? st.target : p.need} ${unit} · ${state}`}</span>
                 </div>
               );
             })}

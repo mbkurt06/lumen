@@ -110,7 +110,25 @@ export function goalCount(t: Pick<Todo, "id" | "page_goal" | "start_date" | "end
    Okundu işaretleri görevin bağlamına yazılır: tur için "todo:<id>#<tur>", pay için "todo:<id>@<dönem başı>".
    Böylece her tur/dönem ayrı sayılır, aynı gün iki tur da okunabilir; gün gün sayılar hep tutulur.
    Takip: hedef tutmazsa sadece geçmişe yazılır. Zorunlu: süresi geçen dönem "Tamamlanmamış"ta kalır. */
-export type Period = { a: string; b: string; got: number; need: number; skipped: boolean };
+export type Period = { a: string; b: string; got: number; need: number; skipped: boolean;
+  /** dönemde okunan (hedefle sınırlanmamış) */ raw?: number; /** bugünden önceki günlerin fazlasıyla kapanmayan eksik */ debt?: number; /** eksik sonradan kapandıysa: kapandığı dönemin başı */ madeUp?: string };
+/** Eksik kalan dönemler sonraki dönemlerin fazlasıyla (hedefin üstünde okunanla) kapanır: en eski eksik önce. */
+function settleDebts(ps: Period[], today: string) {
+  const open: { p: Period; left: number }[] = [];
+  for (const p of ps) {
+    if (p.skipped || p.need <= 0) continue;
+    const raw = p.raw ?? p.got;
+    if (p.b < today) p.debt = 0;
+    let surplus = Math.max(0, raw - p.need);
+    while (surplus > 0 && open.length) {
+      const d = open[0], use = Math.min(surplus, d.left);
+      d.left -= use; surplus -= use;
+      if (p.b < today) d.p.debt = d.left;
+      if (!d.left) { d.p.madeUp = p.a; open.shift(); }
+    }
+    if (raw < p.need && p.b < today) { open.push({ p, left: p.need - raw }); p.debt = p.need - raw; }
+  }
+}
 const addDays = (s: string, n: number) => ymd(new Date((dayNum(s) + n) * 86400000 + 12 * 3600000));
 export const nextDay = (s: string) => addDays(s, 1);
 export const goalMode = (g: PageGoal): "seq" | "pay" => g.mode ?? (g.per === "pages" ? "pay" : "seq");
@@ -158,7 +176,8 @@ export function periodStats(t: Todo, rows: ReadRow[] = READS, today = ymd()): Pe
   const g = t.page_goal;
   if (!g) { // kitapsız tekrarlı görev: gün gün işaret
     const need = Math.max(1, t.per_day);
-    for (const p of ps) { p.need = need; p.got = Math.min(need, t.progress?.[p.a] ?? 0); }
+    for (const p of ps) { p.need = need; p.raw = t.progress?.[p.a] ?? 0; p.got = Math.min(need, p.raw); }
+    settleDebts(ps, today);
     return ps;
   }
   if (goalMode(g) === "pay") {
@@ -181,7 +200,8 @@ export function periodStats(t: Todo, rows: ReadRow[] = READS, today = ymd()): Pe
       if (i >= 0) sets[i].add(u);
     }
   }
-  ps.forEach((p, k) => { p.need = need; p.got = need > 0 ? Math.min(need, sets[k].size) : sets[k].size; });
+  ps.forEach((p, k) => { p.need = need; p.raw = sets[k].size; p.got = need > 0 ? Math.min(need, sets[k].size) : sets[k].size; });
+  if (!t.strict && need > 0) settleDebts(ps, today);
   return ps;
 }
 export type TaskState = {
@@ -217,7 +237,7 @@ export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] 
   }
   const unitRange = periodUnit(t) === "range";
   const base = !g ? Math.max(1, t.per_day) : mode === "seq" ? g.n : cur?.need ?? total;
-  const catchUp = mode === "seq" && base > 0 && !t.strict && prefs.catchUp && cur && prev && !prev.skipped && !unitRange ? Math.max(0, prev.need - prev.got) : 0;
+  const catchUp = mode === "seq" && base > 0 && !t.strict && prefs.catchUp && cur && prev && !prev.skipped && !unitRange ? Math.max(0, prev.debt ?? prev.need - prev.got) : 0;
   // telafi en fazla bir günlük hedef kadar; kapsamı belli kitapta (Cevşen) kapsamın tamamını geçemez
   const size = g ? scopeSize(g) : 0;
   const bonus = Math.max(0, Math.min(base, catchUp, size ? size - base : Infinity));
