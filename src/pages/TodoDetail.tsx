@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { lapGaps, pageName, scopeSize, confirmDeleteTodo, bumpProgress, doneOn, goalMode, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
+import { lapGaps, pageName, scopeSize, taskRows, goalProgress, confirmDeleteTodo, bumpProgress, doneOn, goalMode, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
 import { TodoSheet } from "./TodoSheet";
 import { taskPageNav } from "../lib/taskNav";
 
@@ -37,13 +37,25 @@ export function TodoDetail() {
   };
   // son 28 gün: yapılacak günler ve yapılanlar
   const today = ymd();
-  const days = Array.from({ length: 28 }, (_, i) => addDays(today, i - 27)).filter((d) => occursOn(t, d) || (t.progress?.[d] ?? 0) > 0);
-  const full = days.filter((d) => (t.progress?.[d] ?? 0) >= per).length;
+  // kitaplı görevde günler okumalardan sayılır (gün hedefi tutan ya da sonradan telafi edilen gün "yapıldı")
+  const gst = t.page_goal ? taskState(t) : null;
+  const dayReads: Record<string, number> = {};
+  if (gst) for (const r of taskRows(t)) dayReads[r.day] = (dayReads[r.day] ?? 0) + 1;
+  const perOf = (d: string) => gst?.periods.find((p) => p.a <= d && d <= p.b);
+  const hasAny = (d: string) => (gst ? (dayReads[d] ?? 0) > 0 : (t.progress?.[d] ?? 0) > 0);
+  const isDone = (d: string) => {
+    if (!gst) return (t.progress?.[d] ?? 0) >= per;
+    const p = perOf(d);
+    if (p && p.a === p.b && p.need > 0) return p.got >= p.need || !!p.madeUp;
+    return (dayReads[d] ?? 0) > 0;
+  };
+  const days = Array.from({ length: 28 }, (_, i) => addDays(today, i - 27)).filter((d) => occursOn(t, d) || hasAny(d));
+  const full = days.filter(isDone).length;
   let streak = 0;
   for (let i = 0; i < 400; i++) {
     const d = addDays(today, -i);
     if (!occursOn(t, d)) { if (d < (t.start_date ?? today)) break; continue; }
-    if ((t.progress?.[d] ?? 0) >= per) streak++; else if (d !== today) break;
+    if (isDone(d)) streak++; else if (d !== today) break;
   }
 
   return (
@@ -62,23 +74,31 @@ export function TodoDetail() {
       {rec ? (
         <>
           <div className="card" style={{ margin: "10px 16px" }}>
+            {gst ? (() => {
+              const now = gst.todayCount, tg = gst.target || 0;
+              return (<>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><b style={{ color: "var(--accent)" }}>{tg ? `${now} / ${tg}` : now} {t.page_goal!.unit ?? "sayfa"}</b></div>
+                {tg > 0 && <div className="tbar" style={{ margin: "10px 0 0" }}><i style={{ width: `${Math.min(100, (now / tg) * 100)}%` }} /></div>}
+              </>);
+            })() : (<>
             <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><b style={{ color: "var(--accent)" }}>{cnt} / {per}</b></div>
             <div className="tbar" style={{ margin: "10px 0" }}><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>
             <div className="seg">
               <button onClick={() => void bump(-1)}>−1</button>
               <button className="on" onClick={() => void bump(1)}>+1</button>
             </div>
+            </>)}
           </div>
           {days.length > 0 && (
             <div className="card" style={{ margin: "10px 16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}><b>Son 4 hafta</b><span className="muted">{full} / {days.length} gün</span></div>
-              <div className="plangrid">{days.map((d) => { const v = t.progress?.[d] ?? 0; return (<span key={d} title={d} className={v >= per ? "done" : d === today ? "today" : v ? "" : "missed"}>{Number(d.slice(8, 10))}</span>); })}</div>
+              <div className="plangrid">{days.map((d) => { return (<span key={d} title={d} className={isDone(d) ? "done" : d === today ? "today" : hasAny(d) ? "" : "missed"}>{Number(d.slice(8, 10))}</span>); })}</div>
               <div className="legend"><span><i className="done" /> Yapıldı</span><span><i className="missed" /> Kaçırıldı</span><span><i className="today" /> Bugün</span></div>
             </div>
           )}
           <div className="stats3">
             <div className="card"><b>{streak}</b><span className="muted small">gün seri</span></div>
-            <div className="card"><b>{Object.values(t.progress ?? {}).reduce((a, b) => a + b, 0)}</b><span className="muted small">toplam</span></div>
+            <div className="card"><b>{gst ? goalProgress(t) : Object.values(t.progress ?? {}).reduce((a, b) => a + b, 0)}</b><span className="muted small">{gst ? `toplam ${t.page_goal!.unit ?? "sayfa"}` : "toplam"}</span></div>
             <div className="card"><b>{t.end_date ? Math.max(0, Math.round((Date.parse(t.end_date) - Date.parse(today)) / 86400000)) : "∞"}</b><span className="muted small">gün kaldı</span></div>
           </div>
         </>
