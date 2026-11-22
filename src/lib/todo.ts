@@ -489,6 +489,14 @@ export function shortPlace(label: string | undefined, drop: (string | undefined)
   if (page != null) return unit === "bab" ? `${page}. Bab` : `s. ${page}`;
   return "";
 }
+const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const dayMonth = (d: string) => { const x = new Date(d + "T12:00:00"); return `${x.getDate()} ${MONTHS[x.getMonth()]}`; };
+/** Bu bağlamda en son okunan gün (görevin tamamlandığı gün yerine) */
+function lastReadDay(g: PageGoal, ctx: string): string | null {
+  let m: string | null = null;
+  for (const r of READS) if (r.context_key === ctx && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && (!m || r.day > m)) m = r.day;
+  return m;
+}
 /** Görevin şu anki yeri (okunan sayfalardan): son okunandan sonraki ilk okunmamış; hepsi okunduysa "done". */
 export function livePlace(g: PageGoal, ctx: string): number | "done" | null {
   const all = g.pages?.length ? [...g.pages].sort((a, b) => a - b)
@@ -542,6 +550,12 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     if (place) out.push({ t: place });
     if (!rec && t.end_date) end = untilText(t.end_date);
     else if (!rec && t.due_at) end = untilText(ymd(new Date(t.due_at)));
+  }
+  // tamamlanan görevde geri sayım yok; "tamamlandı 20 Kasım"
+  const finished = t.is_completed || (!rec && !!g && !g.loop && !!s && livePlace(g, s.ctx) === "done");
+  if (finished) {
+    const day = t.completed_at ? ymd(new Date(t.completed_at)) : g && s ? lastReadDay(g, s.ctx) : null;
+    end = { t: day ? `tamamlandı ${dayMonth(day)}` : "tamamlandı", ok: true };
   }
   if (end) out.push(end);
   if (t.strict) out.push({ t: "Zorunlu" });
