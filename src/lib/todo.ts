@@ -241,7 +241,7 @@ export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] 
   // telafi en fazla bir günlük hedef kadar; kapsamı belli kitapta (Cevşen) kapsamın tamamını geçemez
   const size = g ? scopeSize(g) : 0;
   const bonus = Math.max(0, Math.min(base, catchUp, size ? size - base : Infinity));
-  return { mode, periods, cur, prev, missed, catchUp, target: base + bonus, got: cur?.got ?? 0, bonus, ctx, lap, lapRead, total, todayCount, ahead };
+  return { mode, periods, cur, prev, missed, catchUp, target: base + bonus, got: cur ? Math.min(cur.raw ?? cur.got, Math.max(cur.need, base + bonus)) : 0, bonus, ctx, lap, lapRead, total, todayCount, ahead };
 }
 /** Zorunlu görevin kaçan dönemini atla (geçmişte "atlandı" diye kalır). */
 export async function skipPeriod(t: Todo, a: string) {
