@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { taskLine, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { taskLine, skippedOf, pageName, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
 import { rangeStartDoc } from "../lib/taskNav";
 import { ensureBookPages } from "../lib/bookPages";
@@ -78,6 +78,14 @@ export function Todo() {
     if (pl?.docId) nav(`/kutuphane/${pl.docId}`, { state: { nid: pl.nodeId, taskId: t.id } }); else if (t.related_library_item_id) nav(`/kutuphane/${t.related_library_item_id}`);
   };
 
+  /** görevin belli bir sayfasını aç (atlanan sayfaya dönüş) */
+  const goPage = async (t: T, p: number) => {
+    const pl = placeOf(t), g = t.page_goal, st = states.get(t.id);
+    if (!g || !pl?.docId || !st) return;
+    const r = await rangeStartDoc({ ...g, from: p, pages: undefined }, pl.docId).catch(() => null);
+    nav(`/kutuphane/${r?.docId ?? pl.docId}`, { state: { taskId: t.id, ctx: st.ctx, startPage: p } });
+  };
+
   const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
   const kids = useMemo(() => {
     const m = new Map<string, T[]>();
@@ -145,7 +153,8 @@ export function Todo() {
               <div className={"ttitle2" + (done && !t.page_goal?.loop ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
-            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.warn ? "warn" : x.ok ? "ok" : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
+            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.skip != null ? undefined : x.warn ? "warn" : x.ok ? "ok" : undefined} data-skip={x.skip != null ? "" : undefined}
+              onClick={x.skip != null ? (e) => { e.stopPropagation(); void goPage(t, x.skip!); } : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
         </div>
@@ -335,6 +344,18 @@ export function Todo() {
             {(() => { const pl = placeOf(act); return pl && <div className="posbox"><Icon name="bookmark" size={18} /><div><b>{[pl.section, pl.book].filter(Boolean).join(" · ")}</b><b>{pl.live ? "Kaldığın yer: " : ""}{pl.label}</b>{pl.quote && <span>“{pl.quote.slice(0, 140)}”</span>}</div></div>; })()}
             <div className="card" style={{ padding: 0, marginTop: 12 }}>
               {(placeOf(act) || act.related_library_item_id) && !act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); void goRef(t); }}><Icon name="library" size={20} /> {placeOf(act)?.live ? "Kaldığım yere git" : placeOf(act) ? "Kitaptaki yere git" : "Kitaba git"}</button>}
+              {(() => {
+                const g = act.page_goal, st = states.get(act.id);
+                const sk = g && st && placeOf(act)?.docId ? skippedOf(g, st.ctx) : [];
+                if (!sk.length) return null;
+                return (
+                  <div className="skiplist">
+                    <div className="skiph">⚠ Atlananlar ({sk.length})</div>
+                    {sk.slice(0, 30).map((p) => <button key={p} className="rowbtn" onClick={() => { const t = act; setAct(null); void goPage(t, p); }}>{pageName(g!, p)} <span className="kzgo">›</span></button>)}
+                    {sk.length > 30 && <div className="muted small" style={{ padding: "4px 12px" }}>… ve {sk.length - 30} sayfa daha</div>}
+                  </div>
+                );
+              })()}
               {act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { setAct(null); nav("/namaz/kaza"); }}><Icon name="calendar" size={20} /> Kaza sayfasına git</button>}
               <button className="rowbtn" onClick={() => { const t = act; setAct(null); void circle(t); }}><Icon name="check" size={20} /> {isRecurring(act) && Math.max(1, act.per_day) > 1 ? `+1 (bugün ${doneOn(act)}/${act.per_day})` : isDoneToday(act) ? "Tamamlanmadı yap" : "Tamamlandı"}</button>
               {!act.kind.startsWith("kaza") && <button className="rowbtn" onClick={() => { const t = act; setAct(null); setEditT(t); }}><Icon name="pencil" size={20} /> Düzenle</button>}

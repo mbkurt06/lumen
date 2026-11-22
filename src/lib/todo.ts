@@ -446,7 +446,7 @@ function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
 /* ── Görev kartının ikinci satırı (standart) ──
    [① tek seferlik | ↻ tekrar] · bugün okunan / dönem ilerlemesi · tur · kaldığın yer (aralık) · ne zamana kadar
    Toplam ilerleme yeşil düğmede; burada tekrar yazılmaz. */
-export type LinePart = { t: string; warn?: boolean; ok?: boolean };
+export type LinePart = { t: string; warn?: boolean; ok?: boolean; /** atlanan sayfa: basınca oraya gidilir */ skip?: number };
 const WD_TO = ["Pazar'a", "Pazartesi'ye", "Salı'ya", "Çarşamba'ya", "Perşembe'ye", "Cuma'ya", "Cumartesi'ye"];
 const MON_TO = ["Ocak'a", "Şubat'a", "Mart'a", "Nisan'a", "Mayıs'a", "Haziran'a", "Temmuz'a", "Ağustos'a", "Eylül'e", "Ekim'e", "Kasım'a", "Aralık'a"];
 /** "25 Kas'a kadar" · haftalıkta "Paz'a kadar" · "yarın son" · "bugün son" · "2 gün geçti" */
@@ -497,6 +497,26 @@ function lastReadDay(g: PageGoal, ctx: string): string | null {
   for (const r of READS) if (r.context_key === ctx && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && (!m || r.day > m)) m = r.day;
   return m;
 }
+/** Görevin kapsamındaki sayfalar (sıralı) */
+export function goalPages(g: PageGoal): number[] | null {
+  const all = g.pages?.length ? [...g.pages].sort((a, b) => a - b)
+    : g.from != null && g.to != null ? Array.from({ length: Math.abs(g.to - g.from) + 1 }, (_, i) => Math.min(g.from!, g.to!) + i) : null;
+  return all && all.length <= 5000 ? all : null;
+}
+/** Atlanan sayfalar: okunan en ileri sayfadan geride kalıp işaretlenmemiş olanlar */
+export function skippedPages(g: PageGoal, read: Set<number>): number[] {
+  const all = goalPages(g);
+  if (!all || !read.size) return [];
+  const last = Math.max(...all.filter((x) => read.has(x)));
+  return all.filter((x) => x < last && !read.has(x));
+}
+export const skippedOf = (g: PageGoal, ctx: string) => skippedPages(g, ctxPages(g, ctx));
+/** "12. Bab", "Nahl 55, s. 272", "s. 40" */
+export function pageName(g: PageGoal, p: number): string {
+  if (g.unit === "bab") return `${p}. Bab`;
+  if (g.scope === "kuran" || g.doc_key === "kuran") { const sa = pageStartLabel(p); return sa ? `${sa}, s. ${p}` : `s. ${p}`; }
+  return `s. ${p}`;
+}
 /** Görevin şu anki yeri (okunan sayfalardan): son okunandan sonraki ilk okunmamış; hepsi okunduysa "done". */
 export function livePlace(g: PageGoal, ctx: string): number | "done" | null {
   const all = g.pages?.length ? [...g.pages].sort((a, b) => a - b)
@@ -541,6 +561,7 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     const pr = [place, showRange && rng ? `(${rng})` : ""].filter(Boolean).join(" ");
     if (cur === "done") out.push({ t: "✓", ok: true }); // hepsi okundu: sadece yeşil tik
     else if (pr) out.push({ t: pr });
+    if (cur !== "done") { const sk = skippedOf(g, s.ctx); if (sk.length) out.push({ t: `⚠ ${sk.length} atlandı`, warn: true, skip: sk[0] }); }
     if (pu === "week" || pu === "month") { if (s.cur) end = untilText(s.cur.b, pu === "week"); }
     else if (!rec && t.end_date) end = untilText(t.end_date);
     else if (pu === "range" && t.end_date) end = untilText(t.end_date);

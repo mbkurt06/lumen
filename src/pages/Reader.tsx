@@ -5,7 +5,7 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { ensureBookPages, fixedPages } from "../lib/bookPages";
-import { goalLabel, goalMode, inScope, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
+import { goalLabel, goalMode, inScope, skippedPages, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
 import { rangeStartDoc } from "../lib/taskNav";
 import { useCP, buzz } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
@@ -244,6 +244,23 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const other = readsCache().filter((r) => r.context_key === readContextKey && r.doc_key !== readDocKey && inScope(g, r.page)).map((r) => r.doc_key + ":" + r.page);
     return new Set(other).size + live.length;
   })();
+  // atlanan sayfalar: okunan en ileri sayfadan geride kalıp işaretlenmemiş olanlar (bu belgedeki canlı işaretlerle)
+  const skipped = (() => {
+    if (!goalTask) return [] as number[];
+    const g = goalTask.page_goal!;
+    const liveHere = !g.doc_key || g.doc_key === readDocKey;
+    const set = new Set<number>();
+    for (const r of readsCache()) if (r.context_key === readContextKey && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && !(liveHere && r.doc_key === readDocKey)) set.add(r.page);
+    if (liveHere) for (const [k, v] of Object.entries(reads.read)) { const n = Number(k); if (v && inScope(g, n)) set.add(n); }
+    return skippedPages(g, set);
+  })();
+  const skipBar = skipped.length > 0 && (
+    <div className="skipbar">
+      <span>⚠ {skipped.length} sayfa atlandı:</span>
+      {skipped.slice(0, 8).map((p) => <button key={p} onClick={() => void goToPage(p)}>{p}</button>)}
+      {skipped.length > 8 && <span>…</span>}
+    </div>
+  );
   const goalTotal = goalTask ? scopeSize(goalTask.page_goal!) || (goalMode(goalTask.page_goal!) === "pay" ? goalTask.page_goal!.n : 0) : 0;
   // bölümlü kitapta (Sözler…) toplam sayfa bir kez hesaplanır
   const [, setBpT] = useState(0);
@@ -974,6 +991,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         </div>
         <div style={{ height: "calc(72px + env(safe-area-inset-bottom))" }} />
         <div className={"pnav mini" + (isQuran ? " quran" : "")}>
+          {skipBar}
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name={isQuran ? "chevron" : "back"} size={22} /></button>
           <span className="pmid">
           <button className={"readbtn" + (reads.read[pageKey(pp)] ? " on" : "")} onClick={() => markRead()} aria-label={reads.read[pageKey(pp)] ? "Okundu işaretini kaldır" : "Bu sayfayı okudum"}>
@@ -1076,7 +1094,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
         )}
         <button disabled={!nextDoc} onClick={() => nextDoc && nav(`/kutuphane/${nextDoc}`, { replace: true, state: navState() })}>Sonraki ›</button>
       </nav>
-      {numbered && goalTask && <div className="dgoal fixed"><span className={"goalchip" + (goalTotal && goalNow >= goalTotal ? " done" : "")}>{goalChip}</span></div>}
+      {numbered && goalTask && <div className="dgoal fixed">{skipBar}<span className={"goalchip" + (goalTotal && goalNow >= goalTotal ? " done" : "")}>{goalChip}</span></div>}
+      {!numbered && skipBar && <div className="skipwrap">{skipBar}</div>}
       <div style={{ height: numbered ? 150 : 90 }} />
       {counters.length > 0 && shown && <FloatCounter count={shownC} target={shownT} onInc={inc} onReset={() => { if (shown) setCount(shown, 0); }} posKey="dua" scale={rs.cnt} />}
       {fsT && shown && <FullTasbih title={(shown.text_content ?? doc.title).slice(0, 80)} count={shownC} target={shownT} onInc={inc} onDec={dec} onClose={() => setFsT(false)} />}
