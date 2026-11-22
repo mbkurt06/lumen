@@ -109,6 +109,7 @@ const P: Record<string, ReactNode> = {
   lines: <path d="M4 7h16M4 12h10M4 17h6" />,
   folder: <path d="M3.5 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
+  chart: <path d="M4 20h16M7 16v-5M12 16V7M17 16v-8" />,
 };
 
 export function Icon({ name, size = 22 }: { name: keyof typeof P | string; size?: number }) {

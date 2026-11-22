@@ -11,6 +11,10 @@ import { keyAction, loadRSU, pullRS, resetUnit, saveRSU, scopeOf, unitKey, unitO
 import { Tesbihlar } from "./Tesbih";
 import { COLLECTIONS, refreshLibrary, refreshTree } from "../lib/offlineDownload";
 import { RefreshRow } from "../components/RefreshRow";
+/** kitap/bölüm sayfasından istatistiğe kısayol */
+const StatsLink = ({ to, label }: { to: string; label: string }) => (
+  <Link to={to} className="statlink"><Icon name="chart" size={18} /><span>{label}</span><span className="kzgo">›</span></Link>
+);
 import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } from "../lib/todo";
 
 /* ── ortak parçalar ── */
@@ -98,6 +102,7 @@ export function LibraryHome() {
     <>
       <PageHeader title="Kütüphane" right={<button className="iconbtn" onClick={() => nav("/ara")} aria-label="Ara"><Icon name="search" size={24} /></button>} />
       <RefreshRow label="Tüm kütüphaneyi güncelle" run={refreshLibrary} />
+      <StatsLink to="/istatistik" label="Okuma istatistiklerim" />
       <div style={{ padding: "0 16px" }}><Resume /></div>
       <Label>KOLEKSİYONLAR</Label>
       <div className="clist">
@@ -218,6 +223,7 @@ function Kuran() {
     <>
       <PageHeader back title="Kur'an-ı Kerim" subtitle="Kütüphane" />
       <RefreshRow label="Kur'an-ı Kerim'i güncelle" run={(cb) => refreshTree(rootIds(roots, "kuran"), cb, { mushaf: true })} />
+      <StatsLink to="/istatistik/kuran" label="Kur'an istatistiği" />
       <div style={{ padding: "0 16px" }}><Resume scopeId={roots["Kur’an-ı Kerim"]?.id} /></div>
       <div className="seg2">
         <button className={tab === "sure" ? "on" : ""} onClick={() => setTab("sure")}>Sûreler</button>
@@ -300,6 +306,7 @@ export function LibraryItem() {
     <>
       <PageHeader back={backTo} title={item?.title ?? (loading ? "Yükleniyor…" : "Bulunamadı")} subtitle={parent?.title ?? "Kütüphane"} />
       {item && <RefreshRow label={kids.length && kids.every((k) => k.kind === "document") ? `${item.title} · güncelle` : `${item.title} · hepsini güncelle`} run={(cb) => refreshTree([item.id], cb, { mushaf: root?.title === "Kur’an-ı Kerim" })} />}
+      {item && kids.length > 0 && kids.every((k) => k.kind === "document") && <StatsLink to={`/istatistik/${item.id}`} label={`${item.title} · istatistik`} />}
       {item?.title === "Cevşen-i Kebîr" && <CevsenModeRow />}
       {item && <div style={{ padding: "0 16px" }}><Resume scopeId={item.id} /></div>}
       {isRisale && <Label>KİTAPLAR · {kids.length}</Label>}

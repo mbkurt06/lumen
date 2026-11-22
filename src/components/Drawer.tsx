@@ -52,6 +52,7 @@ const PAGES: Item[] = [
   { to: "/yapilacaklar", label: "Yapılacaklar", icon: "todo" },
   { to: "/kutuphane", label: "Kütüphane", icon: "library" },
   { to: "/namaz", label: "Namaz", icon: "moon" },
+  { to: "/istatistik", label: "İstatistik", icon: "chart" },
   { to: "/nova", label: "Nova", icon: "sparkle" },
   { to: "/takvim", label: "Takvim", icon: "calendar" },
   { to: "/ayarlar", label: "Ayarlar", icon: "sliders" },

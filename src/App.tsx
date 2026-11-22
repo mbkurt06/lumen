@@ -12,6 +12,7 @@ import { Todo } from "./pages/Todo";
 import { TodoDetail } from "./pages/TodoDetail";
 import { Settings } from "./pages/Settings";
 import { Update } from "./pages/Update";
+import { Stats, StatsBook } from "./pages/Stats";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { ThemeProvider } from "./lib/theme";
 
@@ -40,6 +41,9 @@ function Gate() {
           <Route path="notlar" element={<Placeholder title="Notlarım" />} />
           <Route path="yer-isaretleri" element={<Placeholder title="Yer işaretlerim" />} />
           <Route path="kelime-defteri" element={<Placeholder title="Kelime defterim" />} />
+          <Route path="istatistik" element={<Stats />} />
+          <Route path="istatistik/:book" element={<StatsBook />} />
+          <Route path="istatistik/:book/:unit" element={<StatsBook />} />
           <Route path="ayarlar" element={<Settings />} />
           <Route path="cihazlar" element={<Placeholder title="Cihazlarım" />} />
           <Route path="esitleme" element={<Offline />} />

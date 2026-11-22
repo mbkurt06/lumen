@@ -744,3 +744,21 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .dgoal.fixed .skipbar { bottom: calc(100% + 4px); }
 .skipwrap { display: flex; justify-content: center; }
 .skipwrap .skipbar { position: static; transform: none; margin: 10px auto 0; width: fit-content; }
+
+/* İstatistik */
+.strow { width: 100%; display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 10px 16px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.strow:last-child { border-bottom: 0; }
+.strow .stt { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strow .stv { font-size: 13px; font-weight: 700; color: #e8912d; white-space: nowrap; }
+.strow .stv.ok { color: var(--accent); }
+.strow .stv.none { color: var(--muted); font-weight: 500; }
+.strow .kzgo { grid-row: 1 / span 2; grid-column: 3; }
+.strow .stbar { grid-column: 1 / span 2; display: block; height: 3px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.strow .stbar b { display: block; height: 100%; background: var(--accent); }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.pcell { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; cursor: pointer; font: inherit; }
+.pcell span { font-size: 11px; opacity: .8; }
+.pcell b { font-size: 14px; }
+.pcell.zero { border-style: dashed; color: var(--muted); }
+.statlink { display: flex; align-items: center; gap: 10px; margin: 4px 16px 8px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
+.statlink span:nth-child(2) { flex: 1; }
