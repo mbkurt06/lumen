@@ -6,8 +6,10 @@ import { getShared, setShared } from "../lib/sharedPrefs";
 import { ymd } from "../lib/todo";
 import { Link } from "react-router-dom";
 import { FARZ, NAMAZ_KINDS, kazaSure, useKaza } from "../lib/kaza";
+import { at, cachedDays, fetchDays, ilceler, needsRefresh, sehirler, ulkeler, type DDay, type DItem } from "../lib/diyanet";
 
-type Place = { name: string; lat: number; lng: number };
+/** ilce varsa vakitler Diyanet takviminden, yoksa koordinattan hesaplanır */
+type Place = { name: string; lat: number; lng: number; ilce?: string };
 const BERLIN: Place = { name: "Berlin", lat: 52.52, lng: 13.405 };
 const KEYS = ["fajr", "dhuhr", "asr", "maghrib", "isha"] as const;
 type Key = (typeof KEYS)[number];
@@ -32,6 +34,7 @@ export function Namaz() {
   const [offset, setOffset] = useState<number>(() => read("lumen.ihtiyat", 0)); // dakika
   const [todayDone, setTodayDone] = useState<Key[]>([]);
   const [msg, setMsg] = useState("");
+  const [picking, setPicking] = useState(false);
   const ks = useKaza();
   const kz = { tam: Math.min(...FARZ.map((k) => ks.total[k] ?? 0)), oruc: ks.total.oruc ?? 0, today: NAMAZ_KINDS.reduce((a, x) => a + (ks.today[x.k] ?? 0), 0) };
 
@@ -73,8 +76,26 @@ export function Namaz() {
     return { today, tomorrow };
   }, [place, dayKey(now)]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Diyanet takvimi (şehir seçildiyse): telefonda saklı, azaldıkça yenilenir
+  const [dDays, setDDays] = useState<DDay[]>(() => (place.ilce ? cachedDays(place.ilce) : []));
+  useEffect(() => {
+    if (!place.ilce) { setDDays([]); return; }
+    const c = cachedDays(place.ilce);
+    setDDays(c);
+    if (needsRefresh(c) && navigator.onLine) fetchDays(place.ilce).then(setDDays).catch(() => { /* eldeki kullanılır */ });
+  }, [place.ilce, today]);
+  const tmr = ymd(new Date(now.getTime() + 86400000));
+  const dT = dDays.find((x) => x.d === today), dN = dDays.find((x) => x.d === tmr);
+
   const shift = (d: Date) => new Date(d.getTime() + offset * 60000);
-  const rows: { key: Key | "sunrise"; at: Date }[] = [
+  const rows: { key: Key | "sunrise"; at: Date }[] = dT ? [
+    { key: "fajr", at: shift(at(today, dT.imsak)) },
+    { key: "sunrise", at: at(today, dT.gunes) },
+    { key: "dhuhr", at: shift(at(today, dT.ogle)) },
+    { key: "asr", at: shift(at(today, dT.ikindi)) },
+    { key: "maghrib", at: shift(at(today, dT.aksam)) },
+    { key: "isha", at: shift(at(today, dT.yatsi)) },
+  ] : [
     { key: "fajr", at: shift(times.today.fajr) },
     { key: "sunrise", at: times.today.sunrise },
     { key: "dhuhr", at: shift(times.today.dhuhr) },
@@ -82,7 +103,7 @@ export function Namaz() {
     { key: "maghrib", at: shift(times.today.maghrib) },
     { key: "isha", at: shift(times.today.isha) },
   ];
-  const next = rows.find((r) => r.at.getTime() > now.getTime()) ?? { key: "fajr" as const, at: shift(times.tomorrow.fajr) };
+  const next = rows.find((r) => r.at.getTime() > now.getTime()) ?? { key: "fajr" as const, at: shift(dN ? at(tmr, dN.imsak) : times.tomorrow.fajr) };
   const current = [...rows].reverse().find((r) => r.at.getTime() <= now.getTime() && r.key !== "sunrise");
   const toggle = async (k: Key) => {
     const had = todayDone.includes(k);
@@ -105,8 +126,8 @@ export function Namaz() {
     );
   };
   const tarih = now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  let hijri = "";
-  try { hijri = new Intl.DateTimeFormat("tr-TR-u-ca-islamic-umalqura", { day: "numeric", month: "long", year: "numeric" }).format(now); } catch { /* yok say */ }
+  let hijri = dT?.hicri ?? "";
+  if (!hijri) try { hijri = new Intl.DateTimeFormat("tr-TR-u-ca-islamic-umalqura", { day: "numeric", month: "long", year: "numeric" }).format(now); } catch { /* yok say */ }
 
   return (
     <>
@@ -138,7 +159,9 @@ export function Namaz() {
       </Link>
       <div className="card" style={{ margin: "10px 16px" }}>
         <div className="cardtitle">Ayarlar</div>
-        <p className="muted small" style={{ margin: "6px 0" }}>Hesaplama: Diyanet (Türkiye) yöntemi. İhtiyat: vakitlere eklenen dakika.</p>
+        <p className="muted small" style={{ margin: "6px 0" }}>
+          {dT ? `Vakitler: Diyanet takvimi (${place.name}).` : place.ilce ? "Diyanet takvimi henüz indirilemedi; vakitler şimdilik hesaplanıyor." : "Vakitler konumdan hesaplanıyor (Diyanet yöntemi). Birebir Diyanet saatleri için şehir seç."}
+          {" "}İhtiyat: vakitlere eklenen dakika.</p>
         <div className="seg">
           {[0, 5, 10].map((m) => (
             <button key={m} className={offset === m ? "on" : ""} onClick={() => { setOffset(m); saveShared(place, m); }}>{m === 0 ? "Yok" : `+${m} dk`}</button>
@@ -146,10 +169,48 @@ export function Namaz() {
         </div>
         <div className="seg">
           <button onClick={locate}>Konumumu kullan</button>
-          <button onClick={() => { setPlace(BERLIN); saveShared(BERLIN, offset); }}>Berlin</button>
+          <button onClick={() => setPicking((v) => !v)}>Şehir seç</button>
         </div>
+        {picking && <CityPicker onCancel={() => setPicking(false)} onPick={async (it, region) => {
+          setMsg("Diyanet takvimi indiriliyor…");
+          try {
+            const days = await fetchDays(it.id);
+            const pl: Place = { name: region && region !== it.name ? `${it.name}, ${region}` : it.name, lat: place.lat, lng: place.lng, ilce: it.id };
+            setDDays(days); setPlace(pl); saveShared(pl, offset); setPicking(false); setMsg("");
+          } catch { setMsg("Takvim indirilemedi, internet bağlantısını kontrol edip tekrar dene."); }
+        }} />}
         {msg && <p className="muted small">{msg}</p>}
       </div>
     </>
+  );
+}
+
+/** Ülke → şehir/eyalet → ilçe seçimi (Diyanet listesi) */
+function CityPicker({ onPick, onCancel }: { onPick: (it: DItem, region: string) => void; onCancel: () => void }) {
+  const [ul, setUl] = useState<DItem[]>([]), [se, setSe] = useState<DItem[]>([]), [il, setIl] = useState<DItem[]>([]);
+  const [u, setU] = useState("13"), [s, setS] = useState(""), [err, setErr] = useState("");
+  useEffect(() => { ulkeler().then(setUl).catch(() => setErr("Liste alınamadı, internet bağlantısını kontrol et.")); }, []);
+  useEffect(() => { setSe([]); setIl([]); setS(""); if (u) sehirler(u).then(setSe).catch(() => setErr("Liste alınamadı.")); }, [u]);
+  useEffect(() => { setIl([]); if (s) ilceler(s, u === "2").then(setIl).catch(() => setErr("Liste alınamadı.")); }, [s, u]);
+  const region = se.find((x) => x.id === s)?.name ?? "";
+  return (
+    <div className="citypick">
+      <select value={u} onChange={(e) => setU(e.target.value)}>
+        {!ul.length && <option value="13">Almanya</option>}
+        {ul.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+      </select>
+      <select value={s} onChange={(e) => setS(e.target.value)} disabled={!se.length}>
+        <option value="">{se.length ? (u === "2" ? "İl seç" : "Eyalet / şehir seç") : "Yükleniyor…"}</option>
+        {se.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+      </select>
+      {s && (
+        <select value="" onChange={(e) => { const it = il.find((x) => x.id === e.target.value); if (it) onPick(it, region); }} disabled={!il.length}>
+          <option value="">{il.length ? (u === "2" ? "İlçe seç" : "Şehir seç") : "Yükleniyor…"}</option>
+          {il.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+      )}
+      {err && <p className="small" style={{ color: "var(--danger)" }}>{err}</p>}
+      <button className="small" onClick={onCancel} style={{ alignSelf: "flex-start" }}>Vazgeç</button>
+    </div>
   );
 }

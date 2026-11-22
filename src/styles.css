@@ -726,3 +726,8 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .kzent .n { font-weight: 700; min-width: 34px; }
 .kzent .n.neg { color: var(--danger); }
 .tsub .ok { color: var(--accent); font-weight: 700; }
+
+/* Namaz: Diyanet şehir seçimi */
+.citypick { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.citypick select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: inherit; font: inherit; }
+.citypick button { background: none; border: 0; color: var(--muted); padding: 4px 0; }
