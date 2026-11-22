@@ -8,7 +8,8 @@ import { SECTION_LABEL, goalMode, pagesText, rangeWindow, ymd, type PageGoal, ty
 
 /** Kitaptaki bir yer (seçilen cümle ya da ekrandaki sayfa). */
 /** page_no: numaralı sayfa belgelerinde (Tevhidname, Cevşen…) sayfa numarası */
-export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number; unit?: string; doc_key?: string };
+export type Pos = { doc_id: string; node_id: string | null; book_id: string | null; scope: string; label: string; quote: string; book_title?: string; mushaf_page?: number | null; page_no?: number; unit?: string; doc_key?: string;
+  /** tek sayaçlı belge (Esmâ'daki bir isim): zikir görevi, günlük sayı sayaçtaki hedef */ zikir?: { target: number; text: string } };
 /** Kitaptan açılınca: yer + o kitabın ayraçları. mode: başta seçili bağlama biçimi. */
 export type PlacePrefill = { pos: Pos; mode: "ayrac" | "sabit"; bookmarks: Bookmark[]; bookmarkId?: string | null };
 
@@ -25,18 +26,19 @@ const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00")
 export function TodoSheet({ edit, place, lists, groups, defaultListId, initialTitle, onClose, onSaved }: {
   edit?: Todo; place?: PlacePrefill; lists: TList[]; groups: TGroup[]; defaultListId: string | null; initialTitle?: string; onClose: () => void; onSaved: (msg?: string) => void;
 }) {
-  const [title, setTitle] = useState(edit?.title ?? initialTitle ?? "");
+  const zk = !edit ? place?.pos.zikir : undefined;
+  const [title, setTitle] = useState(edit?.title ?? initialTitle ?? zk?.text ?? "");
   const autoTitle = useRef<string | null>(null); // seçilen yerden kendiliğinden gelen ad (elle değişmediyse yeni seçimle güncellenir)
   const [notes, setNotes] = useState(edit?.notes ?? "");
-  const [rec, setRec] = useState<Recurrence>(edit?.recurrence ?? { type: "once" });
-  const [perDay, setPerDay] = useState(edit?.per_day ?? 1);
+  const [rec, setRec] = useState<Recurrence>(edit?.recurrence ?? (zk ? { type: "daily" } : { type: "once" }));
+  const [perDay, setPerDay] = useState(edit?.per_day ?? zk?.target ?? 1);
   const [start, setStart] = useState(edit?.start_date ?? ymd());
   const [end, setEnd] = useState(edit?.end_date ?? "");
   const [due, setDue] = useState(edit?.due_at ? ymd(new Date(edit.due_at)) : "");
   const [listId, setListId] = useState<string>(edit?.list_id ?? defaultListId ?? "");
   const [subs, setSubs] = useState<string[]>([]);
   // bağlı yer: okuma görevi (görev kendi yerini tutar, kütüphane ayracı açılmaz) · bu cümle · bağlama
-  const [mode, setMode] = useState<"ayrac" | "sabit" | "yok">(place?.mode ?? (edit?.page_goal || edit?.place || edit?.bookmark_id ? "ayrac" : edit?.reading_ref ? "sabit" : "yok"));
+  const [mode, setMode] = useState<"ayrac" | "sabit" | "yok">(zk ? "sabit" : place?.mode ?? (edit?.page_goal || edit?.place || edit?.bookmark_id ? "ayrac" : edit?.reading_ref ? "sabit" : "yok"));
   // Yapılacaklar'dan eklerken kütüphaneden seçilen yer (kitaptan açılınca gelen "place" gibi davranır)
   const [picked, setPicked] = useState<PlacePrefill | null>(null);
   const [showPick, setShowPick] = useState(false);

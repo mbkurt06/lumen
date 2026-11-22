@@ -117,6 +117,7 @@ export function Todo() {
   const circle = async (t: T) => {
     if (t.kind === "kaza" || t.kind === "kaza_oruc") { nav("/namaz/kaza"); return; }
     if (t.page_goal && !t.is_completed) { void goRef(t); return; } // okuma hedefi: okudukça dolar
+    if (!t.page_goal && t.reading_ref?.doc_id && t.per_day > 1 && !isDoneToday(t)) { void goRef(t); return; } // zikir görevi: sayaçta saydıkça dolar
     if (isRecurring(t)) {
       // günde N kez: her dokunuş +1; doluysa sıfırla
       const progress = await bumpProgress(t, isDoneToday(t) ? -doneOn(t) : 1);

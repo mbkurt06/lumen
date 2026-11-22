@@ -105,6 +105,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [markWord, setMarkWord] = useState<number | null>(() => (loc0.state as { word?: number } | null)?.word ?? null); // görevde kalınan kelime
   const [hereAsk, setHereAsk] = useState<null | { nid: string; word: number; wtext: string; quote: string }>(null); // "Burada kaldım": hangi göreve / ayraca
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [cntTick, setCntTick] = useState(0); // sayaçlar hesaptan yüklenince artar (zikir görevi kendi sayısını üstüne yazar)
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   // ayarlar kitaba / sayfaya özgü: Kur'an tek; Cevşen, Tevhidname, Esmâ dizinin tamamı; diğer dua ve tesbihatlar tek tek; kitaplarda kitap
@@ -177,6 +178,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const c: Record<string, number> = {};
       for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); }
       setCounts(c);
+      setCntTick((x) => x + 1);
       setNotes((nq.data ?? []) as Note[]);
     })();
     return () => { off = true; };
@@ -522,8 +524,31 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     document.querySelector(".content")?.scrollTo(0, 0);
   };
 
+  // zikir görevi (bu belgeye bağlı, okuma hedefi olmayan görev): sayaç bugünkü sayısını görevden alır, saydıkça görev ilerler
+  const zikirTask = todos.find((t) => !t.page_goal && !t.is_completed && t.reading_ref?.doc_id === doc.id && (t.per_day ?? 1) > 1) ?? null;
+  const zikirNid = (() => { const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0); return zc.length === 1 ? zc[0].id : null; })();
+  const zikirToday = zikirTask?.progress?.[ymdToday()] ?? 0;
+  useEffect(() => {
+    if (zikirTask && zikirNid) setCounts((s) => (s[zikirNid] === zikirToday ? s : { ...s, [zikirNid]: zikirToday }));
+  }, [zikirTask?.id, zikirNid, zikirToday, cntTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zikirTimer = useRef<number | null>(null);
+  const zikirVal = useRef<number | null>(null);
+  const pushZikir = (v: number) => {
+    if (!zikirTask) return;
+    zikirVal.current = v;
+    if (zikirTimer.current) window.clearTimeout(zikirTimer.current);
+    zikirTimer.current = window.setTimeout(() => {
+      const val = zikirVal.current; zikirVal.current = null;
+      if (val == null) return;
+      const d = ymdToday();
+      void supabase.from("todos").update({ progress: { ...(zikirTask.progress ?? {}), [d]: val }, updated_at: new Date().toISOString() }).eq("id", zikirTask.id);
+    }, 700);
+  };
   // önce cihaza yazılır, internet varsa hesaba gönderilir (yoksa bağlantı gelince)
-  const saveCount = useCallback((nid: string, target: number, value: number) => { putCount(nid, target, value); }, []);
+  const saveCount = useCallback((nid: string, target: number, value: number) => {
+    putCount(nid, target, value);
+    if (nid === zikirNid) pushZikir(value);
+  }, [zikirNid, zikirTask]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tap = (b?: Extract<Block, { t: "counter" }>) => {
     if (!b) { if (page < pages.length - 1) go(page + 1); return; }
@@ -708,7 +733,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const bi = paged && !isQuran && nid ? bookPages.findIndex((pg) => pg.some((n) => n.id === nid)) : -1;
     const pno = numbered ? pageNo : isQuran ? w.page ?? undefined : bi >= 0 ? bi + 1 : undefined;
     const dkey = numbered ? doc.parent_id! : isQuran ? "kuran" : doc.id;
-    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${unitLabel(pageNo)}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: pno, unit: numbered ? unit : undefined, doc_key: dkey };
+    // tek sayaçlı belge (Esmâ'daki bir isim): görev zikir görevi olur, günlük sayı sayaçtaki hedef
+    const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0);
+    const zikir = zc.length === 1 ? { target: Number(md(zc[0]).target), text: (zc[0].text_content ?? doc.title).trim() } : undefined;
+    return { doc_id: doc.id, node_id: nid, book_id: bookId, scope, label: numbered ? `${bookTitle} · ${unitLabel(pageNo)}` : w.label, quote: quote.slice(0, 300), book_title: bookTitle, mushaf_page: w.page, page_no: pno, unit: numbered ? unit : undefined, doc_key: dkey, zikir };
   };
   const markAt = (nid: string, quote: string) => {
     const w = where(nid);
