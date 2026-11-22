@@ -330,7 +330,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const taskAfterMark = async (pk: number, added: boolean) => {
     const t = goalTask!, g = t.page_goal!;
     const mode = goalMode(g);
-    if (!added) { if (mode === "seq") void savePlace(await placeFor(pk)); return; } // geri alındı: yer bu sayfaya döner
+    if (!added) { void savePlace(await placeFor(pk)); return; } // geri alındı: yer bu sayfaya döner
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const liveSet = new Set(Object.keys(reads.read).map(Number)); liveSet.add(pk);
     const other = new Set(readsCache().filter((r) => r.context_key === readContextKey && r.doc_key !== readDocKey && inScope(g, r.page)).map((r) => r.doc_key + ":" + r.page));
@@ -391,6 +391,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     // payda okunmamış bir sonraki sayfa
     const all = g.pages?.length ? [...g.pages].sort((x, y) => x - y) : Array.from({ length: Math.abs((g.to ?? pk) - (g.from ?? pk)) + 1 }, (_, i) => (g.from ?? pk) + i);
     const np = all.find((x) => x > pk && !liveSet.has(x)) ?? all.find((x) => !liveSet.has(x));
+    if (np != null) void savePlace(await placeFor(np)); // kaldığın yer: payda okunmamış sıradaki sayfa
     if (cp.readNext && np != null) setTimeout(() => void goToPage(np), 180);
   };
   // okundu: işaretle; görevden açıldıysa görevin yeri ilerler; ayraçtan açıldıysa ayraç ilerler; ayara göre sonraki sayfaya geç
