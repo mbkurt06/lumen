@@ -1,3 +1,4 @@
+import { pageStartLabel } from "./quranPages";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { kazaToday } from "./kaza";
@@ -522,9 +523,13 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     const rng = g.pages?.length ? pagesText(g.pages) : g.from != null && g.to != null ? `${Math.min(g.from, g.to)}–${Math.max(g.from, g.to)}` : "";
     // kaldığın yer okumalardan hesaplanır: en son okunan sayfadan sonraki ilk okunmamış sayfa
     const cur = livePlace(g, s.ctx);
-    const place = cur === "done" ? "✓"
+    const isKuran = g.scope === "kuran" || g.doc_key === "kuran";
+    let place = cur === "done" ? "✓"
       : cur == null || t.place?.page === cur ? shortPlace(pl?.label, [t.title, pl?.book, pl?.section], t.place?.page, g.unit)
       : g.unit === "bab" ? `${cur}. Bab` : `s. ${cur}`;
+    // Kur'an: sayfa tek başına yazılmışsa başına o sayfanın sûre ve âyeti eklenir ("Kehf 98, s. 303")
+    const m = isKuran ? /^s\. (\d+)$/.exec(place) : null;
+    if (m) { const sa = pageStartLabel(Number(m[1])); if (sa) place = `${sa}, ${place}`; }
     const pr = [place, showRange && rng ? `(${rng})` : ""].filter(Boolean).join(" ");
     if (cur === "done") out.push({ t: "✓", ok: true }); // hepsi okundu: sadece yeşil tik
     else if (pr) out.push({ t: pr });
