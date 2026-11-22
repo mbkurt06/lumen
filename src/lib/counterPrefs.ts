@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { vibrate } from "./haptic";
 
 /* Sayaç ayarları (bu cihazda): kilit, otomatik kilit süresi, geri al süresi.
    Titreşim ayarları da ileride buraya eklenecek. */
@@ -26,9 +27,9 @@ const TAP_MS = [0, 10, 22, 45];
 export function buzz(kind: "tap" | "goal", count?: number) {
   const p = loadCP();
   try {
-    if (kind === "goal") { if (p.vibGoal) navigator.vibrate?.([60, 80, 60, 80, 120]); else if (p.vib) navigator.vibrate?.(TAP_MS[p.vib]); return; }
-    if (p.vibEvery > 0 && count && count % p.vibEvery === 0) { navigator.vibrate?.([40, 60, 40]); return; }
-    if (p.vib) navigator.vibrate?.(TAP_MS[Math.min(3, p.vib)]);
+    if (kind === "goal") { if (p.vibGoal) vibrate([60, 80, 60, 80, 120]); else if (p.vib) vibrate(TAP_MS[p.vib]); return; }
+    if (p.vibEvery > 0 && count && count % p.vibEvery === 0) { vibrate([40, 60, 40]); return; }
+    if (p.vib) vibrate(TAP_MS[Math.min(3, p.vib)]);
   } catch { /* titreşim yok */ }
 }
 

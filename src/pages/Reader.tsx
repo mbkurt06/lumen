@@ -20,6 +20,7 @@ import { ensureMushafFont, loadMushafPages, type MPage } from "../lib/mushaf";
 import { fetchDocNodes, fetchSiblings, fetchSurahNames } from "../lib/loaders";
 import { refreshBook } from "../lib/offlineDownload";
 import { useCevsenMode } from "../lib/cevsenPref";
+import { vibrate } from "../lib/haptic";
 
 type Node = {
   id: string;
@@ -362,7 +363,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (oldLap) {
       // önceki turun eksiği: görevin yeri ve turu değişmez, sadece o turun eksikleri azalır
       if (!added) return;
-      try { navigator.vibrate?.(15); } catch { /* yok say */ }
+      try { vibrate(15); } catch { /* yok say */ }
       const set = readSetNow(pk);
       const left = (goalPages(g) ?? []).filter((x) => !set.has(x));
       if (!left.length) flash(`${oldLap}. turun eksikleri tamamlandı`);
@@ -370,7 +371,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       return;
     }
     if (!added) { void savePlace(await placeFor(pk)); return; } // geri alındı: yer bu sayfaya döner
-    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    try { vibrate(15); } catch { /* yok say */ }
     const liveSet = new Set(Object.keys(reads.read).map(Number)); liveSet.add(pk);
     const other = new Set(readsCache().filter((r) => r.context_key === readContextKey && r.doc_key !== readDocKey && inScope(g, r.page)).map((r) => r.doc_key + ":" + r.page));
     const count = other.size + [...liveSet].filter((x) => inScope(g, x)).length;
@@ -444,7 +445,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       if (bmToMove && first) { const w = where(first); void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: first, mushaf_page: w.page, quote: textOf(first), autoTitle: w.label, label: w.label }).then(() => void reloadBms()); }
       return;
     }
-    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    try { vibrate(15); } catch { /* yok say */ }
     if (bmToMove) {
       const nid = firstNid(pp + 1) ?? (isQuran ? mpages?.[pp]?.rich_content.paragraphs.flatMap((p) => p.runs).filter((r) => r.nodeId).pop()?.nodeId : bookPages[pp]?.[bookPages[pp].length - 1]?.id);
       if (nid) { const w = where(nid); void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: nid, mushaf_page: w.page, quote: textOf(nid), autoTitle: w.label, label: w.label }).then(() => void reloadBms()); }
@@ -460,7 +461,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       if (bmToMove) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: doc.id, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo)}`, label: unitLabel(pageNo) }).then(() => void reloadBms());
       return;
     }
-    try { navigator.vibrate?.(15); } catch { /* yok say */ }
+    try { vibrate(15); } catch { /* yok say */ }
     if (bmToMove && nextDoc) void moveBookmark(bmToMove, { scope, book_id: bookId, document_id: nextDoc, node_id: null, mushaf_page: null, quote: "", autoTitle: `${parentTitle ?? ""} · ${unitLabel(pageNo + 1)}`, label: unitLabel(pageNo + 1) });
     if (cp.readNext && nextDoc) setTimeout(() => nav(`/kutuphane/${nextDoc}`, { replace: true, state: navState() }), 200);
   };
@@ -630,7 +631,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     if (!cp) return;
     const wa = wordAt(cp.node, cp.off);
     if (!wa) return;
-    try { navigator.vibrate?.(12); } catch { /* yok say */ }
+    try { vibrate(12); } catch { /* yok say */ }
     hereAt(wa.nid, wa.word, wa.wtext, textOf(wa.nid));
   };
   // çift dokunma: dokunulan kelimede "burada kaldım"

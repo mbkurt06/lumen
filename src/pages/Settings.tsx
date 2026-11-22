@@ -9,6 +9,7 @@ import { forgetLogin } from "../lib/auth";
 import { clearOfflineData } from "../lib/offlineFetch";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { CURRENT } from "../lib/update";
+import { vibrate } from "../lib/haptic";
 
 const MODES: { id: ThemeMode; label: string }[] = [
   { id: "dark", label: "Koyu" },
@@ -117,7 +118,7 @@ function CounterSettings() {
       </div>
       <div className="srow col"><span>Basınca titreşim</span>
         <div className="seg" style={{ marginTop: 6 }}>
-          {["Kapalı", "Hafif", "Orta", "Güçlü"].map((l, i) => (<button key={l} className={p.vib === i ? "on" : ""} onClick={() => { set({ ...p, vib: i }); try { navigator.vibrate?.([0, 10, 22, 45][i]); } catch { /* yok */ } }}>{l}</button>))}
+          {["Kapalı", "Hafif", "Orta", "Güçlü"].map((l, i) => (<button key={l} className={p.vib === i ? "on" : ""} onClick={() => { set({ ...p, vib: i }); try { vibrate([0, 10, 22, 45][i]); } catch { /* yok */ } }}>{l}</button>))}
         </div>
       </div>
       <div className="srow"><span>Hedefe gelince uzun titreşim</span><button className={"tgl" + (p.vibGoal ? " on" : "")} onClick={() => set({ ...p, vibGoal: !p.vibGoal })} aria-pressed={p.vibGoal}><i /></button></div>
