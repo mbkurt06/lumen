@@ -7,9 +7,9 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { taskLine, skippedOf, pageName, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { taskLine, skippedOf, pageName, lapGaps, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
-import { rangeStartDoc } from "../lib/taskNav";
+import { rangeStartDoc, taskPageNav } from "../lib/taskNav";
 import { ensureBookPages } from "../lib/bookPages";
 
 
@@ -79,11 +79,10 @@ export function Todo() {
   };
 
   /** görevin belli bir sayfasını aç (atlanan sayfaya dönüş) */
-  const goPage = async (t: T, p: number) => {
-    const pl = placeOf(t), g = t.page_goal, st = states.get(t.id);
-    if (!g || !pl?.docId || !st) return;
-    const r = await rangeStartDoc({ ...g, from: p, pages: undefined }, pl.docId).catch(() => null);
-    nav(`/kutuphane/${r?.docId ?? pl.docId}`, { state: { taskId: t.id, ctx: st.ctx, startPage: p } });
+  const goPage = async (t: T, p: number, ctx?: string) => {
+    const st = states.get(t.id);
+    const r = await taskPageNav(t, p, ctx ?? st?.ctx ?? `todo:${t.id}`);
+    if (r) nav(r.to, { state: r.state });
   };
 
   const listOf = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists]);
@@ -154,7 +153,7 @@ export function Todo() {
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.skip != null ? undefined : x.warn ? "warn" : x.ok ? "ok" : undefined} data-skip={x.skip != null ? "" : undefined}
-              onClick={x.skip != null ? (e) => { e.stopPropagation(); void goPage(t, x.skip!); } : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
+              onClick={x.skip != null ? (e) => { e.stopPropagation(); void goPage(t, x.skip!, x.skipCtx); } : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
         </div>
@@ -347,12 +346,20 @@ export function Todo() {
               {(() => {
                 const g = act.page_goal, st = states.get(act.id);
                 const sk = g && st && placeOf(act)?.docId ? skippedOf(g, st.ctx) : [];
-                if (!sk.length) return null;
+                const gaps = lapGaps(act).filter((x) => x.missing.length);
+                if (!sk.length && !gaps.length) return null;
                 return (
                   <div className="skiplist">
-                    <div className="skiph">⚠ Atlananlar ({sk.length})</div>
+                    {gaps.map((x) => (
+                      <button key={x.n} className="rowbtn" onClick={() => { const t = act; setAct(null); void goPage(t, x.missing[0], x.ctx); }}>
+                        <span style={{ color: "#e8912d" }}>⚠ {x.n}. tur · {x.missing.length} eksik: {x.missing.slice(0, 4).map((p) => pageName(g!, p)).join(", ")}{x.missing.length > 4 ? "…" : ""}</span> <span className="kzgo">›</span>
+                      </button>
+                    ))}
+                    {sk.length > 0 && <>
+                    <div className="skiph">⚠ Bu turda atlananlar ({sk.length})</div>
                     {sk.slice(0, 30).map((p) => <button key={p} className="rowbtn" onClick={() => { const t = act; setAct(null); void goPage(t, p); }}>{pageName(g!, p)} <span className="kzgo">›</span></button>)}
                     {sk.length > 30 && <div className="muted small" style={{ padding: "4px 12px" }}>… ve {sk.length - 30} sayfa daha</div>}
+                    </>}
                   </div>
                 );
               })()}

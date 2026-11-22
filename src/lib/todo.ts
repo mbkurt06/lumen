@@ -446,7 +446,7 @@ function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
 /* ── Görev kartının ikinci satırı (standart) ──
    [① tek seferlik | ↻ tekrar] · bugün okunan / dönem ilerlemesi · tur · kaldığın yer (aralık) · ne zamana kadar
    Toplam ilerleme yeşil düğmede; burada tekrar yazılmaz. */
-export type LinePart = { t: string; warn?: boolean; ok?: boolean; /** atlanan sayfa: basınca oraya gidilir */ skip?: number };
+export type LinePart = { t: string; warn?: boolean; ok?: boolean; /** atlanan sayfa: basınca oraya gidilir */ skip?: number; /** o sayfanın okunacağı bağlam (önceki tur) */ skipCtx?: string };
 const WD_TO = ["Pazar'a", "Pazartesi'ye", "Salı'ya", "Çarşamba'ya", "Perşembe'ye", "Cuma'ya", "Cumartesi'ye"];
 const MON_TO = ["Ocak'a", "Şubat'a", "Mart'a", "Nisan'a", "Mayıs'a", "Haziran'a", "Temmuz'a", "Ağustos'a", "Eylül'e", "Ekim'e", "Kasım'a", "Aralık'a"];
 /** "25 Kas'a kadar" · haftalıkta "Paz'a kadar" · "yarın son" · "bugün son" · "2 gün geçti" */
@@ -511,6 +511,18 @@ export function skippedPages(g: PageGoal, read: Set<number>): number[] {
   return all.filter((x) => x < last && !read.has(x));
 }
 export const skippedOf = (g: PageGoal, ctx: string) => skippedPages(g, ctxPages(g, ctx));
+/** Biten turların eksikleri (tur görevinde): her tur için okunmamış sayfalar.
+ *  Okumaları telefonda olmayan (çok eski) turlar sayılmaz. */
+export function lapGaps(t: Pick<Todo, "id" | "laps" | "page_goal">): { n: number; ctx: string; read: number; missing: number[] }[] {
+  const g = t.page_goal;
+  const all = g ? goalPages(g) : null;
+  if (!g?.loop || !all || !t.laps?.length) return [];
+  return t.laps.map((l) => {
+    const ctx = seqCtx(t, l.n);
+    const read = ctxPages(g, ctx);
+    return { n: l.n, ctx, read: all.filter((x) => read.has(x)).length, missing: read.size ? all.filter((x) => !read.has(x)) : [] };
+  });
+}
 /** "12. Bab", "Nahl 55, s. 272", "s. 40" */
 export function pageName(g: PageGoal, p: number): string {
   if (g.unit === "bab") return `${p}. Bab`;
@@ -562,6 +574,11 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     if (cur === "done") out.push({ t: "✓", ok: true }); // hepsi okundu: sadece yeşil tik
     else if (pr) out.push({ t: pr });
     if (cur !== "done") { const sk = skippedOf(g, s.ctx); if (sk.length) out.push({ t: `⚠ ${sk.length} atlandı`, warn: true, skip: sk[0] }); }
+    if (g.loop) {
+      const gaps = lapGaps(t).filter((x) => x.missing.length);
+      const n = gaps.reduce((a, x) => a + x.missing.length, 0);
+      if (n) out.push({ t: `⚠ önceki turlarda ${n} eksik`, warn: true, skip: gaps[0].missing[0], skipCtx: gaps[0].ctx });
+    }
     if (pu === "week" || pu === "month") { if (s.cur) end = untilText(s.cur.b, pu === "week"); }
     else if (!rec && t.end_date) end = untilText(t.end_date);
     else if (pu === "range" && t.end_date) end = untilText(t.end_date);

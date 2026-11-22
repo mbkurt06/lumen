@@ -5,7 +5,7 @@ import { AskDialog } from "../components/Dialog";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/library";
 import { ensureBookPages, fixedPages } from "../lib/bookPages";
-import { goalLabel, goalMode, inScope, skippedPages, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
+import { goalLabel, goalMode, goalPages, inScope, skippedPages, needsBookPages, nextDay, nextGoalPage, payCtx, periodUnit, readsCache, scopeSize, seqCtx, taskState, useTodos, ymd as ymdToday, type TaskPlace, type Todo as TodoT } from "../lib/todo";
 import { rangeStartDoc } from "../lib/taskNav";
 import { useCP, buzz } from "../lib/counterPrefs";
 import { usePageReads } from "../lib/pageReads";
@@ -245,18 +245,30 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     return new Set(other).size + live.length;
   })();
   // atlanan sayfalar: okunan en ileri sayfadan geride kalıp işaretlenmemiş olanlar (bu belgedeki canlı işaretlerle)
+  /** bu bağlamda okunan sayfalar (bu belgedeki canlı işaretlerle) */
+  const readSetNow = (extra?: number) => {
+    const set = new Set<number>();
+    if (!goalTask) return set;
+    const g = goalTask.page_goal!;
+    const liveHere = !g.doc_key || g.doc_key === readDocKey;
+    for (const r of readsCache()) if (r.context_key === readContextKey && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && !(liveHere && r.doc_key === readDocKey)) set.add(r.page);
+    if (liveHere) for (const [k, v] of Object.entries(reads.read)) { const n = Number(k); if (v && inScope(g, n)) set.add(n); }
+    if (extra != null) set.add(extra);
+    return set;
+  };
+  // önceki bir turun eksiklerini tamamlama: görev o turun bağlamıyla açıldı
+  const oldLapN = goalTask?.page_goal?.loop && tState && readContextKey !== tState.ctx && /#\d+$/.test(readContextKey) ? Number(readContextKey.split("#")[1]) : 0;
+  const oldLap = oldLapN > 0 && !!tState && oldLapN < tState.lap ? oldLapN : 0;
   const skipped = (() => {
     if (!goalTask) return [] as number[];
     const g = goalTask.page_goal!;
-    const liveHere = !g.doc_key || g.doc_key === readDocKey;
-    const set = new Set<number>();
-    for (const r of readsCache()) if (r.context_key === readContextKey && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && !(liveHere && r.doc_key === readDocKey)) set.add(r.page);
-    if (liveHere) for (const [k, v] of Object.entries(reads.read)) { const n = Number(k); if (v && inScope(g, n)) set.add(n); }
+    const set = readSetNow();
+    if (oldLap) { const all = goalPages(g) ?? []; return all.filter((x) => !set.has(x)); }
     return skippedPages(g, set);
   })();
   const skipBar = skipped.length > 0 && (
     <div className="skipbar">
-      <span>⚠ {skipped.length} sayfa atlandı:</span>
+      <span>⚠ {oldLap ? `${oldLap}. turda ${skipped.length} eksik:` : `${skipped.length} sayfa atlandı:`}</span>
       {skipped.slice(0, 8).map((p) => <button key={p} onClick={() => void goToPage(p)}>{p}</button>)}
       {skipped.length > 8 && <span>…</span>}
     </div>
@@ -347,6 +359,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const taskAfterMark = async (pk: number, added: boolean) => {
     const t = goalTask!, g = t.page_goal!;
     const mode = goalMode(g);
+    if (oldLap) {
+      // önceki turun eksiği: görevin yeri ve turu değişmez, sadece o turun eksikleri azalır
+      if (!added) return;
+      try { navigator.vibrate?.(15); } catch { /* yok say */ }
+      const set = readSetNow(pk);
+      const left = (goalPages(g) ?? []).filter((x) => !set.has(x));
+      if (!left.length) flash(`${oldLap}. turun eksikleri tamamlandı`);
+      else { flash(`${oldLap}. tur: ${left.length} eksik kaldı`); const np = left.find((x) => x > pk) ?? left[0]; if (cp.readNext) setTimeout(() => void goToPage(np), 180); }
+      return;
+    }
     if (!added) { void savePlace(await placeFor(pk)); return; } // geri alındı: yer bu sayfaya döner
     try { navigator.vibrate?.(15); } catch { /* yok say */ }
     const liveSet = new Set(Object.keys(reads.read).map(Number)); liveSet.add(pk);

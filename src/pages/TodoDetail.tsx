@@ -3,8 +3,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { supabase } from "../lib/supabase";
-import { confirmDeleteTodo, bumpProgress, doneOn, goalMode, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
+import { lapGaps, pageName, scopeSize, confirmDeleteTodo, bumpProgress, doneOn, goalMode, isRecurring, occursOn, periodText, placeOf, recurrenceText, taskState, useTodos, ymd } from "../lib/todo";
 import { TodoSheet } from "./TodoSheet";
+import { taskPageNav } from "../lib/taskNav";
 
 const addDays = (d: string, n: number) => ymd(new Date(new Date(d + "T12:00:00").getTime() + n * 86400000));
 
@@ -93,6 +94,8 @@ export function TodoDetail() {
         const seq = goalMode(t.page_goal) === "seq";
         const laps = [...(t.laps ?? [])].reverse();
         const noTarget = seq && !t.page_goal.n;
+        const gaps = lapGaps(t);
+        const total = scopeSize(t.page_goal);
         const dayN = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
         return (
           <>
@@ -102,7 +105,19 @@ export function TodoDetail() {
               {st.total > 0 && <div className="tbar" style={{ margin: "10px 0 4px" }}><i style={{ width: `${Math.min(100, (st.lapRead / st.total) * 100)}%` }} /></div>}
               {laps.length > 0 && (<>
                 <div className="muted small" style={{ marginTop: 10 }}>Tamamlanan turlar · ortalama {Math.round(laps.reduce((n, l) => n + dayN(l.a, l.b), 0) / laps.length)} günde bir</div>
-                {laps.slice(0, 8).map((l) => (<div key={l.n} className="prow"><span>{l.n}. tur</span><span className="pst ok">{periodText({ a: l.a, b: l.b })} · {dayN(l.a, l.b)} gün</span></div>))}
+                {laps.slice(0, 8).map((l) => {
+                  const gp = gaps.find((x) => x.n === l.n);
+                  const miss = gp?.missing ?? [];
+                  return (
+                    <div key={l.n} className="prow" style={miss.length ? { cursor: "pointer" } : undefined}
+                      onClick={miss.length ? () => void taskPageNav(t, miss[0], gp!.ctx).then((r) => r && nav(r.to, { state: r.state })) : undefined}>
+                      <span>{l.n}. tur{gp && total ? <span className="muted small"> · {gp.read}/{total}</span> : null}</span>
+                      {miss.length
+                        ? <span className="pst" style={{ color: "#e8912d", fontWeight: 600 }}>⚠ {miss.length} eksik: {miss.slice(0, 3).map((p) => pageName(t.page_goal!, p)).join(", ")}{miss.length > 3 ? "…" : ""} ›</span>
+                        : <span className="pst ok">{periodText({ a: l.a, b: l.b })} · {dayN(l.a, l.b)} gün</span>}
+                    </div>
+                  );
+                })}
               </>)}
             </div>
           )}
