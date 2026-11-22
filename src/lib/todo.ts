@@ -445,9 +445,9 @@ function mergeQueuedReads(rows: ReadRow[]): ReadRow[] {
 /* ── Görev kartının ikinci satırı (standart) ──
    [① tek seferlik | ↻ tekrar] · bugün okunan / dönem ilerlemesi · tur · kaldığın yer (aralık) · ne zamana kadar
    Toplam ilerleme yeşil düğmede; burada tekrar yazılmaz. */
-export type LinePart = { t: string; warn?: boolean };
-const WD_TO = ["Paz'a", "Pzt'ye", "Sal'a", "Çar'a", "Per'e", "Cum'a", "Cmt'ye"];
-const MON_TO = ["Oca'ya", "Şub'a", "Mar'a", "Nis'e", "May'a", "Haz'a", "Tem'e", "Ağu'ya", "Eyl'e", "Eki'ye", "Kas'a", "Ara'ya"];
+export type LinePart = { t: string; warn?: boolean; ok?: boolean };
+const WD_TO = ["Pazar'a", "Pazartesi'ye", "Salı'ya", "Çarşamba'ya", "Perşembe'ye", "Cuma'ya", "Cumartesi'ye"];
+const MON_TO = ["Ocak'a", "Şubat'a", "Mart'a", "Nisan'a", "Mayıs'a", "Haziran'a", "Temmuz'a", "Ağustos'a", "Eylül'e", "Ekim'e", "Kasım'a", "Aralık'a"];
 /** "25 Kas'a kadar" · haftalıkta "Paz'a kadar" · "yarın son" · "bugün son" · "2 gün geçti" */
 export function untilText(end: string, week = false, today = ymd()): LinePart {
   const d = Math.round((dayNum(end) - dayNum(today)));
@@ -522,11 +522,12 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     const rng = g.pages?.length ? pagesText(g.pages) : g.from != null && g.to != null ? `${Math.min(g.from, g.to)}–${Math.max(g.from, g.to)}` : "";
     // kaldığın yer okumalardan hesaplanır: en son okunan sayfadan sonraki ilk okunmamış sayfa
     const cur = livePlace(g, s.ctx);
-    const place = cur === "done" ? "hepsi okundu ✓"
+    const place = cur === "done" ? "✓"
       : cur == null || t.place?.page === cur ? shortPlace(pl?.label, [t.title, pl?.book, pl?.section], t.place?.page, g.unit)
       : g.unit === "bab" ? `${cur}. Bab` : `s. ${cur}`;
     const pr = [place, showRange && rng ? `(${rng})` : ""].filter(Boolean).join(" ");
-    if (pr) out.push({ t: pr });
+    if (cur === "done") out.push({ t: "✓", ok: true }); // hepsi okundu: sadece yeşil tik
+    else if (pr) out.push({ t: pr });
     if (pu === "week" || pu === "month") { if (s.cur) end = untilText(s.cur.b, pu === "week"); }
     else if (!rec && t.end_date) end = untilText(t.end_date);
     else if (pu === "range" && t.end_date) end = untilText(t.end_date);

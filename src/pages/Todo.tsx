@@ -145,7 +145,7 @@ export function Todo() {
               <div className={"ttitle2" + (done && !t.page_goal?.loop ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
-            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.warn ? "warn" : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
+            {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.warn ? "warn" : x.ok ? "ok" : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
         </div>

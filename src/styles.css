@@ -721,3 +721,4 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .kzent .t { font-variant-numeric: tabular-nums; min-width: 46px; }
 .kzent .n { font-weight: 700; min-width: 34px; }
 .kzent .n.neg { color: var(--danger); }
+.tsub .ok { color: var(--accent); font-weight: 700; }
