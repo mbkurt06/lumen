@@ -972,7 +972,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
             <div className="bpfoot">{label}{reads.read[pageKey(Math.min(pp, pc - 1))] ? <span className="readmark"> ✓</span> : null}</div>
           </article>
         </div>
-        <div style={{ height: 64 }} />
+        <div style={{ height: "calc(72px + env(safe-area-inset-bottom))" }} />
         <div className={"pnav mini" + (isQuran ? " quran" : "")}>
           <button disabled={pp === 0 && !prevDoc} onClick={() => turn(-1)} aria-label={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"} title={pp === 0 ? "Önceki bölüm" : "Önceki sayfa"}><Icon name={isQuran ? "chevron" : "back"} size={22} /></button>
           <span className="pmid">

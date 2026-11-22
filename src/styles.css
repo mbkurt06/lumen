@@ -163,7 +163,8 @@ h1 { margin: 0; }
 .gbar { height: 3px; background: var(--border); margin: 6px 16px 8px; border-radius: 3px; overflow: hidden; }
 .gbar i { display: block; height: 100%; background: var(--accent); }
 .sec { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 32px); margin: 14px 16px 8px; padding: 0 0 6px; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: .08em; cursor: pointer; text-align: left; }
-.sec.late { color: var(--danger); }\n.sec.completed { color: var(--accent); }
+.sec.late { color: var(--danger); }
+.sec.completed { color: var(--accent); }
 .tcard { background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin: 0 16px 10px; padding: 10px; }
 .trow2 { display: flex; align-items: flex-start; gap: 8px; }
 .tcircle { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); background: none; color: #0f1115; display: grid; place-items: center; padding: 0; cursor: pointer; }
@@ -383,13 +384,16 @@ body.focus .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 .sw.on { border-color: var(--accent); color: var(--accent); }
 
 /* Kitap sayfası alt çubuğu: yalnız iki ok + sayfa */
-.pnav.mini.quran { direction: rtl; }\n.pnav.mini.quran .pmid { direction: ltr; }\n.pnav.mini { justify-content: space-between; padding: 6px 12px; background: none; pointer-events: none; }
+.pnav.mini.quran { direction: rtl; }
+.pnav.mini.quran .pmid { direction: ltr; }
+/* okuyucunun alt çubuğu: oklar iki kenarda, sayfa ortada; şerit ekranın en altına kadar (altında sayfa görünmez) */
+.pnav.mini { justify-content: space-between; padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); background: var(--bg); pointer-events: none; }
 .pnav.mini button { pointer-events: auto; flex: none; width: 46px; height: 46px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--card) 88%, transparent); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
 .pnav.mini span { pointer-events: auto; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--card) 88%, transparent); }
 /* Tam sayfa: üst başlık ve alt sekmeler gizli; sağ üstte küçük çıkış düğmesi */
 .fsexit { position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 8px; z-index: 40; width: 32px; height: 32px; border-radius: 50%; border: 0; display: grid; place-items: center; padding: 0; background: rgba(0,0,0,.35); color: #fff; cursor: pointer; opacity: .75; }
 body.focus .bookwrap { padding-top: calc(46px + env(safe-area-inset-top)); }
-body.focus .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
+body.focus .pnav.mini { bottom: 0; }
 
 /* ── Kur'an: Diyanet Word dosyasının yazı tipi ve sayfa düzeni ── */
 .bpbody.mushaf { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", "Traditional Arabic", serif; font-size: 26.67px; line-height: 1.72; color: var(--pg-fg);
@@ -501,7 +505,7 @@ body.focus .floatcnt { bottom: calc(24px + env(safe-area-inset-bottom)); }
 /* Okuyucu: alt çubuk ve çevrimdışı şeridi gizli (yer açılır), çevrimdışı bilgisi başlıkta */
 body.reading .offbar, body.reading .tabbar { display: none; }
 body.reading .pnav { bottom: env(safe-area-inset-bottom); }
-body.reading .pnav.mini { bottom: calc(4px + env(safe-area-inset-bottom)); }
+body.reading .pnav.mini { bottom: 0; }
 body.reading .cfab { bottom: calc(86px + env(safe-area-inset-bottom)); }
 body.reading .floatcnt { bottom: calc(24px + env(safe-area-inset-bottom)); }
 body.reading .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
