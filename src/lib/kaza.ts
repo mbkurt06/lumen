@@ -17,7 +17,7 @@ export const FARZ = ["sabah", "ogle", "ikindi", "aksam", "yatsi"] as const;
 export type KazaKind = (typeof NAMAZ_KINDS)[number]["k"] | "oruc";
 
 type Row = { kind: KazaKind; day: string; total: number };
-type Pending = { client_id: string; kind: KazaKind; delta: number; day: string };
+type Pending = { client_id: string; kind: KazaKind; delta: number; day: string; at?: string };
 const RK = "lumen.kaza.daily.v1";
 const QK = "lumen.kaza.queue.v1";
 const EV = "lumen-kaza";
@@ -58,7 +58,8 @@ export function addKaza(kind: KazaKind, delta: number, day = ymd()) { addKazaMan
 /** Toplu giriş: birden çok vakit, istenen güne. */
 export function addKazaMany(items: { kind: KazaKind; delta: number }[], day = ymd()) {
   const q = read<Pending[]>(QK, []);
-  for (const it of items) if (it.delta) q.push({ client_id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`, kind: it.kind, delta: it.delta, day });
+  const at = new Date().toISOString(); // dokunulan an (internetsizken de doğru saat kalsın)
+  for (const it of items) if (it.delta) q.push({ client_id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`, kind: it.kind, delta: it.delta, day, at });
   write(QK, q);
   changed();
   void flushKaza();
@@ -71,7 +72,8 @@ export async function flushKaza() {
   if (!q.length) return;
   flushing = true;
   try {
-    const { error } = await supabase.from("kaza_log").upsert(q, { onConflict: "owner_id,client_id", ignoreDuplicates: true });
+    const rowsOut = q.map(({ at, ...p }) => ({ ...p, created_at: at ?? new Date().toISOString() }));
+    const { error } = await supabase.from("kaza_log").upsert(rowsOut, { onConflict: "owner_id,client_id", ignoreDuplicates: true });
     if (error) return; // internet yok ya da hata: kuyrukta bekler
     // gönderilenleri telefondaki günlük toplamlara işle, kuyruktan çıkar (bu arada eklenenler kalır)
     const rows = read<Row[]>(RK, []);
@@ -113,4 +115,29 @@ export function kazaSure(n: number) {
   if (n <= 0) return "0 gün";
   const y = Math.floor(n / 360), m = Math.floor((n % 360) / 30), d = n % 30;
   return [y ? `${y} yıl` : "", m ? `${m} ay` : "", d ? `${d} gün` : ""].filter(Boolean).join(" ");
+}
+
+/* ── Bir vaktin geçmişi: her ekleme tarihi, saati ve adediyle ── */
+export type KazaEntry = { id: string; delta: number; day: string; at: string; pending?: boolean };
+export function useKazaLog(kind: KazaKind) {
+  const [rows, setRows] = useState<KazaEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const load = useCallback(async () => {
+    const pend = read<Pending[]>(QK, []).filter((p) => p.kind === kind)
+      .map((p) => ({ id: p.client_id, delta: p.delta, day: p.day, at: p.at ?? new Date().toISOString(), pending: true }));
+    const { data } = await supabase.from("kaza_log").select("id,client_id,delta,day,created_at").eq("kind", kind).order("created_at", { ascending: false }).limit(500);
+    const pendIds = new Set(pend.map((p) => p.id));
+    const server = ((data ?? []) as { id: string; client_id: string | null; delta: number; day: string; created_at: string }[])
+      .filter((r) => !r.client_id || !pendIds.has(r.client_id))
+      .map((r) => ({ id: r.id, delta: r.delta, day: r.day, at: r.created_at }));
+    setRows([...pend, ...server].sort((a, b) => (a.at < b.at ? 1 : -1)));
+    setLoaded(true);
+  }, [kind]);
+  useEffect(() => {
+    void load();
+    const on = () => void load();
+    window.addEventListener(EV, on);
+    return () => window.removeEventListener(EV, on);
+  }, [load]);
+  return { rows, loaded };
 }

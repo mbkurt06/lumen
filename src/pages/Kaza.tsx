@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { useCP, useLock, buzz } from "../lib/counterPrefs";
 import { PageHeader } from "../components/PageHeader";
 import { supabase } from "../lib/supabase";
-import { FARZ, NAMAZ_KINDS, addKazaMany, kazaSure, useKaza, type KazaKind } from "../lib/kaza";
+import { FARZ, NAMAZ_KINDS, addKazaMany, kazaSure, useKaza, useKazaLog, type KazaKind } from "../lib/kaza";
 import { ensureList, useTodos, ymd } from "../lib/todo";
 
 const trDay = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", weekday: "short" });
@@ -11,6 +12,9 @@ const LBL: Record<string, string> = { ...Object.fromEntries(NAMAZ_KINDS.map((x) 
 
 /* Kaza: kıldıkça artan sayaçlar; yanında kaç gün/ay/yıl ettiği. */
 export function Kaza() {
+  const { kind } = useParams();
+  const only = kind && kind in LBL ? (kind as KazaKind) : null; // bir vaktin kendi ekranı
+  const nav = useNavigate();
   const s = useKaza();
   const { lists, groups, todos } = useTodos();
   const [cp] = useCP();
@@ -55,7 +59,7 @@ export function Kaza() {
     const td = s.today[k] ?? 0;
     return (
       <div className={"kzrow" + (lk.locked ? " locked" : "")}>
-        <div className="kzname"><b>{LBL[k]}</b><span>{kazaSure(n)}{td ? ` · bugün ${td}` : ""}</span></div>
+        <button className="kzname" onClick={() => { if (!only) nav(`/namaz/kaza/${k}`); }} aria-label={`${LBL[k]} geçmişi`}><b>{LBL[k]}{!only && <Icon name="chevron" size={14} />}</b><span>{kazaSure(n)}{td ? ` · bugün ${td}` : ""}</span></button>
         <button className="kzminus" onClick={() => minus(k)} aria-label={`${LBL[k]} bir düş`}>−</button>
         <button className="kzn" onClick={() => { if (guard()) setEntry({ k, v: "", day: ymd() }); }} aria-label={`${LBL[k]} toplu ekle`}>{n}</button>
         <button className="kzplus" onClick={() => { if (guard()) apply(k, 1); }} aria-label={`${LBL[k]} kıldım`}>+</button>
@@ -74,35 +78,8 @@ export function Kaza() {
     flash(error ? "Eklenemedi: " + error.message : "Günüm listesine eklendi");
   };
 
-  return (
+  const dialogs = (
     <>
-      <PageHeader back="/namaz" title="Kaza" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`}
-        right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
-      {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
-      {s.pending > 0 && <div className="infoline">{s.pending} kayıt telefonda, internet gelince hesaba gönderilecek.</div>}
-      <div className="lbl">KAZA NAMAZI</div>
-      <div className="card kzcard">{NAMAZ_KINDS.map((x) => <Row key={x.k} k={x.k} />)}</div>
-      <p className="muted small" style={{ margin: "6px 18px 0" }}>Sayıya dokununca toplu ekleyebilirsin. Tam gün: beş vaktin hepsinden kılınan sayı. Süre: 30 gün = 1 ay, 12 ay = 1 yıl.</p>
-      {!hasTodo("namaz") && <button className="dashed" onClick={() => { setDaily(5); setTodoFor("namaz"); }}>+ Günlük kaza namazını Todo'ya ekle</button>}
-
-      <div className="lbl">KAZA ORUCU</div>
-      <div className="card kzcard"><Row k="oruc" /></div>
-      {!hasTodo("oruc") && <button className="dashed" onClick={() => { setDaily(1); setTodoFor("oruc"); }}>+ Kaza orucunu Todo'ya ekle</button>}
-
-      {s.days.length > 0 && (
-        <>
-          <div className="lbl">GEÇMİŞ</div>
-          <div className="card" style={{ margin: "0 16px", padding: "4px 0" }}>
-            {s.days.slice(0, 30).map((d) => (
-              <div key={d.day} className="kzhist">
-                <span>{d.day === ymd() ? "Bugün" : trDay(d.day)}</span>
-                <span className="muted">{Object.entries(d.byKind).filter(([, v]) => v).map(([k, v]) => `${LBL[k]} ${v}`).join(" · ")}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      <div style={{ height: 30 }} />
       {msg && <div className="toast">{msg}</div>}
       {undo && <div className="undobar"><span>{undo.text}</span><button onClick={doUndo}>Geri al</button></div>}
       {entry && (
@@ -124,6 +101,55 @@ export function Kaza() {
           </div>
         </>
       )}
+    </>
+  );
+
+  // ── Bir vaktin ekranı: üstte ekleme, altta tarih/saat/adetle geçmiş ──
+  if (only) {
+    return (
+      <>
+        <PageHeader back="/namaz/kaza" title={`${LBL[only]} kazası`} subtitle={`Toplam ${s.total[only] ?? 0} · ${kazaSure(s.total[only] ?? 0)}`}
+          right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
+        {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
+        <div className="card kzcard" style={{ marginTop: 8 }}><Row k={only} /></div>
+        <p className="muted small" style={{ margin: "6px 18px 0" }}>+ ile bir tane ekle, sayıya dokunup toplu ekle ya da başka bir güne yaz.</p>
+        <KazaHistory k={only} />
+        <div style={{ height: 30 }} />
+        {dialogs}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader back="/namaz" title="Kaza" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`}
+        right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
+      {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
+      {s.pending > 0 && <div className="infoline">{s.pending} kayıt telefonda, internet gelince hesaba gönderilecek.</div>}
+      <div className="lbl">KAZA NAMAZI</div>
+      <div className="card kzcard">{NAMAZ_KINDS.map((x) => <Row key={x.k} k={x.k} />)}</div>
+      <p className="muted small" style={{ margin: "6px 18px 0" }}>Vaktin adına dokununca o vaktin geçmişi açılır. Sayıya dokununca toplu ekleyebilirsin. Tam gün: beş vaktin hepsinden kılınan sayı. Süre: 30 gün = 1 ay, 12 ay = 1 yıl.</p>
+      {!hasTodo("namaz") && <button className="dashed" onClick={() => { setDaily(5); setTodoFor("namaz"); }}>+ Günlük kaza namazını Todo'ya ekle</button>}
+
+      <div className="lbl">KAZA ORUCU</div>
+      <div className="card kzcard"><Row k="oruc" /></div>
+      {!hasTodo("oruc") && <button className="dashed" onClick={() => { setDaily(1); setTodoFor("oruc"); }}>+ Kaza orucunu Todo'ya ekle</button>}
+
+      {s.days.length > 0 && (
+        <>
+          <div className="lbl">GEÇMİŞ</div>
+          <div className="card" style={{ margin: "0 16px", padding: "4px 0" }}>
+            {s.days.slice(0, 30).map((d) => (
+              <div key={d.day} className="kzhist">
+                <span>{d.day === ymd() ? "Bugün" : trDay(d.day)}</span>
+                <span className="muted">{Object.entries(d.byKind).filter(([, v]) => v).map(([k, v]) => `${LBL[k]} ${v}`).join(" · ")}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <div style={{ height: 30 }} />
+      {dialogs}
       {todoFor && (
         <>
           <div className="scrim show" style={{ zIndex: 40 }} onClick={() => setTodoFor(null)} />
@@ -140,6 +166,37 @@ export function Kaza() {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+/* Bir vaktin eklemeleri: gün gün, saatiyle ve adediyle */
+function KazaHistory({ k }: { k: KazaKind }) {
+  const { rows, loaded } = useKazaLog(k);
+  const localDay = (iso: string) => ymd(new Date(iso));
+  const groups = new Map<string, typeof rows>();
+  for (const r of rows) { const d = localDay(r.at); groups.set(d, [...(groups.get(d) ?? []), r]); }
+  const hm = (iso: string) => new Date(iso).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  return (
+    <>
+      <div className="lbl">GEÇMİŞ</div>
+      {!loaded && <p className="muted small" style={{ margin: "0 18px" }}>Yükleniyor…</p>}
+      {loaded && rows.length === 0 && <p className="muted small" style={{ margin: "0 18px" }}>Henüz kayıt yok.</p>}
+      {[...groups.entries()].map(([d, list]) => {
+        const sum = list.reduce((a, r) => a + r.delta, 0);
+        return (
+          <div key={d} className="card kzday">
+            <div className="kzdayh"><b>{d === ymd() ? "Bugün · " : ""}{trDay(d)}</b><span>{sum > 0 ? "+" : ""}{sum}</span></div>
+            {list.map((r) => (
+              <div key={r.id} className="kzent">
+                <span className="t">{hm(r.at)}</span>
+                <span className={"n" + (r.delta < 0 ? " neg" : "")}>{r.delta > 0 ? "+" : "−"}{Math.abs(r.delta)}</span>
+                <span className="muted small">{r.day !== d ? `${trDay(r.day)} için` : ""}{r.pending ? " · telefonda, gönderilecek" : ""}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </>
   );
 }

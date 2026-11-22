@@ -711,3 +711,13 @@ body.focus .dpager.fixed { bottom: calc(8px + env(safe-area-inset-bottom)); }
 /* Günüm: bölüm içinde tekrarlılar ile tek seferlikler arası ayraç */
 .subsep { display: flex; align-items: center; gap: 10px; margin: 2px 20px 10px; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
 .subsep::before, .subsep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+/* Kaza: vakit ekranı geçmişi */
+button.kzname { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.kzname b svg { vertical-align: middle; margin-left: 4px; opacity: .5; }
+.kzday { margin: 0 16px 10px; padding: 4px 0; }
+.kzdayh { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 6px; font-size: 14px; }
+.kzdayh span { color: var(--gold); font-weight: 700; }
+.kzent { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 15px; }
+.kzent .t { font-variant-numeric: tabular-nums; min-width: 46px; }
+.kzent .n { font-weight: 700; min-width: 34px; }
+.kzent .n.neg { color: var(--danger); }

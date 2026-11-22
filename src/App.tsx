@@ -33,6 +33,7 @@ function Gate() {
           <Route path="kutuphane/:id" element={<LibraryItem />} />
           <Route path="namaz" element={<Namaz />} />
           <Route path="namaz/kaza" element={<Kaza />} />
+          <Route path="namaz/kaza/:kind" element={<Kaza />} />
           <Route path="nova" element={<Placeholder title="Nova" note="Almanca öğrenme bölümü; tasarımı hazır, sıradaki adımlarda geliştirilecek." />} />
           <Route path="takvim" element={<Placeholder title="Takvim" />} />
           <Route path="ara" element={<Placeholder title="Ara" />} />
