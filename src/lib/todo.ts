@@ -488,6 +488,17 @@ export function shortPlace(label: string | undefined, drop: (string | undefined)
   if (page != null) return unit === "bab" ? `${page}. Bab` : `s. ${page}`;
   return "";
 }
+/** Görevin şu anki yeri (okunan sayfalardan): son okunandan sonraki ilk okunmamış; hepsi okunduysa "done". */
+export function livePlace(g: PageGoal, ctx: string): number | "done" | null {
+  const all = g.pages?.length ? [...g.pages].sort((a, b) => a - b)
+    : g.from != null && g.to != null ? Array.from({ length: Math.abs(g.to - g.from) + 1 }, (_, i) => Math.min(g.from!, g.to!) + i) : null;
+  if (!all || all.length > 5000) return null;
+  const read = ctxPages(g, ctx);
+  if (!read.size) return null; // henüz okuma yok: kayıtlı yer gösterilir
+  if (all.every((x) => read.has(x))) return "done";
+  const last = Math.max(...all.filter((x) => read.has(x)));
+  return all.find((x) => x > last && !read.has(x)) ?? all.find((x) => !read.has(x)) ?? null;
+}
 export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeof placeOf>, extra?: string): LinePart[] {
   const out: LinePart[] = [{ t: repeatMark(t) }];
   const g = t.page_goal;
@@ -509,7 +520,11 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     if (g.loop) out.push({ t: `${s.lap}. tur` });
     const showRange = mode === "pay" || !!g.pages?.length || (g.from != null && g.from > 1);
     const rng = g.pages?.length ? pagesText(g.pages) : g.from != null && g.to != null ? `${Math.min(g.from, g.to)}–${Math.max(g.from, g.to)}` : "";
-    const place = shortPlace(pl?.label, [t.title, pl?.book, pl?.section], t.place?.page, g.unit);
+    // kaldığın yer okumalardan hesaplanır: en son okunan sayfadan sonraki ilk okunmamış sayfa
+    const cur = livePlace(g, s.ctx);
+    const place = cur === "done" ? "hepsi okundu ✓"
+      : cur == null || t.place?.page === cur ? shortPlace(pl?.label, [t.title, pl?.book, pl?.section], t.place?.page, g.unit)
+      : g.unit === "bab" ? `${cur}. Bab` : `s. ${cur}`;
     const pr = [place, showRange && rng ? `(${rng})` : ""].filter(Boolean).join(" ");
     if (pr) out.push({ t: pr });
     if (pu === "week" || pu === "month") { if (s.cur) end = untilText(s.cur.b, pu === "week"); }
