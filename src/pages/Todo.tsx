@@ -7,7 +7,7 @@ import { AskDialog } from "../components/Dialog";
 import { TodoSheet } from "./TodoSheet";
 import { TodoMenu } from "./TodoMenu";
 import { kazaToday, useKaza } from "../lib/kaza";
-import { taskLine, skippedOf, pageName, lapGaps, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
+import { taskLine, livePlace, skippedOf, pageName, lapGaps, type LinePart, confirmDeleteTodo, needsBookPages, ctxPages, goalLabel, goalMode, bumpProgress, bumpDay, doneOn, inToday, isDoneToday, isOverdue, isRecurring, payCtx, periodText, periodUnit, placeOf, skipPeriod, taskState, useTodos, type PageGoal, type Period, type TaskState, type TList, type Todo as T } from "../lib/todo";
 import { useTP } from "../lib/taskPrefs";
 import { rangeStartDoc, taskPageNav } from "../lib/taskNav";
 import { ensureBookPages } from "../lib/bookPages";
@@ -95,7 +95,15 @@ export function Todo() {
   const current: TList | undefined = listId ? listOf.get(listId) : undefined;
   const today = todos.filter(inToday);
   // "Bitince başa dön (tur)" görevleri hiç bitmez: bugünkü hedef dolsa da görevlerde kalır (tikli, en altta)
-  const keepOpen = (t: T) => !!t.page_goal?.loop;
+  // kitaplı tekrarlı görev: günlük hedef tutunca sadece tik konur, kitap (ya da tur) bitmeden geçmişe düşmez
+  const keepOpen = (t: T) => {
+    const g = t.page_goal;
+    if (!g || t.is_completed) return false;
+    if (g.loop) return true;
+    if (!isRecurring(t)) return false;
+    const st = states.get(t.id);
+    return !st || livePlace(g, st.ctx) !== "done";
+  };
   const activeToday = today.filter((t) => !isDoneToday(t) || keepOpen(t));
   const completedToday = today.filter((t) => isDoneToday(t) && !keepOpen(t));
   const overdue = activeToday.filter(isOverdue);
@@ -149,7 +157,7 @@ export function Todo() {
           <button className={"tcircle" + (done ? " on" : "")} onClick={() => void circle(t)} aria-label="Tamamla">{done ? <Icon name="check" size={16} /> : null}</button>
           <div className="tmain" onClick={() => setAct(t)}>
             <div className="ttopline">
-              <div className={"ttitle2" + (done && !t.page_goal?.loop ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
+              <div className={"ttitle2" + (done && !keepOpen(t) ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
               {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.skip != null ? undefined : x.warn ? "warn" : x.ok ? "ok" : undefined} data-skip={x.skip != null ? "" : undefined}
