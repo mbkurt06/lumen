@@ -353,7 +353,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const k = numbered ? (p === pageNo ? 0 : undefined) : idxOf(p);
     if (k != null && !numbered) { setPp(k); document.querySelector(".content")?.scrollTo(0, 0); return; }
     const pl = await placeFor(p);
-    if (pl && pl.doc_id !== doc.id) nav(`/kutuphane/${pl.doc_id}`, { replace: true, state: { ...navState(), ctx, startPage: p } });
+    if (pl && pl.doc_id !== doc.id) nav(`/kutuphane/${pl.doc_id}`, { replace: true, state: { ...navState(), ctx, startPage: pl.page ?? p } });
   };
   const scopeStart = (g: NonNullable<TodoT["page_goal"]>) => (g.pages?.length ? Math.min(...g.pages) : g.from ?? (numbered ? 1 : isQuran ? 0 : 1));
   /** görevde okundu sonrası: sırayla okuda yer ilerler, kapsam bitince tur ya da görev tamam; payda dönem tamam / erken başa dön */
