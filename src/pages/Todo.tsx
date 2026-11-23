@@ -140,6 +140,8 @@ export function Todo() {
     const mode = g ? goalMode(g) : null;
     // düğme: sırayla okuda turdaki/kapsamdaki yer (67/100), payda dönemin ilerlemesi
     let btn = "", barV = 0, barMax = 1;
+    // zikir görevi: düğmede şu anki turun sayısı (tur dolunca sayaç baştan başlar)
+    if (!g && t.reading_ref?.doc_id && isRecurring(t) && t.per_day > 1) { const tot = doneOn(t); btn = `${tot <= 0 ? 0 : ((tot - 1) % t.per_day) + 1}/${t.per_day}`; }
     if (g && s) {
       if (mode === "seq") {
         if (s.total) { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
@@ -161,7 +163,7 @@ export function Todo() {
           <div className="tmain" onClick={() => setAct(t)}>
             <div className="ttopline">
               <div className={"ttitle2" + (done && !keepOpen(t) ? " done" : "")} style={{ fontSize: `${17 * todoScale}px` }}>{t.title}</div>
-              {isRecurring(t) && per > 1 && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
+              {isRecurring(t) && per > 1 && !btn && <div className="tcount" style={{ fontSize: `${15 * todoScale}px` }}>{cnt}/{per}</div>}
             </div>
             {sub && <div className="tsub" style={{ fontSize: `${13 * todoScale}px` }}>{line.map((x, i) => <span key={i} className={x.skip != null ? undefined : x.warn ? "warn" : x.ok ? "ok" : undefined} data-skip={x.skip != null ? "" : undefined}
               onClick={x.skip != null ? (e) => { e.stopPropagation(); void goPage(t, x.skip!, x.skipCtx); } : undefined}>{i ? " · " : ""}{x.t}</span>)}</div>}

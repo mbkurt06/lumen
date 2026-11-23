@@ -529,19 +529,25 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const zikirTask = todos.find((t) => !t.page_goal && !t.is_completed && t.reading_ref?.doc_id === doc.id && (t.per_day ?? 1) > 1) ?? null;
   const zikirNid = (() => { const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0); return zc.length === 1 ? zc[0].id : null; })();
   const zikirToday = zikirTask?.progress?.[ymdToday()] ?? 0;
+  const zikirTarget = (() => { const n = nodes.find((x) => x.id === zikirNid); return n ? Number(md(n).target ?? 0) : 0; })();
+  /** bugünkü toplamdan sayaçta görünen: tur dolunca hedefte durur, sonraki dokunuşta 1'den başlar */
+  const lapShow = (total: number, tg: number) => (total <= 0 || tg <= 0 ? 0 : ((total - 1) % tg) + 1);
+  const zikirTotal = useRef(0); // bugünkü toplam çekim (turlar dahil)
   useEffect(() => {
-    if (!zikirTask || !zikirNid) return;
+    if (!zikirTask || !zikirNid || !zikirTarget) return;
     // sayaç bugün görevden ileri gittiyse (görev kaydedilemeden çıkıldıysa) görev yetişir
-    const seen = Math.min(Number(((n) => (n ? md(n).target : null))(nodes.find((n) => n.id === zikirNid)) ?? Infinity), zikirSeen.current[zikirNid] ?? 0);
-    const v = Math.max(zikirToday, seen);
-    if (seen > zikirToday) pushZikir(seen);
+    const seen = Math.min(zikirTarget, zikirSeen.current[zikirNid] ?? 0);
+    const total = Math.max(zikirToday, seen, zikirVal.current ?? 0);
+    if (total > zikirToday && zikirVal.current == null) pushZikir(total);
+    zikirTotal.current = total;
+    const v = lapShow(total, zikirTarget);
     setCounts((s) => (s[zikirNid] === v ? s : { ...s, [zikirNid]: v }));
-  }, [zikirTask?.id, zikirNid, zikirToday, cntTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [zikirTask?.id, zikirNid, zikirToday, zikirTarget, cntTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const zikirTimer = useRef<number | null>(null);
   const zikirVal = useRef<number | null>(null);
-  const pushZikir = (v: number) => {
+  const pushZikir = (total: number) => {
     if (!zikirTask) return;
-    zikirVal.current = v;
+    zikirVal.current = total;
     if (zikirTimer.current) window.clearTimeout(zikirTimer.current);
     zikirTimer.current = window.setTimeout(() => {
       const val = zikirVal.current; zikirVal.current = null;
@@ -550,14 +556,26 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       void supabase.from("todos").update({ progress: { ...(zikirTask.progress ?? {}), [d]: val }, updated_at: new Date().toISOString() }).eq("id", zikirTask.id);
     }, 700);
   };
+  const isZikir = (nid: string) => !!zikirTask && nid === zikirNid && zikirTarget > 0;
+  /** zikir sayacı: her dokunuş toplamı artırır; tur dolunca sayaç baştan başlar, görev kaçıncı turda olduğunu gösterir */
+  const zikirAdd = (delta: number) => {
+    const total = Math.max(0, zikirTotal.current + delta);
+    zikirTotal.current = total;
+    const v = lapShow(total, zikirTarget);
+    setCounts((s) => ({ ...s, [zikirNid!]: v }));
+    putCount(zikirNid!, zikirTarget, v);
+    pushZikir(total);
+    if (delta > 0) buzz(v === zikirTarget ? "goal" : "tap", v);
+    return v;
+  };
+  /** zikir sayacını sıfırla: sadece şu anki tur silinir */
+  const zikirResetLap = () => { const cur = lapShow(zikirTotal.current, zikirTarget); if (cur < zikirTarget) zikirAdd(-cur); };
   // önce cihaza yazılır, internet varsa hesaba gönderilir (yoksa bağlantı gelince)
-  const saveCount = useCallback((nid: string, target: number, value: number) => {
-    putCount(nid, target, value);
-    if (nid === zikirNid) pushZikir(value);
-  }, [zikirNid, zikirTask]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveCount = useCallback((nid: string, target: number, value: number) => { putCount(nid, target, value); }, []);
 
   const tap = (b?: Extract<Block, { t: "counter" }>) => {
     if (!b) { if (page < pages.length - 1) go(page + 1); return; }
+    if (isZikir(b.n.id)) { zikirAdd(1); return; }
     const v = Math.min(b.target, (counts[b.n.id] ?? 0) + 1);
     setCounts((s) => ({ ...s, [b.n.id]: v }));
     buzz(v === b.target ? "goal" : "tap", v);
@@ -567,8 +585,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const resetPage = () => {
     if (!pageCounters.length || !window.confirm("Bu sayfadaki sayaçlar sıfırlansın mı?")) return;
     const s = { ...counts };
-    for (const b of pageCounters) { s[b.n.id] = 0; void saveCount(b.n.id, b.target, 0); }
+    for (const b of pageCounters) { if (isZikir(b.n.id)) continue; s[b.n.id] = 0; void saveCount(b.n.id, b.target, 0); }
     setCounts(s);
+    if (pageCounters.some((b) => isZikir(b.n.id))) zikirResetLap();
   };
 
   /* ── Kelime düzeyinde yer ──
@@ -1080,15 +1099,16 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     return val;
   };
   const inc = () => {
+    if (actNode && isZikir(actNode.id)) { zikirAdd(1); return; }
     if (!actNode || (counts[actNode.id] ?? 0) >= tgt(actNode)) return; // hedef doldu: saymaz
     const v = setCount(actNode, (counts[actNode.id] ?? 0) + 1);
     buzz(v === tgt(actNode) ? "goal" : "tap", v);
     if (v >= tgt(actNode) && !cumulative) setActive(null);
   };
-  const dec = () => { if (shown) setCount(shown, (counts[shown.id] ?? 0) - 1); };
+  const dec = () => { if (shown && isZikir(shown.id)) { if ((counts[shown.id] ?? 0) > 0) zikirAdd(-1); return; } if (shown) setCount(shown, (counts[shown.id] ?? 0) - 1); };
   const resetAll = () => {
     if (!counters.length || !window.confirm("Bu metindeki bütün sayaçlar sıfırlansın mı?")) return;
-    for (const n of counters) setCount(n, 0);
+    for (const n of counters) { if (isZikir(n.id)) zikirResetLap(); else setCount(n, 0); }
     setActive(null);
   };
   return (

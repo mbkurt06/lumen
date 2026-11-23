@@ -603,7 +603,12 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
     else if (!rec && t.end_date) end = untilText(t.end_date);
     else if (pu === "range" && t.end_date) end = untilText(t.end_date);
   } else {
-    if (rec && Math.max(1, t.per_day) > 1) out.push({ t: `${doneOn(t)}/${t.per_day}` });
+    if (rec && Math.max(1, t.per_day) > 1) {
+      const total = doneOn(t), per = t.per_day;
+      out.push({ t: `${Math.min(total, per)}/${per}${total >= per ? " ✓" : ""}` });
+      // zikir görevi: bugün kaçıncı turda (tur = günlük sayı kadar çekim)
+      if (t.reading_ref?.doc_id && total > 0) out.push({ t: `${Math.ceil(total / per)}. tur` });
+    }
     const place = pl ? shortPlace(pl.label, [t.title, pl.book]) : "";
     if (place) out.push({ t: place });
     if (!rec && t.end_date) end = untilText(t.end_date);
