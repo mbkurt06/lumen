@@ -762,3 +762,8 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .pcell.zero { border-style: dashed; color: var(--muted); }
 .statlink { display: flex; align-items: center; gap: 10px; margin: 4px 16px 8px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
 .statlink span:nth-child(2) { flex: 1; }
+
+/* Risale içindeki Arapça: Kur'an yazı tipi (satır aralığını bozmadan); Farsça harfli parça Nesih */
+.ari { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", serif; font-size: 1.3em; line-height: 1; unicode-bidi: isolate; }
+.reader .arp, .reader2 .arp, .bpbody.reader2 .arp, .ari.arp { font-family: "Noto Naskh Arabic", "Geeza Pro", "Traditional Arabic", serif; }
+.ari.arp { font-size: 1.12em; }

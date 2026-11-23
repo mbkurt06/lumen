@@ -39,6 +39,27 @@ type Note = { id: string; node_id: string | null; note: string; quote: string | 
 
 const md = (n: Node) => n.metadata ?? {};
 /** Metnin çoğu Arap harfiyse true. */
+/* Risale'deki Arapça (âyet, dua) Kur'an'daki yazı tipiyle: fontta olmayan işaretler karşılığına çevrilir
+   (esre-i memdûde U+0656 → U+06EA, küçük tı U+0615 → U+06DC). Farsça/Osmanlıca harf içeren parça Kur'an fontunda yok, Nesih kalır. */
+const AR_RUN = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF](?:[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u200c\u200d\s]*[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF])?/g;
+const NON_MUSHAF = /[\u067E\u0686\u0698\u06A4\u06A9\u06AF\u06C0\u06CC\u0671\u0617\u06DE\u06E9\u06FD\u08DE]/;
+const arFix = (t: string) => t.replace(/\u0656/g, "\u06EA").replace(/\u0615/g, "\u06DC");
+const arClass = (t: string | null | undefined) => (t && NON_MUSHAF.test(t) ? "ar arp" : "ar");
+/** Türkçe paragraf içindeki Arapça parçalar Kur'an yazı tipiyle */
+function withArabic(text: string | null | undefined): ReactNode {
+  if (!text || !AR_RUN.test(text)) return text;
+  AR_RUN.lastIndex = 0;
+  const out: ReactNode[] = [];
+  let last = 0, k = 0;
+  for (const m of text.matchAll(AR_RUN)) {
+    const at = m.index ?? 0;
+    if (at > last) out.push(text.slice(last, at));
+    out.push(<span key={k++} className={NON_MUSHAF.test(m[0]) ? "ari arp" : "ari"} lang="ar" dir="rtl">{arFix(m[0])}</span>);
+    last = at + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
 const isAr = (t: string | null | undefined) => { if (!t) return false; const a = (t.match(/[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/g) ?? []).length; const l = (t.match(/[A-Za-zÇĞİÖŞÜçğıöşüÂâÎîÛû]/g) ?? []).length; return a > l; };
 const len = (b: Block) => (b.t === "quote" ? b.ns.reduce((a, n) => a + (n.text_content?.length ?? 0), 0) : (b.n.text_content?.length ?? 0) + (b.n.secondary_text?.length ?? 0) + (b.n.translation?.length ?? 0)) + 40;
 
@@ -905,7 +926,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     }
     if (b.t === "instr") return <div key={i}><p className="instr" id={"n" + n.id} data-nid={n.id}>{n.text_content}</p><NoteBoxes nid={n.id} /></div>;
     if (b.t === "fn") return <div key={i}><p className="fn" id={"n" + n.id} data-nid={n.id}>{n.text_content}</p><NoteBoxes nid={n.id} /></div>;
-    if ((b.t === "h2" || b.t === "h3") && isAr(n.text_content ?? n.title)) return rs.ar ? <div key={i} className="ar" id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</div> : null;
+    if ((b.t === "h2" || b.t === "h3") && isAr(n.text_content ?? n.title)) return rs.ar ? <div key={i} className={arClass(n.text_content ?? n.title)} id={"n" + n.id} data-nid={n.id}>{arFix(n.text_content ?? n.title ?? "")}</div> : null;
     if (b.t === "h2") return <h2 key={i} id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</h2>;
     if (b.t === "h3") return <h3 key={i} id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.title}</h3>;
     if (b.t === "verse") {
@@ -922,10 +943,10 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     const arabic = md(n).lang === "ar" || (n.secondary_text && !n.text_content) || isAr(n.text_content);
     return (
       <div key={i}>
-        {arabic ? (rs.ar && <div className="ar" id={"n" + n.id} data-nid={n.id}>{n.text_content ?? n.secondary_text}</div>) : (
+        {arabic ? (rs.ar && <div className={arClass(n.text_content ?? n.secondary_text)} id={"n" + n.id} data-nid={n.id}>{arFix(n.text_content ?? n.secondary_text ?? "")}</div>) : (
           <p id={"n" + n.id} data-nid={n.id} className={isMarked(n.id) ? "mk" : notesOf(n.id).length ? "ul" : undefined}>
-            {rs.ar && n.secondary_text && <span className="ar blk">{n.secondary_text}</span>}
-            {rs.latin && n.text_content}
+            {rs.ar && n.secondary_text && <span className={arClass(n.secondary_text) + " blk"}>{arFix(n.secondary_text)}</span>}
+            {rs.latin && withArabic(n.text_content)}
             {rs.tr && n.translation && <span className="trn blk">{n.translation}</span>}
           </p>
         )}
