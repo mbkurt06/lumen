@@ -16,7 +16,7 @@ export const TABS = [
   { to: "/yapilacaklar", label: "Yapılacaklar", icon: "todo" },
   { to: "/kutuphane", label: "Kütüphane", icon: "library" },
   { to: "/namaz", label: "Namaz", icon: "moon" },
-  { to: "/takvim", label: "Takvim", icon: "calendar" },
+  { to: "/namaz/kaza", label: "Kazalar", icon: "clock" }, // takvim yandaki menüde
 ] as const;
 
 export function Shell() {
@@ -47,7 +47,7 @@ export function Shell() {
         </main>
         <nav className="tabbar" aria-label="Ana gezinme">
           {TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.to === "/"} className={({ isActive }) => "tab" + (isActive ? " active" : "")}>
+            <NavLink key={t.to} to={t.to} end={t.to === "/" || t.to === "/namaz"} className={({ isActive }) => "tab" + (isActive ? " active" : "")}>
               <Icon name={t.icon} size={22} />
               <span>{t.label}</span>
             </NavLink>

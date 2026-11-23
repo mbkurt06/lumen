@@ -129,7 +129,7 @@ export function Kaza() {
 
   return (
     <>
-      <PageHeader back="/namaz" title="Kaza" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`}
+      <PageHeader title="Kazalar" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`}
         right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
       {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
       {s.pending > 0 && <div className="infoline">{s.pending} kayıt telefonda, internet gelince hesaba gönderilecek.</div>}
