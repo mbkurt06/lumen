@@ -581,7 +581,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const val = zikirVal.current; zikirVal.current = null;
       if (val == null) return;
       const d = ymdToday();
-      void supabase.from("todos").update({ progress: { ...(zikirTask.progress ?? {}), [d]: val }, updated_at: new Date().toISOString() }).eq("id", zikirTask.id);
+      // not: sorgu ancak then/await ile gönderilir
+      void supabase.from("todos").update({ progress: { ...(zikirTask.progress ?? {}), [d]: val }, updated_at: new Date().toISOString() }).eq("id", zikirTask.id).then(({ error }) => { if (error) flash("Görev kaydedilemedi, tekrar denenecek"); });
     }, 700);
   };
   const isZikir = (nid: string) => !!zikirTask && nid === zikirNid && zikirTarget > 0;
