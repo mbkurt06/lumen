@@ -105,6 +105,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [markWord, setMarkWord] = useState<number | null>(() => (loc0.state as { word?: number } | null)?.word ?? null); // görevde kalınan kelime
   const [hereAsk, setHereAsk] = useState<null | { nid: string; word: number; wtext: string; quote: string }>(null); // "Burada kaldım": hangi göreve / ayraca
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const zikirSeen = useRef<Record<string, number>>({}); // sayaçların bugünkü değeri (zikir görevi geride kaldıysa yetişsin)
   const [cntTick, setCntTick] = useState(0); // sayaçlar hesaptan yüklenince artar (zikir görevi kendi sayısını üstüne yazar)
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -176,7 +177,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const srv = new Map<string, { v: number; at: string | null }>();
       for (const r of (msq.data ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) srv.set(r.content_node_id, { v: r.repeat_count, at: r.last_practiced_at });
       const c: Record<string, number> = {};
-      for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); }
+      for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); zikirSeen.current[id] = todayOnly(r); }
       setCounts(c);
       setCntTick((x) => x + 1);
       setNotes((nq.data ?? []) as Note[]);
@@ -529,7 +530,12 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const zikirNid = (() => { const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0); return zc.length === 1 ? zc[0].id : null; })();
   const zikirToday = zikirTask?.progress?.[ymdToday()] ?? 0;
   useEffect(() => {
-    if (zikirTask && zikirNid) setCounts((s) => (s[zikirNid] === zikirToday ? s : { ...s, [zikirNid]: zikirToday }));
+    if (!zikirTask || !zikirNid) return;
+    // sayaç bugün görevden ileri gittiyse (görev kaydedilemeden çıkıldıysa) görev yetişir
+    const seen = Math.min(Number(((n) => (n ? md(n).target : null))(nodes.find((n) => n.id === zikirNid)) ?? Infinity), zikirSeen.current[zikirNid] ?? 0);
+    const v = Math.max(zikirToday, seen);
+    if (seen > zikirToday) pushZikir(seen);
+    setCounts((s) => (s[zikirNid] === v ? s : { ...s, [zikirNid]: v }));
   }, [zikirTask?.id, zikirNid, zikirToday, cntTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const zikirTimer = useRef<number | null>(null);
   const zikirVal = useRef<number | null>(null);
