@@ -13,7 +13,7 @@ export async function loadStatRows(force = false): Promise<SRow[]> {
   if (!force && CACHE && Date.now() - CACHE.at < 60_000) return CACHE.rows;
   const out: SRow[] = [];
   for (let from = 0; from < 200_000; from += 1000) {
-    const { data, error } = await supabase.from("page_reads").select("day,page,doc_key,book_id,scope,context_key").order("day").range(from, from + 999);
+    const { data, error } = await supabase.from("page_reads").select("day,page,doc_key,book_id,scope,context_key").order("day").order("id").range(from, from + 999);
     if (error) { if (CACHE) return CACHE.rows; throw error; }
     out.push(...((data ?? []) as SRow[]));
     if (!data || data.length < 1000) break;

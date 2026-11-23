@@ -398,7 +398,7 @@ export function useTodos() {
       supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,strict,place,laps,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
       supabase.from("todo_lists").select("id,title,group_id,sort_order").order("sort_order").order("created_at"),
       supabase.from("todo_groups").select("id,title,sort_order").order("sort_order").order("created_at"),
-      supabase.from("page_reads").select("book_id,scope,doc_key,context_key,page,day").gte("day", since).limit(10000),
+      fetchReads(since),
     ]);
     if (!r.error) READS = mergeQueuedReads((r.data ?? []) as ReadRow[]);
     // numaralı kitapların (Cevşen 100 bab, Tevhidname…) boyu: günlük hedef + telafi kitabın kendisinden büyük olamaz
@@ -516,6 +516,17 @@ function lastReadDay(g: PageGoal, ctx: string): string | null {
   let m: string | null = null;
   for (const r of READS) if (r.context_key === ctx && (!g.doc_key || r.doc_key === g.doc_key) && inScope(g, r.page) && (!m || r.day > m)) m = r.day;
   return m;
+}
+/** Okumalar sayfa sayfa (sunucu bir istekte en çok 1000 satır döner) */
+async function fetchReads(since: string): Promise<{ data: ReadRow[] | null; error: unknown }> {
+  const out: ReadRow[] = [];
+  for (let from = 0; from < 100_000; from += 1000) {
+    const { data, error } = await supabase.from("page_reads").select("book_id,scope,doc_key,context_key,page,day").gte("day", since).order("day").order("id").range(from, from + 999);
+    if (error) return { data: null, error };
+    out.push(...((data ?? []) as ReadRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  return { data: out, error: null };
 }
 /** Görevin kapsamındaki sayfalar (sıralı) */
 export function goalPages(g: PageGoal): number[] | null {
