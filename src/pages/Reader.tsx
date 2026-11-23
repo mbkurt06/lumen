@@ -126,7 +126,6 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const [markWord, setMarkWord] = useState<number | null>(() => (loc0.state as { word?: number } | null)?.word ?? null); // görevde kalınan kelime
   const [hereAsk, setHereAsk] = useState<null | { nid: string; word: number; wtext: string; quote: string }>(null); // "Burada kaldım": hangi göreve / ayraca
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const zikirSeen = useRef<Record<string, number>>({}); // sayaçların bugünkü değeri (zikir görevi geride kaldıysa yetişsin)
   const [cntTick, setCntTick] = useState(0); // sayaçlar hesaptan yüklenince artar (zikir görevi kendi sayısını üstüne yazar)
   const [active, setActive] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -198,7 +197,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
       const srv = new Map<string, { v: number; at: string | null }>();
       for (const r of (msq.data ?? []) as { content_node_id: string; repeat_count: number; last_practiced_at: string | null }[]) srv.set(r.content_node_id, { v: r.repeat_count, at: r.last_practiced_at });
       const c: Record<string, number> = {};
-      for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); zikirSeen.current[id] = todayOnly(r); }
+      for (const id of counterIds) { const r = pickNewer(id, srv.get(id) ?? null); c[id] = cumulative ? r.v : todayOnly(r); }
       setCounts(c);
       setCntTick((x) => x + 1);
       setNotes((nq.data ?? []) as Note[]);
@@ -547,19 +546,27 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   };
 
   // zikir görevi (bu belgeye bağlı, okuma hedefi olmayan görev): sayaç bugünkü sayısını görevden alır, saydıkça görev ilerler
-  const zikirTask = todos.find((t) => !t.page_goal && !t.is_completed && t.reading_ref?.doc_id === doc.id && (t.per_day ?? 1) > 1) ?? null;
+  // zikir görevi sadece görevden açılınca devreye girer; kütüphaneden açılan belge normal sayaçla açılır
+  const [zFetched, setZFetched] = useState<(typeof todos)[number] | null>(null);
+  const zInList = focusTaskId ? todos.find((t) => t.id === focusTaskId) ?? null : null;
+  useEffect(() => {
+    if (!focusTaskId || zInList) return;
+    // görev az önce eklendiyse listede henüz olmayabilir: hesaptan al
+    void supabase.from("todos").select("*").eq("id", focusTaskId).maybeSingle().then(({ data }) => { if (data) setZFetched(data as (typeof todos)[number]); });
+  }, [focusTaskId, !!zInList]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zCand = zInList ?? (zFetched?.id === focusTaskId ? zFetched : null);
+  const zikirTask = zCand && !zCand.page_goal && !zCand.is_completed && zCand.reading_ref?.doc_id === doc.id && (zCand.per_day ?? 1) > 1 ? zCand : null;
   const zikirNid = (() => { const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0); return zc.length === 1 ? zc[0].id : null; })();
   const zikirToday = zikirTask?.progress?.[ymdToday()] ?? 0;
   const zikirTarget = (() => { const n = nodes.find((x) => x.id === zikirNid); return n ? Number(md(n).target ?? 0) : 0; })();
   /** bugünkü toplamdan sayaçta görünen: tur dolunca sayaç 0'dan yeni tura başlar */
   const lapShow = (total: number, tg: number) => (total <= 0 || tg <= 0 ? 0 : total % tg);
   const zikirTotal = useRef(0); // bugünkü toplam çekim (turlar dahil)
+  const zikirFor = useRef(""); // toplam hangi görevin hangi gününe ait
   useEffect(() => {
     if (!zikirTask || !zikirNid || !zikirTarget) return;
-    // sayaç bugün görevden ileri gittiyse (görev kaydedilemeden çıkıldıysa) görev yetişir
-    const seen = Math.min(zikirTarget, zikirSeen.current[zikirNid] ?? 0);
-    const total = Math.max(zikirToday, seen, zikirVal.current ?? 0);
-    if (total > zikirToday && zikirVal.current == null) pushZikir(total);
+    if (zikirFor.current !== zikirTask.id + "|" + ymdToday()) { zikirFor.current = zikirTask.id + "|" + ymdToday(); zikirTotal.current = 0; }
+    const total = Math.max(zikirToday, zikirVal.current ?? 0, zikirTotal.current);
     zikirTotal.current = total;
     const v = lapShow(total, zikirTarget);
     setCounts((s) => (s[zikirNid] === v ? s : { ...s, [zikirNid]: v }));
@@ -584,8 +591,7 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     zikirTotal.current = total;
     const v = lapShow(total, zikirTarget);
     setCounts((s) => ({ ...s, [zikirNid!]: v }));
-    putCount(zikirNid!, zikirTarget, v);
-    pushZikir(total);
+    pushZikir(total); // kütüphanedeki sayaca yazılmaz: görevin sayısı ayrı
     if (delta > 0) { const lapDone = total % zikirTarget === 0; buzz(lapDone ? "goal" : "tap", lapDone ? zikirTarget : v); if (lapDone) flash(`${total / zikirTarget}. tur tamam`); }
     return v;
   };
