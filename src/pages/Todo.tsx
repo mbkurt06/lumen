@@ -95,10 +95,12 @@ export function Todo() {
   const current: TList | undefined = listId ? listOf.get(listId) : undefined;
   const today = todos.filter(inToday);
   // "Bitince başa dön (tur)" görevleri hiç bitmez: bugünkü hedef dolsa da görevlerde kalır (tikli, en altta)
-  // kitaplı tekrarlı görev: günlük hedef tutunca sadece tik konur, kitap (ya da tur) bitmeden geçmişe düşmez
+  // tekrarlı görev: günlük hedef tutunca sadece tik konur; kitaplıysa kitap (ya da tur) bitmeden geçmişe düşmez
   const keepOpen = (t: T) => {
     const g = t.page_goal;
-    if (!g || t.is_completed) return false;
+    if (t.is_completed) return false;
+    // tekrarlı görev bugün yapılınca sadece tik alır, tamamlananlara düşmez
+    if (!g) return isRecurring(t);
     if (g.loop) return true;
     if (!isRecurring(t)) return false;
     const st = states.get(t.id);
