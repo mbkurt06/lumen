@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { useResume, useRoots, type Item } from "../lib/library";
@@ -15,7 +15,7 @@ import { RefreshRow } from "../components/RefreshRow";
 const StatsLink = ({ to, label }: { to: string; label: string }) => (
   <Link to={to} className="statlink"><Icon name="chart" size={18} /><span>{label}</span><span className="kzgo">›</span></Link>
 );
-import { doneOn, inToday, isDoneToday, isRecurring, recurrenceText, useTodos } from "../lib/todo";
+
 
 /* ── ortak parçalar ── */
 const rootIds = (roots: Record<string, Item>, key: "kuran" | "ibadet" | "risale" | "he") =>
@@ -94,9 +94,6 @@ function CRow({ to, title, sub, meta, icon }: { to: string; title: string; sub?:
 export function LibraryHome() {
   const { roots } = useRoots();
   const nav = useNavigate();
-  const { todos } = useTodos();
-  const libToday = todos.filter((t) => !t.parent_todo_id && t.related_library_item_id && isRecurring(t) && inToday(t));
-  const bugun = libToday.length ? `Bugün ${libToday.filter(isDoneToday).length}/${libToday.length}` : "";
   const rid = (t: string) => roots[t]?.id;
   return (
     <>
@@ -106,7 +103,6 @@ export function LibraryHome() {
       <div style={{ padding: "0 16px" }}><Resume /></div>
       <Label>KOLEKSİYONLAR</Label>
       <div className="clist">
-        <CRow icon to="/kutuphane/c/ezber" title="Ezber" sub="Ezberlediklerin ve ezber planların" meta={bugun} />
         <CRow icon to="/kutuphane/c/ibadet" title="İbadet" sub="Tesbihat, dua, sure, ilmihal, Cevşen" />
         <CRow icon to="/kutuphane/c/kuran" title="Kur'an-ı Kerim" sub="604 sayfa · 114 sure · 30 cüz" />
         <CRow icon to={rid("Risale-i Nur") ? `/kutuphane/${rid("Risale-i Nur")}` : "/kutuphane"} title="Risale-i Nur Külliyatı" sub="Sözler, Mektubat, Lem'alar, Şuâlar…" />
@@ -122,7 +118,7 @@ export function LibraryHome() {
 export function Collection() {
   const { col } = useParams();
   switch (col) {
-    case "ezber": return <Ezber />;
+    case "ezber": return <Navigate to="/kutuphane" replace />; // Ezber bölümü kaldırıldı
     case "ibadet": return <Ibadet />;
     case "kuran": return <Kuran />;
     case "dualar": return <Dualar />;
@@ -132,31 +128,6 @@ export function Collection() {
   }
 }
 
-function Ezber() {
-  const nav = useNavigate();
-  const { todos } = useTodos();
-  // kütüphaneye bağlı tekrarlayan görevler (ezber modu sonraki adımda ayrı işaretlenecek)
-  const rows = todos.filter((t) => !t.parent_todo_id && !t.is_completed && t.related_library_item_id && isRecurring(t));
-  const todayRows = rows.filter(inToday);
-  const doneToday = todayRows.filter(isDoneToday).length;
-  return (
-    <>
-      <PageHeader back title="Ezber" subtitle="Kütüphane" />
-      <div className="card" style={{ margin: "8px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}><b>Bugün</b><span className="muted">{doneToday} / {todayRows.length} tamamlandı</span></div>
-        <div className="tbar" style={{ marginTop: 10 }}><i style={{ width: `${todayRows.length ? (doneToday / todayRows.length) * 100 : 0}%` }} /></div>
-      </div>
-      <Label>TEKRARLARIM</Label>
-      <div className="clist">
-        {rows.length === 0 && <p className="muted" style={{ padding: 16, margin: 0 }}>Henüz tekrar görevin yok.</p>}
-        {rows.map((r) => (
-          <CRow key={r.id} icon to={`/yapilacaklar/g/${r.id}`} title={r.title} sub={recurrenceText(r)} meta={r.per_day > 1 ? `${doneOn(r)}/${r.per_day}` : isDoneToday(r) ? "✓" : undefined} />
-        ))}
-      </div>
-      <button className="dashed" onClick={() => nav("/yapilacaklar?ekle=tekrar")}>+ Tekrar görevi ekle</button>
-    </>
-  );
-}
 
 function Ibadet() {
   const { roots } = useRoots();

@@ -167,7 +167,6 @@ export function LibPicker({ onPick, onClose }: { onPick: (p: Picked) => void; on
         "v:diger": [],
       });
       setGroups([
-        v("v:ezber", "Ezber", "Sûreler, dualar, Cevşen, Tevhidname"),
         v("v:ibadet", "İbadet", "Tesbihat, dua, sure, ilmihal, Cevşen"),
         ...pick("Kur’an-ı Kerim"),
         ...(r["Risale-i Nur"] ? [{ ...r["Risale-i Nur"], title: "Risale-i Nur Külliyatı" }] : []),
