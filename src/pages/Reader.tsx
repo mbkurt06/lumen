@@ -530,8 +530,8 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const zikirNid = (() => { const zc = nodes.filter((n) => n.kind === "phrase" && Number(md(n).target ?? 0) > 0); return zc.length === 1 ? zc[0].id : null; })();
   const zikirToday = zikirTask?.progress?.[ymdToday()] ?? 0;
   const zikirTarget = (() => { const n = nodes.find((x) => x.id === zikirNid); return n ? Number(md(n).target ?? 0) : 0; })();
-  /** bugünkü toplamdan sayaçta görünen: tur dolunca hedefte durur, sonraki dokunuşta 1'den başlar */
-  const lapShow = (total: number, tg: number) => (total <= 0 || tg <= 0 ? 0 : ((total - 1) % tg) + 1);
+  /** bugünkü toplamdan sayaçta görünen: tur dolunca sayaç 0'dan yeni tura başlar */
+  const lapShow = (total: number, tg: number) => (total <= 0 || tg <= 0 ? 0 : total % tg);
   const zikirTotal = useRef(0); // bugünkü toplam çekim (turlar dahil)
   useEffect(() => {
     if (!zikirTask || !zikirNid || !zikirTarget) return;
@@ -565,11 +565,11 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
     setCounts((s) => ({ ...s, [zikirNid!]: v }));
     putCount(zikirNid!, zikirTarget, v);
     pushZikir(total);
-    if (delta > 0) buzz(v === zikirTarget ? "goal" : "tap", v);
+    if (delta > 0) { const lapDone = total % zikirTarget === 0; buzz(lapDone ? "goal" : "tap", lapDone ? zikirTarget : v); if (lapDone) flash(`${total / zikirTarget}. tur tamam`); }
     return v;
   };
   /** zikir sayacını sıfırla: sadece şu anki tur silinir */
-  const zikirResetLap = () => { const cur = lapShow(zikirTotal.current, zikirTarget); if (cur < zikirTarget) zikirAdd(-cur); };
+  const zikirResetLap = () => { const cur = lapShow(zikirTotal.current, zikirTarget); if (cur > 0) zikirAdd(-cur); };
   // önce cihaza yazılır, internet varsa hesaba gönderilir (yoksa bağlantı gelince)
   const saveCount = useCallback((nid: string, target: number, value: number) => { putCount(nid, target, value); }, []);
 

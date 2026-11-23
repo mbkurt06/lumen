@@ -141,7 +141,7 @@ export function Todo() {
     // düğme: sırayla okuda turdaki/kapsamdaki yer (67/100), payda dönemin ilerlemesi
     let btn = "", barV = 0, barMax = 1;
     // zikir görevi: düğmede şu anki turun sayısı (tur dolunca sayaç baştan başlar)
-    if (!g && t.reading_ref?.doc_id && isRecurring(t) && t.per_day > 1) { const tot = doneOn(t); btn = `${tot <= 0 ? 0 : ((tot - 1) % t.per_day) + 1}/${t.per_day}`; }
+    if (!g && t.reading_ref?.doc_id && isRecurring(t) && t.per_day > 1) { const tot = doneOn(t); btn = `${Math.max(0, tot) % t.per_day}/${t.per_day}`; }
     if (g && s) {
       if (mode === "seq") {
         if (s.total) { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
