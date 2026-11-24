@@ -414,6 +414,16 @@ export function useTodos() {
     setLoaded(true);
   }, []);
   useEffect(() => { void reload(); }, [reload]);
+  // gün değişince (uygulama gece açık kaldıysa) her şey yeni güne göre yeniden hesaplanır
+  useEffect(() => {
+    let day = ymd();
+    const check = () => { const d = ymd(); if (d !== day) { day = d; void reload(true); } };
+    const iv = window.setInterval(check, 60_000);
+    const vis = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("focus", check);
+    return () => { window.clearInterval(iv); document.removeEventListener("visibilitychange", vis); window.removeEventListener("focus", check); };
+  }, [reload]);
   // başka ekranda yazma olursa (görev güncellendi, sayfa okundu) bu ekran da tazelenir
   useEffect(() => {
     const on = (e: Event) => { if (TODO_TABLES.includes((e as CustomEvent<string>).detail)) { TDIRTY = true; } };
