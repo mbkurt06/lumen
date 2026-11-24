@@ -767,3 +767,11 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .ari { font-family: "LumenExactMushaf", "Shaikh Hamdullah Mushaf", "Noto Naskh Arabic", serif; font-size: 1.3em; line-height: 1; unicode-bidi: isolate; }
 .reader .arp, .reader2 .arp, .bpbody.reader2 .arp, .ari.arp { font-family: "Noto Naskh Arabic", "Geeza Pro", "Traditional Arabic", serif; }
 .ari.arp { font-size: 1.12em; }
+
+/* Kaza: say ve "Ekle" */
+.kzadd { height: 40px; padding: 0 14px; border-radius: 20px; border: 0; background: var(--accent); color: #0f1115; font-weight: 800; font-size: 14px; cursor: pointer; }
+.kzadd:disabled { background: var(--border); color: var(--muted); cursor: default; }
+.kzrow .kzplus { width: 44px; height: 44px; font-size: 24px; background: var(--bg); border-color: var(--border); color: var(--text); }
+.kzminus:disabled { opacity: .35; }
+.kzrow .kzname { min-width: 0; flex: 1; }
+.kzrow .kzname span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }

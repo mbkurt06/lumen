@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
-import { useCP, useLock, buzz } from "../lib/counterPrefs";
+import { useCP, buzz } from "../lib/counterPrefs";
 import { PageHeader } from "../components/PageHeader";
 import { supabase } from "../lib/supabase";
 import { FARZ, NAMAZ_KINDS, addKazaMany, kazaSure, useKaza, useKazaLog, type KazaKind } from "../lib/kaza";
@@ -18,10 +18,10 @@ export function Kaza() {
   const s = useKaza();
   const { lists, groups, todos } = useTodos();
   const [cp] = useCP();
-  const lk = useLock(cp.lockKaza, cp.autoLockSec);
   const [todoFor, setTodoFor] = useState<null | "namaz" | "oruc">(null);
   const [daily, setDaily] = useState(5);
   const [msg, setMsg] = useState("");
+  const [draft, setDraft] = useState<Record<string, number>>({}); // eklenecek (henüz toplama geçmedi)
   const [undo, setUndo] = useState<null | { text: string; items: { kind: KazaKind; delta: number }[]; day: string; at?: string }>(null);
   const undoT = useRef<number | undefined>(undefined);
   const [entry, setEntry] = useState<null | { k: KazaKind; v: string; day: string; time: string; past?: boolean }>(null);
@@ -32,7 +32,6 @@ export function Kaza() {
   const hasTodo = (w: "namaz" | "oruc") => todos.some((t) => t.kind === (w === "namaz" ? "kaza" : "kaza_oruc") && !t.is_completed);
 
   // kilitliyse uyar; açıksa işlemi yap ve "Geri al" göster
-  const guard = () => { if (!lk.touch()) { flash("Kilitli · açmak için 🔒'ye bas"); return false; } return true; };
   const apply = (k: KazaKind, delta: number, day = ymd(), at?: string) => {
     addKazaMany([{ kind: k, delta }], day, at);
     buzz("tap");
@@ -46,7 +45,6 @@ export function Kaza() {
     setUndo(null);
     flash("Geri alındı");
   };
-  const minus = (k: KazaKind) => { if (!guard()) return; if ((s.total[k] ?? 0) > 0 && window.confirm(`${LBL[k]} kazasından 1 düşülsün mü?`)) apply(k, -1); };
   const saveEntry = (sign: 1 | -1) => {
     if (!entry) return;
     const n = Math.floor(Number(entry.v) || 0);
@@ -59,15 +57,27 @@ export function Kaza() {
     setEntry(null);
   };
 
+  /* Her vakitte: kıldığını say (0'dan), "Ekle" ile toplama ekle. Toplam doğrudan değişmez. */
   const Row = ({ k }: { k: KazaKind }) => {
     const n = s.total[k] ?? 0;
     const td = s.today[k] ?? 0;
+    const d = draft[k] ?? 0;
+    const add = () => {
+      if (d <= 0) return;
+      apply(k, d);
+      setDraft((x) => ({ ...x, [k]: 0 }));
+      flash(`${LBL[k]} · ${d} eklendi`);
+    };
     return (
-      <div className={"kzrow" + (lk.locked ? " locked" : "")}>
-        <button className="kzname" onClick={() => { if (!only) nav(`/namaz/kaza/${k}`); }} aria-label={`${LBL[k]} geçmişi`}><b>{LBL[k]}{!only && <Icon name="chevron" size={14} />}</b><span>{kazaSure(n)}{td ? ` · bugün ${td}` : ""}</span></button>
-        <button className="kzminus" onClick={() => minus(k)} aria-label={`${LBL[k]} bir düş`}>−</button>
-        <button className="kzn" onClick={() => { if (guard()) openEntry(k); }} aria-label={`${LBL[k]} toplu ekle`}>{n}</button>
-        <button className="kzplus" onClick={() => { if (guard()) apply(k, 1); }} aria-label={`${LBL[k]} kıldım`}>+</button>
+      <div className="kzrow">
+        <button className="kzname" onClick={() => { if (!only) nav(`/namaz/kaza/${k}`); }} aria-label={`${LBL[k]} geçmişi`}>
+          <b>{LBL[k]}{!only && <Icon name="chevron" size={14} />}</b>
+          <span>toplam {n} · {kazaSure(n)}{td ? ` · bugün ${td}` : ""}</span>
+        </button>
+        <button className="kzminus" onClick={() => setDraft((x) => ({ ...x, [k]: Math.max(0, (x[k] ?? 0) - 1) }))} disabled={d <= 0} aria-label={`${LBL[k]} bir az`}>−</button>
+        <button className="kzn" onClick={() => openEntry(k)} aria-label={`${LBL[k]} toplu ya da geçmiş tarihe ekle`}>{d}</button>
+        <button className="kzplus" onClick={() => { buzz("tap"); setDraft((x) => ({ ...x, [k]: (x[k] ?? 0) + 1 })); }} aria-label={`${LBL[k]} bir daha`}>+</button>
+        <button className="kzadd" onClick={add} disabled={d <= 0}>Ekle</button>
       </div>
     );
   };
@@ -114,12 +124,10 @@ export function Kaza() {
   if (only) {
     return (
       <>
-        <PageHeader back="/namaz/kaza" title={`${LBL[only]} kazası`} subtitle={`Toplam ${s.total[only] ?? 0} · ${kazaSure(s.total[only] ?? 0)}`}
-          right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
-        {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
+        <PageHeader back="/namaz/kaza" title={`${LBL[only]} kazası`} subtitle={`Toplam ${s.total[only] ?? 0} · ${kazaSure(s.total[only] ?? 0)}`} />
         <div className="card kzcard" style={{ marginTop: 8 }}><Row k={only} /></div>
-        <button className="dashed" onClick={() => { if (guard()) openEntry(only, true); }}>+ Geçmiş bir tarihe ekle</button>
-        <p className="muted small" style={{ margin: "6px 18px 0" }}>+ ile şimdi bir tane ekle, sayıya dokunup toplu ekle. Geçmişe eklediğin, seçtiğin gün ve saatle aşağıda görünür.</p>
+        <button className="dashed" onClick={() => openEntry(only, true)}>+ Geçmiş bir tarihe ekle</button>
+        <p className="muted small" style={{ margin: "6px 18px 0" }}>Kıldığını + ile say, "Ekle" ile toplama ekle. Ortadaki sayıya dokunup toplu ekleyebilirsin. Geçmişe eklediğin, seçtiğin gün ve saatle aşağıda görünür.</p>
         <KazaHistory k={only} />
         <div style={{ height: 30 }} />
         {dialogs}
@@ -129,13 +137,11 @@ export function Kaza() {
 
   return (
     <>
-      <PageHeader title="Kazalar" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`}
-        right={cp.lockKaza ? <button className={"iconbtn lockbtn" + (lk.locked ? "" : " open")} onClick={() => (lk.locked ? lk.unlock() : lk.lock())} aria-label={lk.locked ? "Kilidi aç" : "Kilitle"}><Icon name={lk.locked ? "lock" : "unlock"} size={24} /></button> : undefined} />
-      {cp.lockKaza && <div className={"lockline" + (lk.locked ? "" : " open")}>{lk.locked ? "Kilitli · saymak için sağ üstteki kilide bas" : `Kilit açık · ${cp.autoLockSec ? cp.autoLockSec + " sn dokunulmazsa kilitlenir" : "otomatik kilit kapalı"}`}</div>}
+      <PageHeader title="Kazalar" subtitle={`Tam gün: ${tamGun} · ${kazaSure(tamGun)}`} />
       {s.pending > 0 && <div className="infoline">{s.pending} kayıt telefonda, internet gelince hesaba gönderilecek.</div>}
       <div className="lbl">KAZA NAMAZI</div>
       <div className="card kzcard">{NAMAZ_KINDS.map((x) => <Row key={x.k} k={x.k} />)}</div>
-      <p className="muted small" style={{ margin: "6px 18px 0" }}>Vaktin adına dokununca o vaktin geçmişi açılır. Sayıya dokununca toplu ekleyebilirsin. Tam gün: beş vaktin hepsinden kılınan sayı. Süre: 30 gün = 1 ay, 12 ay = 1 yıl.</p>
+      <p className="muted small" style={{ margin: "6px 18px 0" }}>Kıldığını + ile say, "Ekle"ye basınca toplama eklenir. Vaktin adına dokununca o vaktin geçmişi açılır (yanlış kaydı oradan silebilirsin). Ortadaki sayıya dokununca toplu ya da geçmiş tarihe ekleyebilirsin. Tam gün: beş vaktin hepsinden kılınan sayı. Süre: 30 gün = 1 ay, 12 ay = 1 yıl.</p>
       {!hasTodo("namaz") && <button className="dashed" onClick={() => { setDaily(5); setTodoFor("namaz"); }}>+ Günlük kaza namazını Todo'ya ekle</button>}
 
       <div className="lbl">KAZA ORUCU</div>
