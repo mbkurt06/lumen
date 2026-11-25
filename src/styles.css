@@ -775,3 +775,13 @@ button.kzname { background: none; border: 0; padding: 0; text-align: left; color
 .kzminus:disabled { opacity: .35; }
 .kzrow .kzname { min-width: 0; flex: 1; }
 .kzrow .kzname span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+/* Kaza satırı: kontroller sağa toplu, isim ve toplam sola geniş */
+.kzrow { gap: 8px; }
+.kzctl { display: flex; align-items: center; gap: 4px; flex: none; }
+.kzctl .kzminus { width: 32px; height: 32px; font-size: 18px; }
+.kzctl .kzn { min-width: 30px; font-size: 20px; padding: 2px 2px; }
+.kzctl .kzplus { width: 38px; height: 38px; font-size: 22px; }
+.kzctl .kzadd { height: 36px; padding: 0 12px; margin-left: 4px; font-size: 14px; }
+.kzrow .kzname span { white-space: normal; overflow: visible; }
+.kzname .kzsure { color: var(--muted) !important; font-size: 12px !important; margin-top: 1px !important; }

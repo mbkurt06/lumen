@@ -72,12 +72,15 @@ export function Kaza() {
       <div className="kzrow">
         <button className="kzname" onClick={() => { if (!only) nav(`/namaz/kaza/${k}`); }} aria-label={`${LBL[k]} geçmişi`}>
           <b>{LBL[k]}{!only && <Icon name="chevron" size={14} />}</b>
-          <span>toplam {n} · {kazaSure(n)}{td ? ` · bugün ${td}` : ""}</span>
+          <span>toplam {n}{td ? ` · bugün ${td}` : ""}</span>
+          {n > 0 && <span className="kzsure">{kazaSure(n)}</span>}
         </button>
+        <div className="kzctl">
         <button className="kzminus" onClick={() => setDraft((x) => ({ ...x, [k]: Math.max(0, (x[k] ?? 0) - 1) }))} disabled={d <= 0} aria-label={`${LBL[k]} bir az`}>−</button>
         <button className="kzn" onClick={() => openEntry(k)} aria-label={`${LBL[k]} toplu ya da geçmiş tarihe ekle`}>{d}</button>
         <button className="kzplus" onClick={() => { buzz("tap"); setDraft((x) => ({ ...x, [k]: (x[k] ?? 0) + 1 })); }} aria-label={`${LBL[k]} bir daha`}>+</button>
         <button className="kzadd" onClick={add} disabled={d <= 0}>Ekle</button>
+        </div>
       </div>
     );
   };
