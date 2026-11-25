@@ -141,7 +141,7 @@ export function Todo() {
     // düğme: sırayla okuda turdaki/kapsamdaki yer (67/100), payda dönemin ilerlemesi
     let btn = "", barV = 0, barMax = 1;
     // zikir görevi: düğmede şu anki turun sayısı (tur dolunca sayaç baştan başlar)
-    if (!g && t.reading_ref?.doc_id && isRecurring(t) && t.per_day > 1) { const tot = doneOn(t); btn = `${Math.max(0, tot) % t.per_day}/${t.per_day}`; }
+    if (!g && t.reading_ref?.doc_id && isRecurring(t) && t.per_day > 1) { const tot = doneOn(t); btn = `${Math.max(0, tot) % t.per_day}/${t.per_day}`; barV = Math.max(0, tot) % t.per_day; barMax = t.per_day; }
     if (g && s) {
       if (mode === "seq") {
         if (s.total) { btn = `${s.lapRead}/${s.total}`; barV = s.lapRead; barMax = s.total; }
@@ -170,7 +170,7 @@ export function Todo() {
           </div>
           {(pl || t.related_library_item_id) && !kz && <button className="devam sm" onClick={() => void goRef(t)}>{btn || (pl?.live ? "Devam" : "Git")}</button>}
         </div>
-        {g && barMax > 0 && btn ? <div className="tbar"><i style={{ width: `${Math.min(100, (barV / Math.max(1, barMax)) * 100)}%` }} /></div>
+        {(g || btn) && barMax > 0 && btn ? <div className="tbar"><i style={{ width: `${Math.min(100, (barV / Math.max(1, barMax)) * 100)}%` }} /></div>
           : isRecurring(t) && per > 1 && <div className="tbar"><i style={{ width: `${Math.min(100, (cnt / per) * 100)}%` }} /></div>}
         {sub2.map((c) => (
           <div key={c.id} className="trow2 subrow">
