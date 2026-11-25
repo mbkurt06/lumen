@@ -381,6 +381,11 @@ const TODO_TABLES = ["todos", "todo_lists", "todo_groups", "page_reads", "reader
 let TCACHE: { at: number; todos: Todo[]; lists: TList[]; groups: TGroup[] } | null = null;
 let TDIRTY = false;
 if (typeof window !== "undefined") window.addEventListener("lumen-write", (e) => { if (TODO_TABLES.includes((e as CustomEvent<string>).detail)) TDIRTY = true; });
+/* Görevlerin telefondaki son kopyası (uygulama açılınca beklemeden gösterilir) */
+const SNAP_KEY = "lumen.todos.snap.v1";
+type Snap = { todos: Todo[]; lists: TList[]; groups: TGroup[]; reads: ReadRow[]; bookSize?: Record<string, number> };
+function readSnap(): Snap | null { try { const v = localStorage.getItem(SNAP_KEY); return v ? (JSON.parse(v) as Snap) : null; } catch { return null; } }
+function writeSnap(s: Snap) { try { localStorage.setItem(SNAP_KEY, JSON.stringify(s)); } catch { /* yer yok */ } }
 export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [lists, setLists] = useState<TList[]>([]);
@@ -393,6 +398,15 @@ export function useTodos() {
       setTodos(TCACHE.todos); setLists(TCACHE.lists); setGroups(TCACHE.groups); setLoaded(true); return;
     }
     TDIRTY = false;
+    // telefonda saklı son liste hemen gösterilir (zayıf bağlantıda beklemesin), güncel hâli arkadan gelir
+    if (!TCACHE) {
+      const snap = readSnap();
+      if (snap) {
+        READS = mergeQueuedReads(snap.reads);
+        Object.assign(BOOK_SIZE, snap.bookSize ?? {});
+        setTodos(snap.todos); setLists(snap.lists); setGroups(snap.groups); setLoaded(true);
+      }
+    }
     const since = ymd(new Date(Date.now() - 120 * 86400000));
     const [t, l, g, r] = await Promise.all([
       supabase.from("todos").select("id,title,notes,is_completed,due_at,list_id,kind,plan,parent_todo_id,related_library_item_id,reading_ref,recurrence,per_day,start_date,end_date,bookmark_id,progress,page_goal,strict,place,laps,bookmark:reader_bookmarks(id,title,document_id,node_id,quote,label,book_title,section,scope),created_at,completed_at").order("sort_order").order("created_at", { ascending: true }).limit(1000),
@@ -410,7 +424,10 @@ export function useTodos() {
     if (t.error) setErr(t.error.message); else setTodos((t.data ?? []) as unknown as Todo[]);
     if (!l.error) setLists((l.data ?? []) as TList[]);
     if (!g.error) setGroups((g.data ?? []) as TGroup[]);
-    if (!t.error && !l.error && !g.error && !r.error) TCACHE = { at: Date.now(), todos: (t.data ?? []) as unknown as Todo[], lists: (l.data ?? []) as TList[], groups: (g.data ?? []) as TGroup[] };
+    if (!t.error && !l.error && !g.error && !r.error) {
+      TCACHE = { at: Date.now(), todos: (t.data ?? []) as unknown as Todo[], lists: (l.data ?? []) as TList[], groups: (g.data ?? []) as TGroup[] };
+      writeSnap({ todos: TCACHE.todos, lists: TCACHE.lists, groups: TCACHE.groups, reads: (r.data ?? []) as ReadRow[], bookSize: { ...BOOK_SIZE } });
+    }
     setLoaded(true);
   }, []);
   useEffect(() => { void reload(); }, [reload]);
