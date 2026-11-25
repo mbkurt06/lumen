@@ -12,6 +12,7 @@ const CONTENT_TABLES = ["/rest/v1/library_items", "/rest/v1/content_nodes", "/re
 const NET_TIMEOUT_MS = 3500;
 const AUTH_TIMEOUT_MS = 4000;
 const DOWN_FOR_MS = 20000;
+const QUICK_MS = 1200; // kişisel veride ağ bu kadar gecikirse cihazdaki kayıt gösterilir
 
 let downUntil = 0;
 let forceNetwork = 0; // indirme sırasında içerikler de ağdan (güncel hâli) alınır
@@ -125,7 +126,17 @@ export const offlineFetch: typeof fetch = async (input, init) => {
   const rt = tableOf(req.url);
   const ov = (r: Response) => (rt ? overlay(req, r, rt) : r);
   if (!looksOffline() || forceNetwork) {
-    try { const r = await network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS); log(req.url, "ağ", t0); return ov(r); }
+    const net = network(req, key, forceNetwork ? 20000 : NET_TIMEOUT_MS);
+    // bağlantı yavaşsa/takılıysa bekletme: cihazdaki kayıt varsa kısa süre sonra onu göster, ağ arkada tamamlanır
+    const cached = forceNetwork ? null : await fromCache(key);
+    if (cached) {
+      const quick = await Promise.race([net.then((r) => r, () => null), new Promise<null>((ok) => setTimeout(() => ok(null), QUICK_MS))]);
+      if (quick) { log(req.url, "ağ", t0); return ov(quick); }
+      void net.catch(markDown);
+      log(req.url, "cihaz-hızlı", t0);
+      return ov(cached);
+    }
+    try { const r = await net; log(req.url, "ağ", t0); return ov(r); }
     catch { markDown(); }
   }
   const hit = await fromCache(key);

@@ -355,6 +355,9 @@ export function Reader({ doc, parentTitle, scope }: { doc: Item; parentTitle?: s
   const firstNid = (k: number) => (isQuran ? mpages?.[k]?.rich_content.paragraphs.flatMap((p) => p.runs).find((r) => r.nodeId)?.nodeId : bookPages[k]?.[0]?.id) ?? null;
   const idxOf = (p: number) => Array.from({ length: pc }, (_, k) => k).find((k) => pageKey(k) === p);
   const siblingOfPage = async (p: number) => {
+    // numaralı kitapta (Cevşen, Tevhidname) bölümler sırayla dizili: komşu bölüm ağa sormadan bulunur
+    const j = sIdx + (p - pageNo);
+    if (Number.isFinite(pageNo) && sIdx >= 0 && j >= 0 && j < siblings.length) return siblings[j];
     const { data } = await supabase.from("library_items").select("id").eq("parent_id", doc.parent_id!).eq("metadata->>page", String(p)).maybeSingle();
     return (data as { id: string } | null)?.id ?? null;
   };
