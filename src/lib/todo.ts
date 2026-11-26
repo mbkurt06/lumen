@@ -646,7 +646,11 @@ export function taskLine(t: Todo, s: TaskState | undefined, pl: ReturnType<typeo
       const total = doneOn(t), per = t.per_day;
       out.push({ t: `${Math.min(total, per)}/${per}${total >= per ? " ✓" : ""}` });
       // zikir görevi: bugün kaçıncı turda (tur = günlük sayı kadar çekim)
-      if (t.reading_ref?.doc_id && total > 0) out.push({ t: `${Math.floor(total / per) + 1}. tur` });
+      // zikir görevi: kaçıncı turda (bütün günlerde tamamlanan turlar + şimdiki), Cevşen/Tevhidname gibi her zaman yazar
+      if (t.reading_ref?.doc_id) {
+        const done = Object.values(t.progress ?? {}).reduce((a, v) => a + Math.floor(Math.max(0, v) / per), 0);
+        out.push({ t: `${done + 1}. tur` });
+      }
     }
     const place = pl ? shortPlace(pl.label, [t.title, pl.book]) : "";
     if (place) out.push({ t: place });
