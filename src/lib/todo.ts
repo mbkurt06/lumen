@@ -214,7 +214,8 @@ export type TaskState = {
 export function taskState(t: Todo, prefs: TaskPrefs = loadTP(), rows: ReadRow[] = READS, today = ymd()): TaskState {
   const g = t.page_goal;
   const periods = periodStats(t, rows, today);
-  const cur = periods.find((p) => p.a <= today && today <= p.b) ?? null;
+  // tarih aralığı görevi (bir kez): aralık geçse de o aralığın okumaları geçerli (bitmişse "tamamlandı", bitmemişse "N gün geçti")
+  const cur = periods.find((p) => p.a <= today && today <= p.b) ?? (g && periodUnit(t) === "range" && periods.length && periods[periods.length - 1].b < today ? periods[periods.length - 1] : null);
   const ci = cur ? periods.indexOf(cur) : periods.length;
   const prev = ci > 0 ? periods[ci - 1] : null;
   const missed = t.strict && !t.is_completed ? periods.filter((p) => p.b < today && !p.skipped && p.need > 0 && p.got < p.need) : [];
